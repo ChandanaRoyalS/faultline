@@ -114,3 +114,7 @@ slot. That criterion is applied per scenario at rehearsal, not here.
 
 None. **Forty-four free** - thirty-two dev and twelve holdout. This section is extended as
 scenarios are authored, one line per slot, and never rewritten.
+
+| Slot | Split | Scenario | Recorded |
+|------|-------|----------|----------|
+| `v2/process_freeze-1` | dev | `v2-product-catalog-freeze` | 2026-09-24, third recording (the first two are under its `superseded/`) |

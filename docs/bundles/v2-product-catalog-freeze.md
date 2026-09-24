@@ -1,17 +1,76 @@
----
-origin: scenario:v2-product-catalog-freeze
-split: dev
-fault_class: process_freeze
-recorded_from: 2026-09-24T16:53:28+00:00
-capability: cap:dd651ccc
-onset_to_page: 4m46s
-page_to_fix: 5m00s
-fix_to_all_clear: 5m16s
----
-
 # The product catalog process is frozen - its socket accepts and nothing answers
 
-## What was observed
+## The scenario
+
+| | |
+|---|---|
+| scenario | `v2-product-catalog-freeze` |
+| fault class | **`process_freeze`** |
+| expected remediation | `restart` |
+| split | `dev` |
+| injected at | `product-catalog` via `v2-product-catalog-freeze` |
+| time to page | 4m46s |
+| steady state captured | 300s |
+| capture window | 2026-09-24T16:48:28+00:00 → 2026-09-24T17:10:30+00:00 |
+
+The clock below runs from the moment the fault went in.
+
+| | |
+|---|---|
+| `t_inject` | T+0m00s |
+| first alert firing | T+4m46s |
+| `t_revert` | T+9m46s |
+| all clear | T+15m02s |
+
+## What fired, and when
+
+| when | service | alert | firing for | |
+|---|---|---|---:|---|
+| T+4m30s | `frontend-proxy` | ServiceHighErrorRate | 8.2 min | **paged** |
+| T+4m30s | `load-generator` | ServiceHighErrorRate | 8.2 min | **paged** |
+| T+5m00s | `frontend-proxy` | ServiceHighLatency | 8.8 min | joined later |
+| T+5m00s | `load-generator` | ServiceHighLatency | 8.8 min | joined later |
+| T+5m45s | `frontend` | ServiceHighLatency | 9.2 min | joined later |
+| T+8m00s | `accounting` | ServiceNoTraffic | 2.8 min | joined later |
+| T+8m00s | `currency` | ServiceNoTraffic | 2.8 min | joined later |
+| T+8m00s | `email` | ServiceNoTraffic | 2.8 min | joined later |
+| T+8m00s | `fraud-detection` | ServiceHighErrorRate | 1.8 min | joined later |
+| T+8m00s | `payment` | ServiceNoTraffic | 2.8 min | joined later |
+| T+8m00s | `product-catalog` | ServiceNoTraffic | 2.8 min | joined later |
+| T+8m00s | `quote` | ServiceNoTraffic | 2.8 min | joined later |
+| T+8m00s | `shipping` | ServiceNoTraffic | 2.8 min | joined later |
+| T+8m45s | `flagd` | ServiceHighLatency | 2.0 min | joined later |
+| T+8m45s | `fraud-detection` | ServiceHighLatency | 1.0 min | joined later |
+| T+9m00s | `recommendation` | ServiceHighErrorRate | 1.8 min | joined later |
+| T+10m00s | `recommendation` | ServiceHighLatency | 5.0 min | began after the revert |
+| T+13m45s | `checkout` | ServiceHighLatency | 1.2 min | began after the revert |
+
+## What the bundle contains
+
+| capture | query |
+|---|---|
+| `metrics/alerts-firing.json` | `ALERTS{alertstate="firing"}` |
+| `metrics/call-rate.json` | `sum by(service_name) (rate(traces_span_metrics_calls_total[5m]))` |
+| `metrics/error-ratio.json` | `sum by(service_name) (rate(traces_span_metrics_calls_total{status_code="STATUS_CODE_ERROR"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total[5m]))` |
+| `metrics/latency-p95.json` | `histogram_quantile(0.95, sum by(service_name, le) (rate(traces_span_metrics_duration_milliseconds_bucket{span_kind!="SPAN_KIND_INTERNAL"}[5m])))` |
+| `metrics/runtime.json` | `{__name__=~"go_.*|dotnet_.*|jvm_.*|process_.*|v8js_.*|nodejs_.*",service_name="product-catalog"}` |
+
+`logs/product-catalog.txt` — 7 lines.
+
+## The incident record
+
+Written from the responder's chair, by someone who did not know the fault class
+or that anything had been injected. This text is also corpus material, which is
+why it never names the injector.
+
+**It keeps its own clock.** The table above is measured from the injection, which
+is the only origin the manifest records; a narrative's `T+` offsets are the
+responder's own and start wherever that responder started counting — usually the
+page, sometimes the injection, sometimes an event in the logs. The same moment can
+therefore carry two different offsets on this page. The absolute timestamps in the
+bundle are the tiebreak.
+
+### What was observed
 
 The page was two error alerts, **frontend-proxy** and **load-generator**, 4m46s after
 requests started hanging. Their latency alerts followed within half a minute. Neither is a
@@ -33,7 +92,7 @@ in over the next minute. By the time the fix went in there were sixteen alerts a
 thirteen services, eight times the size of the page. Most of the new names were services
 with nothing wrong except that nobody was calling them.
 
-## What was checked
+### What was checked
 
 **The proxy, because it was loudest.** Its errors were all the same kind: upstream requests
 cut at the fifteen-second route timeout. The proxy was doing its job. Nothing in its own
@@ -77,7 +136,7 @@ under this much hung traffic would have failed some of it and said so in a span.
 **What changed.** Nothing. No deploy, no image, no configuration, no flag on any service
 involved.
 
-## Root cause
+### Root cause
 
 The product-catalog process was suspended. The container existed and kept its port. The
 kernel went on accepting connections into its backlog. But nothing in the process ran, so
@@ -86,7 +145,7 @@ browse path hung behind it, checkout stopped completing orders, and everything d
 of an order went quiet. The catalog neither errored nor logged, because it was not running
 at all. Nothing about it had been changed.
 
-## Resolution
+### Resolution
 
 The catalog process was resumed. Its runtime reports came back within fifteen seconds and
 its request rate within a minute. Where
@@ -103,7 +162,7 @@ mark. Its alert fired about four minutes after the resume, once that had lasted.
 catalog's p95 reached 170ms while it worked through the backlog, against a normal 4ms.
 Everything was quiet 5m16s after the resume.
 
-## Detection notes
+### Detection notes
 
 - Onset to first page: **4m46s**. Frontend's latency was at the ceiling about two minutes
   before that. Frontend's own alert came a minute after the page.
@@ -127,3 +186,7 @@ Everything was quiet 5m16s after the resume.
   off.** A catalog that is merely idle keeps reporting its runtime. A catalog cut off from
   the network stops reporting too, but it logs its failed exports every minute. Only a
   process that has stopped running does neither.
+
+---
+
+Rendered from [`evals/scenarios/artifacts/dev/v2-product-catalog-freeze/`](../../evals/scenarios/artifacts/dev/v2-product-catalog-freeze/) by `faultline-render`. [All bundles](README.md).

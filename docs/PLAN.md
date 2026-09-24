@@ -4617,6 +4617,42 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-09-24: the first v2 scenario, `v2-product-catalog-freeze`, rehearsed and labeled - slot
+`v2/process_freeze-1` (dev). It took three recordings, because each one found a problem in the recorder or the world.***
+
+- **Fault selection.** Chosen by the approved fill rule in
+  `docs/design/t7.1-candidates.md` (#483). The v2 definitions are in the injector (#482).
+- **The recorder ported to v2** (#484), with headroom for accounting, checkout and
+  load-generator (#485).
+- **Recording 1** (10:35) exposed two recorder defects, both fixed in #486:
+  - a `"world"` fact had overwritten the manifest's provenance block since #444;
+  - the runtime capture asked v1's label and metric families, and v2 has neither.
+- **Recording 2** (11:14):
+  - The v1-only checks and the retrieval corpus were reading v2 bundles. The seeder now holds
+    v2 narratives out until Q92's corpus piece (`seed.CORPUS_WORLDS`). The image guard now
+    compares within one world. v2 has its own narrative-evidence table.
+  - It also produced Q96's answer from the Docker VM's kernel log: Postgres OOM-killed at its
+    80 MiB limit by each restore of the catalog.
+- **Postgres raised to 256M.** Decided on Q96's own terms.
+- **Four more headroom rows by one rule stated in advance** (the 8-hour one-minute high / 0.6):
+  load-generator 5000M, prometheus 400M, otel-collector 400M, opensearch 1600M. The recorder
+  refused twice more at the pre-flight before this.
+- **Recording 3** (16:53), on the final world:
+  - page +4:46; sixteen alerts on thirteen services by the revert;
+  - Postgres peaked at 181.4 MiB at the restore, with no OOM and no restart;
+  - the second wave went from eight alerts to two;
+  - `[runtime]` answers idle-or-absent (the catalog's `go_*` series vanish at +4:30), where the
+    scenario had declared `[logs]`.
+  The earlier recordings' manifests are under `superseded/`.
+- **Q99 opened.** `recorder.git_dirty` is read after the captures are written, so it reads `true`
+  on almost every bundle.
+
+**Next, before any v2 scenario is run by the agent: Q94.** This bundle's trace read shows the
+depth limit eliding the frontend span that names the frozen catalog. After that, scenarios
+continue row by row in `t7.1-candidates.md`'s order. The partition row's first candidate is the
+catalog partition (R3's design, dev-only), and its log line is what tells it apart from this
+scenario.
+
 ***2026-09-24: the v2 allocation committed - piece one of T7.1, with no scenario in existence.***
 `evals/scenarios/SPLIT-V2.md`: nine class rows plus an `injection` row, **forty-four slots, 32 dev
 / 12 holdout**, by T7.21's principles (`bad_config` and `feature_flag` six each on their measured
