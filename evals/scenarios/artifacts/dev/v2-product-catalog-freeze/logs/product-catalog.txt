@@ -1,0 +1,6 @@
+# target container: product-catalog
+# loki labels: service, stream
+# selector: {service="product-catalog"}
+# selector is valid but matched no lines in this window
+# values on service: accounting, ad, alertmanager, cart, checkout, currency, email, faultline-pumba-v2-cart-dependency-latency, flagd, fraud-detection, frontend, grafana, image-provider, jaeger, kafka, llm, loki, opensearch, otel-collector, payment, postgresql, product-catalog, product-reviews, prometheus, promtail, quote, recommendation, tempo, valkey-cart
+# fix the selector in evalharness.rehearse, or collect with `docker logs`

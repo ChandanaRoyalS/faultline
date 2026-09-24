@@ -19,27 +19,41 @@ ground_truth:
     catalog itself neither errors nor logs, because it is not running.
   category: process_freeze
 expected_evidence:
-  # From A2 (by hand) and R2b (through the injector, whole world), 2026-09-22 and 2026-09-24.
-  # R2b reproduced A2 to within a second on every alert; both are dev-only evidence.
-  - alerts: the caller pages before the culprit - ServiceHighErrorRate and ServiceHighLatency on
-      frontend-proxy and load-generator at ~+4:35, ServiceHighLatency/frontend at ~+6:35,
-      ServiceNoTraffic on product-catalog at ~+7:35 with seven starved services beside it -
-      thirteen alerts on ten services by minute twelve
-  - metrics: frontend's p95 goes to the histogram's ceiling (15000ms) with its error ratio at
-      zero and its request rate collapsing ~80 %; the errors surface one hop up, at
-      frontend-proxy (~26 %), as Envoy's upstream timeouts
-  - metrics: product-catalog's request rate goes to zero and stays there - no errors, no
-      latency, no samples
-  - logs: product-catalog writes nothing for the whole fault - not an error, not a line
-  - traces: callers' spans end at their deadline with the time in the caller's own self-time
-      (frontend/GET ~15000ms, self ~15000ms); no product-catalog span exists in the window
+  # From A2 (by hand) and R2b (through the injector, whole world), 2026-09-22 and 2026-09-24,
+  # checked against this scenario's bundle (recorded 2026-09-24 on the world with Postgres at
+  # 256M and the four headroom rows; revert at +9:46). All three are dev-only evidence.
+  - alerts: the callers page, not the culprit - ServiceHighErrorRate on frontend-proxy and
+      load-generator at ~+4:40 (A2 +4:36, R2b +4:35, bundle +4:46), their ServiceHighLatency within
+      the minute; ServiceHighLatency/frontend about a minute after the page (bundle +5:45, R2b
+      +6:35); ServiceNoTraffic on product-catalog at ~+7:35 to +8:00 with six starved services beside
+      it (accounting, currency, email, payment, quote, shipping). Short error and latency alerts on
+      recommendation, fraud-detection and flagd follow - sixteen alerts on thirteen services by the
+      revert at +9:46 (R2b thirteen on ten by minute twelve)
+  - metrics: frontend's p95 goes to the histogram's ceiling (15000ms) from ~+2:45 while it records
+      no error at all - its error-ratio query returns no series, not zero - and its request rate
+      falls ~80 % (10.8 to 2.1 req/s); the errors surface one hop up, at frontend-proxy (~28 %), as
+      Envoy's upstream timeouts
+  - metrics: product-catalog's request rate goes to zero by ~+4:45 and stays there, and from then
+      on its error ratio and latency have no value at all - not zero errors, no samples
+  - metrics: product-catalog's own runtime series (go_*, by service_name) stop moving at the
+      freeze - its last once-a-minute report lands a quarter to half a minute before onset - and
+      drop out of queries at ~+4:30 when Prometheus's five-minute lookback runs out, just before the
+      page; back within 15 s of the unpause. A partition cuts them too (the SDK cannot export, R3),
+      so this separates frozen-or-cut-off from idle, not freeze from partition
+  - logs: product-catalog writes nothing for the whole window - not an error, not a line - and
+      nothing in the healthy five minutes before the fault either, so silence alone is not the fault
+  - traces: the proxy's spans end at its 15 s deadline (load-generator/GET -> frontend-proxy/ingress
+      15001ms, error); below it frontend's own GET /api/products/{productId} span stays open until
+      the catalog resumes (531.8 s in this bundle's window), and the call into the catalog is one
+      level deeper, where the trace tool's depth limit elides it (Q94). R2b's traces put the same
+      wait in frontend's self-time instead. No product-catalog error trace exists in the window
   - change: nothing recorded - no deploy, no config, no flag
-  - discriminator: a partition of the same service looks identical on alerts, metrics and
-      traces; the freeze is the one whose target logs nothing at all, where a partitioned
-      target logs its export failures once a minute (R3)
+  - discriminator: a partition of the same service looks identical on alerts, metrics, runtime
+      series and traces; the freeze is the one whose target logs nothing at all, where a
+      partitioned target logs its export failures once a minute (R3)
 expected_remediation_class: restart
 # The freeze resolves when the process is unfrozen; where an operator cannot `unpause`, a restart
 # is what does it (knowledge/runbooks/class-process-freeze.md). Nothing was changed, so nothing
 # is reverted.
-rehearsed: false
-answers_idle_or_absent: [logs]
+rehearsed: true
+answers_idle_or_absent: [runtime]

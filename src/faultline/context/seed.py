@@ -159,9 +159,36 @@ def dev_bundles(root: Path) -> list[tuple[Path, str | None]]:
             out.append((bundle, "no incident.md"))
         elif (bundle / INVALID).is_file():
             out.append((bundle, "bundle is marked INVALID"))
+        elif (world := bundle_world(bundle)) not in CORPUS_WORLDS:
+            out.append((bundle, f"recorded on world {world}; the corpus holds {CORPUS_WORLDS}"))
         else:
             out.append((bundle, None))
     return out
+
+
+CORPUS_WORLDS: tuple[str, ...] = ("v1",)
+"""**Which worlds' narratives the past-incident corpus holds. v1 alone, until T7.1 decides.**
+
+v2 bundles land in `artifacts/dev/` beside v1's (`SPLIT-V2.md`), so the one-root rule would seed
+them without anybody deciding that it should. The first one (`v2-product-catalog-freeze`,
+2026-09-24) would have moved the corpus from 20 documents to 21 in the commit that finished its
+narrative. That would put a v2 incident into the retrieval of every v1 run at the current stamp,
+and it would move `CURRENT_CORPUS_SHAPE` outside the commit Q92 names for that. Whether v1 and v2
+narratives share one corpus, and when v2's join, is T7.1's corpus piece (Q92). Until then this
+keeps the corpus as it is. It is a skip with a stated reason, like `INVALID.md`, and not a
+refusal: the bundle is valid, it is just not this corpus's world."""
+
+
+def bundle_world(bundle: Path) -> str:
+    """The world a bundle was recorded on. Every bundle before T7.1 is v1 and names no world;
+    absence means v1, the same reading `tests/test_artifact_bundle.py`'s `world_of` makes."""
+    manifest = bundle / MANIFEST
+    if not manifest.is_file():
+        return "v1"
+    world = json.loads(manifest.read_text()).get("world")
+    if isinstance(world, str):  # the one malformed shape on record (#444), read as what it says
+        return world
+    return str((world or {}).get("world_name") or "v1")
 
 
 class UnacceptedError(RuntimeError):

@@ -1203,15 +1203,20 @@ def test_bundles_agree_about_the_image_they_ran() -> None:
 
     Bundle-against-bundle rather than against the live daemon, so this runs without Docker.
     Bundles recorded before T7.16 carry no digest and are skipped: absence means unknown.
+
+    **Per world (T7.1).** A v1 bundle and a v2 bundle ran different images by construction -
+    the world moved (ADR-0042) - so comparing them across worlds reports the move itself as
+    drift. Within a world the claim is unchanged: one digest.
     """
-    seen: dict[str, list[str]] = {}
+    by_world: dict[str, dict[str, list[str]]] = {}
     for bundle in valid_bundles():
         world = manifest_of(bundle).get("world", {})
         digest = world.get("otel_demo_image_digest")
         if digest:
-            seen.setdefault(digest, []).append(bundle.name)
+            by_world.setdefault(world_of(bundle), {}).setdefault(digest, []).append(bundle.name)
 
-    assert len(seen) <= 1, image_digest_drift_message(seen)
+    for seen in by_world.values():
+        assert len(seen) <= 1, image_digest_drift_message(seen)
 
 
 def image_digest_drift_message(seen: dict[str, list[str]]) -> str:

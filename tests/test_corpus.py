@@ -37,6 +37,12 @@ DEV_DOCUMENTS = 10
 """Ten dev bundles, two marked INVALID. **Pinned so a new narrative is a conscious change**
 to this number - a corpus that silently grows is one nobody has read."""
 
+OTHER_WORLD_NARRATIVES = ["v2-product-catalog-freeze"]
+"""Dev narratives recorded on v2, which the corpus holds out until T7.1's corpus piece (Q92)
+decides (`seed.CORPUS_WORLDS`). Pinned for `DEV_DOCUMENTS`'s reason: a v2 narrative landing is a
+conscious change here, and the day the corpus takes them this list and that constant move in the
+same commit."""
+
 SECTIONS_PER_NARRATIVE = 5
 """Measured across all ten committed narratives: What was observed | What was checked |
 Root cause | Resolution | Detection notes. Identical in every one, which is what makes a
@@ -90,7 +96,9 @@ def tree_acceptances() -> InMemoryAcceptanceStore:
 def test_every_dev_narrative_parses_into_the_same_five_sections() -> None:
     narratives = sorted(DEV.glob("*/incident.md"))
 
-    assert len(narratives) == 12, "twelve dev bundles carry a narrative; two are INVALID"
+    assert len(narratives) == 12 + len(OTHER_WORLD_NARRATIVES), (
+        "twelve v1 dev bundles carry a narrative (two are INVALID), plus the v2 ones"
+    )
     for path in narratives:
         narrative = parse_narrative(path)
         assert narrative.split == "dev"
@@ -186,11 +194,16 @@ def test_seeding_the_dev_tree_yields_exactly_the_ten_valid_narratives() -> None:
     )
     assert seeded.count() == result.chunks
     assert sum(1 for name in result.seeded if name.endswith("(postmortem)")) == DEV_POSTMORTEMS
-    assert sorted(name for name, _ in result.skipped) == [
-        "currency-cpu-throttle",
-        "flag-service-crashloop",
-    ]
-    assert all("INVALID" in why for _, why in result.skipped), "skipping is reported, not silent"
+    assert sorted(name for name, _ in result.skipped) == sorted(
+        ["currency-cpu-throttle", "flag-service-crashloop", *OTHER_WORLD_NARRATIVES]
+    )
+    why = dict(result.skipped)
+    assert all(
+        "INVALID" in why[name] for name in ("currency-cpu-throttle", "flag-service-crashloop")
+    )
+    assert all("world v2" in why[name] for name in OTHER_WORLD_NARRATIVES), (
+        "skipping is reported, not silent"
+    )
 
 
 def test_every_chunk_carries_the_provenance_exclusion_needs() -> None:
@@ -533,3 +546,24 @@ def test_the_count_is_over_the_whole_set_which_is_why_it_stopped_carrying_t4_1b(
     others = frozenset(origins[1:])
 
     assert seeded.excluded_count(others) > 0, "healthy-looking, and says nothing about origins[0]"
+
+
+def test_a_bundle_names_its_world_and_absence_means_v1(tmp_path: Path) -> None:
+    """`seed.bundle_world` is what keeps v2 narratives out of v1's corpus (Q92 decides when they
+    join). Every v1 bundle predates the field, so absence has to read as v1, and a v2 block has to
+    read as v2, whether it is well formed or the string #444 once wrote."""
+    from faultline.context.seed import CORPUS_WORLDS, bundle_world
+
+    shapes = {
+        "no-manifest": None,
+        "v1-no-world-name": {"world": {"compose_digest": "c0ffee"}},
+        "v2-block": {"world": {"world_name": "v2", "compose_digest": "c0ffee"}},
+        "v2-string": {"world": "v2"},
+    }
+    for name, manifest in shapes.items():
+        (tmp_path / name).mkdir()
+        if manifest is not None:
+            (tmp_path / name / "manifest.json").write_text(json.dumps(manifest))
+
+    assert [bundle_world(tmp_path / n) for n in shapes] == ["v1", "v1", "v2", "v2"]
+    assert CORPUS_WORLDS == ("v1",)

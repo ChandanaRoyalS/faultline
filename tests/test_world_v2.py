@@ -705,3 +705,51 @@ def test_the_v2_headroom_rows_clear_the_gate_at_their_measured_rest() -> None:
     assert limits["load-generator"]["environment"]["LOCUST_USERS"] == 25, (
         "the raise is sized for 25 users; changing the load changes the row's argument"
     )
+
+
+def test_postgres_on_v2_is_above_the_limit_the_kernel_killed_it_at() -> None:
+    """**Q96: the demo's 80M killed Postgres every time the catalog was restored** (2026-09-24).
+
+    The kernel log named it (`Memory cgroup out of memory … (postgres)`, in `postgresql`'s own
+    memcg), two kills per unpause, each followed half a second later by a restart. The row that
+    raises it is what keeps a freeze's or partition's recovery from carrying a second incident the
+    fault did not cause. The test does not say 256M is enough. Only a measured `memory.peak` says
+    that, and it is recorded beside the re-record. It says the limit that failed cannot come
+    back unnoticed, as kafka's 1024M once silently did (`test_no_v2_overlay_repeats_a_service_key`).
+    """
+    limits = yaml.safe_load((COMPOSE / "world-v2.override.yml").read_text())
+    memory = limits["services"]["postgresql"]["deploy"]["resources"]["limits"]["memory"]
+    demo_limit_mb = 80.0  # HostConfig.Memory=83886080 on the demo's own definition
+    assert float(memory.rstrip("M")) > demo_limit_mb, (
+        f"postgresql's v2 limit is {memory}, at or under the 80M the kernel OOM-killed it at on "
+        "every restore of product-catalog (Q96)"
+    )
+
+
+HEADROOM_RULE_HIGHS_MIB = {
+    # container: (file, 8-hour one-minute high, MiB), measured 2026-09-24 before the rows landed
+    "load-generator": ("world-v2.override.yml", 2974.0),
+    "prometheus": ("telemetry-v2.yml", 195.0),
+    "otel-collector": ("telemetry-v2.yml", 192.0),
+    "opensearch": ("world-v2.override.yml", 945.0),
+}
+
+
+@pytest.mark.parametrize("container", sorted(HEADROOM_RULE_HIGHS_MIB))
+def test_the_four_headroom_rows_are_the_rule_applied_to_their_measurement(container: str) -> None:
+    """**One rule, stated before two of the four were measured** (`world-v2.override.yml`, last
+    block): the new limit is the 8-hour one-minute high / 0.6, rounded up to the next 100M.
+
+    Pinned per container so a later edit to one of these limits is a visible change to the rule's
+    output rather than a quiet re-tune. A limit set *below* the rule's figure fails here. One set
+    far above it fails too, because the rule is one value and not a floor to raise from.
+    """
+    import math
+
+    name, high = HEADROOM_RULE_HIGHS_MIB[container]
+    limits = yaml.safe_load((COMPOSE / name).read_text())
+    memory = limits["services"][container]["deploy"]["resources"]["limits"]["memory"]
+    assert float(memory.rstrip("M")) == math.ceil(high / 0.6 / 100) * 100, (
+        f"{container}'s limit {memory} is not the headroom rule's figure for its measured high of "
+        f"{high:.0f} MiB"
+    )

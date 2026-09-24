@@ -1,6 +1,6 @@
 # The bundles, rendered
 
-Every recorded rehearsal in this repository as a readable page — 15 in all: **13 runnable** (10 dev, 3 holdout) and **2 that could not fire** (2 dev).
+Every recorded rehearsal in this repository as a readable page — 16 in all: **14 runnable** (11 dev, 3 holdout) and **2 that could not fire** (2 dev).
 
 A bundle is what one rehearsal left behind — the manifest, the Prometheus captures,
 a slice of one service's logs, the exact queries, and the narrative a responder wrote
@@ -35,6 +35,7 @@ benchmark** — see [RESULTS.md](../RESULTS.md).
 | [`redis-cart-dependency-latency`](redis-cart-dependency-latency.md) | `dependency_latency` | Cart is slow because its datastore is, and the datastore has no spans — 4 alerts over the window |
 | [`shipping-quote-misconfig`](shipping-quote-misconfig.md) | `bad_config` | Checkout failed a quarter of its orders, and the service at fault reported nothing — 5 alerts over the window |
 | [`shipping-wrong-image`](shipping-wrong-image.md) | `bad_deploy` | Shipping service deployed with another service's image — 8 alerts over the window |
+| [`v2-product-catalog-freeze`](v2-product-catalog-freeze.md) | `process_freeze` | The product catalog process is frozen - its socket accepts and nothing answers — 18 alerts over the window |
 
 ## Holdout split
 
