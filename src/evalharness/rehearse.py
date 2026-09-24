@@ -951,18 +951,28 @@ def write_bundle(
         # scored fields change afterwards, this bundle is evidence for a question that is
         # no longer being asked, and the guards say so instead of scoring it anyway.
         "scenario_fingerprint": scenario_fingerprint(scenario),
-        # T7.37: who held the world while this was recorded. A clean acquisition is
-        # recorded too, so a bundle with no block is one written by a path that does
-        # not take the lock at all.
-        "world_lock": facts.get("world_lock"),
+        # T7.37's `world_lock` - who held the world while this was recorded - arrives in
+        # `facts` below; a clean acquisition is recorded too, so a bundle with no block is one
+        # written by a path that does not take the lock at all.
         "recorded_by": "evalharness.rehearse",
         "recorder": recorder_provenance("evalharness.rehearse", REPO_ROOT),
         "world": world_provenance(
             reference_container=REFERENCE_CONTAINER_BY_WORLD[ToolSettings().world],
             stub_image=STUB_IMAGE,
         ),
-        **facts,
     }
+    # **A fact may not overwrite provenance.** `**facts` merged last, silently, and on
+    # 2026-09-22 (#444) a `"world": "v2"` fact went in beside the `world` provenance block - so
+    # the first v2 bundle (2026-09-24) recorded the string `"v2"` where its compose digest,
+    # observability digest and image digest should have been, and every guard that reads them
+    # failed on it. A collision is a recorder defect, and it refuses rather than picks a winner.
+    collisions = sorted(set(facts) & set(manifest))
+    if collisions:
+        raise RehearsalError(
+            f"recorder facts collide with the manifest's own keys {collisions}: one would "
+            "silently overwrite the other. Rename the fact."
+        )
+    manifest.update(facts)
     # Derived last, because it reads the captures this run has just written. Additive and
     # optional: no `bundle_schema_version` bump, on the same reasoning as `capture_set` above -
     # ADR-0014's bar is a change that makes existing bundles false, and a bundle without this
@@ -1286,7 +1296,9 @@ def _rehearse_locked(
     world_metrics = metrics_for(ToolSettings().world)
     queries = {
         **metric_queries(world_metrics),
-        RUNTIME_CAPTURE: runtime_query(canonical_service(scenario.injection.target)),
+        RUNTIME_CAPTURE: runtime_query(
+            canonical_service(scenario.injection.target), world=world_metrics
+        ),
     }
     captured: dict[str, dict[str, Any]] = {}
     for name, promql in queries.items():
@@ -1299,9 +1311,9 @@ def _rehearse_locked(
 
     facts: dict[str, Any] = {
         "world_lock": lock_info,
-        # Which world's metric names and span filter the four captures above were taken with.
-        # An empty series means "quiet" or "asked in the wrong language" depending only on this.
-        "world": ToolSettings().world,
+        # Which world's metric names and span filter the captures were taken with is
+        # `world.world_name`, in the provenance block (T7.1). It was a top-level `"world"` fact
+        # here from #444 and overwrote that block; see the collision check where they merge.
         # Evidence that the world was quiet when this started, rather than an assumption.
         "baseline_clear_at": stamp(baseline_clear_at),
         "t_inject": stamp(t_inject),

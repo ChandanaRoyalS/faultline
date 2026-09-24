@@ -155,6 +155,29 @@ never in captured evidence. Whether that costs anything is T4.2's to measure —
 first task that scores against this evidence — and it is now a question about a documented
 difference between bundles rather than about a gap nobody wrote down.
 
+### On v2 the fifth capture asks in v2's language (T7.1)
+
+The first v2 bundle, `v2-product-catalog-freeze` (2026-09-24), captured an empty
+`runtime.json` for the whole window. The query was v1's: `exported_job` and
+`process_runtime_*|runtime_*|system_memory_*`. v2 ingests by OTLP push, so `job` is
+`opentelemetry-demo/<service>` and the plain name is on `service_name`, and its SDKs emit
+each runtime's semantic-convention names: `go_*`, `dotnet_*` with `process_*`, `jvm_*`,
+`v8js_*` and `nodejs_*`. None of v1's patterns matches any of them. For a freeze the empty
+file is not a small loss. Its whole meaning is the difference between "the process stopped
+reporting" and "nobody called it".
+
+The query is now chosen per world (`WorldMetrics.runtime_label`, `runtime_families`,
+`evalharness.prom.runtime_query(service, world)`). v1's string is unchanged byte for byte,
+and a test holds it there. This is **not** a `capture_set` bump. The set counts which files a
+bundle holds, and v2 bundles hold the same five. `queries.md` already states the exact query
+each bundle was taken with, so a v2 bundle recorded before this change says what it asked
+for. That bundle was re-recorded, and its manifest is under `superseded/`.
+
+In the same bundle a recorder fact `"world": "v2"` (added in #444) had replaced the
+manifest's `world` provenance block. The compose, observability and image digests were
+lost, and every guard that reads them failed. `write_bundle` now refuses any fact whose key
+the manifest already has. No v1 bundle is affected: #444 postdates all of them.
+
 ## `superseded/` — manifests from earlier recordings
 
 A re-record replaces `manifest.json`, and the previous one is gone. Every number ever cited

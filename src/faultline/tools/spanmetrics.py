@@ -112,6 +112,29 @@ class WorldMetrics:
     called windows and they are not the same thing.
     """
 
+    runtime_label: str = "exported_job"
+    """The label a service's *own* runtime series carry its name under.
+
+    v1: `exported_job` - Prometheus renamed the exporter's `job` when it collided with the scrape
+    job's (ADR-0019). v2 ingests by OTLP push, keeps `job` as `opentelemetry-demo/<service>` and
+    carries the plain name as `service_name` on every runtime series (read off Prometheus,
+    2026-09-24). **The first v2 bundle's runtime capture asked v1's label and got nothing** for the
+    whole window - which, for a freeze, is the evidence that separates a stopped process from an
+    uncalled one."""
+
+    runtime_families: tuple[str, ...] = ("process_runtime_.*", "runtime_.*", "system_memory_.*")
+    """The metric families a service reports about its own process, as anchored PromQL regexes.
+
+    v1's SDKs emitted `process_runtime_<lang>_*`. v2's emit each runtime's semantic-convention
+    names instead, read off the running world on 2026-09-24: Go `go_*` (product-catalog,
+    checkout), .NET `dotnet_*` and `process_*` (cart), the JVM `jvm_*` (ad); Node's `v8js_*` and
+    `nodejs_*` are the frontend's. None of v1's three patterns matches any of them."""
+
+    def runtime_selector(self, service: str) -> str:
+        """The `{...}` selecting one service's own runtime series in this world."""
+        families = "|".join(self.runtime_families)
+        return f'{{__name__=~"{families}",{self.runtime_label}="{service}"}}'
+
     def latency_selector(self, *matchers: str) -> str:
         """The `{...}` for this world's duration histogram, or `""` when nothing narrows it.
 
@@ -137,6 +160,8 @@ V2 = WorldMetrics(
     duration_bucket="traces_span_metrics_duration_milliseconds_bucket",
     rate_window="5m",
     latency_span_filter='span_kind!="SPAN_KIND_INTERNAL"',
+    runtime_label="service_name",
+    runtime_families=("go_.*", "dotnet_.*", "jvm_.*", "process_.*", "v8js_.*", "nodejs_.*"),
 )
 """OTel Demo v2.x: `spanmetrics` as a connector (ADR-0042)."""
 
