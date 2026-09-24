@@ -106,6 +106,10 @@ services:
     depends_on:
       tempo:
         condition: service_started
+    # 200M -> 400M by the headroom rule stated in `world-v2.override.yml`'s last block, where the
+    # measurement is: an 8-hour one-minute high of 192 MiB (96%), and the cgroup at its limit 116
+    # times. The demo's own `memory_limiter` values are left as they are (`otelcol-extras-v2.yml`).
+    deploy: { resources: { limits: { memory: 400M } } }
 
   # **`--web.enable-otlp-receiver` is load-bearing and this overlay is why it could go missing.**
   # Replacing `command:` replaces it wholesale, and v2's collector does not expose a scrape
@@ -158,3 +162,7 @@ services:
       - --web.route-prefix=/
       - --web.enable-otlp-receiver
       - --enable-feature=exemplar-storage
+    # 200M -> 400M by the same rule (`world-v2.override.yml`, last block): an 8-hour one-minute
+    # high of 195 MiB, and the cgroup at its limit 3,751 times, with the kernel reclaiming its
+    # chunk cache to stay under. Every capture a bundle holds is read from this container.
+    deploy: { resources: { limits: { memory: 400M } } }
