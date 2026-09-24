@@ -52,7 +52,7 @@ from faultline.tools.results import (
 from faultline.tools.settings import ToolSettings
 from faultline.tools.spanmetrics import metrics_for
 from faultline.tools.window import CHANGE_TOOL, WindowPolicy
-from injector.world import SERVICE_CONTAINERS, canonical_service
+from injector.world import canonical_service, service_containers
 
 PROMETHEUS_QUERY_RANGE = "/api/v1/query_range"
 LOKI_QUERY_RANGE = "/loki/api/v1/query_range"
@@ -353,7 +353,7 @@ class Tools:
         the pre-onset stream "is where it breaks open" - a JVM banner in a service whose logs
         had never contained one. A tool that only looked forward from the alert would miss it.
         """
-        container = SERVICE_CONTAINERS.get(canonical_service(service), service)
+        container = service_containers().get(canonical_service(service), service)
         selector = f'{{service="{container}"}}'
         window = Window(start=start, end=end)
         refusal = self._check_window("logql_query", selector, start, end)
