@@ -200,10 +200,13 @@ def test_a_definition_is_validated_against_its_own_worlds_names() -> None:
         check_target(_v2_definition("product-catalog-service"))  # v1's, not v2's
 
 
-def test_every_shipped_definition_is_v1s() -> None:
+def test_every_definition_names_a_world_the_injector_knows() -> None:
     from injector.catalog import CATALOG
 
-    assert {d.world for d in CATALOG} == {"v1"}, "T7.1 authors the v2 catalog; nothing yet"
+    assert {d.world for d in CATALOG} <= set(WORLDS)
+    v2 = [d for d in CATALOG if d.world == "v2"]
+    assert all(d.id.startswith("v2-") for d in v2), "v2 ids say so, as the attempts' targets do"
+    assert all(d.target in SERVICE_CONTAINERS_V2 for d in v2)
 
 
 def test_the_engine_refuses_to_start_a_definition_on_another_world(

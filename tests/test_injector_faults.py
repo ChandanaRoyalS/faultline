@@ -71,13 +71,26 @@ def squeeze(runner: FakeRunner, settings: InjectorSettings) -> ResourceExhaustio
     return ResourceExhaustionFault(DockerCli(runner), ComposeCli(runner, settings), settings)
 
 
-def test_catalog_covers_the_four_classes_exactly() -> None:
-    assert {f.fault_class for f in CATALOG} == {
+def test_catalog_covers_every_class_once_per_world() -> None:
+    """v1's catalog is T1.4's four; v2's is T7.0's five rehearsal definitions, one per new class.
+    T7.1 grows v2's; until then the shape is pinned so a class cannot lose its rehearsal entry."""
+    by_world: dict[str, set[FaultClass]] = {}
+    for f in CATALOG:
+        by_world.setdefault(f.world, set()).add(f.fault_class)
+    assert by_world["v1"] == {
         FaultClass.RESOURCE_EXHAUSTION,
         FaultClass.BAD_DEPLOY,
         FaultClass.DEPENDENCY_LATENCY,
         FaultClass.BAD_CONFIG,
     }
+    assert by_world["v2"] == {
+        FaultClass.FEATURE_FLAG,
+        FaultClass.PROCESS_FREEZE,
+        FaultClass.NETWORK_PARTITION,
+        FaultClass.DATASTORE_CORRUPTION,
+        FaultClass.DISK_FILL,
+    }
+    assert by_world["v1"] | by_world["v2"] == set(FaultClass), "every class has a definition"
     assert len({f.id for f in CATALOG}) == len(CATALOG), "fault ids must be unique"
 
 
