@@ -12,14 +12,15 @@
 # per output block while compacting. Under GOMEMLIMIT 320 MiB that is the peak.
 #
 # Bounded rather than the limit raised: the row group is capped at 10 MiB and a compacted block at
-# 100 MiB, which keeps compaction's working set in tens of megabytes. **The container limit stays
-# 400 M until it is measured**, not inherited: v2's collector runs the `docker_stats` receiver, so
-# `max_over_time(container_memory_usage_total{container_name="tempo"}[6h])` in Prometheus after the
-# first rehearsals is Tempo's real peak on this world, and the limit is set from that. Carrying v1's
-# 400 M forward was the mistake `alert-rules-v2.yml` refused to make with thresholds.
+# 100 MiB, which keeps compaction's working set in tens of megabytes. **That was not enough on its
+# own.** With the bounds in place Tempo lived 51 minutes and was killed the moment the trace tool
+# searched one id across a dozen 30-second blocks - a second peak, on the query path. The limit was
+# then measured rather than inherited (`container_memory_usage_total_bytes`: idle 150 MiB, sampled
+# peak 374 MiB, a ~220 MiB sawtooth as blocks complete and compact) and set in `telemetry-v2.yml`
+# at 1024M / GOMEMLIMIT 768MiB from that arithmetic. The bounds stay: they are what keep the
+# sawtooth's amplitude where it was measured.
 #
-# Storage is ephemeral (only this file is mounted), so a `--force-recreate` starts it empty. That is
-# how the store was unblocked for the rehearsals; it is not the fix, and the bounds below are.
+# Storage is ephemeral (only this file is mounted), so a `--force-recreate` starts it empty.
 
 server:
   http_listen_port: 3200

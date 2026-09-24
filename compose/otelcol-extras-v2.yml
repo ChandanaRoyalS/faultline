@@ -26,6 +26,24 @@ exporters:
     endpoint: "tempo:4317"
     tls:
       insecure: true
+    # **A Tempo outage must cost traces, not alerts** (Q93, measured 2026-09-24). With the
+    # defaults - retries for up to five minutes, a queue of a thousand batches - Tempo going down
+    # at 02:00 made this exporter queue and retry until the collector's memory limiter tripped
+    # (`Memory usage is above soft limit. Refusing data.` at 02:01:52) and the OTLP receiver
+    # started refusing EVERY service's spans (`product-catalog`: `data refused due to high memory
+    # usage`, `sending queue is full`). Refused spans never reach the spanmetrics connector, so
+    # the alert rules read a quiet world while a trace store was down - the same silent species
+    # as the two-writer bug, from the other end of the pipeline.
+    #
+    # No retries: a failed send is dropped at once and logged, the queue stays near empty, memory
+    # stays flat, and the receiver keeps accepting. Traces emitted while Tempo is down are lost,
+    # which they were anyway; the metrics and the other exporters are not. The queue is kept and
+    # kept small so a momentary blip still smooths out without accumulating.
+    retry_on_failure:
+      enabled: false
+    sending_queue:
+      enabled: true
+      queue_size: 200
 
 # **A recreated container must continue its service's counters, not start a second copy of
 # them.** Measured 2026-09-23 during T7.0's A6 (`2026-09-23-the-writer-that-was-not-single.md`):
