@@ -125,12 +125,55 @@ def build(spans: list[TraceSpan]) -> list[Tree]:
         for extra in roots:
             if extra is not root:
                 root.children.append(extra)
+        orphans += _break_cycles(root, list(nodes.values()))
         _assign_depth(root, 0)
         for node in nodes.values():
             node.children.sort(key=lambda c: c.span.duration_ms, reverse=True)
         trees.append(Tree(trace_id=trace_id, root=root, span_count=len(members), orphans=orphans))
     trees.sort(key=lambda t: t.root.span.started_at)
     return trees
+
+
+def _break_cycles(root: Node, nodes: list[Node]) -> int:
+    """Make the children graph a tree: drop every edge into a node already reached, and hang
+    any node the root cannot reach under the root. Returns how many were hung that way.
+
+    A span that names itself as parent, or two spans naming each other (a store that returns a
+    span twice under one id, a producer/consumer pair whose ids collide), gives `build` a cycle.
+    `_assign_depth` and `_walk` already stepped around cycles with a seen-set; `render` did not,
+    and on R5 (2026-09-24, kafka disk fill) `trace_query checkout --errors` died of
+    `RecursionError` in `emit` on a real trace. The agent's tool must never raise on the store's
+    data: a cycle is a malformed trace and is rendered as one, its extra edges cut and its members
+    kept, not a crash. Which edge is cut follows children order (longest first), which is
+    deterministic for one fetch.
+    """
+    seen: set[int] = set()
+
+    def prune_from(start: Node) -> None:
+        seen.add(id(start))
+        stack = [start]
+        while stack:
+            current = stack.pop()
+            kept: list[Node] = []
+            for child in current.children:
+                if id(child) in seen:
+                    continue
+                seen.add(id(child))
+                kept.append(child)
+                stack.append(child)
+            current.children = kept
+
+    prune_from(root)
+    rescued = 0
+    for node in nodes:
+        if id(node) not in seen:
+            # Reachable only through a cycle the root never enters (two spans naming each other
+            # and nothing else): it hangs under the root like any other unattached span, with its
+            # own subtree pruned the same way so the cycle does not come along.
+            prune_from(node)
+            root.children.append(node)
+            rescued += 1
+    return rescued
 
 
 def _assign_depth(node: Node, depth: int) -> None:
