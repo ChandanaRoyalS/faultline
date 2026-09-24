@@ -1,0 +1,143 @@
+R1 feature_flag   frontend         errors no traces
+R1 feature_flag   product-catalog  errors no traces
+R2 freeze         frontend         errors no traces
+R2 freeze         frontend-proxy   errors no traces
+R2 freeze         product-catalog  errors no traces
+R2b freeze        frontend         errors traces=  2  callee moved: 2  same callee, wait added: 0
+    c6a51809c37d44a0 root 06:30:11  was: recommendation//oteldemo.ProductCatalogService/ListProducts -> product-catalog/oteldemo.ProductCatalogService/ListProducts  26.0ms, 0% of the trace (error)
+                                  now: frontend/executing api route (pages) /api/recommendations -> frontend/grpc.oteldemo.RecommendationService/ListRecommendations  142190.7ms, 100% of the trace (still waiting 127.2s after frontend-proxy/ingress gave up)
+    ae5847d9adc3621b root 06:30:15  was: frontend/grpc.oteldemo.ProductCatalogService/GetProduct -> product-catalog/oteldemo.ProductCatalogService/GetProduct  182.3ms, 1% of the trace (error)
+                                  now: frontend/executing api route (pages) /api/products/[productId]/index -> frontend/grpc.oteldemo.ProductCatalogService/GetProduct  138384.1ms, 100% of the trace (still waiting 123.4s after frontend-proxy/ingress gave up)
+R2b freeze        frontend-proxy   errors traces=  2  callee moved: 2  same callee, wait added: 0
+    c6a51809c37d44a0 root 06:30:11  was: recommendation//oteldemo.ProductCatalogService/ListProducts -> product-catalog/oteldemo.ProductCatalogService/ListProducts  26.0ms, 0% of the trace (error)
+                                  now: frontend/executing api route (pages) /api/recommendations -> frontend/grpc.oteldemo.RecommendationService/ListRecommendations  142190.7ms, 100% of the trace (still waiting 127.2s after frontend-proxy/ingress gave up)
+    ae5847d9adc3621b root 06:30:15  was: frontend/grpc.oteldemo.ProductCatalogService/GetProduct -> product-catalog/oteldemo.ProductCatalogService/GetProduct  182.3ms, 1% of the trace (error)
+                                  now: frontend/executing api route (pages) /api/products/[productId]/index -> frontend/grpc.oteldemo.ProductCatalogService/GetProduct  138384.1ms, 100% of the trace (still waiting 123.4s after frontend-proxy/ingress gave up)
+R2b freeze        product-catalog  errors traces=  7  callee moved: 7  same callee, wait added: 0
+    4e06e1b70e75379c root 06:21:27  was: frontend/grpc.oteldemo.ProductCatalogService/GetProduct -> product-catalog/oteldemo.ProductCatalogService/GetProduct  193.8ms, 1% of the trace (error)
+                                  now: frontend/executing api route (pages) /api/products/[productId]/index -> frontend/grpc.oteldemo.ProductCatalogService/GetProduct  666279.5ms, 100% of the trace (still waiting 651.3s after frontend-proxy/ingress gave up)
+    45f047029256f133 root 06:22:34  was: recommendation//oteldemo.ProductCatalogService/ListProducts -> product-catalog/oteldemo.ProductCatalogService/ListProducts  2.8ms, 0% of the trace (error)
+                                  now: frontend/executing api route (pages) /api/recommendations -> frontend/grpc.oteldemo.RecommendationService/ListRecommendations  599147.8ms, 100% of the trace (still waiting 584.1s after frontend-proxy/ingress gave up)
+    36d1cc620e983527 root 06:23:26  was: frontend/grpc.oteldemo.ProductCatalogService/GetProduct -> product-catalog/oteldemo.ProductCatalogService/GetProduct  209.9ms, 1% of the trace (error)
+                                  now: frontend/executing api route (pages) /api/products/[productId]/index -> frontend/grpc.oteldemo.ProductCatalogService/GetProduct  547455.6ms, 100% of the trace (still waiting 532.5s after frontend-proxy/ingress gave up)
+    346fc5a629ce3329 root 06:24:37  was: frontend/grpc.oteldemo.ProductCatalogService/GetProduct -> product-catalog/oteldemo.ProductCatalogService/GetProduct  194.7ms, 1% of the trace (error)
+                                  now: frontend/executing api route (pages) /api/products/[productId]/index -> frontend/grpc.oteldemo.ProductCatalogService/GetProduct  475806.2ms, 100% of the trace (still waiting 460.8s after frontend-proxy/ingress gave up)
+    4cc5093e3be2df05 root 06:27:32  was: frontend/grpc.oteldemo.ProductCatalogService/GetProduct -> product-catalog/oteldemo.ProductCatalogService/GetProduct  190.9ms, 1% of the trace (error)
+                                  now: frontend/executing api route (pages) /api/products/[productId]/index -> frontend/grpc.oteldemo.ProductCatalogService/GetProduct  300782.2ms, 100% of the trace (still waiting 285.8s after frontend-proxy/ingress gave up)
+    c6a51809c37d44a0 root 06:30:11  was: recommendation//oteldemo.ProductCatalogService/ListProducts -> product-catalog/oteldemo.ProductCatalogService/ListProducts  26.0ms, 0% of the trace (error)
+                                  now: frontend/executing api route (pages) /api/recommendations -> frontend/grpc.oteldemo.RecommendationService/ListRecommendations  142190.7ms, 100% of the trace (still waiting 127.2s after frontend-proxy/ingress gave up)
+    ae5847d9adc3621b root 06:30:15  was: frontend/grpc.oteldemo.ProductCatalogService/GetProduct -> product-catalog/oteldemo.ProductCatalogService/GetProduct  182.3ms, 1% of the trace (error)
+                                  now: frontend/executing api route (pages) /api/products/[productId]/index -> frontend/grpc.oteldemo.ProductCatalogService/GetProduct  138384.1ms, 100% of the trace (still waiting 123.4s after frontend-proxy/ingress gave up)
+R3 partition      frontend         errors traces= 12  callee moved: 0  same callee, wait added: 12
+    19e0c2583b19d502 root 06:52:56  was: frontend/executing api route (pages) /api/products/[productId]/index -> frontend/grpc.oteldemo.ProductCatalogService/GetProduct  656055.9ms, 100% of the trace (error)
+                                  now: frontend/executing api route (pages) /api/products/[productId]/index -> frontend/grpc.oteldemo.ProductCatalogService/GetProduct  656055.9ms, 100% of the trace (still waiting 641.1s after frontend-proxy/ingress gave up)
+    7931c4fd669a8376 root 06:53:42  was: frontend/executing api route (pages) /api/products/[productId]/index -> frontend/grpc.oteldemo.ProductCatalogService/GetProduct  609750.2ms, 100% of the trace (error)
+                                  now: frontend/executing api route (pages) /api/products/[productId]/index -> frontend/grpc.oteldemo.ProductCatalogService/GetProduct  609750.2ms, 100% of the trace (still waiting 594.8s after frontend-proxy/ingress gave up)
+    7e3ef6478def27f3 root 06:54:01  was: frontend/executing api route (pages) /api/products/[productId]/index -> frontend/grpc.oteldemo.ProductCatalogService/GetProduct  590709.6ms, 100% of the trace (error)
+                                  now: frontend/executing api route (pages) /api/products/[productId]/index -> frontend/grpc.oteldemo.ProductCatalogService/GetProduct  590709.6ms, 100% of the trace (still waiting 575.7s after frontend-proxy/ingress gave up)
+    325002dabf800c7a root 06:55:24  was: frontend/executing api route (pages) /api/products/[productId]/index -> frontend/grpc.oteldemo.ProductCatalogService/GetProduct  508095.2ms, 100% of the trace (error)
+                                  now: frontend/executing api route (pages) /api/products/[productId]/index -> frontend/grpc.oteldemo.ProductCatalogService/GetProduct  508095.2ms, 100% of the trace (still waiting 493.1s after frontend-proxy/ingress gave up)
+    4c7bb01b372971dd root 06:56:14  was: frontend/executing api route (pages) /api/products/[productId]/index -> frontend/grpc.oteldemo.ProductCatalogService/GetProduct  457763.5ms, 100% of the trace (error)
+                                  now: frontend/executing api route (pages) /api/products/[productId]/index -> frontend/grpc.oteldemo.ProductCatalogService/GetProduct  457763.5ms, 100% of the trace (still waiting 442.8s after frontend-proxy/ingress gave up)
+    f9afd169347386b9 root 06:56:58  was: frontend/executing api route (pages) /api/products/[productId]/index -> frontend/grpc.oteldemo.ProductCatalogService/GetProduct  413750.2ms, 100% of the trace (error)
+                                  now: frontend/executing api route (pages) /api/products/[productId]/index -> frontend/grpc.oteldemo.ProductCatalogService/GetProduct  413750.2ms, 100% of the trace (still waiting 398.8s after frontend-proxy/ingress gave up)
+    b389048ba316bef7 root 06:57:12  was: frontend/executing api route (pages) /api/products/[productId]/index -> frontend/grpc.oteldemo.ProductCatalogService/GetProduct  399706.3ms, 100% of the trace (error)
+                                  now: frontend/executing api route (pages) /api/products/[productId]/index -> frontend/grpc.oteldemo.ProductCatalogService/GetProduct  399706.3ms, 100% of the trace (still waiting 384.7s after frontend-proxy/ingress gave up)
+    d97b5d6800c65588 root 06:58:14  was: checkout/prepareOrderItemsAndShippingQuoteFromCart -> checkout/oteldemo.ProductCatalogService/GetProduct  322739.0ms, 100% of the trace (error)
+                                  now: checkout/prepareOrderItemsAndShippingQuoteFromCart -> checkout/oteldemo.ProductCatalogService/GetProduct  322739.0ms, 100% of the trace (still waiting 307.7s after frontend-proxy/ingress gave up)
+    5da15f700f35a189 root 06:58:45  was: frontend/executing api route (pages) /api/products/[productId]/index -> frontend/grpc.oteldemo.ProductCatalogService/GetProduct  306459.8ms, 100% of the trace (error)
+                                  now: frontend/executing api route (pages) /api/products/[productId]/index -> frontend/grpc.oteldemo.ProductCatalogService/GetProduct  306459.8ms, 100% of the trace (still waiting 291.5s after frontend-proxy/ingress gave up)
+    1235b250cc76c722 root 06:59:09  was: checkout/prepareOrderItemsAndShippingQuoteFromCart -> checkout/oteldemo.ProductCatalogService/GetProduct  267901.2ms, 100% of the trace (error)
+                                  now: checkout/prepareOrderItemsAndShippingQuoteFromCart -> checkout/oteldemo.ProductCatalogService/GetProduct  267901.2ms, 100% of the trace (still waiting 252.9s after frontend-proxy/ingress gave up)
+    8a6f33c1020995d8 root 06:59:16  was: frontend/executing api route (pages) /api/products/[productId]/index -> frontend/grpc.oteldemo.ProductCatalogService/GetProduct  276438.8ms, 100% of the trace (error)
+                                  now: frontend/executing api route (pages) /api/products/[productId]/index -> frontend/grpc.oteldemo.ProductCatalogService/GetProduct  276438.8ms, 100% of the trace (still waiting 261.4s after frontend-proxy/ingress gave up)
+    579ecd49296c7f5c root 06:59:21  was: frontend/executing api route (pages) /api/products/[productId]/index -> frontend/grpc.oteldemo.ProductCatalogService/GetProduct  270604.5ms, 100% of the trace (error)
+                                  now: frontend/executing api route (pages) /api/products/[productId]/index -> frontend/grpc.oteldemo.ProductCatalogService/GetProduct  270604.5ms, 100% of the trace (still waiting 255.6s after frontend-proxy/ingress gave up)
+R3 partition      product-catalog  errors no traces
+R4 corruption     cart             errors no traces
+R4 corruption     checkout         errors no traces
+R4b corruption    cart             errors traces=  2  callee moved: 0  same callee, wait added: 0
+R4b corruption    checkout         errors traces=  3  callee moved: 0  same callee, wait added: 0
+R5 disk_fill      checkout         errors traces=  4  callee moved: 1  same callee, wait added: 3
+    d62917570b8c1f81 root 08:45:30  was: load-generator/POST -> frontend-proxy/ingress  15001.3ms, 100% of the trace (error)
+                                  now: frontend/grpc.oteldemo.CheckoutService/PlaceOrder -> checkout/oteldemo.CheckoutService/PlaceOrder  71460.3ms, 100% of the trace (still waiting 56.5s after frontend-proxy/ingress gave up)
+    4ef675a2980f915d root 08:40:44  was: checkout/oteldemo.CheckoutService/PlaceOrder -> checkout/orders publish  49277.5ms, 100% of the trace (error)
+                                  now: checkout/oteldemo.CheckoutService/PlaceOrder -> checkout/orders publish  49277.5ms, 100% of the trace (still waiting 34.3s after frontend-proxy/ingress gave up)
+    c4a2b78a84d3efb7 root 08:41:12  was: checkout/oteldemo.CheckoutService/PlaceOrder -> checkout/orders publish  52004.7ms, 100% of the trace (error)
+                                  now: checkout/oteldemo.CheckoutService/PlaceOrder -> checkout/orders publish  52004.7ms, 100% of the trace (still waiting 37.1s after frontend-proxy/ingress gave up)
+    d0d12aaa7c4f2407 root 08:44:54  was: checkout/oteldemo.CheckoutService/PlaceOrder -> checkout/orders publish  77985.2ms, 100% of the trace (error)
+                                  now: checkout/oteldemo.CheckoutService/PlaceOrder -> checkout/orders publish  77985.2ms, 100% of the trace (still waiting 63.0s after frontend-proxy/ingress gave up)
+R5 disk_fill      accounting       errors no traces
+R5 disk_fill      kafka            errors no traces
+freeze bundle     frontend         errors traces= 10  callee moved: 10  same callee, wait added: 0
+    33a6124f472a4301 root 16:55:01  was: load-generator/GET -> frontend-proxy/ingress  15000.7ms, 100% of the trace (error)
+                                  now: frontend/executing api route (pages) /api/products/[productId]/index -> frontend/grpc.oteldemo.ProductCatalogService/GetProduct  493863.1ms, 100% of the trace (still waiting 478.9s after frontend-proxy/ingress gave up)
+    1cee8a28998fb111 root 16:56:57  was: load-generator/GET -> frontend-proxy/ingress  15000.6ms, 100% of the trace (error)
+                                  now: frontend/executing api route (pages) /api/products/[productId]/index -> frontend/grpc.oteldemo.ProductCatalogService/GetProduct  377449.7ms, 100% of the trace (still waiting 362.4s after frontend-proxy/ingress gave up)
+    2e0f5378e660d7ed root 16:57:07  was: load-generator/GET -> frontend-proxy/ingress  15001.1ms, 100% of the trace (error)
+                                  now: frontend/executing api route (pages) /api/recommendations -> frontend/grpc.oteldemo.RecommendationService/ListRecommendations  367125.3ms, 100% of the trace (still waiting 352.1s after frontend-proxy/ingress gave up)
+    2429556f28f11876 root 16:58:10  was: load-generator/GET -> frontend-proxy/ingress  15000.2ms, 100% of the trace (error)
+                                  now: frontend/executing api route (pages) /api/products/[productId]/index -> frontend/grpc.oteldemo.ProductCatalogService/GetProduct  304461.4ms, 100% of the trace (still waiting 289.5s after frontend-proxy/ingress gave up)
+    1cde3ee3835bca37 root 16:58:21  was: load-generator/GET -> frontend-proxy/ingress  15000.0ms, 100% of the trace (error)
+                                  now: frontend/executing api route (pages) /api/products/[productId]/index -> frontend/grpc.oteldemo.ProductCatalogService/GetProduct  293133.7ms, 100% of the trace (still waiting 278.1s after frontend-proxy/ingress gave up)
+    2f1818d4eea72852 root 16:58:53  was: load-generator/GET -> frontend-proxy/ingress  15001.4ms, 100% of the trace (error)
+                                  now: frontend/executing api route (pages) /api/products/[productId]/index -> frontend/grpc.oteldemo.ProductCatalogService/GetProduct  261956.3ms, 100% of the trace (still waiting 247.0s after frontend-proxy/ingress gave up)
+    4991d9a5bc390553 root 16:59:05  was: load-generator/GET -> frontend-proxy/ingress  15000.9ms, 100% of the trace (error)
+                                  now: frontend/executing api route (pages) /api/products/[productId]/index -> frontend/grpc.oteldemo.ProductCatalogService/GetProduct  249028.2ms, 100% of the trace (still waiting 234.0s after frontend-proxy/ingress gave up)
+    138cae0302d6a527 root 16:59:16  was: load-generator/GET -> frontend-proxy/ingress  15000.8ms, 100% of the trace (error)
+                                  now: frontend/executing api route (pages) /api/products/[productId]/index -> frontend/grpc.oteldemo.ProductCatalogService/GetProduct  238645.8ms, 100% of the trace (still waiting 223.6s after frontend-proxy/ingress gave up)
+    16095dbed50fa147 root 16:59:31  was: load-generator/GET -> frontend-proxy/ingress  15000.5ms, 100% of the trace (error)
+                                  now: frontend/executing api route (pages) /api/recommendations -> frontend/grpc.oteldemo.RecommendationService/ListRecommendations  223179.6ms, 100% of the trace (still waiting 208.2s after frontend-proxy/ingress gave up)
+    f0f1ec8d0e9851d9 root 17:00:10  was: load-generator/GET -> frontend-proxy/ingress  14999.9ms, 100% of the trace (error)
+                                  now: frontend/executing api route (pages) /api/recommendations -> frontend/grpc.oteldemo.RecommendationService/ListRecommendations  184380.9ms, 100% of the trace (still waiting 169.4s after frontend-proxy/ingress gave up)
+    -- first moved trace, rendered at v2's depth --
+    trace 33a6124f472a4301  root load-generator/user_browse_product  15004.0ms  started 2026-09-24T16:55:01.031979+00:00  10 spans
+      +0.0ms load-generator/user_browse_product 15004.0ms [self 1.7ms]
+        +1.4ms load-generator/GET 15002.3ms [self 1.6ms]  ERROR
+          +2.0ms frontend-proxy/ingress 15000.7ms [self 0.3ms]  ERROR
+            +2.2ms frontend-proxy/router frontend egress 15000.3ms [self 0.0ms]
+              +2.0ms frontend/GET 15001.4ms [self 0.0ms]
+                +2.0ms frontend/GET /api/products/{productId} 493863.8ms [self 0.6ms]
+                  +3.0ms frontend/executing api route (pages) /api/products/[productId]/index 493863.3ms [self 0.2ms]
+                    +3.0ms frontend/grpc.oteldemo.ProductCatalogService/GetProduct 493863.1ms [self 493744.8ms]
+                      +493745.2ms product-catalog/oteldemo.ProductCatalogService/GetProduct 118.3ms [self 117.0ms]
+                        +493810.2ms product-catalog/sql.conn.query 1.3ms [self 1.3ms]
+      degrading hop: frontend/executing api route (pages) /api/products/[productId]/index -> frontend/grpc.oteldemo.ProductCatalogService/GetProduct  493863.1ms, 100% of the trace (still waiting 478.9s after frontend-proxy/ingress gave up)
+freeze bundle     frontend-proxy   errors traces=  9  callee moved: 9  same callee, wait added: 0
+    1cee8a28998fb111 root 16:56:57  was: load-generator/GET -> frontend-proxy/ingress  15000.6ms, 100% of the trace (error)
+                                  now: frontend/executing api route (pages) /api/products/[productId]/index -> frontend/grpc.oteldemo.ProductCatalogService/GetProduct  377449.7ms, 100% of the trace (still waiting 362.4s after frontend-proxy/ingress gave up)
+    2e0f5378e660d7ed root 16:57:07  was: load-generator/GET -> frontend-proxy/ingress  15001.1ms, 100% of the trace (error)
+                                  now: frontend/executing api route (pages) /api/recommendations -> frontend/grpc.oteldemo.RecommendationService/ListRecommendations  367125.3ms, 100% of the trace (still waiting 352.1s after frontend-proxy/ingress gave up)
+    1cde3ee3835bca37 root 16:58:21  was: load-generator/GET -> frontend-proxy/ingress  15000.0ms, 100% of the trace (error)
+                                  now: frontend/executing api route (pages) /api/products/[productId]/index -> frontend/grpc.oteldemo.ProductCatalogService/GetProduct  293133.7ms, 100% of the trace (still waiting 278.1s after frontend-proxy/ingress gave up)
+    38d858609cc5e94c root 16:58:36  was: load-generator/GET -> frontend-proxy/ingress  15000.4ms, 100% of the trace (error)
+                                  now: frontend/executing api route (pages) /api/products/[productId]/index -> frontend/grpc.oteldemo.ProductCatalogService/GetProduct  278711.7ms, 100% of the trace (still waiting 263.7s after frontend-proxy/ingress gave up)
+    2f1818d4eea72852 root 16:58:53  was: load-generator/GET -> frontend-proxy/ingress  15001.4ms, 100% of the trace (error)
+                                  now: frontend/executing api route (pages) /api/products/[productId]/index -> frontend/grpc.oteldemo.ProductCatalogService/GetProduct  261956.3ms, 100% of the trace (still waiting 247.0s after frontend-proxy/ingress gave up)
+    31e77fd22f360371 root 16:59:05  was: load-generator/GET -> frontend-proxy/ingress  15001.0ms, 100% of the trace (error)
+                                  now: frontend/executing api route (pages) /api/products/[productId]/index -> frontend/grpc.oteldemo.ProductCatalogService/GetProduct  249265.0ms, 100% of the trace (still waiting 234.3s after frontend-proxy/ingress gave up)
+    4991d9a5bc390553 root 16:59:05  was: load-generator/GET -> frontend-proxy/ingress  15000.9ms, 100% of the trace (error)
+                                  now: frontend/executing api route (pages) /api/products/[productId]/index -> frontend/grpc.oteldemo.ProductCatalogService/GetProduct  249028.2ms, 100% of the trace (still waiting 234.0s after frontend-proxy/ingress gave up)
+    138cae0302d6a527 root 16:59:16  was: load-generator/GET -> frontend-proxy/ingress  15000.8ms, 100% of the trace (error)
+                                  now: frontend/executing api route (pages) /api/products/[productId]/index -> frontend/grpc.oteldemo.ProductCatalogService/GetProduct  238645.8ms, 100% of the trace (still waiting 223.6s after frontend-proxy/ingress gave up)
+    f0f1ec8d0e9851d9 root 17:00:10  was: load-generator/GET -> frontend-proxy/ingress  14999.9ms, 100% of the trace (error)
+                                  now: frontend/executing api route (pages) /api/recommendations -> frontend/grpc.oteldemo.RecommendationService/ListRecommendations  184380.9ms, 100% of the trace (still waiting 169.4s after frontend-proxy/ingress gave up)
+freeze bundle     product-catalog  errors traces=  6  callee moved: 6  same callee, wait added: 0
+    3173d0acc1659c21 root 16:54:23  was: load-generator/GET -> frontend-proxy/ingress  15001.6ms, 100% of the trace (error)
+                                  now: frontend/executing api route (pages) /api/products/[productId]/index -> frontend/grpc.oteldemo.ProductCatalogService/GetProduct  531801.1ms, 100% of the trace (still waiting 516.8s after frontend-proxy/ingress gave up)
+    27a2c22c0fdd46b0 root 16:54:38  was: load-generator/GET -> frontend-proxy/ingress  15000.5ms, 100% of the trace (error)
+                                  now: frontend/executing api route (pages) /api/products/[productId]/index -> frontend/grpc.oteldemo.ProductCatalogService/GetProduct  516842.7ms, 100% of the trace (still waiting 501.8s after frontend-proxy/ingress gave up)
+    33a6124f472a4301 root 16:55:01  was: load-generator/GET -> frontend-proxy/ingress  15000.7ms, 100% of the trace (error)
+                                  now: frontend/executing api route (pages) /api/products/[productId]/index -> frontend/grpc.oteldemo.ProductCatalogService/GetProduct  493863.1ms, 100% of the trace (still waiting 478.9s after frontend-proxy/ingress gave up)
+    1cee8a28998fb111 root 16:56:57  was: load-generator/GET -> frontend-proxy/ingress  15000.6ms, 100% of the trace (error)
+                                  now: frontend/executing api route (pages) /api/products/[productId]/index -> frontend/grpc.oteldemo.ProductCatalogService/GetProduct  377449.7ms, 100% of the trace (still waiting 362.4s after frontend-proxy/ingress gave up)
+    2e0f5378e660d7ed root 16:57:07  was: load-generator/GET -> frontend-proxy/ingress  15001.1ms, 100% of the trace (error)
+                                  now: frontend/executing api route (pages) /api/recommendations -> frontend/grpc.oteldemo.RecommendationService/ListRecommendations  367125.3ms, 100% of the trace (still waiting 352.1s after frontend-proxy/ingress gave up)
+    f0f1ec8d0e9851d9 root 17:00:10  was: load-generator/GET -> frontend-proxy/ingress  14999.9ms, 100% of the trace (error)
+                                  now: frontend/executing api route (pages) /api/recommendations -> frontend/grpc.oteldemo.RecommendationService/ListRecommendations  184380.9ms, 100% of the trace (still waiting 169.4s after frontend-proxy/ingress gave up)
+control, healthy  frontend         errors no traces
+control, healthy  frontend         all    traces= 14  callee moved: 0  same callee, wait added: 0
+control, healthy  checkout         errors no traces
+control, healthy  checkout         all    traces=  4  callee moved: 0  same callee, wait added: 0
+control, healthy  cart             errors no traces
+control, healthy  cart             all    traces= 11  callee moved: 0  same callee, wait added: 0
