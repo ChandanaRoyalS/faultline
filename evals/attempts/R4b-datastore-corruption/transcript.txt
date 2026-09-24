@@ -1,0 +1,316 @@
+R4b — datastore_corruption rehearsed through the fixed injector: v2-cart-store-corruption.
+Run 2026-09-24 08:04:45 → 08:28:40 UTC on the Mac, zsh, FAULTLINE_TOOLS_WORLD=v2. Protocol: evals/runs/REHEARSALS-T7.0.md
+with its 2026-09-24 addendum. Second run of the class: R4's loop never swept (0147). Pasted verbatim from terminal 1.
+
+=== 0. the first start, refused (07:47), and what it taught ===
+
+$ date -u +%H:%M:%S; FAULTLINE_TOOLS_WORLD=v2 uv run faultline-inject start v2-cart-store-corruption; FAULTLINE_TOOLS_WORLD=v2 uv run faultline-inject status
+07:47:06
+error: v2-cart-store-corruption: the corruption loop on valkey-cart wrote no heartbeat within 0.5s, so it is not sweeping. The probe's one sweep took; the fault has NOT been injected and the stop file is placed.
+cat: can't open '/tmp/faultline-v2-cart-store-corruption.stop.beat': No such file or directory
+
+no active injections
+  (watch.py 12 and shape.py cart were run anyway: 24 quiet polls, cart 0.00 %, a healthy world - nothing had been injected.)
+
+$ docker exec valkey-cart cat /tmp/faultline-v2-cart-store-corruption.stop.beat; echo "rc=$?"; docker top valkey-cart -o pid,args | grep -c "sh -c"; docker exec valkey-cart ls -la /tmp/ | grep faultline
+cat: can't open '/tmp/faultline-v2-cart-store-corruption.stop.beat': No such file or directory
+rc=1
+0
+-rw-r--r--    1 valkey   valkey           0 Sep 24 07:47 faultline-v2-cart-store-corruption.stop
+  → no loop process and no heartbeat file at all: the detached exec's process started after the 0.5 s read,
+    found the refusal's stop file already there, and exited before its first sweep.
+
+$ docker exec valkey-cart sh -c 'i=0; while [ ! -f "$4" ] && [ $i -lt 3 ]; do valkey-cli EVAL "$1" 0 "$2" "$3"; i=$((i+1)); echo "$i" > "$4.beat"; sleep 0.05; done; echo "swept $i times"; cat "$4.beat"' faultline '<the CORRUPTION_SWEEP lua>' cart ffffffff /tmp/probe-by-hand.stop
+385
+385
+385
+swept 3 times
+3
+  → the same script in the foreground: three sweeps of 385 keys, heartbeat 3. The loop, the Lua and the hex
+    payload work; the read was too early. 0149: the heartbeat is polled for up to 5 s.
+
+$ docker exec valkey-cart rm -f /tmp/faultline-v2-cart-store-corruption.stop /tmp/faultline-v2-cart-store-corruption.stop.beat; docker exec valkey-cart ls /tmp/ | grep -c faultline
+0
+  → the refusal's stop file removed by hand, or the next loop would have exited on its first check.
+    (inject now clears it itself.)
+
+=== 1. pre-state ===
+
+$ python3 evals/attempts/shape.py | sed -n '/== firing/,/== silent/p;/== silent/,+3p' | head -30; FAULTLINE_TOOLS_WORLD=v2 uv run faultline-inject status; docker inspect -f '{{.Name}} restarts={{.RestartCount}}' postgresql valkey-cart cart checkout
+== firing ==
+  none
+
+== per service, [5m] ==
+  service                 err%    p95ms   req/s
+  accounting              0.00       91   0.379
+  ad                      0.00        4   0.442
+  cart                    0.00        6   3.400
+  checkout                0.00       34   1.658
+  currency                0.00       18   0.329
+  email                   0.00       20   0.500
+  flagd                   0.00        2   2.367
+  fraud-detection         0.00       92   0.250
+  frontend                0.00       43  11.112
+  frontend-proxy          0.00       46   5.100
+  image-provider          0.00        2   0.100
+  load-generator          0.00       47   4.729
+  payment                 0.00        2   0.250
+  product-catalog         0.00        8   5.092
+  product-reviews         0.00       43   0.712
+  quote                   0.00        2   0.375
+  recommendation          0.00        6   0.675
+  shipping                0.00        6   0.375
+
+== silent: running, and no span metrics in [5m] ==
+  none
+
+no active injections
+/postgresql restarts=6
+/valkey-cart restarts=0
+/cart restarts=0
+/checkout restarts=2
+  (quiet since 07:09:03 - nothing fired through R4 or the refused start.)
+
+=== 2. inject through the injector ===
+
+$ date -u +%H:%M:%S; FAULTLINE_TOOLS_WORLD=v2 uv run faultline-inject start v2-cart-store-corruption; FAULTLINE_TOOLS_WORLD=v2 uv run faultline-inject status; docker top valkey-cart -o pid,args | grep -c "sh -c"
+08:04:45
+injected v2-cart-store-corruption (datastore_corruption) on valkey-cart
+  - valkey-cli on valkey-cart: every hash's 'cart' field set to 0xffffffff, swept every 0.05s (first sweep: 451 keys; loop heartbeat: 2 sweep(s) 0.1s after start)
+  - no change record: the store is healthy and its contents are wrong
+revert with: faultline-inject stop v2-cart-store-corruption
+1 active injection(s)  [state: /Users/chandana/dev/faultline/.faultline/injections.json]
+
+v2-cart-store-corruption
+    class  : datastore_corruption
+    target : valkey-cart
+    started: 2026-09-24T08:04:45.601651+00:00 (0s ago)
+    params : cli=valkey-cli, field=cart, interval=0.05
+    revert : stop the corruption loop on valkey-cart and flush it
+1
+
+=== 3. observe ===
+
+$ python3 evals/attempts/watch.py 12
+08:06:13  quiet
+08:06:43  quiet
+08:07:13  quiet
+08:07:43  quiet
+08:08:13  quiet
+08:08:43  quiet
+08:09:13  quiet
+08:09:43  quiet
+08:10:13  ServiceHighErrorRate/checkout
+08:10:43  ServiceHighErrorRate/checkout
+08:11:13  ServiceHighErrorRate/checkout
+08:11:43  ServiceHighErrorRate/checkout
+08:12:13  ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend-proxy
+08:12:43  ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend-proxy
+08:13:13  ServiceHighErrorRate/checkout
+08:13:43  ServiceHighErrorRate/checkout
+08:14:13  ServiceHighErrorRate/checkout
+08:14:44  ServiceHighErrorRate/checkout
+08:15:14  ServiceHighErrorRate/checkout
+08:15:44  ServiceHighErrorRate/checkout
+08:16:14  ServiceHighErrorRate/checkout
+08:16:44  ServiceHighErrorRate/checkout
+08:17:14  ServiceHighErrorRate/checkout
+08:17:44  ServiceHighErrorRate/checkout
+
+$ python3 evals/attempts/shape.py cart
+== firing ==
+  ServiceHighErrorRate/frontend-proxy
+  ServiceHighErrorRate/checkout
+  ServiceHighErrorRate/frontend
+
+== per service, [5m] ==
+  service                 err%    p95ms   req/s
+  accounting              0.00       88   0.242
+  ad                      0.83        4   0.500
+  cart                    4.23        5   3.642
+  checkout                9.15       26   1.275
+  currency                0.00        5   0.208
+  email                   0.00       31   0.317
+  flagd                   0.19        2   2.162
+  fraud-detection         0.00       95   0.158
+  frontend                5.04       40  12.229
+  frontend-proxy          5.33       42   5.783
+  image-provider          0.00        2   0.100
+  load-generator          2.96       44   5.208
+  payment                 0.00        2   0.167
+  product-catalog         0.00        7   4.933
+  product-reviews         0.00       42   0.979
+  quote                   0.00        2   0.237
+  recommendation          0.00        6   0.612
+  shipping                0.00        4   0.237
+
+== silent: running, and no span metrics in [5m] ==
+  none
+
+== docker state (not agent-visible) ==
+  faultline-minio-1    exited     Exited (255) 2 days ago
+  faultline-postgres-1 exited     Exited (255) 2 days ago
+  faultline-prometheus-self-1 exited     Exited (255) 3 days ago
+  faultline-redis-1    exited     Exited (255) 2 days ago
+  nostalgic_volhard    created    Created
+  (only containers not plainly running are listed)
+
+== last 8 log lines: cart ==
+        GetCartAsync called with userId=6f2ed014-b7f0-11f1-8780-328bee022e74
+  info: Grpc.AspNetCore.Server.ServerCallHandler[7]
+        Error status code 'FailedPrecondition' with detail 'Can't access cart storage. Google.Protobuf.InvalidProtocolBufferException: While parsing a protocol message, the input ended unexpectedly in t
+           at Google.Protobuf.SegmentedBufferHelper.RefillBuffer(ReadOnlySpan`1& buffer, ParserInternalState& state, Boolean mustSucceed)
+           at Google.Protobuf.ParsingPrimitives.ReadRawByte(ReadOnlySpan`1& buffer, ParserInternalState& state)
+           at Google.Protobuf.ParsingPrimitives.ParseRawVarint32SlowPath(ReadOnlySpan`1& buffer, ParserInternalState& state)
+           at Oteldemo.Cart.MergeFrom(CodedInputStream input) in /usr/src/app/src/obj/Release/net10.0/linux-musl-arm64/Demo.cs:line 1247
+           at cart.cartstore.ValkeyCartStore.GetCartAsync(String userId) in /usr/src/app/src/cartstore/ValkeyCartStore.cs:line 227' raised.
+
+=== 4. read back through the tools: culprit and pager ===
+
+$ FAULTLINE_TOOLS_WORLD=v2 uv run python -m evalharness.readback cart 08:04 08:19 --errors 2>&1 | head -50
+== cart over 08:04..08:19 UTC, world v2 ==
+
+-- promql_query error-ratio --
+query: sum by(service_name) (rate(traces_span_metrics_calls_total{service_name="cart",status_code="STATUS_CODE_ERROR"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name="cart"}[5m]))
+1 series
+  {service_name=cart} min=0.01959 max=0.04845 n=25
+
+-- promql_query latency-p95 --
+query: histogram_quantile(0.95, sum by(service_name, le) (rate(traces_span_metrics_duration_milliseconds_bucket{service_name="cart",span_kind!="SPAN_KIND_INTERNAL"}[5m])))
+1 series
+  {service_name=cart} min=4.228 max=5.626 n=31
+
+-- logql_query --
+selector: {service="cart"}
+2026-09-24T08:04:01.656927+00:00  info: cart.cartstore.ValkeyCartStore[0]
+2026-09-24T08:04:01.656955+00:00        GetCartAsync called with userId=
+2026-09-24T08:04:02.981337+00:00  info: cart.cartstore.ValkeyCartStore[0]
+2026-09-24T08:04:02.981362+00:00        GetCartAsync called with userId=
+  ... lines between here and the next timestamp were not returned: this result keeps the OLDEST 4 and the NEWEST 16 lines of the window, and nothing in between ...
+2026-09-24T08:18:38.723199+00:00           at Google.Protobuf.ParsingPrimitives.ReadRawByte(ReadOnlySpan`1& buffer, ParserInternalState& state)
+2026-09-24T08:18:38.723200+00:00           at Google.Protobuf.ParsingPrimitives.ParseRawVarint32SlowPath(ReadOnlySpan`1& buffer, ParserInternalState& state)
+2026-09-24T08:18:38.723202+00:00           at cart.cartstore.ValkeyCartStore.GetCartAsync(String userId) in /usr/src/app/src/cartstore/ValkeyCartStore.cs:line 227' raised.
+2026-09-24T08:18:38.723202+00:00           at Oteldemo.Cart.MergeFrom(CodedInputStream input) in /usr/src/app/src/obj/Release/net10.0/linux-musl-arm64/Demo.cs:line 1247
+2026-09-24T08:18:39.321283+00:00  info: cart.cartstore.ValkeyCartStore[0]
+2026-09-24T08:18:39.321308+00:00        AddItemAsync called with userId=8bf25b62-b7f0-11f1-8780-328bee022e74, productId=0PUK6V6EV0, quantity=5
+2026-09-24T08:18:39.323642+00:00  info: cart.cartstore.ValkeyCartStore[0]
+2026-09-24T08:18:39.323657+00:00        GetCartAsync called with userId=8bf25b62-b7f0-11f1-8780-328bee022e74
+2026-09-24T08:18:39.570050+00:00  info: cart.cartstore.ValkeyCartStore[0]
+2026-09-24T08:18:39.570085+00:00        AddItemAsync called with userId=8c16128c-b7f0-11f1-8780-328bee022e74, productId=HQTGWGPNH4, quantity=10
+2026-09-24T08:18:39.572837+00:00  info: cart.cartstore.ValkeyCartStore[0]
+2026-09-24T08:18:39.572845+00:00        GetCartAsync called with userId=8c16128c-b7f0-11f1-8780-328bee022e74
+2026-09-24T08:18:44.915499+00:00  info: cart.cartstore.ValkeyCartStore[0]
+2026-09-24T08:18:44.915543+00:00        GetCartAsync called with userId=
+2026-09-24T08:18:45.161723+00:00  info: cart.cartstore.ValkeyCartStore[0]
+2026-09-24T08:18:45.161747+00:00        GetCartAsync called with userId=
+
+-- trace_query (errors only) --
+service: cart
+1 trace(s) shown of 10 found, 19 spans; offsets are from each trace's root
+
+trace 517e6667806498b6  root load-generator/user_add_to_cart  14.1ms  started 2026-09-24T08:18:22.833889+00:00  19 spans
+  +0.0ms load-generator/user_add_to_cart 14.1ms [self 0.8ms]
+    +2.1ms load-generator/POST 11.5ms [self 1.6ms]  ERROR
+      +2.3ms frontend-proxy/ingress 9.9ms [self 0.1ms]  ERROR
+        +2.3ms frontend-proxy/router frontend egress 9.9ms [self 0.0ms]  ERROR
+          +2.1ms frontend/POST 13.7ms [self 0.1ms]  ERROR
+            +2.1ms frontend/POST /api/cart 13.5ms [self 0.3ms]  ERROR
+              +2.1ms frontend/executing api route (pages) /api/cart 13.3ms [self 7.6ms]  ERROR
+                ... 1 deeper span(s) elided
+    +0.2ms load-generator/GET 1.7ms [self 0.4ms]
+  (cut by head -50)
+
+$ FAULTLINE_TOOLS_WORLD=v2 uv run python -m evalharness.readback checkout 08:04 08:19 --errors 2>&1 | head -50
+== checkout over 08:04..08:19 UTC, world v2 ==
+
+-- promql_query error-ratio --
+query: sum by(service_name) (rate(traces_span_metrics_calls_total{service_name="checkout",status_code="STATUS_CODE_ERROR"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name="checkout"}[5m]))
+1 series
+  {service_name=checkout} min=0 max=0.1263 n=31
+
+-- promql_query latency-p95 --
+query: histogram_quantile(0.95, sum by(service_name, le) (rate(traces_span_metrics_duration_milliseconds_bucket{service_name="checkout",span_kind!="SPAN_KIND_INTERNAL"}[5m])))
+1 series
+  {service_name=checkout} min=24.46 max=35.08 n=31
+
+-- logql_query --
+no log lines matched {service="checkout"} over this window
+
+-- trace_query (errors only) --
+service: checkout
+3 trace(s) shown of 10 found, 39 spans; offsets are from each trace's root
+
+trace 27cce97f0d397c6b  root load-generator/user_checkout_multi  71.1ms  started 2026-09-24T08:16:39.250996+00:00  13 spans
+  +0.0ms load-generator/user_checkout_multi 71.1ms [self 64.1ms]
+    +63.8ms load-generator/POST 7.1ms [self 1.5ms]  ERROR
+      +64.2ms frontend-proxy/ingress 5.6ms [self 0.1ms]  ERROR
+        +64.3ms frontend-proxy/router frontend egress 5.4ms [self 1.2ms]  ERROR
+          +64.0ms frontend/POST 4.2ms [self 0.2ms]  ERROR
+            +64.0ms frontend/POST /api/checkout 4.0ms [self 0.4ms]  ERROR
+              +65.0ms frontend/executing api route (pages) /api/checkout 3.6ms [self 0.9ms]  ERROR
+                ... 1 deeper span(s) elided
+  degrading hop: checkout/oteldemo.CartService/GetCart -> cart/POST /oteldemo.CartService/GetCart  0.8ms, 1% of the trace (error)
+
+trace f26f5d4be62b3a49  root load-generator/user_checkout_multi  51.9ms  started 2026-09-24T08:18:22.805830+00:00  13 spans
+  +0.0ms load-generator/user_checkout_multi 51.9ms [self 42.9ms]
+    +42.6ms load-generator/POST 9.0ms [self 1.4ms]  ERROR
+      +43.4ms frontend-proxy/ingress 7.6ms [self 0.3ms]  ERROR
+        +43.6ms frontend-proxy/router frontend egress 7.3ms [self 1.0ms]  ERROR
+          +44.2ms frontend/POST 6.3ms [self 0.2ms]  ERROR
+            +44.2ms frontend/POST /api/checkout 6.1ms [self 0.6ms]  ERROR
+              +45.2ms frontend/executing api route (pages) /api/checkout 5.4ms [self 0.8ms]  ERROR
+                ... 1 deeper span(s) elided
+  degrading hop: checkout/oteldemo.CartService/GetCart -> cart/POST /oteldemo.CartService/GetCart  0.8ms, 1% of the trace (error)
+
+trace 4b49f003f2bad18c  root load-generator/user_checkout_single  27.0ms  started 2026-09-24T08:18:38.699190+00:00  13 spans
+  +0.0ms load-generator/user_checkout_single 27.0ms [self 15.1ms]
+    +14.9ms load-generator/POST 11.9ms [self 1.2ms]  ERROR
+      +15.1ms frontend-proxy/ingress 10.8ms [self 0.2ms]  ERROR
+        +15.2ms frontend-proxy/router frontend egress 10.6ms [self 0.0ms]  ERROR
+          +14.8ms frontend/POST 10.7ms [self 0.2ms]  ERROR
+            +14.8ms frontend/POST /api/checkout 10.6ms [self 0.4ms]  ERROR
+              +15.8ms frontend/executing api route (pages) /api/checkout 10.2ms [self 1.4ms]  ERROR
+                ... 1 deeper span(s) elided
+  (cut by head -50)
+
+=== 5. restore through the injector; idempotence; the loop's end, the flush, restart counts ===
+
+$ date -u +%H:%M:%S; FAULTLINE_TOOLS_WORLD=v2 uv run faultline-inject stop v2-cart-store-corruption; FAULTLINE_TOOLS_WORLD=v2 uv run faultline-inject status; FAULTLINE_TOOLS_WORLD=v2 uv run faultline-inject stop v2-cart-store-corruption; sleep 2; docker top valkey-cart -o pid,args | grep -c "sh -c"; docker exec valkey-cart cat /tmp/faultline-v2-cart-store-corruption.stop.beat; docker exec valkey-cart valkey-cli DBSIZE; docker inspect -f '{{.Name}} restarts={{.RestartCount}}' postgresql valkey-cart cart checkout
+08:19:00
+reverted v2-cart-store-corruption
+  - valkey-cart: stop file placed; the corruption loop ends after 14981 sweeps
+  - valkey-cli FLUSHALL: every corrupted value discarded
+no active injections
+v2-cart-store-corruption is not active; nothing to revert
+0
+14981
+0
+/postgresql restarts=6
+/valkey-cart restarts=0
+/cart restarts=0
+/checkout restarts=2
+  → loop gone (0 shells), heartbeat frozen at 14981 sweeps over 14 min 15 s (one per 57 ms), store empty, no restarts.
+
+=== 6. recover ===
+
+$ python3 evals/attempts/watch.py 10
+08:19:10  ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend-proxy
+08:19:40  ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend-proxy
+08:20:10  ServiceHighErrorRate/checkout
+08:20:40  ServiceHighErrorRate/checkout
+08:21:10  ServiceHighErrorRate/checkout
+08:21:40  ServiceHighErrorRate/checkout
+08:22:10  quiet
+08:22:40  quiet
+08:23:10  quiet
+08:23:40  quiet
+08:24:10  quiet
+08:24:40  quiet
+08:25:10  quiet
+08:25:40  quiet
+08:26:10  quiet
+08:26:40  quiet
+08:27:10  quiet
+08:27:40  quiet
+08:28:10  quiet
+08:28:40  quiet
