@@ -541,6 +541,26 @@ CATALOG: tuple[FaultDefinition, ...] = _validated(
         # smoked (inject / status / stop / stop) to T1.4's bar before its scenario is authored.
         # Values read off the running world on 2026-09-24, not carried from v1.
         FaultDefinition(
+            id="v2-accounting-bad-credential",
+            fault_class=FaultClass.BAD_CONFIG,
+            target="accounting",
+            world="v2",
+            description=(
+                "Rotate accounting's database password to one Postgres does not accept (T7.0's A6, "
+                "the only form 'cert expiry' takes on a world with no TLS). The consumer keeps "
+                "consuming and every order fails at the write: ServiceHighErrorRate on accounting "
+                "itself (A6 +5:03), its log naming 28P01 password authentication failed."
+            ),
+            # Live value `Host=postgresql;Username=otelu;Password=otelp;Database=otel` (docker
+            # inspect accounting, 2026-09-24): only the password moves. A6's attempt used
+            # `WRONG-t70-attempt`, which the change record would hand the agent as the answer; a
+            # rotation-shaped value is what a real bad rotation would leave there.
+            params={
+                "env_var": "DB_CONNECTION_STRING",
+                "value": "Host=postgresql;Username=otelu;Password=otelp-2026q3;Database=otel",
+            },
+        ),
+        FaultDefinition(
             id="v2-cart-valkey-misconfig",
             fault_class=FaultClass.BAD_CONFIG,
             target="cart",

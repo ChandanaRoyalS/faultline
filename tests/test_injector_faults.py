@@ -398,6 +398,7 @@ def test_the_v2_old_mechanism_definitions_carry_v2_values_not_v1s() -> None:
         }
     }
     assert set(v2_old) == {
+        "v2-accounting-bad-credential",
         "v2-cart-valkey-misconfig",
         "v2-cart-bad-image-tag",
         "v2-ad-memory-squeeze",
@@ -406,6 +407,12 @@ def test_the_v2_old_mechanism_definitions_carry_v2_values_not_v1s() -> None:
     for f in v2_old.values():
         flat = " ".join(str(v) for v in f.params.values())
         assert "v1.2.1" not in flat and "REDIS_ADDR" not in flat, f"{f.id} carries a v1 value"
+    credential = str(v2_old["v2-accounting-bad-credential"].params["value"])
+    assert v2_old["v2-accounting-bad-credential"].params["env_var"] == "DB_CONNECTION_STRING"
+    assert credential == "Host=postgresql;Username=otelu;Password=otelp-2026q3;Database=otel", (
+        "only the password moves from the live value; host, user and database stay v2's"
+    )
+    assert "wrong" not in credential.lower(), "the change record must not name the answer"
     image = str(v2_old["v2-cart-bad-image-tag"].params["image"])
     assert image.startswith("ghcr.io/open-telemetry/demo:2.2.0-cart")
     assert v2_old["v2-cart-bad-image-tag"].params["expect_start"] == "no"
