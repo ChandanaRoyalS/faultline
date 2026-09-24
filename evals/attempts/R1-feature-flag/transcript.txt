@@ -1,0 +1,260 @@
+R1 — feature_flag rehearsed through the injector: v2-product-catalog-flag-failure.
+Run 2026-09-24 02:24:25 → 02:45:59 UTC on the Mac, zsh, FAULTLINE_TOOLS_WORLD=v2. Protocol: evals/runs/REHEARSALS-T7.0.md.
+
+=== provenance — read this first ===
+
+The live terminal paste of this run was lost between the run and the write-up. What follows is
+therefore NOT the terminal verbatim.
+It is, in this order:
+
+  1. the clock readings kept from the live terminal at the time — nothing else from it survives;
+  2. the same window re-read from the stores afterwards, verbatim: the alert timeline from
+     Prometheus's ALERTS series at 30 s (evals/attempts/replay.py, the source watch.py polled),
+     the shape at 02:36 from the same store, and the two tool read-backs re-run over the run's
+     window after 03:44 — the same queries the protocol runs at step 4, against the same stores;
+  3. the (d) reachability check run at 03:43–03:44, after Tempo's recreate, verbatim.
+
+What is lost and not reconstructed: the text the injector printed at `start` and at `stop`, the
+`status` output, and the tool answers as they were at 02:36 (the 02:36 trace_query failure is
+kept as a clock reading only; Tempo's exit at 02:58:54 was observed in `docker ps`). No line
+below is presented as something the terminal showed unless section 1 says so.
+
+=== 1. kept from the live terminal ===
+
+pre-state          shape.py: none firing; faultline-inject status: no active injections
+02:24:25           FAULTLINE_TOOLS_WORLD=v2 uv run faultline-inject start v2-product-catalog-flag-failure
+                   (status afterwards showed the fault active; wording not kept)
+02:29:56           watch.py: ServiceHighErrorRate/frontend-proxy                        (+5:31)
+02:30:26           watch.py: + ServiceHighErrorRate/frontend                            (+6:01)
+02:31:26–02:32:xx  watch.py: + ServiceHighErrorRate/product-catalog, briefly            (+7:01)
+~02:36             shape.py product-catalog: frontend 6.91 %, frontend-proxy 7.27 %, product-catalog 4.20 %
+~02:36             readback product-catalog / frontend --errors:
+                     promql: curves as in section 2 below
+                     logql product-catalog: nothing;  logql frontend: the flag's message at 02:24:29
+                     trace_query: FAILED (backend error) — Tempo was found Exited (137) at 02:58:54
+                     change_history: "no change log configured"
+02:36:28           FAULTLINE_TOOLS_WORLD=v2 uv run faultline-inject stop v2-product-catalog-flag-failure  → reverted
+                   status → no active injections
+                   stop again → "is not active; nothing to revert"
+02:38:59           watch.py: quiet                                                       (+2:31 after stop)
+02:45:59           watch.py 10 ends: quiet since 02:38:59 (7 min)
+
+=== 2. the same window, re-read from the stores ===
+
+$ python3 evals/attempts/replay.py 02:20 02:46 --at 02:36
+== ALERTS firing, 02:20..02:46 UTC, from Prometheus at 30 s ==
+02:20:00  quiet
+02:20:30  quiet
+02:21:00  quiet
+02:21:30  quiet
+02:22:00  quiet
+02:22:30  quiet
+02:23:00  quiet
+02:23:30  quiet
+02:24:00  quiet
+02:24:30  quiet
+02:25:00  quiet
+02:25:30  quiet
+02:26:00  quiet
+02:26:30  quiet
+02:27:00  quiet
+02:27:30  quiet
+02:28:00  quiet
+02:28:30  quiet
+02:29:00  quiet
+02:29:30  quiet
+02:30:00  ServiceHighErrorRate/frontend-proxy
+02:30:30  ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy
+02:31:00  ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy
+02:31:30  ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/product-catalog
+02:32:00  ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/product-catalog
+02:32:30  ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/product-catalog
+02:33:00  ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy
+02:33:30  ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy
+02:34:00  ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy
+02:34:30  ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy
+02:35:00  ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy
+02:35:30  ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy
+02:36:00  ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy
+02:36:30  ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy
+02:37:00  ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy
+02:37:30  ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy
+02:38:00  ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy
+02:38:30  ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy
+02:39:00  quiet
+02:39:30  quiet
+02:40:00  quiet
+02:40:30  quiet
+02:41:00  quiet
+02:41:30  quiet
+02:42:00  quiet
+02:42:30  quiet
+02:43:00  quiet
+02:43:30  quiet
+02:44:00  quiet
+02:44:30  quiet
+02:45:00  quiet
+02:45:30  quiet
+02:46:00  quiet
+
+== per service, [5m] ending 02:36 UTC ==
+  service                   err%    p95ms   req/s
+  accounting                0.00       92   0.417
+  ad                        0.71        5   0.588
+  cart                       nan        5   3.783
+  checkout                  0.90       30   1.842
+  currency                   nan        7   0.371
+  email                      nan        8   0.533
+  flagd                     0.26        2   1.629
+  fraud-detection           0.00       94   0.275
+  frontend                  6.91       42  11.575
+  frontend-proxy            7.27       44   5.675
+  image-provider             nan        2   0.100
+  load-generator            4.15       46   5.117
+  payment                    nan        2   0.267
+  product-catalog           4.20        7   4.758
+  product-reviews           0.43       41   0.958
+  quote                      nan        2   0.400
+  recommendation            0.74        6   0.567
+  shipping                   nan        6   0.400
+  → the three figures match the ones kept from the live shape.py at ~02:36 to the hundredth.
+    (nan = no error series for that service in the window, i.e. zero errors.)
+
+$ FAULTLINE_TOOLS_WORLD=v2 uv run python -m evalharness.readback product-catalog 02:24 02:46 --errors 2>&1 | head -40
+== product-catalog over 02:24..02:46 UTC, world v2 ==
+
+-- promql_query error-ratio --
+query: sum by(service_name) (rate(traces_span_metrics_calls_total{service_name="product-catalog",status_code="STATUS_CODE_ERROR"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name="product-catalog"}[5m]))
+1 series
+  {service_name=product-catalog} min=0 max=0.0564 n=40
+
+-- promql_query latency-p95 --
+query: histogram_quantile(0.95, sum by(service_name, le) (rate(traces_span_metrics_duration_milliseconds_bucket{service_name="product-catalog",span_kind!="SPAN_KIND_INTERNAL"}[5m])))
+1 series
+  {service_name=product-catalog} min=5.701 max=8.389 n=45
+
+-- logql_query --
+no log lines matched {service="product-catalog"} over this window
+
+-- trace_query (errors only) --
+no traces for product-catalog over this window
+
+-- change_history --
+query failed: no change log configured, so this window was not observed
+
+$ FAULTLINE_TOOLS_WORLD=v2 uv run python -m evalharness.readback frontend 02:24 02:46 --errors 2>&1 | head -40
+== frontend over 02:24..02:46 UTC, world v2 ==
+
+-- promql_query error-ratio --
+query: sum by(service_name) (rate(traces_span_metrics_calls_total{service_name="frontend",status_code="STATUS_CODE_ERROR"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name="frontend"}[5m]))
+1 series
+  {service_name=frontend} min=0 max=0.08973 n=45
+
+-- promql_query latency-p95 --
+query: histogram_quantile(0.95, sum by(service_name, le) (rate(traces_span_metrics_duration_milliseconds_bucket{service_name="frontend",span_kind!="SPAN_KIND_INTERNAL"}[5m])))
+1 series
+  {service_name=frontend} min=39.6 max=43.59 n=45
+
+-- logql_query --
+selector: {service="frontend"}
+2026-09-24T02:24:29.837881+00:00  Error: 13 INTERNAL: Error: Product Catalog Fail Feature Flag Enabled
+2026-09-24T02:24:29.837899+00:00      at <unknown> (.next/server/chunks/[root-of-the-server]__828d7226._.js:1:1058)
+2026-09-24T02:24:29.837906+00:00      at new Promise (<anonymous>) {
+2026-09-24T02:24:29.837907+00:00    code: 13,
+  ... lines between here and the next timestamp were not returned: this result keeps the OLDEST 4 and the NEWEST 16 lines of the window, and nothing in between ...
+2026-09-24T02:36:07.104714+00:00    metadata: [Metadata]
+2026-09-24T02:36:07.104715+00:00  }
+2026-09-24T02:36:22.678337+00:00  Error: 13 INTERNAL: Error: Product Catalog Fail Feature Flag Enabled
+2026-09-24T02:36:22.678358+00:00      at <unknown> (.next/server/chunks/[root-of-the-server]__828d7226._.js:1:1058)
+2026-09-24T02:36:22.678360+00:00      at new Promise (<anonymous>) {
+2026-09-24T02:36:22.678362+00:00    code: 13,
+2026-09-24T02:36:22.678363+00:00    details: 'Error: Product Catalog Fail Feature Flag Enabled',
+2026-09-24T02:36:22.678365+00:00    metadata: [Metadata]
+2026-09-24T02:36:22.678366+00:00  }
+2026-09-24T02:36:22.704293+00:00  Error: 13 INTERNAL: failed to prepare order: failed to get product #"OLJCESPC7Z"
+2026-09-24T02:36:22.704309+00:00      at <unknown> (.next/server/chunks/[root-of-the-server]__00d48b27._.js:1:1906)
+2026-09-24T02:36:22.704312+00:00      at new Promise (<anonymous>) {
+2026-09-24T02:36:22.704313+00:00    code: 13,
+2026-09-24T02:36:22.704315+00:00    details: 'failed to prepare order: failed to get product #"OLJCESPC7Z"',
+2026-09-24T02:36:22.704316+00:00    metadata: [Metadata]
+2026-09-24T02:36:22.704318+00:00  }
+
+-- trace_query (errors only) --
+no traces for frontend over this window
+  → expected: Tempo was recreated empty at ~03:31 (Q91's measured limit, 0138), after this window.
+
+-- change_history --
+  (cut by head -40; the product-catalog read-back above shows the same answer: no change log configured)
+
+=== 3. (d) reachable through the tool path — after Tempo's recreate ===
+
+$ date -u +%H:%M:%S; FAULTLINE_TOOLS_WORLD=v2 uv run python -m evalharness.readback frontend 03:32 03:43 --errors 2>&1 | head -60; docker stats --no-stream --format '{{.Name}} {{.MemUsage}}' tempo otel-collector
+03:43:10
+== frontend over 03:32..03:43 UTC, world v2 ==
+
+-- promql_query error-ratio --
+query: sum by(service_name) (rate(traces_span_metrics_calls_total{service_name="frontend",status_code="STATUS_CODE_ERROR"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name="frontend"}[5m]))
+1 series
+  {service_name=frontend} min=0 max=0 n=7
+
+-- promql_query latency-p95 --
+query: histogram_quantile(0.95, sum by(service_name, le) (rate(traces_span_metrics_duration_milliseconds_bucket{service_name="frontend",span_kind!="SPAN_KIND_INTERNAL"}[5m])))
+1 series
+  {service_name=frontend} min=42.14 max=42.59 n=7
+
+-- logql_query --
+no log lines matched {service="frontend"} over this window
+
+-- trace_query (errors only) --
+no traces for frontend over this window
+
+-- change_history --
+query failed: no change log configured, so this window was not observed
+tempo 246.2MiB / 1GiB
+otel-collector 153.2MiB / 200MiB
+  → a healthy world has no error traces; the query ran and Tempo stood. Then without --errors:
+
+$ date -u +%H:%M:%S; FAULTLINE_TOOLS_WORLD=v2 uv run python -m evalharness.readback frontend 03:35 03:45 2>&1 | sed -n '/trace_query/,/change_history/p' | head -40; docker stats --no-stream --format '{{.Name}} {{.MemUsage}}' tempo
+03:44:05
+-- trace_query --
+service: frontend
+10 trace(s) shown of 10 found, 186 spans; offsets are from each trace's root
+
+trace 27c7a6bbfc0d455d  root load-generator/user_get_product_reviews  17.5ms  started 2026-09-24T03:43:33.800135+00:00  11 spans
+  +0.0ms load-generator/user_get_product_reviews 17.5ms [self 0.5ms]
+    +0.4ms load-generator/GET 17.1ms [self 2.1ms]
+      +1.8ms frontend-proxy/ingress 14.9ms [self 0.1ms]
+        +1.9ms frontend-proxy/router frontend egress 14.8ms [self 1.4ms]
+          +2.9ms frontend/GET 13.4ms [self 0.3ms]
+            +2.9ms frontend/GET /api/product-reviews/[productId]/index 13.2ms [self 0.5ms]
+              +2.9ms frontend/executing api route (pages) /api/product-reviews/[productId]/index 12.6ms [self 0.3ms]
+                ... 1 deeper span(s) elided
+  degrading hop: product-reviews//oteldemo.ProductReviewService/GetProductReviews -> product-reviews/get_product_reviews  10.3ms, 59% of the trace (self-time)
+
+trace 33fbdf3ac760461b  root load-generator/user_get_ads  7.4ms  started 2026-09-24T03:43:34.072016+00:00  13 spans
+  +0.0ms load-generator/user_get_ads 7.4ms [self 0.4ms]
+    +0.3ms load-generator/GET 7.0ms [self 3.0ms]
+      +2.1ms frontend-proxy/ingress 2.9ms [self 0.1ms]
+        +2.2ms frontend-proxy/router frontend egress 2.8ms [self 0.8ms]
+          +3.0ms frontend/GET 2.1ms [self 0.2ms]
+            +3.0ms frontend/GET /api/data 1.9ms [self 0.5ms]
+              +3.0ms frontend/executing api route (pages) /api/data 1.4ms [self 0.5ms]
+                ... 1 deeper span(s) elided
+      +0.5ms frontend-proxy/ingress 1.2ms [self 0.1ms]
+        +0.6ms frontend-proxy/router frontend egress 1.1ms [self 0.7ms]
+          +1.0ms frontend/GET 0.4ms [self 0.4ms]
+  degrading hop: load-generator/user_get_ads -> load-generator/GET  7.0ms, 95% of the trace (self-time)
+
+trace 590ec087831f68eb  root load-generator/user_get_ads  4.6ms  started 2026-09-24T03:43:35.109100+00:00  13 spans
+  +0.0ms load-generator/user_get_ads 4.6ms [self 0.5ms]
+    +0.5ms load-generator/GET 4.1ms [self 2.1ms]
+      +2.9ms frontend-proxy/ingress 1.3ms [self 0.0ms]
+        +3.0ms frontend-proxy/router frontend egress 1.3ms [self 0.0ms]
+          +2.9ms frontend/GET 1.5ms [self 0.1ms]
+            +2.9ms frontend/GET /api/data 1.4ms [self 0.3ms]
+              +2.9ms frontend/executing api route (pages) /api/data 1.1ms [self 0.5ms]
+                ... 1 deeper span(s) elided
+      +1.8ms frontend-proxy/ingress 0.6ms [self 0.1ms]
+        +1.9ms frontend-proxy/router frontend egress 0.5ms [self 0.0ms]
+tempo 283.6MiB / 1GiB
+  (cut by head -40; ten traces were returned)
