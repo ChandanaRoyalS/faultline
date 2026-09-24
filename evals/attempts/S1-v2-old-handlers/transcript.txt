@@ -1,0 +1,77 @@
+S1 — inject / restore smokes of the four v1 mechanisms on the v2 world.
+2026-09-24, the Mac, zsh, FAULTLINE_TOOLS_WORLD=v2. Pasted verbatim from terminal 1.
+
+$ V=v2-cart-valkey-misconfig; date -u +%T; FAULTLINE_TOOLS_WORLD=v2 uv run faultline-inject start $V; FAULTLINE_TOOLS_WORLD=v2 uv run faultline-inject status | grep -E "revert|class"; docker inspect -f '{{range .Config.Env}}{{println .}}{{end}}' cart | grep VALKEY; sleep 60; echo "cart log lines naming valkey/connect in 60s: $(docker logs --since 60s cart 2>&1 | grep -ciE 'valkey|connect')"; FAULTLINE_TOOLS_WORLD=v2 uv run faultline-inject stop $V; FAULTLINE_TOOLS_WORLD=v2 uv run faultline-inject status; FAULTLINE_TOOLS_WORLD=v2 uv run faultline-inject stop $V; docker inspect -f '{{range .Config.Env}}{{println .}}{{end}}' cart | grep VALKEY
+09:57:10
+injected v2-cart-valkey-misconfig (bad_config) on cart
+  - compose: cart recreated with VALKEY_ADDR=valkey-cart:6380
+  - override written to /Users/chandana/dev/faultline/.faultline/overrides/v2-cart-valkey-misconfig.yml
+revert with: faultline-inject stop v2-cart-valkey-misconfig
+    class  : bad_config
+    revert : recreate cart without /Users/chandana/dev/faultline/.faultline/overrides/v2-cart-valkey-misconfig.yml
+VALKEY_ADDR=valkey-cart:6380
+cart log lines naming valkey/connect in 60s: 40
+reverted v2-cart-valkey-misconfig
+  - compose: cart recreated from the base world definition
+  - removed override /Users/chandana/dev/faultline/.faultline/overrides/v2-cart-valkey-misconfig.yml
+no active injections
+v2-cart-valkey-misconfig is not active; nothing to revert
+VALKEY_ADDR=valkey-cart:6379
+
+$ V=v2-cart-bad-image-tag; date -u +%T; FAULTLINE_TOOLS_WORLD=v2 uv run faultline-inject start $V; sleep 20; docker ps -a --filter name=^cart$ --format '{{.Names}} {{.Image}} {{.Status}}'; FAULTLINE_TOOLS_WORLD=v2 uv run faultline-inject stop $V; FAULTLINE_TOOLS_WORLD=v2 uv run faultline-inject status; FAULTLINE_TOOLS_WORLD=v2 uv run faultline-inject stop $V; sleep 10; docker ps -a --filter name=^cart$ --format '{{.Names}} {{.Image}} {{.Status}}'
+09:58:26
+injected v2-cart-bad-image-tag (bad_deploy) on cart
+  - compose: cart stopped, then pointed at ghcr.io/open-telemetry/demo:2.2.0-cart-hotfix.2
+  - the tag does not resolve, so nothing came back up - cart is dark
+  - override written to /Users/chandana/dev/faultline/.faultline/overrides/v2-cart-bad-image-tag.yml
+revert with: faultline-inject stop v2-cart-bad-image-tag
+cart ghcr.io/open-telemetry/demo:2.2.0-cart Exited (0) 21 seconds ago
+reverted v2-cart-bad-image-tag
+  - compose: cart recreated from the base world definition
+  - removed override /Users/chandana/dev/faultline/.faultline/overrides/v2-cart-bad-image-tag.yml
+no active injections
+v2-cart-bad-image-tag is not active; nothing to revert
+cart ghcr.io/open-telemetry/demo:2.2.0-cart Up 11 seconds
+
+$ V=v2-ad-memory-squeeze; date -u +%T; FAULTLINE_TOOLS_WORLD=v2 uv run faultline-inject start $V; docker inspect -f 'limit={{.HostConfig.Memory}}' ad; sleep 90; docker inspect -f 'oom={{.State.OOMKilled}} restarts={{.RestartCount}} status={{.State.Status}}' ad; FAULTLINE_TOOLS_WORLD=v2 uv run faultline-inject stop $V; FAULTLINE_TOOLS_WORLD=v2 uv run faultline-inject status; FAULTLINE_TOOLS_WORLD=v2 uv run faultline-inject stop $V; docker inspect -f 'limit={{.HostConfig.Memory}}' ad
+09:59:10
+injected v2-ad-memory-squeeze (resource_exhaustion) on ad
+  - docker update: ad memory limit 300M -> 192m (swap capped at the same value)
+revert with: faultline-inject stop v2-ad-memory-squeeze
+limit=201326592
+oom=false restarts=2 status=running
+reverted v2-ad-memory-squeeze
+  - docker update: ad memory limit restored to 300M
+no active injections
+v2-ad-memory-squeeze is not active; nothing to revert
+limit=314572800
+
+$ V=v2-cart-dependency-latency; date -u +%T; FAULTLINE_TOOLS_WORLD=v2 uv run faultline-inject start $V; docker ps --format '{{.Names}} {{.Image}}' | grep -i pumba; sleep 150; python3 evals/attempts/shape.py | grep -E "^  (cart|checkout) "; FAULTLINE_TOOLS_WORLD=v2 uv run faultline-inject stop $V; FAULTLINE_TOOLS_WORLD=v2 uv run faultline-inject status; FAULTLINE_TOOLS_WORLD=v2 uv run faultline-inject stop $V; docker ps --format '{{.Names}}' | grep -ci pumba
+10:00:50
+injected v2-cart-dependency-latency (dependency_latency) on cart
+  - pumba gaiaadm/pumba:0.10.1: 300ms (+/-0ms) delay on cart eth0
+  - sidecar faultline-pumba-v2-cart-dependency-latency holds the rule; it self-reverts after 1h
+revert with: faultline-inject stop v2-cart-dependency-latency
+faultline-pumba-v2-cart-dependency-latency gaiaadm/pumba:0.10.1
+  cart                    0.00      842   3.483
+  checkout                1.80     1162   1.595
+reverted v2-cart-dependency-latency
+  - pumba sidecar faultline-pumba-v2-cart-dependency-latency stopped; netem delay reverted
+no active injections
+v2-cart-dependency-latency is not active; nothing to revert
+0
+
+=== the memory row, read afterwards ===
+
+$ docker events --since 2026-09-24T09:59:00Z --until 2026-09-24T10:01:00Z --filter container=ad --format '{{.Time}} {{.Action}}' | grep -E "oom|die|start"
+  (nothing: Docker Desktop kept no events for the window)
+
+$ for c in accounting checkout load-generator ad; do … max(container_memory_usage_total_bytes{container_name="$c"})/1048576 … 6h at 1800s …; done; docker inspect -f '{{.Name}} restarts={{.RestartCount}} started={{.State.StartedAt}} oom={{.State.OOMKilled}}' accounting checkout load-generator ad
+accounting     133 133 134 135 136 139 139 147 145 119 148 151 152
+checkout       17 17 17 17 17 17 17 17 17 16 18 19 19
+load-generator 1386 1477 1389 1465 1494 1472 1471 1399 1498 1463 1498 1486 1469
+ad             238 238 238 238 238 238 238 239 239 239 239 239 199
+/accounting restarts=0 started=2026-09-24T08:46:48.631097343Z oom=false
+/checkout restarts=2 started=2026-09-24T08:47:19.156706176Z oom=false
+/load-generator restarts=0 started=2026-09-22T05:33:20.280789263Z oom=true
+/ad restarts=2 started=2026-09-24T09:59:22.971272886Z oom=false

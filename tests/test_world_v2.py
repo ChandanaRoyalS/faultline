@@ -684,3 +684,24 @@ def test_the_v2_observability_cover_names_v2s_own_files() -> None:
     configs = {m for m in mounted if "grafana" not in m}
     assert configs <= v2, f"mounted by telemetry-v2.yml but not under cover: {configs - v2}"
     assert "compose/prometheus/alert-rules-v2.yml" in v2
+
+
+def test_the_v2_headroom_rows_clear_the_gate_at_their_measured_rest() -> None:
+    """T7.1 (2026-09-24): the first v2 bundle's pre-flight refused on accounting, checkout and
+    load-generator, and six hours of memory history showed a recycle cannot fix any of them -
+    two re-occupy their ceiling within half an hour of a restart and the third is clipped at it.
+    Each raised limit must hold its measured figure under the gate's 90 % with room to grow."""
+    import yaml
+
+    limits = yaml.safe_load((COMPOSE / "world-v2.override.yml").read_text())["services"]
+    measured_mib = {"accounting": 152.0, "checkout": 19.0, "load-generator": 1498.0}
+    for service, observed in measured_mib.items():
+        memory = limits[service]["deploy"]["resources"]["limits"]["memory"]
+        ceiling = float(memory.rstrip("M")) * 1_000_000 / 1_048_576  # M is MB to compose
+        assert observed / ceiling < 0.70, (
+            f"{service}: {observed} MiB is {observed / ceiling:.0%} of {memory} - too close to "
+            "the gate's 90 % to survive the growth the history showed"
+        )
+    assert limits["load-generator"]["environment"]["LOCUST_USERS"] == 25, (
+        "the raise is sized for 25 users; changing the load changes the row's argument"
+    )
