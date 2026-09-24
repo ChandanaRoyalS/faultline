@@ -692,6 +692,10 @@ not be possible to add a narrative that quietly falsifies it.
 
 
 NARRATIVE_EVIDENCE_V2: dict[str, set[str]] = {
+    # The page names the culprit. Its logs carry the cause inside a misleading label, and the
+    # whole-window log read shows only healthy lines (Q100). The connect span's status carries
+    # 28P01. Runtime shows it alive and throwing, and the change record names the variable.
+    "v2-accounting-bad-credential": {"metrics", "runtime_metrics", "logs", "traces", "changes"},
     # The freeze's page names only the callers. Metrics carry the hang and the target's request
     # rate going to zero; runtime metrics show the target stopped reporting about itself; its
     # log's silence is what the partition does not share (R3); traces put the time in the
