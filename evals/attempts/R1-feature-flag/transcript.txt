@@ -258,3 +258,47 @@ trace 590ec087831f68eb  root load-generator/user_get_ads  4.6ms  started 2026-09
         +1.9ms frontend-proxy/router frontend egress 0.5ms [self 0.0ms]
 tempo 283.6MiB / 1GiB
   (cut by head -40; ten traces were returned)
+
+=== 4. addendum 2026-09-24 03:54 — the (d) read on a live flag, verbatim ===
+
+Ninety seconds of flag after R1 was merged (#471): no page expected (the [5m] error ratio stays
+near 2.4 %, under the 5 % line and its `for: 2m`), one read-back, stop, status, four-minute watch.
+
+$ T0=$(date -u +%H:%M); date -u +%H:%M:%S; FAULTLINE_TOOLS_WORLD=v2 uv run faultline-inject start v2-product-catalog-flag-failure && sleep 90 && T1=$(date -u -v+1M +%H:%M) && FAULTLINE_TOOLS_WORLD=v2 uv run python -m evalharness.readback product-catalog $T0 $T1 --errors 2>&1 | sed -n '/trace_query/,$p' | head -70; date -u +%H:%M:%S; FAULTLINE_TOOLS_WORLD=v2 uv run faultline-inject stop v2-product-catalog-flag-failure; FAULTLINE_TOOLS_WORLD=v2 uv run faultline-inject status; docker stats --no-stream --format '{{.Name}} {{.MemUsage}}' tempo
+03:54:53
+injected v2-product-catalog-flag-failure (feature_flag) on product-catalog
+  - flagd: productCatalogFailure defaultVariant 'off' -> 'on' in /Users/chandana/dev/faultline/world-v2/src/flagd/demo.flagd.json
+  - no compose change and no change record: the flag daemon reloads its own file
+revert with: faultline-inject stop v2-product-catalog-flag-failure
+-- trace_query (errors only) --
+service: product-catalog
+1 trace(s) shown of 10 found, 9 spans; offsets are from each trace's root
+
+trace 1462aecfad3fe205  root load-generator/user_browse_product  8.3ms  started 2026-09-24T03:55:15.386470+00:00  9 spans
+  +0.0ms load-generator/user_browse_product 8.3ms [self 0.5ms]
+    +0.3ms load-generator/GET 7.9ms [self 1.3ms]  ERROR
+      +1.0ms frontend-proxy/ingress 6.6ms [self 0.1ms]  ERROR
+        +1.1ms frontend-proxy/router frontend egress 6.5ms [self 1.4ms]  ERROR
+          +1.5ms frontend/GET 5.0ms [self 0.3ms]  ERROR
+            +2.5ms frontend/GET /api/products/[productId]/index 4.7ms [self 0.6ms]  ERROR
+              +2.5ms frontend/executing api route (pages) /api/products/[productId]/index 4.1ms [self 1.7ms]  ERROR
+                ... 1 deeper span(s) elided
+  degrading hop: frontend/grpc.oteldemo.ProductCatalogService/GetProduct -> product-catalog/oteldemo.ProductCatalogService/GetProduct  0.1ms, 1% of the trace (error)
+
+-- change_history --
+query failed: no change log configured, so this window was not observed
+03:56:24
+reverted v2-product-catalog-flag-failure
+  - flagd: productCatalogFailure defaultVariant restored to 'off'
+no active injections
+tempo 305.8MiB / 1GiB
+
+$ python3 evals/attempts/watch.py 4
+03:56:35  quiet
+03:57:05  quiet
+03:57:35  quiet
+03:58:05  quiet
+03:58:35  quiet
+03:59:05  quiet
+03:59:35  quiet
+04:00:05  quiet
