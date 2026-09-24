@@ -1,0 +1,48 @@
+# v2/bad_config-2 (dev) - see SPLIT-V2.md. Slot allocated before authoring; do not move.
+# Candidate order and eligibility: docs/design/t7.1-candidates.md (dev-only: v1's
+# cart-redis-misconfig is a published dev design, carried to v2 with the store's new name).
+id: v2-cart-valkey-misconfig
+title: Cart service pointed at the wrong valkey port
+fault_class: bad_config
+split: dev
+slot: v2/bad_config-2
+world: v2
+injection:
+  target: cart
+  method: v2-cart-valkey-misconfig
+  params:
+    env_var: "VALKEY_ADDR"
+    value: "valkey-cart:6380"
+ground_truth:
+  root_cause: >
+    The cart service's VALKEY_ADDR was set to valkey-cart:6380. The host is right and the port is
+    wrong, so every cart operation fails to reach a valkey that is up and healthy and serving on
+    its real port, 6379.
+  category: bad_config
+expected_evidence:
+  # From v1's cart-redis-misconfig (dev-only) and S1's smoke of the handler on v2 (2026-09-24:
+  # cart recreated with the override, 40 log lines naming valkey and the connect in 60 s). To be
+  # checked against the bundle at rehearsal and corrected there, as the first two v2 scenarios'
+  # were.
+  - alerts: ServiceHighErrorRate on cart and on its callers on the cart path (checkout, frontend,
+      frontend-proxy, load-generator), cart among the first; the page names the culprit
+  - metrics: cart's error ratio steps up at onset and holds - a plateau, not a degradation, because
+      every attempt fails the same way
+  - logs: cart logs its failure to connect to valkey-cart on port 6380, naming the dependency and
+      the port it could not reach
+  - traces: cart's spans fail at the point of the valkey call; nothing upstream of cart is the
+      origin
+  - metrics: valkey-cart has no telemetry of its own on this world; nothing about it changes, and
+      no other service reports a failure against it
+  - container: cart was recreated at onset and runs normally otherwise - not crashing, restarting
+      or resource-constrained
+  - change: VALKEY_ADDR on cart differs from the world's declared value, and the change coincides
+      exactly with onset
+  - discriminator: the failure is total and immediate rather than load-dependent, which separates
+      a wrong address from a saturated connection pool or a slow store; and it is a refused
+      connection, not a refused credential, which separates it from bad_config-1's shape
+expected_remediation_class: config_revert
+rehearsed: false
+# Declared before recording, checked against the bundle after (T7.5): cart is .NET on v2, whose
+# runtime series v2 carries by service_name (dotnet_*/process_*), and S1 read 40 log lines a minute.
+answers_idle_or_absent: [runtime, logs]
