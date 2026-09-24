@@ -715,28 +715,46 @@ class NetworkPartitionFault(Fault):
 
 
 CORRUPTION_SWEEP = (
+    'local b=(ARGV[2]:gsub("%x%x",function(h) return string.char(tonumber(h,16)) end)) '
     'local c="0" local n=0 '
     'repeat local r=redis.call("SCAN",c,"COUNT",1000) c=r[1] '
     "for _,k in ipairs(r[2]) do "
-    'if redis.call("TYPE",k).ok=="hash" then redis.call("HSET",k,ARGV[1],ARGV[2]) n=n+1 end '
+    'if redis.call("TYPE",k).ok=="hash" then redis.call("HSET",k,ARGV[1],b) n=n+1 end '
     'end until c=="0" return n'
 )
-"""One atomic sweep: set every hash's `ARGV[1]` field to `ARGV[2]`, returning the count.
+"""One atomic sweep: set every hash's `ARGV[1]` field to the bytes `ARGV[2]` spells in hex,
+returning the count.
 
 A4 measured that a store's live values are written and read within milliseconds and then
 abandoned, so a sweep has to repeat faster than the store's clients cycle a key or it corrupts
 only dead ones (A4 at 5s paged nothing; A4b at 50ms paged). The loop below runs this on an
 interval inside the container, so the corruption is continuous rather than a single pass.
+
+**The payload travels as hex and is decoded in Lua** (R4, 2026-09-24): an argv string cannot
+carry a raw 0xFF, and `\xff` handed to the CLI is four ASCII characters, not one byte. A4b's
+hand loop wrote `"\255\255\255\255"` as a Lua literal; `ffffffff` here is the same four bytes.
 """
 
 CORRUPTION_LOOP = (
-    'i=0; while [ ! -f "$STOP" ]; do '
-    '{cli} EVAL "$SCRIPT" 0 "$FIELD" "$BYTES" >/dev/null 2>&1; '
-    'i=$((i+1)); sleep {interval}; done; echo "swept $i times"'
+    'i=0; while [ ! -f "$4" ]; do '
+    '{cli} EVAL "$1" 0 "$2" "$3" >/dev/null 2>&1; '
+    'i=$((i+1)); echo "$i" > "$4.beat"; sleep {interval}; done; echo "swept $i times"'
 )
 """The shell that carries the sweep. Fed to `sh -c` as one argument via docker exec, so no
 quoting crosses a shell of ours - the failure that voided an attempt on 2026-09-23. It exits
-when the stop file appears, which restore touches."""
+when the stop file appears, which restore touches.
+
+**Its inputs are positional** - `$1` the Lua, `$2` the field, `$3` the hex payload, `$4` the
+stop file - because that is what `sh -c SCRIPT NAME ARG...` provides. The first version read
+`$SCRIPT`, `$FIELD`, `$BYTES`, `$STOP`: names nothing set, so it ran `EVAL "" 0 "" ""` every 50 ms
+with its output discarded, never corrupted a key after the probe's one sweep, and never saw the
+stop file (`[ ! -f "" ]` is always true). R4 (2026-09-24) paged nothing for twelve minutes on
+that loop; the fake-runner tests could not see it, so `test_corruption_loop_runs_under_a_real_sh`
+runs the script under the host's `sh`. **`$4.beat` is the loop's heartbeat**: the iteration
+count, rewritten every pass, which `inject` reads before it reports the loop running."""
+
+LOOP_SETTLE_SECONDS = 0.5
+"""How long `inject` waits before reading the loop's heartbeat: ten 50 ms intervals."""
 
 
 class DatastoreCorruptionFault(Fault):
@@ -762,9 +780,14 @@ class DatastoreCorruptionFault(Fault):
         container = definition.target
         cli = _str_param(definition, "cli", "valkey-cli")
         field = _str_param(definition, "field", "cart")
-        payload = _str_param(definition, "payload", r"\xff\xff\xff\xff")
+        payload = _str_param(definition, "payload", "ffffffff")
         interval = _str_param(definition, "interval", "0.05")
         stop_file = f"/tmp/faultline-{definition.id}.stop"
+        if len(payload) % 2 or any(ch not in "0123456789abcdefABCDEF" for ch in payload):
+            raise FaultUsageError(
+                f"{definition.id}: param 'payload' must be the bytes to write, as hex "
+                f"(e.g. 'ffffffff'); got {payload!r}"
+            )
         if not self._docker.is_running(container):
             raise FaultUsageError(
                 f"{definition.id}: {container} is not running; nothing to corrupt"
@@ -796,13 +819,27 @@ class DatastoreCorruptionFault(Fault):
             ],
             detach=True,
         )
+        # The probe proved one sweep; this proves the LOOP is sweeping. R4 (2026-09-24) ran a
+        # loop that never executed its EVAL and reported success for twelve minutes.
+        time.sleep(LOOP_SETTLE_SECONDS)
+        beat = self._docker.exec(container, ["cat", f"{stop_file}.beat"], check=False)
+        beats = beat.stdout.strip()
+        if beat.returncode != 0 or not beats.isdigit() or int(beats) < 1:
+            self._docker.exec(container, ["touch", stop_file], check=False)
+            raise FaultUsageError(
+                f"{definition.id}: the corruption loop on {container} wrote no heartbeat within "
+                f"{LOOP_SETTLE_SECONDS}s, so it is not sweeping. The probe's one sweep took; the "
+                f"fault has NOT been injected and the stop file is placed.\n"
+                f"{beat.stdout}{beat.stderr}"
+            )
         return InjectionOutcome(
             restore=CorruptionRestore(
                 container=container, stop_file=stop_file, cli=cli, flush=True
             ),
             changes=[
-                f"{cli} on {container}: every hash's {field!r} field set to unparseable bytes, "
-                f"swept every {interval}s (first sweep verified: {probe.stdout.strip()} keys)",
+                f"{cli} on {container}: every hash's {field!r} field set to 0x{payload}, swept "
+                f"every {interval}s (first sweep: {probe.stdout.strip()} keys; loop heartbeat: "
+                f"{beats} sweeps in {LOOP_SETTLE_SECONDS}s)",
                 "no change record: the store is healthy and its contents are wrong",
             ],
         )
@@ -814,7 +851,11 @@ class DatastoreCorruptionFault(Fault):
             return [f"{state.container} is gone; the corruption went with it"]
         # Stop the loop first, or the flush races it and fresh keys get re-corrupted.
         self._docker.exec(state.container, ["touch", state.stop_file], check=False)
-        changes = [f"{state.container}: stop file placed; the corruption loop will end"]
+        beat = self._docker.exec(state.container, ["cat", f"{state.stop_file}.beat"], check=False)
+        swept = beat.stdout.strip() if beat.returncode == 0 else "an unknown number of"
+        changes = [
+            f"{state.container}: stop file placed; the corruption loop ends after {swept} sweeps"
+        ]
         if state.flush:
             self._docker.exec(state.container, [state.cli, "FLUSHALL"], check=False)
             changes.append(f"{state.cli} FLUSHALL: every corrupted value discarded")
