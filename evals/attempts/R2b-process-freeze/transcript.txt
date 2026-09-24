@@ -1,0 +1,299 @@
+R2b — process_freeze rehearsed through the injector on the whole world: v2-product-catalog-freeze.
+Run 2026-09-24 06:19:38 → 06:48:00 UTC on the Mac, zsh, FAULTLINE_TOOLS_WORLD=v2. Protocol: evals/runs/REHEARSALS-T7.0.md
+with its 2026-09-24 addendum (the silent list is part of the pre-state; restart counts are read before and after).
+Second run of the class: R2 (04:03) ran on a world whose rules could not see the freeze's caller (Q95, fixed by 0143 / #473).
+Pasted verbatim from terminal 1.
+
+=== 1. pre-state ===
+
+$ python3 evals/attempts/shape.py | sed -n '/== firing/,/== silent/p;/== silent/,+3p' | head -30; FAULTLINE_TOOLS_WORLD=v2 uv run faultline-inject status; docker inspect -f '{{.Name}} restarts={{.RestartCount}}' postgresql product-catalog frontend kafka
+== firing ==
+  none
+
+== per service, [5m] ==
+  service                 err%    p95ms   req/s
+  accounting              0.00       89   0.504
+  ad                      0.81        4   0.454
+  cart                    0.00        6   4.046
+  checkout                0.00       36   2.225
+  currency                0.00        8   0.446
+  email                   0.00       23   0.667
+  flagd                   0.44        2   1.888
+  fraud-detection         0.00       90   0.333
+  frontend                0.00       44  11.654
+  frontend-proxy          0.00       47   5.558
+  image-provider          0.00        2   0.100
+  load-generator          0.00       48   5.042
+  payment                 0.00        2   0.333
+  product-catalog         0.00        7   5.000
+  product-reviews         0.00       42   0.729
+  quote                   0.00        2   0.500
+  recommendation          0.00        5   0.475
+  shipping                0.00       10   0.500
+
+== silent: running, and no span metrics in [5m] ==
+  none
+
+no active injections
+/postgresql restarts=4
+/product-catalog restarts=0
+/frontend restarts=0
+/kafka restarts=0
+
+=== 2. inject through the injector ===
+
+$ date -u +%H:%M:%S; FAULTLINE_TOOLS_WORLD=v2 uv run faultline-inject start v2-product-catalog-freeze; FAULTLINE_TOOLS_WORLD=v2 uv run faultline-inject status
+06:19:38
+injected v2-product-catalog-freeze (process_freeze) on product-catalog
+  - docker pause: product-catalog frozen; its socket accepts and nothing answers
+  - callers will hang to their deadlines; expect ~6 min from unpause to quiet
+revert with: faultline-inject stop v2-product-catalog-freeze
+1 active injection(s)  [state: /Users/chandana/dev/faultline/.faultline/injections.json]
+
+v2-product-catalog-freeze
+    class  : process_freeze
+    target : product-catalog
+    started: 2026-09-24T06:19:39.362004+00:00 (0s ago)
+    params : -
+    revert : unpause product-catalog
+
+=== 3. observe ===
+
+$ python3 evals/attempts/watch.py 12
+06:19:44  quiet
+06:20:14  quiet
+06:20:44  quiet
+06:21:14  quiet
+06:21:44  quiet
+06:22:14  quiet
+06:22:44  quiet
+06:23:14  quiet
+06:23:44  quiet
+06:24:14  ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator
+06:24:44  ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator
+06:25:14  ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighLatency/frontend-proxy, ServiceHighLatency/load-generator
+06:25:44  ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighLatency/frontend-proxy, ServiceHighLatency/load-generator
+06:26:14  ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighLatency/frontend, ServiceHighLatency/frontend-proxy, ServiceHighLatency/load-generator
+06:26:44  ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighLatency/frontend, ServiceHighLatency/frontend-proxy, ServiceHighLatency/load-generator
+06:27:14  ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighLatency/frontend, ServiceHighLatency/frontend-proxy, ServiceHighLatency/load-generator, ServiceNoTraffic/accounting, ServiceNoTraffic/currency, ServiceNoTraffic/email, ServiceNoTraffic/fraud-detection, ServiceNoTraffic/product-catalog, ServiceNoTraffic/quote, ServiceNoTraffic/recommendation, ServiceNoTraffic/shipping
+06:27:44  ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighLatency/frontend, ServiceHighLatency/frontend-proxy, ServiceHighLatency/load-generator, ServiceNoTraffic/accounting, ServiceNoTraffic/currency, ServiceNoTraffic/email, ServiceNoTraffic/fraud-detection, ServiceNoTraffic/product-catalog, ServiceNoTraffic/quote, ServiceNoTraffic/recommendation, ServiceNoTraffic/shipping
+06:28:14  ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighLatency/frontend, ServiceHighLatency/frontend-proxy, ServiceHighLatency/load-generator, ServiceNoTraffic/accounting, ServiceNoTraffic/currency, ServiceNoTraffic/email, ServiceNoTraffic/fraud-detection, ServiceNoTraffic/payment, ServiceNoTraffic/product-catalog, ServiceNoTraffic/quote, ServiceNoTraffic/recommendation, ServiceNoTraffic/shipping
+06:28:44  ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighLatency/frontend, ServiceHighLatency/frontend-proxy, ServiceHighLatency/load-generator, ServiceNoTraffic/accounting, ServiceNoTraffic/currency, ServiceNoTraffic/email, ServiceNoTraffic/fraud-detection, ServiceNoTraffic/payment, ServiceNoTraffic/product-catalog, ServiceNoTraffic/quote, ServiceNoTraffic/recommendation, ServiceNoTraffic/shipping
+06:29:14  ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighLatency/frontend, ServiceHighLatency/frontend-proxy, ServiceHighLatency/load-generator, ServiceNoTraffic/accounting, ServiceNoTraffic/currency, ServiceNoTraffic/email, ServiceNoTraffic/fraud-detection, ServiceNoTraffic/payment, ServiceNoTraffic/product-catalog, ServiceNoTraffic/quote, ServiceNoTraffic/shipping
+06:29:44  ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighLatency/frontend, ServiceHighLatency/frontend-proxy, ServiceHighLatency/load-generator, ServiceNoTraffic/accounting, ServiceNoTraffic/currency, ServiceNoTraffic/email, ServiceNoTraffic/fraud-detection, ServiceNoTraffic/payment, ServiceNoTraffic/product-catalog, ServiceNoTraffic/quote, ServiceNoTraffic/shipping
+06:30:14  ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighLatency/frontend, ServiceHighLatency/frontend-proxy, ServiceHighLatency/load-generator, ServiceNoTraffic/accounting, ServiceNoTraffic/currency, ServiceNoTraffic/email, ServiceNoTraffic/payment, ServiceNoTraffic/product-catalog, ServiceNoTraffic/quote, ServiceNoTraffic/shipping
+06:30:44  ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighLatency/frontend, ServiceHighLatency/frontend-proxy, ServiceHighLatency/load-generator, ServiceNoTraffic/accounting, ServiceNoTraffic/currency, ServiceNoTraffic/email, ServiceNoTraffic/payment, ServiceNoTraffic/product-catalog, ServiceNoTraffic/quote, ServiceNoTraffic/shipping
+06:31:14  ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighErrorRate/recommendation, ServiceHighLatency/frontend, ServiceHighLatency/frontend-proxy, ServiceHighLatency/load-generator, ServiceNoTraffic/accounting, ServiceNoTraffic/currency, ServiceNoTraffic/email, ServiceNoTraffic/payment, ServiceNoTraffic/product-catalog, ServiceNoTraffic/quote, ServiceNoTraffic/shipping
+
+$ python3 evals/attempts/shape.py product-catalog
+== firing ==
+  ServiceHighErrorRate/frontend-proxy
+  ServiceHighErrorRate/load-generator
+  ServiceHighLatency/frontend-proxy
+  ServiceHighLatency/load-generator
+  ServiceNoTraffic/shipping
+  ServiceNoTraffic/email
+  ServiceNoTraffic/product-catalog
+  ServiceNoTraffic/quote
+  ServiceNoTraffic/accounting
+  ServiceNoTraffic/currency
+  ServiceNoTraffic/payment
+  ServiceHighLatency/frontend
+  ServiceHighErrorRate/recommendation
+
+== per service, [5m] ==
+  service                 err%    p95ms   req/s
+  accounting              0.00      nan   0.000
+  ad                      0.00        5   0.133
+  cart                    0.00        6   1.175
+  checkout                0.00        7   0.042
+  currency                0.00      nan   0.000
+  email                   0.00      nan   0.000
+  flagd                   0.92        2   0.454
+  fraud-detection       100.00    15000   0.004
+  frontend                0.00    15000   2.404
+  frontend-proxy         25.58    15000   1.971
+  image-provider          0.00        2   0.100
+  load-generator         27.17    15000   1.825
+  payment                 0.00      nan   0.000
+  product-catalog         0.00      nan   0.000
+  product-reviews         0.99       43   0.421
+  quote                   0.00      nan   0.000
+  recommendation        100.00    15000   0.004
+  shipping                0.00      nan   0.000
+
+== silent: running, and no span metrics in [5m] ==
+  none
+
+== docker state (not agent-visible) ==
+  faultline-minio-1    exited     Exited (255) 2 days ago
+  faultline-postgres-1 exited     Exited (255) 2 days ago
+  faultline-prometheus-self-1 exited     Exited (255) 3 days ago
+  faultline-redis-1    exited     Exited (255) 2 days ago
+  nostalgic_volhard    created    Created
+  product-catalog      paused     Up 23 minutes (Paused)
+  (only containers not plainly running are listed)
+
+== last 8 log lines: product-catalog ==
+  2026/09/24 05:59:46 failed to upload metrics: rpc error: code = Unimplemented desc = unknown service opentelemetry.proto.collector.metrics.v1.MetricsService
+  …  (the same line each minute to 06:06:46 - all before the 06:07:48 restart that ended Q95 for this service; nothing logged since)
+
+=== 4. read back through the tools: culprit, A2's pager, the proxy ===
+
+$ FAULTLINE_TOOLS_WORLD=v2 uv run python -m evalharness.readback product-catalog 06:19 06:33 --errors 2>&1 | head -30
+== product-catalog over 06:19..06:33 UTC, world v2 ==
+
+-- promql_query error-ratio --
+no series matched 'sum by(service_name) (rate(traces_span_metrics_calls_total{service_name="product-catalog",status_code="STATUS_CODE_ERROR"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name="product-catalog"}[5m]))' over this window
+
+-- promql_query latency-p95 --
+query: histogram_quantile(0.95, sum by(service_name, le) (rate(traces_span_metrics_duration_milliseconds_bucket{service_name="product-catalog",span_kind!="SPAN_KIND_INTERNAL"}[5m])))
+1 series
+  {service_name=product-catalog} min=7.438 max=9.818 n=29
+
+-- logql_query --
+no log lines matched {service="product-catalog"} over this window
+
+-- trace_query (errors only) --
+no traces for product-catalog over this window
+
+-- change_history --
+query failed: no change log configured, so this window was not observed
+
+$ FAULTLINE_TOOLS_WORLD=v2 uv run python -m evalharness.readback frontend 06:19 06:33 --errors 2>&1 | head -45
+== frontend over 06:19..06:33 UTC, world v2 ==
+
+-- promql_query error-ratio --
+no series matched 'sum by(service_name) (rate(traces_span_metrics_calls_total{service_name="frontend",status_code="STATUS_CODE_ERROR"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name="frontend"}[5m]))' over this window
+
+-- promql_query latency-p95 --
+query: histogram_quantile(0.95, sum by(service_name, le) (rate(traces_span_metrics_duration_milliseconds_bucket{service_name="frontend",span_kind!="SPAN_KIND_INTERNAL"}[5m])))
+1 series
+  {service_name=frontend} min=44.03 max=1.5e+04 n=29
+
+-- logql_query --
+no log lines matched {service="frontend"} over this window
+
+-- trace_query (errors only) --
+service: frontend
+6 trace(s) shown of 10 found, 39 spans; offsets are from each trace's root
+
+trace 96da11984eab9987  root load-generator/user_checkout_multi  60068.4ms  started 2026-09-24T06:30:38.805173+00:00  8 spans, 1 unattached
+  +0.0ms load-generator/user_checkout_multi 60068.4ms [self 45060.0ms]
+    +45064.4ms load-generator/POST 15003.7ms [self 1.8ms]  ERROR
+      +45064.9ms frontend-proxy/ingress 15001.9ms [self 0.1ms]  ERROR
+        +45065.0ms frontend-proxy/router frontend egress 15001.8ms [self 0.0ms]
+          +45064.8ms frontend/POST 15002.5ms [self 15002.5ms]
+    +45067.0ms checkout/oteldemo.CartService/GetCart 4.6ms [self 3.7ms]
+      +45070.4ms cart/POST /oteldemo.CartService/GetCart 0.9ms [self 0.2ms]
+        +45070.5ms cart/HGET 0.7ms [self 0.7ms]
+  degrading hop: load-generator/POST -> frontend-proxy/ingress  15001.9ms, 25% of the trace (error)
+
+trace 47c734a34704f2ba  root load-generator/user_checkout_multi  45045.6ms  started 2026-09-24T06:30:51.662068+00:00  8 spans, 1 unattached
+  +0.0ms load-generator/user_checkout_multi 45045.6ms [self 30031.7ms]
+    +30035.8ms load-generator/POST 15006.5ms [self 2.5ms]  ERROR
+      +30036.1ms frontend-proxy/ingress 15004.0ms [self 0.1ms]  ERROR
+        +30036.1ms frontend-proxy/router frontend egress 15003.8ms [self 0.0ms]
+          +30035.9ms frontend/POST 15003.9ms [self 15003.9ms]
+    +30037.9ms checkout/oteldemo.CartService/GetCart 7.4ms [self 1.0ms]
+      +30038.7ms cart/POST /oteldemo.CartService/GetCart 6.4ms [self 1.4ms]
+        +30038.8ms cart/HGET 5.0ms [self 5.0ms]
+  degrading hop: load-generator/POST -> frontend-proxy/ingress  15004.0ms, 33% of the trace (error)
+
+trace 9f06fea766c840ee  root load-generator/user_checkout_single  30068.3ms  started 2026-09-24T06:31:07.157518+00:00  8 spans, 1 unattached
+  +0.0ms load-generator/user_checkout_single 30068.3ms [self 15019.6ms]
+    +15021.7ms load-generator/POST 15046.4ms [self 1.5ms]  ERROR
+      +15022.0ms frontend-proxy/ingress 15044.9ms [self 0.1ms]  ERROR
+        +15022.0ms frontend-proxy/router frontend egress 15044.8ms [self 0.0ms]
+          +15022.5ms frontend/POST 15045.6ms [self 15045.6ms]
+  (cut by head -45)
+
+$ FAULTLINE_TOOLS_WORLD=v2 uv run python -m evalharness.readback frontend-proxy 06:19 06:33 --errors 2>&1 | sed -n '1,12p'
+== frontend-proxy over 06:19..06:33 UTC, world v2 ==
+
+-- promql_query error-ratio --
+query: sum by(service_name) (rate(traces_span_metrics_calls_total{service_name="frontend-proxy",status_code="STATUS_CODE_ERROR"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name="frontend-proxy"}[5m]))
+1 series
+  {service_name=frontend-proxy} min=0 max=0.2609 n=29
+
+-- promql_query latency-p95 --
+query: histogram_quantile(0.95, sum by(service_name, le) (rate(traces_span_metrics_duration_milliseconds_bucket{service_name="frontend-proxy",span_kind!="SPAN_KIND_INTERNAL"}[5m])))
+1 series
+  {service_name=frontend-proxy} min=46.83 max=1.5e+04 n=29
+
+=== 5. restore through the injector; idempotence; restart counts ===
+
+$ date -u +%H:%M:%S; FAULTLINE_TOOLS_WORLD=v2 uv run faultline-inject stop v2-product-catalog-freeze; FAULTLINE_TOOLS_WORLD=v2 uv run faultline-inject status; FAULTLINE_TOOLS_WORLD=v2 uv run faultline-inject stop v2-product-catalog-freeze; sleep 5; docker inspect -f '{{.Name}} restarts={{.RestartCount}} started={{.State.StartedAt}}' postgresql product-catalog frontend kafka
+06:32:32
+reverted v2-product-catalog-freeze
+  - docker unpause: product-catalog resumed
+  - the requests that hung will wake together; a second error wave is the recovery
+no active injections
+v2-product-catalog-freeze is not active; nothing to revert
+/postgresql restarts=5 started=2026-09-24T06:32:33.50646767Z
+/product-catalog restarts=0 started=2026-09-24T06:07:48.262261135Z
+/frontend restarts=0 started=2026-09-24T06:07:40.203402673Z
+/kafka restarts=0 started=2026-09-24T00:55:52.966587006Z
+  → postgresql: 4 → 5, up again 1.5 s after the unpause. The second time in two runs (R2: 04:19:33.640).
+
+=== 6. recover ===
+
+$ python3 evals/attempts/watch.py 10; docker logs -t postgresql --since 5m 2>&1 | grep -c "postmaster exit"
+06:32:46  ServiceHighErrorRate/fraud-detection, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighErrorRate/recommendation, ServiceHighLatency/frontend, ServiceHighLatency/frontend-proxy, ServiceHighLatency/load-generator, ServiceHighLatency/recommendation, ServiceNoTraffic/accounting, ServiceNoTraffic/currency, ServiceNoTraffic/email, ServiceNoTraffic/payment, ServiceNoTraffic/product-catalog, ServiceNoTraffic/quote, ServiceNoTraffic/shipping
+06:33:16  ServiceHighErrorRate/fraud-detection, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighLatency/fraud-detection, ServiceHighLatency/frontend, ServiceHighLatency/frontend-proxy, ServiceHighLatency/load-generator, ServiceNoTraffic/accounting, ServiceNoTraffic/email, ServiceNoTraffic/payment, ServiceNoTraffic/product-catalog, ServiceNoTraffic/quote, ServiceNoTraffic/shipping
+06:33:46  ServiceHighErrorRate/fraud-detection, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighLatency/fraud-detection, ServiceHighLatency/frontend, ServiceHighLatency/frontend-proxy, ServiceHighLatency/load-generator, ServiceNoTraffic/accounting, ServiceNoTraffic/email, ServiceNoTraffic/payment, ServiceNoTraffic/product-catalog, ServiceNoTraffic/quote, ServiceNoTraffic/shipping
+06:34:16  ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighLatency/frontend, ServiceHighLatency/frontend-proxy, ServiceHighLatency/load-generator
+06:34:46  ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighLatency/frontend, ServiceHighLatency/frontend-proxy, ServiceHighLatency/load-generator
+06:35:16  ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighLatency/frontend, ServiceHighLatency/frontend-proxy, ServiceHighLatency/load-generator
+06:35:46  ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighLatency/frontend, ServiceHighLatency/frontend-proxy, ServiceHighLatency/load-generator
+06:36:16  ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy, ServiceHighLatency/frontend, ServiceHighLatency/frontend-proxy, ServiceHighLatency/load-generator
+06:36:46  ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy, ServiceHighLatency/frontend, ServiceHighLatency/frontend-proxy, ServiceHighLatency/load-generator
+06:37:16  ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend, ServiceHighErrorRate/product-catalog, ServiceHighErrorRate/recommendation, ServiceHighLatency/recommendation
+06:37:46  ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend, ServiceHighErrorRate/product-catalog, ServiceHighErrorRate/recommendation, ServiceHighLatency/recommendation
+06:38:16  ServiceHighErrorRate/product-catalog, ServiceHighErrorRate/recommendation
+06:38:46  ServiceHighErrorRate/product-catalog, ServiceHighErrorRate/recommendation
+06:39:16  quiet
+06:39:46  quiet
+06:40:16  quiet
+06:40:46  quiet
+06:41:16  quiet
+06:41:46  quiet
+06:42:16  quiet
+0
+  → the grep's `--since 5m` began at 06:37, after the exit; the count says nothing. The restart count above does.
+
+$ python3 evals/attempts/replay.py 06:39 06:48 | tail -12
+06:42:30  quiet
+…  (every tick quiet)
+06:48:00  quiet
+  → quiet from 06:39:16 to 06:48:00: 8 min 44 s.
+
+=== 7. Postgres at the unpause, from its own log ===
+
+$ docker logs -t postgresql --since 2026-09-24T06:32:00Z --until 2026-09-24T06:33:30Z 2>&1 | grep -v "unexpected postmaster exit" | cut -c1-200 | head -20; docker logs -t frontend --since 2026-09-24T06:32:00Z --until 2026-09-24T06:33:30Z 2>&1 | grep -c "Product Not Found"; docker inspect postgresql --format 'exit={{.State.ExitCode}} oom={{.State.OOMKilled}} mem={{.HostConfig.Memory}} policy={{.HostConfig.RestartPolicy.Name}}'
+2026-09-24T06:32:33.916885878Z
+2026-09-24T06:32:33.916950920Z PostgreSQL Database directory appears to contain a database; Skipping initialization
+2026-09-24T06:32:33.916956962Z
+2026-09-24T06:32:34.084444212Z 2026-09-24 06:32:34.084 UTC [1] LOG:  starting PostgreSQL 17.6 (Debian 17.6-2.pgdg13+1) on aarch64-unknown-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit
+2026-09-24T06:32:34.084781712Z 2026-09-24 06:32:34.084 UTC [1] LOG:  listening on IPv4 address "0.0.0.0", port 5432
+2026-09-24T06:32:34.084791170Z 2026-09-24 06:32:34.084 UTC [1] LOG:  listening on IPv6 address "::", port 5432
+2026-09-24T06:32:34.087969129Z 2026-09-24 06:32:34.087 UTC [1] LOG:  listening on Unix socket "/var/run/postgresql/.s.PGSQL.5432"
+2026-09-24T06:32:34.093445920Z 2026-09-24 06:32:34.093 UTC [28] LOG:  database system was interrupted; last known up at 2026-09-24 06:22:51 UTC
+2026-09-24T06:32:34.308828879Z 2026-09-24 06:32:34.308 UTC [30] FATAL:  the database system is starting up
+2026-09-24T06:32:34.309667712Z 2026-09-24 06:32:34.309 UTC [29] FATAL:  the database system is starting up
+2026-09-24T06:32:34.752111587Z 2026-09-24 06:32:34.752 UTC [31] FATAL:  the database system is starting up
+2026-09-24T06:32:34.763837171Z 2026-09-24 06:32:34.762 UTC [28] LOG:  database system was not properly shut down; automatic recovery in progress
+2026-09-24T06:32:34.773827504Z 2026-09-24 06:32:34.769 UTC [28] LOG:  redo starts at 0/AE7BA30
+2026-09-24T06:32:34.773836629Z 2026-09-24 06:32:34.769 UTC [28] LOG:  invalid record length at 0/AE7BB38: expected at least 24, got 0
+2026-09-24T06:32:34.773838171Z 2026-09-24 06:32:34.769 UTC [28] LOG:  redo done at 0/AE7BB00 system usage: CPU: user: 0.00 s, system: 0.00 s, elapsed: 0.00 s
+2026-09-24T06:32:34.800899254Z 2026-09-24 06:32:34.800 UTC [26] LOG:  checkpoint starting: end-of-recovery immediate wait
+2026-09-24T06:32:34.819962212Z 2026-09-24 06:32:34.819 UTC [32] FATAL:  the database system is not yet accepting connections
+2026-09-24T06:32:34.819970046Z 2026-09-24 06:32:34.819 UTC [32] DETAIL:  Consistent recovery state has not been yet reached.
+2026-09-24T06:32:34.831841129Z 2026-09-24 06:32:34.831 UTC [33] FATAL:  the database system is not yet accepting connections
+2026-09-24T06:32:34.831845837Z 2026-09-24 06:32:34.831 UTC [33] DETAIL:  Consistent recovery state has not been yet reached.
+568
+exit=0 oom=false mem=83886080 policy=unless-stopped
+  → nothing from the postmaster before it died: the only lines before 06:32:33.9 are the backends'
+    `terminating connection due to unexpected postmaster exit` (filtered above). Container limit 80 MiB,
+    exit code 0, not flagged OOM-killed, restart policy unless-stopped. 568 `Product Not Found` at the
+    frontend in the ninety seconds after. Q96.
