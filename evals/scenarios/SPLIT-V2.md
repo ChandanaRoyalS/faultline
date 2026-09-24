@@ -10,6 +10,12 @@ index, not by name; authoring fills a class's slots in order and a scenario inhe
 split, whatever it turns out to be; holdout takes the highest-numbered slots in each row; a
 `blocked` scenario releases its slot; the table is capacity, not a promise.
 
+**v2 scenario files live in `evals/scenarios/v2/`.** Every v1 benchmark consumer - the sweeps,
+the baselines, the README table, the post-mortem corpus - reads `evals/scenarios/*.yaml` flat and
+so sees v1 alone; the schema, contamination and recorder guards read the tree recursively and see
+both. Bundles land where v1's do, `artifacts/<split>/<id>/`, and never collide because v2 ids say
+`v2-`.
+
 **The v1 catalog stays where it is.** Eighteen files, thirteen bundles, three holdout entries -
 none is edited, moved or re-counted. A v1 design carried to v2 is a *new* scenario in a v2 slot with
 its own rehearsal and fingerprint (`world: v2`), never a continuation of its v1 namesake.

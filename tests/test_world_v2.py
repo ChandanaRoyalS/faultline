@@ -665,3 +665,22 @@ def test_the_v2_tempo_limit_is_at_least_twice_its_measured_peak() -> None:
         "GOMEMLIMIT should sit at 60-85% of the container limit, so the runtime sees the ceiling "
         "before the kernel does"
     )
+
+
+def test_the_v2_observability_cover_names_v2s_own_files() -> None:
+    """T7.1: a v2 bundle's `observability_digest` covers v2's rules, Prometheus, collector extras
+    and Tempo - the files `telemetry-v2.yml` actually mounts - and v1's cover is unchanged, so no
+    recorded v1 bundle or run moves."""
+    from evalharness import provenance
+
+    v2 = {name for name, _ in provenance.observability_files("v2")}
+    assert provenance.observability_files("v1") is provenance.OBSERVABILITY_FILES
+    for name in v2:
+        if not name.startswith("world-v2/"):  # the clone is gitignored; CI has none
+            assert (REPO_ROOT / name).is_file(), f"{name} is under cover but does not exist"
+    mounted = set(
+        re.findall(r"\.\./(compose/[\w./-]+\.ya?ml):", (COMPOSE / "telemetry-v2.yml").read_text())
+    )
+    configs = {m for m in mounted if "grafana" not in m}
+    assert configs <= v2, f"mounted by telemetry-v2.yml but not under cover: {configs - v2}"
+    assert "compose/prometheus/alert-rules-v2.yml" in v2

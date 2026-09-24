@@ -224,12 +224,69 @@ Deliberately excluded, and named so the exclusions are decisions rather than ove
 """
 
 
-def observability_digests() -> dict[str, str | None]:
+OBSERVABILITY_FILES_V2: tuple[tuple[str, str], ...] = (
+    (
+        "compose/prometheus/alert-rules-v2.yml",
+        "v2's three rules over `traces_span_metrics_*` at `[5m]` (T7.1) - alerts_at_fire, "
+        "seconds_to_alert and the blast radius, as on v1",
+    ),
+    (
+        "compose/prometheus/prometheus-config-v2.yaml",
+        "v2's Prometheus: the OTLP ingestion it receives by (it scrapes nothing), the promote "
+        "block and the out-of-order window - the resolution and admission of every capture",
+    ),
+    (
+        "compose/prometheus/alertmanager.yml",
+        "routing to the ingest webhook; the same file on both worlds (`telemetry-v2.yml` "
+        "mounts it)",
+    ),
+    (
+        "compose/promtail-config.yml",
+        "which containers ship logs under what `service` label; shared with v1, and on v2 the "
+        "label is the container name, which is the service name",
+    ),
+    (
+        "compose/otelcol-extras-v2.yml",
+        "the collector's second `--config` on v2: the exporter list, the spanmetrics key (Q89's "
+        "fix) and the Tempo exporter's port and retry policy (Q93, Q95)",
+    ),
+    (
+        "compose/tempo-v2.yaml",
+        "v2's trace store: its receiver port (off 4317, Q95), block cut and compaction "
+        "bounds (Q91)",
+    ),
+    (
+        "world-v2/src/otel-collector/otelcol-config.yml",
+        "the demo's own collector config at 2.2.0: the spanmetrics connector and the pipelines "
+        "the extras file restates",
+    ),
+)
+"""`OBSERVABILITY_FILES` for the v2 world (T7.1): the same questions asked of v2's files. v1's
+tuple is unchanged, so every v1 bundle and run keeps the digest it recorded."""
+
+OBSERVABILITY_FILES_BY_WORLD: dict[str, tuple[tuple[str, str], ...]] = {
+    "v1": OBSERVABILITY_FILES,
+    "v2": OBSERVABILITY_FILES_V2,
+}
+
+
+def _tools_world() -> str:
+    from faultline.tools.settings import ToolSettings
+
+    return ToolSettings().world
+
+
+def observability_files(world: str | None = None) -> tuple[tuple[str, str], ...]:
+    """The files under cover for `world` (default: the tools' world, `FAULTLINE_TOOLS_WORLD`)."""
+    return OBSERVABILITY_FILES_BY_WORLD[world or _tools_world()]
+
+
+def observability_digests(world: str | None = None) -> dict[str, str | None]:
     """sha256 per file, so a mismatch can say *which* file changed rather than that one did."""
-    return {name: _digest_of([REPO_ROOT / name]) for name, _ in OBSERVABILITY_FILES}
+    return {name: _digest_of([REPO_ROOT / name]) for name, _ in observability_files(world)}
 
 
-def observability_digest() -> str | None:
+def observability_digest(world: str | None = None) -> str | None:
     """One value over every file in `OBSERVABILITY_FILES`, in the order declared.
 
     A sibling of `compose_digest`, **not an extension of it**, and that is the whole decision -
@@ -238,9 +295,10 @@ def observability_digest() -> str | None:
     repository - which is the one property the guard on them relies on.
 
     `None` when any file is absent (an uncloned `world/`), matching `compose_digest`'s behaviour
-    rather than inventing a second convention.
+    rather than inventing a second convention. Per world since T7.1: v2's files are its own, and
+    a v2 bundle recording v1's digest would claim a pipeline it never ran on.
     """
-    paths = [REPO_ROOT / name for name, _ in OBSERVABILITY_FILES]
+    paths = [REPO_ROOT / name for name, _ in observability_files(world)]
     return _digest_of(paths)
 
 
@@ -278,7 +336,9 @@ def image_content_digest(container: str) -> str | None:
     return str(digests[0]) if isinstance(digests, list) and digests else None
 
 
-def world_provenance(reference_container: str, stub_image: str) -> dict[str, Any]:
+def world_provenance(
+    reference_container: str, stub_image: str, world: str | None = None
+) -> dict[str, Any]:
     """What world this was recorded against.
 
     Two content digests and three observations. The digests are the load-bearing part - they
@@ -286,12 +346,19 @@ def world_provenance(reference_container: str, stub_image: str) -> dict[str, Any
     """
     return {
         "compose_digest": compose_digest(),
+        # T7.1: which world, by name. The digests above already differ between worlds; this says
+        # which one a reader is looking at without recomputing anything.
+        "world_name": world or _tools_world(),
         # T7.15. Absent on every bundle recorded before it, and absence means unknown
         # rather than unchanged: these digests are not derivable from a capture, so they
         # could not be backfilled honestly. ADR-0014 T7.15 addendum.
-        "observability_digest": observability_digest(),
-        "observability_files": observability_digests(),
-        "ffs_stub_source_digest": ffs_stub_source_digest(),
+        "observability_digest": observability_digest(world),
+        "observability_files": observability_digests(world),
+        # v1's flag service (ADR-0006). v2 has no stub - flagd is the demo's own - so the field is
+        # `None` there rather than a digest of a build context the world never used.
+        "ffs_stub_source_digest": (
+            ffs_stub_source_digest() if (world or _tools_world()) == "v1" else None
+        ),
         "otel_demo_image": _run(
             ["docker", "inspect", reference_container, "--format", "{{.Config.Image}}"]
         ),

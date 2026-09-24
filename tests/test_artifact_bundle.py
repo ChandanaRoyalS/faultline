@@ -29,7 +29,7 @@ from evalharness.provenance import (
 )
 from evalharness.rehearse import SUPERSEDED, duration, superseded_name
 from evalharness.scenario import Scenario, Split
-from injector.world import SERVICE_CONTAINERS
+from injector.world import service_containers
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SCENARIO_DIR = REPO_ROOT / "evals" / "scenarios"
@@ -182,6 +182,12 @@ def manifest_of(bundle: Path) -> dict[str, Any]:
     raw: Any = json.loads((bundle / "manifest.json").read_text())
     assert isinstance(raw, dict), f"{bundle.name}: manifest.json is not an object"
     return raw
+
+
+def world_of(bundle: Path) -> str:
+    """Which world a bundle was recorded against. Every bundle before T7.1 is v1 and carries no
+    `world_name`; absence means v1, and is the only fact the field's absence can mean."""
+    return str((manifest_of(bundle).get("world") or {}).get("world_name") or "v1")
 
 
 def test_every_bundle_has_a_manifest() -> None:
@@ -458,7 +464,7 @@ def test_exactly_one_log_capture_named_for_the_target_container() -> None:
     """Two captures, or one named after the compose service, is the stale-artifact defect."""
     for bundle in bundles():
         target = manifest_of(bundle)["injection"]["target"]
-        expected = SERVICE_CONTAINERS.get(target, target)
+        expected = service_containers(world_of(bundle)).get(target, target)
         captured = sorted(p.name for p in (bundle / "logs").glob("*.txt"))
 
         assert captured == [f"{expected}.txt"], (
@@ -552,8 +558,12 @@ def test_every_bundle_records_what_produced_it_and_against_what() -> None:
         for field in ("otel_demo_image", "ffs_stub_image_id", "docker_arch"):
             assert field in world, f"{bundle.name}: world provenance is missing {field}"
         # v2: the two content digests are what actually identify a world, so unlike the
-        # observations above they may not be null.
-        for field in ("compose_digest", "ffs_stub_source_digest"):
+        # observations above they may not be null. The stub's digest is v1's alone: the v2
+        # world has no stub (flagd is the demo's own), and records `None` for it.
+        required = ("compose_digest", "ffs_stub_source_digest")
+        if world_of(bundle) != "v1":
+            required = ("compose_digest", "observability_digest")
+        for field in required:
             assert world.get(field), (
                 f"{bundle.name}: world provenance has no {field}. Without it there is no "
                 "way to tell whether this bundle was recorded against the same world as "
@@ -582,12 +592,19 @@ def test_bundles_agree_about_the_world_they_were_recorded_against() -> None:
         # ffs_stub_source_digest are reproducible from the repository and move only when
         # the world's definition moves.
         key = (
+            f"world={world_of(bundle)} | "
             f"compose={world.get('compose_digest')} | "
             f"stub_source={world.get('ffs_stub_source_digest')}"
         )
         seen.setdefault(key, []).append(bundle.name)
 
-    assert len(seen) <= 1, (
+    # One world definition per world name: v1 and v2 bundles are two catalogs and are never
+    # compared with each other (SPLIT-V2.md), but within a world any disagreement still fails.
+    per_world: dict[str, int] = {}
+    for key in seen:
+        name = key.split(" | ", 1)[0]
+        per_world[name] = per_world.get(name, 0) + 1
+    assert all(count <= 1 for count in per_world.values()), (
         "valid bundles were recorded against different worlds, so their numbers are not "
         f"comparable: {json.dumps(seen, indent=2)}"
         + (f"\n(invalidated bundles skipped: {sorted(skipped)})" if skipped else "")
@@ -1070,17 +1087,20 @@ def test_bundles_that_record_an_observability_digest_agree_with_the_repository()
     loophole: the digest is not derivable from a capture, so it could not be backfilled
     honestly, and absence means unknown rather than agreed.
     """
-    current = observability_digest()
-    assert current, "the observability files are missing - is world/ cloned?"
+    current_v1 = observability_digest("v1")
+    assert current_v1, "the observability files are missing - is world/ cloned?"
+    current = {"v1": current_v1, "v2": observability_digest("v2")}
 
-    recorded: dict[str, list[str]] = {}
+    stale: dict[str, list[str]] = {}
     for bundle in valid_bundles():
+        name = world_of(bundle)
         world = manifest_of(bundle).get("world", {})
         digest = world.get("observability_digest")
-        if digest:
-            recorded.setdefault(digest, []).append(bundle.name)
+        # A world whose clone is absent computes no digest; a digest nobody can compute is not
+        # a disagreement (the same reasoning as `needs_world_clone`).
+        if digest and current.get(name) and digest != current[name]:
+            stale.setdefault(digest, []).append(bundle.name)
 
-    stale = {d: names for d, names in recorded.items() if d != current}
     assert not stale, observability_drift_message(stale)
 
 
