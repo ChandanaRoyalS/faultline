@@ -49,7 +49,8 @@ ALIVE = {"{{.State.Running}}": "true\n"}
 def instant_sidecar_check(monkeypatch: pytest.MonkeyPatch) -> None:
     """The recorder waits 4s for the sidecar to settle; the tests must not."""
     monkeypatch.setattr(faults, "SIDECAR_SETTLE_SECONDS", 0)
-    monkeypatch.setattr(faults, "LOOP_SETTLE_SECONDS", 0)
+    monkeypatch.setattr(faults, "LOOP_HEARTBEAT_DEADLINE", 0)
+    monkeypatch.setattr(faults, "LOOP_HEARTBEAT_POLL", 0)
 
 
 @pytest.fixture
@@ -877,7 +878,7 @@ def test_corruption_verifies_one_sweep_then_starts_the_loop(settings: InjectorSe
     assert runner.called("exec", "valkey-cart", "cat", "/tmp/faultline-cart-corrupt.stop.beat")
     assert isinstance(outcome.restore, CorruptionRestore)
     assert outcome.restore.flush is True
-    assert "7 sweeps" in outcome.changes[0] and "0xffffffff" in outcome.changes[0]
+    assert "7 sweep(s)" in outcome.changes[0] and "0xffffffff" in outcome.changes[0]
 
 
 def test_corruption_fails_and_places_the_stop_file_if_the_loop_has_no_heartbeat(
@@ -893,6 +894,32 @@ def test_corruption_fails_and_places_the_stop_file_if_the_loop_has_no_heartbeat(
             _def("cart-corrupt", FaultClass.DATASTORE_CORRUPTION, "valkey-cart")
         )
     assert runner.called("exec", "valkey-cart", "touch", "/tmp/faultline-cart-corrupt.stop")
+
+
+def test_corruption_polls_for_the_heartbeat_instead_of_reading_it_once(
+    settings: InjectorSettings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """R4b's first start (2026-09-24 07:47): a working loop refused because `docker exec --detach`
+    had not started its process 0.5 s in; the refusal's stop file then ended it before a sweep."""
+    monkeypatch.setattr(faults, "LOOP_HEARTBEAT_DEADLINE", 10)
+
+    class LateBeat(FakeRunner):
+        reads = 0
+
+        def run(self, args, *, cwd=None, check=True, env=None):  # type: ignore[no-untyped-def]
+            if "cat" in args:
+                self.reads += 1
+                self.stdout["cat /tmp"] = "" if self.reads < 3 else "2\n"
+                self.returncodes["cat /tmp"] = 1 if self.reads < 3 else 0
+            return super().run(args, cwd=cwd, check=check, env=env)
+
+    runner = LateBeat(stdout={"{{.State.Running}}": "true\n", "EVAL": "225\n"})
+    outcome = DatastoreCorruptionFault(DockerCli(runner)).inject(
+        _def("cart-corrupt", FaultClass.DATASTORE_CORRUPTION, "valkey-cart")
+    )
+    assert runner.reads == 3
+    assert not runner.called("touch")  # no stop file: the loop was found sweeping
+    assert "2 sweep(s)" in outcome.changes[0]
 
 
 def test_corruption_refuses_a_payload_that_is_not_hex(settings: InjectorSettings) -> None:

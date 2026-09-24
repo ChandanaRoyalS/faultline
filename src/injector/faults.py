@@ -753,8 +753,17 @@ that loop; the fake-runner tests could not see it, so `test_corruption_loop_runs
 runs the script under the host's `sh`. **`$4.beat` is the loop's heartbeat**: the iteration
 count, rewritten every pass, which `inject` reads before it reports the loop running."""
 
-LOOP_SETTLE_SECONDS = 0.5
-"""How long `inject` waits before reading the loop's heartbeat: ten 50 ms intervals."""
+LOOP_HEARTBEAT_DEADLINE = 5.0
+"""How long `inject` polls for the loop's first heartbeat before declaring it not sweeping.
+
+A fixed 0.5 s read refused a working loop (R4b's first start, 2026-09-24 07:47): `docker exec
+--detach` returns when the exec is created, not when its process runs, and on Docker Desktop
+that gap can exceed half a second - the stop file placed by the refusal was then the first thing
+the loop saw, and it exited without a sweep. Five seconds is a hundred intervals; the poll
+returns at the first beat."""
+
+LOOP_HEARTBEAT_POLL = 0.25
+"""Seconds between heartbeat reads while waiting for the first."""
 
 
 class DatastoreCorruptionFault(Fault):
@@ -820,18 +829,24 @@ class DatastoreCorruptionFault(Fault):
             detach=True,
         )
         # The probe proved one sweep; this proves the LOOP is sweeping. R4 (2026-09-24) ran a
-        # loop that never executed its EVAL and reported success for twelve minutes.
-        time.sleep(LOOP_SETTLE_SECONDS)
-        beat = self._docker.exec(container, ["cat", f"{stop_file}.beat"], check=False)
-        beats = beat.stdout.strip()
-        if beat.returncode != 0 or not beats.isdigit() or int(beats) < 1:
-            self._docker.exec(container, ["touch", stop_file], check=False)
-            raise FaultUsageError(
-                f"{definition.id}: the corruption loop on {container} wrote no heartbeat within "
-                f"{LOOP_SETTLE_SECONDS}s, so it is not sweeping. The probe's one sweep took; the "
-                f"fault has NOT been injected and the stop file is placed.\n"
-                f"{beat.stdout}{beat.stderr}"
-            )
+        # loop that never executed its EVAL and reported success for twelve minutes. Polled, not
+        # read once: the detached exec's process can take longer to start than a sweep takes.
+        started = time.monotonic()
+        while True:
+            beat = self._docker.exec(container, ["cat", f"{stop_file}.beat"], check=False)
+            beats = beat.stdout.strip()
+            if beat.returncode == 0 and beats.isdigit() and int(beats) >= 1:
+                break
+            if time.monotonic() - started >= LOOP_HEARTBEAT_DEADLINE:
+                self._docker.exec(container, ["touch", stop_file], check=False)
+                raise FaultUsageError(
+                    f"{definition.id}: the corruption loop on {container} wrote no heartbeat "
+                    f"within {LOOP_HEARTBEAT_DEADLINE}s, so it is not sweeping. The probe's one "
+                    f"sweep took; the fault has NOT been injected and the stop file is placed.\n"
+                    f"{beat.stdout}{beat.stderr}"
+                )
+            time.sleep(LOOP_HEARTBEAT_POLL)
+        waited = time.monotonic() - started
         return InjectionOutcome(
             restore=CorruptionRestore(
                 container=container, stop_file=stop_file, cli=cli, flush=True
@@ -839,7 +854,7 @@ class DatastoreCorruptionFault(Fault):
             changes=[
                 f"{cli} on {container}: every hash's {field!r} field set to 0x{payload}, swept "
                 f"every {interval}s (first sweep: {probe.stdout.strip()} keys; loop heartbeat: "
-                f"{beats} sweeps in {LOOP_SETTLE_SECONDS}s)",
+                f"{beats} sweep(s) {waited:.1f}s after start)",
                 "no change record: the store is healthy and its contents are wrong",
             ],
         )
