@@ -1,0 +1,386 @@
+R2 — process_freeze rehearsed through the injector: v2-product-catalog-freeze.
+Run 2026-09-24 04:03:55 → 04:29:14 UTC on the Mac, zsh, FAULTLINE_TOOLS_WORLD=v2. Protocol: evals/runs/REHEARSALS-T7.0.md.
+Pasted verbatim from terminal 1. Sections 1–6 are the protocol's steps; section 7 is the diagnosis that
+followed, because the caller A2 said would page was missing from every table (Q95).
+
+=== 1. pre-state ===
+
+$ python3 evals/attempts/shape.py | head -4; FAULTLINE_TOOLS_WORLD=v2 uv run faultline-inject status
+== firing ==
+  none
+
+== per service, [5m] ==
+no active injections
+  (the head -4 cut the table; the shape at 03:5x had shown 14 services and no frontend, recommendation,
+   product-reviews or image-provider rows - read at the time as the table's ordering, not as absence.
+   The protocol's pre-state then had two lines; after this run it has a third: `shape.py`'s silent list.)
+
+=== 2. inject through the injector ===
+
+$ date -u +%H:%M:%S; FAULTLINE_TOOLS_WORLD=v2 uv run faultline-inject start v2-product-catalog-freeze; FAULTLINE_TOOLS_WORLD=v2 uv run faultline-inject status
+04:03:55
+injected v2-product-catalog-freeze (process_freeze) on product-catalog
+  - docker pause: product-catalog frozen; its socket accepts and nothing answers
+  - callers will hang to their deadlines; expect ~6 min from unpause to quiet
+revert with: faultline-inject stop v2-product-catalog-freeze
+1 active injection(s)  [state: /Users/chandana/dev/faultline/.faultline/injections.json]
+
+v2-product-catalog-freeze
+    class  : process_freeze
+    target : product-catalog
+    started: 2026-09-24T04:03:55.610397+00:00 (0s ago)
+    params : -
+    revert : unpause product-catalog
+
+=== 3. observe ===
+
+$ python3 evals/attempts/watch.py 12
+04:04:05  quiet
+04:04:35  quiet
+04:05:05  quiet
+04:05:35  quiet
+04:06:05  quiet
+04:06:35  quiet
+04:07:05  quiet
+04:07:35  quiet
+04:08:05  quiet
+04:08:35  ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator
+04:09:05  ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator
+04:09:35  ServiceHighErrorRate/fraud-detection, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighLatency/frontend-proxy, ServiceHighLatency/load-generator
+04:10:05  ServiceHighErrorRate/fraud-detection, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighLatency/frontend-proxy, ServiceHighLatency/load-generator
+04:10:35  ServiceHighErrorRate/fraud-detection, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighLatency/fraud-detection, ServiceHighLatency/frontend-proxy, ServiceHighLatency/load-generator
+04:11:05  ServiceHighErrorRate/fraud-detection, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighLatency/fraud-detection, ServiceHighLatency/frontend-proxy, ServiceHighLatency/load-generator
+04:11:35  ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighLatency/frontend-proxy, ServiceHighLatency/load-generator
+04:12:05  ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighLatency/frontend-proxy, ServiceHighLatency/load-generator
+04:12:35  ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighLatency/frontend-proxy, ServiceHighLatency/load-generator, ServiceNoTraffic/accounting, ServiceNoTraffic/currency, ServiceNoTraffic/email, ServiceNoTraffic/payment, ServiceNoTraffic/product-catalog, ServiceNoTraffic/quote, ServiceNoTraffic/shipping
+04:13:05  ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighLatency/frontend-proxy, ServiceHighLatency/load-generator, ServiceNoTraffic/accounting, ServiceNoTraffic/currency, ServiceNoTraffic/email, ServiceNoTraffic/payment, ServiceNoTraffic/product-catalog, ServiceNoTraffic/quote, ServiceNoTraffic/shipping
+04:13:35  ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighLatency/frontend-proxy, ServiceHighLatency/load-generator, ServiceNoTraffic/accounting, ServiceNoTraffic/currency, ServiceNoTraffic/email, ServiceNoTraffic/payment, ServiceNoTraffic/product-catalog, ServiceNoTraffic/quote, ServiceNoTraffic/shipping
+04:14:05  ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighLatency/frontend-proxy, ServiceHighLatency/load-generator, ServiceNoTraffic/accounting, ServiceNoTraffic/currency, ServiceNoTraffic/email, ServiceNoTraffic/payment, ServiceNoTraffic/product-catalog, ServiceNoTraffic/quote, ServiceNoTraffic/shipping
+04:14:35  ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighLatency/frontend-proxy, ServiceHighLatency/load-generator, ServiceNoTraffic/accounting, ServiceNoTraffic/currency, ServiceNoTraffic/email, ServiceNoTraffic/fraud-detection, ServiceNoTraffic/payment, ServiceNoTraffic/product-catalog, ServiceNoTraffic/quote, ServiceNoTraffic/shipping
+04:15:05  ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighLatency/frontend-proxy, ServiceHighLatency/load-generator, ServiceNoTraffic/accounting, ServiceNoTraffic/currency, ServiceNoTraffic/email, ServiceNoTraffic/fraud-detection, ServiceNoTraffic/payment, ServiceNoTraffic/product-catalog, ServiceNoTraffic/quote, ServiceNoTraffic/shipping
+04:15:35  ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighLatency/frontend-proxy, ServiceHighLatency/load-generator, ServiceNoTraffic/accounting, ServiceNoTraffic/currency, ServiceNoTraffic/email, ServiceNoTraffic/fraud-detection, ServiceNoTraffic/payment, ServiceNoTraffic/product-catalog, ServiceNoTraffic/quote, ServiceNoTraffic/shipping
+
+$ python3 evals/attempts/shape.py product-catalog
+== firing ==
+  ServiceHighErrorRate/frontend-proxy
+  ServiceHighErrorRate/load-generator
+  ServiceHighLatency/frontend-proxy
+  ServiceHighLatency/load-generator
+  ServiceNoTraffic/shipping
+  ServiceNoTraffic/email
+  ServiceNoTraffic/product-catalog
+  ServiceNoTraffic/quote
+  ServiceNoTraffic/accounting
+  ServiceNoTraffic/currency
+  ServiceNoTraffic/payment
+
+== per service, [5m] ==
+  service                 err%    p95ms   req/s
+  accounting              0.00      nan   0.000
+  ad                      0.00        3   0.104
+  cart                    0.00        7   1.375
+  checkout                0.00        5   0.046
+  currency                0.00      nan   0.000
+  email                   0.00      nan   0.000
+  flagd                   1.20        2   0.346
+  fraud-detection       100.00    15000   0.004
+  frontend-proxy         26.60    15000   2.021
+  load-generator         29.64    15000   1.842
+  payment                 0.00      nan   0.000
+  product-catalog          nan      nan   0.000
+  quote                   0.00      nan   0.000
+  shipping                0.00      nan   0.000
+
+== docker state (not agent-visible) ==
+  faultline-minio-1    exited     Exited (255) 2 days ago
+  faultline-postgres-1 exited     Exited (255) 2 days ago
+  faultline-prometheus-self-1 exited     Exited (255) 3 days ago
+  faultline-redis-1    exited     Exited (255) 2 days ago
+  nostalgic_volhard    created    Created
+  product-catalog      paused     Up 22 hours (Paused)
+  (only containers not plainly running are listed)
+
+== last 8 log lines: product-catalog ==
+  2026/09/24 03:56:36 failed to upload metrics: rpc error: code = Unimplemented desc = unknown service opentelemetry.proto.collector.metrics.v1.MetricsService
+  2026/09/24 03:57:36 failed to upload metrics: rpc error: code = Unimplemented desc = unknown service opentelemetry.proto.collector.metrics.v1.MetricsService
+  2026/09/24 03:58:36 failed to upload metrics: rpc error: code = Unimplemented desc = unknown service opentelemetry.proto.collector.metrics.v1.MetricsService
+  2026/09/24 03:59:36 failed to upload metrics: rpc error: code = Unimplemented desc = unknown service opentelemetry.proto.collector.metrics.v1.MetricsService
+  2026/09/24 04:00:36 failed to upload metrics: rpc error: code = Unimplemented desc = unknown service opentelemetry.proto.collector.metrics.v1.MetricsService
+  2026/09/24 04:01:36 failed to upload metrics: rpc error: code = Unimplemented desc = unknown service opentelemetry.proto.collector.metrics.v1.MetricsService
+  2026/09/24 04:02:36 failed to upload metrics: rpc error: code = Unimplemented desc = unknown service opentelemetry.proto.collector.metrics.v1.MetricsService
+  2026/09/24 04:03:36 failed to upload metrics: rpc error: code = Unimplemented desc = unknown service opentelemetry.proto.collector.metrics.v1.MetricsService
+  → no line after the pause at 04:03:55: a frozen process cannot log. The once-a-minute line BEFORE it is
+    the Go SDK's metrics channel talking to Tempo's receiver, not the collector's (section 7, Q95).
+  → frontend, recommendation, product-reviews, image-provider: no row at all. Not zero - absent.
+
+=== 4. read back through the tools: culprit, pager, and the absent caller ===
+
+$ FAULTLINE_TOOLS_WORLD=v2 uv run python -m evalharness.readback product-catalog 04:03 04:17 --errors 2>&1 | head -40
+== product-catalog over 04:03..04:17 UTC, world v2 ==
+
+-- promql_query error-ratio --
+query: sum by(service_name) (rate(traces_span_metrics_calls_total{service_name="product-catalog",status_code="STATUS_CODE_ERROR"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name="product-catalog"}[5m]))
+1 series
+  {service_name=product-catalog} min=0 max=0 n=29
+
+-- promql_query latency-p95 --
+query: histogram_quantile(0.95, sum by(service_name, le) (rate(traces_span_metrics_duration_milliseconds_bucket{service_name="product-catalog",span_kind!="SPAN_KIND_INTERNAL"}[5m])))
+1 series
+  {service_name=product-catalog} min=4.6 max=9.3 n=29
+
+-- logql_query --
+selector: {service="product-catalog"}
+2026-09-24T04:03:36.707621+00:00  2026/09/24 04:03:36 failed to upload metrics: rpc error: code = Unimplemented desc = unknown service opentelemetry.proto.collector.metrics.v1.MetricsService
+
+-- trace_query (errors only) --
+no traces for product-catalog over this window
+
+-- change_history --
+query failed: no change log configured, so this window was not observed
+
+$ FAULTLINE_TOOLS_WORLD=v2 uv run python -m evalharness.readback frontend-proxy 04:03 04:17 --errors 2>&1 | head -50
+== frontend-proxy over 04:03..04:17 UTC, world v2 ==
+
+-- promql_query error-ratio --
+query: sum by(service_name) (rate(traces_span_metrics_calls_total{service_name="frontend-proxy",status_code="STATUS_CODE_ERROR"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name="frontend-proxy"}[5m]))
+1 series
+  {service_name=frontend-proxy} min=0 max=0.2818 n=29
+
+-- promql_query latency-p95 --
+query: histogram_quantile(0.95, sum by(service_name, le) (rate(traces_span_metrics_duration_milliseconds_bucket{service_name="frontend-proxy",span_kind!="SPAN_KIND_INTERNAL"}[5m])))
+1 series
+  {service_name=frontend-proxy} min=45.06 max=1.5e+04 n=29
+
+-- logql_query --
+no log lines matched {service="frontend-proxy"} over this window
+
+-- trace_query (errors only) --
+service: frontend-proxy
+5 trace(s) shown of 10 found, 56 spans; offsets are from each trace's root
+
+trace 46f4f5d88760a82a  root load-generator/user_checkout_multi  45033.1ms  started 2026-09-24T04:05:48.492663+00:00  8 spans, 1 unattached
+  +0.0ms load-generator/user_checkout_multi 45033.1ms [self 30026.5ms]
+    +30029.8ms load-generator/POST 15003.1ms [self 2.7ms]  ERROR
+      +30031.3ms frontend-proxy/ingress 15000.5ms [self 0.1ms]  ERROR
+        +30031.4ms frontend-proxy/router frontend egress 15000.3ms [self 0.0ms]
+          +30031.3ms frontend/POST 15001.3ms [self 15001.3ms]
+    +30033.6ms checkout/oteldemo.CartService/GetCart 3.5ms [self 2.2ms]
+      +30035.7ms cart/POST /oteldemo.CartService/GetCart 1.3ms [self 0.1ms]
+        +30035.7ms cart/HGET 1.2ms [self 1.2ms]
+  degrading hop: load-generator/POST -> frontend-proxy/ingress  15000.5ms, 33% of the trace (error)
+
+trace 22aa687774c414d2  root load-generator/user_browse_product  15004.8ms  started 2026-09-24T04:06:06.662702+00:00  5 spans
+  +0.0ms load-generator/user_browse_product 15004.8ms [self 0.7ms]
+    +0.5ms load-generator/GET 15004.1ms [self 2.8ms]  ERROR
+      +2.7ms frontend-proxy/ingress 15001.3ms [self 0.2ms]  ERROR
+        +2.9ms frontend-proxy/router frontend egress 15001.1ms [self 0.3ms]
+          +3.3ms frontend/GET 15000.8ms [self 15000.8ms]
+  degrading hop: load-generator/GET -> frontend-proxy/ingress  15001.3ms, 100% of the trace (error)
+
+trace 2d51187f3e1a9774  root load-generator/user_browse_product  15004.5ms  started 2026-09-24T04:06:46.348170+00:00  5 spans
+  +0.0ms load-generator/user_browse_product 15004.5ms [self 0.7ms]
+    +0.5ms load-generator/GET 15003.8ms [self 2.1ms]  ERROR
+      +1.9ms frontend-proxy/ingress 15001.7ms [self 0.2ms]  ERROR
+        +2.0ms frontend-proxy/router frontend egress 15001.5ms [self 2.3ms]
+          +4.8ms frontend/GET 14999.2ms [self 14999.2ms]
+  degrading hop: load-generator/GET -> frontend-proxy/ingress  15001.7ms, 100% of the trace (error)
+
+trace 145f8e801776e6b7  root load-generator/user_add_to_cart  15023.0ms  started 2026-09-24T04:07:51.867321+00:00  19 spans
+  +0.0ms load-generator/user_add_to_cart 15023.0ms [self 1.3ms]
+    +0.3ms load-generator/GET 15001.5ms [self 2.0ms]  ERROR
+      +0.5ms frontend-proxy/ingress 14999.5ms [self 0.1ms]  ERROR
+  (cut by head -50)
+
+$ FAULTLINE_TOOLS_WORLD=v2 uv run python -m evalharness.readback frontend 04:03 04:17 --errors 2>&1 | head -40; curl -s localhost:9090/api/v1/query --data-urlencode 'query=max(timestamp(last_over_time(traces_span_metrics_calls_total{service_name="frontend"}[20m])))' | python3 -c 'import json,sys,datetime;v=json.load(sys.stdin)["data"]["result"];print("frontend last sample:", datetime.datetime.utcfromtimestamp(float(v[0]["value"][1])).strftime("%H:%M:%S") if v else "none in 20m")'
+== frontend over 04:03..04:17 UTC, world v2 ==
+
+-- promql_query error-ratio --
+no series matched 'sum by(service_name) (rate(traces_span_metrics_calls_total{service_name="frontend",status_code="STATUS_CODE_ERROR"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name="frontend"}[5m]))' over this window
+
+-- promql_query latency-p95 --
+no series matched 'histogram_quantile(0.95, sum by(service_name, le) (rate(traces_span_metrics_duration_milliseconds_bucket{service_name="frontend",span_kind!="SPAN_KIND_INTERNAL"}[5m])))' over this window
+
+-- logql_query --
+no log lines matched {service="frontend"} over this window
+
+-- trace_query (errors only) --
+service: frontend
+14 trace(s) shown of 20 found, 149 spans; offsets are from each trace's root
+
+trace 46f4f5d88760a82a  root load-generator/user_checkout_multi  45033.1ms  started 2026-09-24T04:05:48.492663+00:00  8 spans, 1 unattached
+  +0.0ms load-generator/user_checkout_multi 45033.1ms [self 30026.5ms]
+    +30029.8ms load-generator/POST 15003.1ms [self 2.7ms]  ERROR
+      +30031.3ms frontend-proxy/ingress 15000.5ms [self 0.1ms]  ERROR
+        +30031.4ms frontend-proxy/router frontend egress 15000.3ms [self 0.0ms]
+          +30031.3ms frontend/POST 15001.3ms [self 15001.3ms]
+    +30033.6ms checkout/oteldemo.CartService/GetCart 3.5ms [self 2.2ms]
+      +30035.7ms cart/POST /oteldemo.CartService/GetCart 1.3ms [self 0.1ms]
+        +30035.7ms cart/HGET 1.2ms [self 1.2ms]
+  degrading hop: load-generator/POST -> frontend-proxy/ingress  15000.5ms, 33% of the trace (error)
+  (… two more traces as above, cut by head -40 …)
+frontend last sample: none in 20m
+  → the caller has spans in Tempo and no metric series at all. Section 7.
+
+=== 5. restore through the injector; idempotence ===
+
+$ date -u +%H:%M:%S; FAULTLINE_TOOLS_WORLD=v2 uv run faultline-inject stop v2-product-catalog-freeze; FAULTLINE_TOOLS_WORLD=v2 uv run faultline-inject status; FAULTLINE_TOOLS_WORLD=v2 uv run faultline-inject stop v2-product-catalog-freeze
+04:19:33
+reverted v2-product-catalog-freeze
+  - docker unpause: product-catalog resumed
+  - the requests that hung will wake together; a second error wave is the recovery
+no active injections
+v2-product-catalog-freeze is not active; nothing to revert
+
+=== 6. recover ===
+
+$ python3 evals/attempts/watch.py 10
+04:19:44  ServiceHighErrorRate/fraud-detection, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighLatency/frontend-proxy, ServiceHighLatency/load-generator, ServiceNoTraffic/accounting, ServiceNoTraffic/currency, ServiceNoTraffic/email, ServiceNoTraffic/payment, ServiceNoTraffic/product-catalog, ServiceNoTraffic/quote, ServiceNoTraffic/shipping
+04:20:14  ServiceHighErrorRate/fraud-detection, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighLatency/fraud-detection, ServiceHighLatency/frontend-proxy, ServiceHighLatency/load-generator
+04:20:44  ServiceHighErrorRate/fraud-detection, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighLatency/fraud-detection, ServiceHighLatency/frontend-proxy, ServiceHighLatency/load-generator
+04:21:14  ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighLatency/frontend-proxy, ServiceHighLatency/load-generator
+04:21:44  ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighLatency/frontend-proxy, ServiceHighLatency/load-generator
+04:22:14  ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighErrorRate/product-catalog, ServiceHighLatency/frontend-proxy, ServiceHighLatency/load-generator
+04:22:44  ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighErrorRate/product-catalog, ServiceHighLatency/frontend-proxy, ServiceHighLatency/load-generator
+04:23:14  ServiceHighErrorRate/checkout, ServiceHighErrorRate/product-catalog, ServiceHighLatency/checkout, ServiceHighLatency/product-catalog
+04:23:44  ServiceHighErrorRate/checkout, ServiceHighErrorRate/product-catalog, ServiceHighLatency/checkout, ServiceHighLatency/product-catalog
+04:24:14  quiet
+04:24:44  quiet
+04:25:14  quiet
+04:25:44  quiet
+04:26:14  quiet
+04:26:44  quiet
+04:27:14  quiet
+04:27:44  quiet
+04:28:14  quiet
+04:28:44  quiet
+04:29:14  quiet
+
+$ python3 evals/attempts/replay.py 04:25 05:40 | grep -v quiet | head -20
+== ALERTS firing, 04:25..05:40 UTC, from Prometheus at 30 s ==
+  → nothing fired between the end of the window and 05:40.
+
+=== 7. the diagnosis of the absent caller (04:30 → 06:07), the decisive reads verbatim ===
+
+Where the samples stop - the minute the collector was recreated for 0138:
+$ curl -s localhost:9090/api/v1/query_range --data-urlencode 'query=sum(count_over_time(traces_span_metrics_calls_total{service_name="frontend"}[1m]))' --data-urlencode 'start=2026-09-24T03:20:00Z' --data-urlencode 'end=2026-09-24T04:30:00Z' --data-urlencode 'step=60' | python3 -c '…'
+03:20  41
+…  (41 every minute)
+03:32  41
+  → nothing after 03:32. The frontend's own Node SDK counter, `app_frontend_requests_total`, kept 48
+    samples a minute through the whole period (03:25 → 06:00, read at 5-minute steps) - its metrics
+    channel reached the collector; its traces did not.
+
+The connector, seen at its output (a second metrics pipeline fed by the connector, `debug` at
+detailed verbosity, in `otelcol-extras-v2.yml` for two minutes, reverted, 04:56:31 → 04:58:47):
+$ awk '/^ResourceMetrics #/{r=1} /^ScopeMetrics #/{r=0} r' /tmp/spanmetrics-diag.log | grep -o "service.name: Str([^)]*)" | sort | uniq -c | sort -rn
+   2 service.name: Str(shipping)
+   2 service.name: Str(quote)
+   2 service.name: Str(product-catalog)
+   2 service.name: Str(payment)
+   2 service.name: Str(load-generator)
+   2 service.name: Str(frontend-proxy)
+   2 service.name: Str(fraud-detection)
+   2 service.name: Str(flagd)
+   2 service.name: Str(email)
+   2 service.name: Str(cart)
+   2 service.name: Str(ad)
+   2 service.name: Str(accounting)
+   1 service.name: Str(currency)
+   1 service.name: Str(checkout)
+  → thirteen services in two flushes; no frontend, frontend-web, recommendation, product-reviews,
+    image-provider. No `telemetry.sdk.language: Str(nodejs)` or `Str(webjs)` anywhere.
+  → the connector's code (v0.142.0, `aggregateMetrics`) skips a ResourceSpans only when its resource
+    has no `service.name`; Tempo shows frontend's resource with `service.name='frontend'`,
+    `telemetry.sdk.language='nodejs'`. So the spans were not reaching the connector.
+
+The collector, seen at its input (a second traces pipeline off the same `otlp` receiver, a filter
+keeping only `frontend` and `frontend-proxy`, `debug` detailed, 60 s, 05:54:09 → 05:55:19, reverted):
+$ grep -c "^Span #" /tmp/fe-traces-diag.log; grep -o "service.name: Str([^)]*)" /tmp/fe-traces-diag.log | sort | uniq -c
+315
+  95 service.name: Str(frontend-proxy)
+  → 315 spans in a minute, every one frontend-proxy's. Zero frontend at the receiver, while Tempo held
+    frontend traces started 05:35:25 → 05:36:29.
+
+Who the SDKs are connected to (IPv4-mapped sockets in /proc/net/tcp6), 05:58:
+$ docker inspect -f '{{.Name}}{{range .NetworkSettings.Networks}} {{.IPAddress}}{{end}}' tempo otel-collector jaeger frontend
+/tempo 172.18.0.15
+/otel-collector 172.18.0.30
+/jaeger 172.18.0.6
+/frontend 172.18.0.31
+$ for c in frontend product-catalog recommendation checkout; do … /proc/net/tcp /proc/net/tcp6 … port in (4317,4318) and established …; done
+== frontend
+== product-catalog
+== recommendation
+  established -> 172.18.0.15:4317
+== checkout
+  → recommendation's OTLP channel is connected to Tempo. Tempo's receiver was on 4317, the port every
+    SDK is configured with for `otel-collector`; at 03:31 `tempo` and `otel-collector` were recreated
+    together and Tempo came up on the collector's former address. A gRPC client re-resolves a name only
+    after a connection attempt FAILS; a reconnect to the cached address succeeded - against Tempo.
+
+What Prometheus had been refusing, separately and since the world was first brought up (not the cause,
+recorded so it is not mistaken for one): one push a minute, 52 data points, one resource, 7 metrics,
+`HTTP Status Code 500`, `too old sample` × 8 - 474 such lines since 2026-09-23 05:16, ~60 an hour in
+every hour the world was up. Left open; it is not frontend's spanmetrics (those stopped at 03:32; this
+predates them) and not the connector's flush (13 services' spanmetrics landed through it).
+
+Postgres, at the second of the unpause:
+$ docker logs -t postgresql --since 2026-09-24T04:15:00Z --until 2026-09-24T04:25:00Z 2>&1 | cut -c1-160 | head -25; docker inspect postgresql --format '{{.State.StartedAt}}  restarts={{.RestartCount}}  oom={{.State.OOMKilled}}  exit={{.State.ExitCode}}'
+2026-09-24T04:19:33.640578592Z 2026-09-24 04:19:33.640 UTC [31265] FATAL:  terminating connection due to unexpected postmaster exit
+  (… 24 more of the same line, 04:19:33.640 → 04:19:33.657, one per backend …)
+2026-09-24T04:19:34.409400092Z  restarts=4  oom=false  exit=0
+$ docker logs -t frontend --since 2026-09-24T03:25:00Z 2>&1 | grep -m1 "database system is starting up" | cut -c1-40; … grep "Product Not Found" | sed -n '1p;$p'
+2026-09-24T04:19:35.033695884Z details
+2026-09-24T04:19:33.667484509Z Error: 5 NOT_FOUND: Product Not Found:
+2026-09-24T04:19:35.197283051Z   details: 'Product Not Found: LS4PSXUN
+  → the postmaster died at 04:19:33.640, the unpause was at 04:19:33; the container was up again at
+    04:19:34.4; for two seconds product-catalog answered `the database system is starting up` and then
+    `Product Not Found` on every product. Not OOM-killed at the container. Cause not established.
+
+=== 8. the world made whole (0143, Q95): Tempo's receiver to 4417, both recreated, five services restarted ===
+
+$ V2=(…); date -u +%H:%M:%S; (cd world-v2 && DEMO_VERSION=2.2.0 docker compose $V2 up -d --force-recreate tempo otel-collector) && sleep 5 && docker restart frontend recommendation product-reviews image-provider product-catalog && date -u +%H:%M:%S
+06:07:27
+ ✔ Container tempo          Started
+ ✔ Container otel-collector Started
+frontend
+recommendation
+product-reviews
+image-provider
+product-catalog
+06:07:48
+
+$ python3 evals/attempts/watch.py 5; python3 evals/attempts/shape.py product-catalog
+06:08:26  quiet
+…  (ten polls, every one quiet)
+06:12:56  quiet
+== firing ==
+  none
+
+== per service, [5m] ==
+  service                 err%    p95ms   req/s
+  accounting              0.00       91   0.538
+  ad                      0.00        4   0.440
+  cart                    0.00        5   4.503
+  checkout                0.00       29   2.443
+  currency                0.00        7   0.480
+  email                   0.00        6   0.727
+  flagd                   0.20        2   1.912
+  fraud-detection         1.02       91   0.367
+  frontend                0.00       43  13.041
+  frontend-proxy          0.60       45   6.019
+  image-provider          0.00        2   0.113
+  load-generator          0.65       46   5.587
+  payment                 0.00        2   0.356
+  product-catalog         0.00        7   6.106
+  product-reviews         0.00       43   0.840
+  quote                   0.00        2   0.534
+  recommendation          0.00        7   0.658
+  shipping                0.00        6   0.534
+
+== silent: running, and no span metrics in [5m] ==
+  none
+
+== last 8 log lines: product-catalog ==
+  2026/09/24 05:59:46 failed to upload metrics: rpc error: code = Unimplemented desc = unknown service opentelemetry.proto.collector.metrics.v1.MetricsService
+  …  (the same line each minute to 06:06:46 - all from before the restart at 06:07:48; nothing since)
