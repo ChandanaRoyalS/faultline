@@ -43,10 +43,12 @@ expected_evidence:
   - logs: product-catalog writes nothing for the whole window - not an error, not a line - and
       nothing in the healthy five minutes before the fault either, so silence alone is not the fault
   - traces: the proxy's spans end at its 15 s deadline (load-generator/GET -> frontend-proxy/ingress
-      15001ms, error); below it frontend's own GET /api/products/{productId} span stays open until
-      the catalog resumes (531.8 s in this bundle's window), and the call into the catalog is one
-      level deeper, where the trace tool's depth limit elides it (Q94). R2b's traces put the same
-      wait in frontend's self-time instead. No product-catalog error trace exists in the window
+      15001ms, error); below it frontend's call into the catalog
+      (grpc.oteldemo.ProductCatalogService/GetProduct) stays open until the catalog resumes (up to
+      531.8 s in this bundle's window), and the trace tool names it as the degrading hop, still
+      waiting after the proxy gave up (rule 0, Q94). Some traces name frontend's call into
+      recommendation instead, which waits on the catalog in turn. The catalog's own spans appear
+      only after the resume, ~0.1 s each, none an error
   - change: nothing recorded - no deploy, no config, no flag
   - discriminator: a partition of the same service looks identical on alerts, metrics, runtime
       series and traces; the freeze is the one whose target logs nothing at all, where a

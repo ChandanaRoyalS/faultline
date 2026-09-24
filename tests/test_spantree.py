@@ -199,3 +199,157 @@ def test_spans_recorded_without_ids_still_build_a_tree() -> None:
 
     assert tree.span_count == 2
     assert spantree.render(tree)[0].startswith("trace t  root s/op")
+
+
+# --- Q94 (T7.1): depth per world, status messages, and rule 0 -----------------------------------
+
+# The shape `trace_query frontend --errors` rendered over `v2-product-catalog-freeze`'s recording
+# (2026-09-24 16:53): the proxy's 15 s deadline is the trace's only error, and below it frontend's
+# request stays open until the catalog resumes, 531.8 s later. The client span into the catalog is
+# the one v1's depth elided.
+FREEZE = [
+    span("root", "", "load-generator", "user_add_to_cart", 0, 15006.2),
+    span("lg", "root", "load-generator", "GET", 0.3, 15002.3, error=True),
+    span("px", "lg", "frontend-proxy", "ingress", 0.6, 15001.6, error=True),
+    span("rt", "px", "frontend-proxy", "router frontend egress", 0.7, 15001.4),
+    span("fe", "rt", "frontend", "GET", 1.0, 15001.3),
+    span("api", "fe", "frontend", "GET /api/products/{productId}", 1.0, 531801.7),
+    span("route", "api", "frontend", "executing api route (pages)", 1.0, 531801.3),
+    span("grpc", "route", "frontend", "oteldemo.ProductCatalogService/GetProduct", 1.2, 531800.9),
+]
+
+
+def test_a_hang_under_a_timeout_names_the_call_still_waiting_not_the_timeout() -> None:
+    """**Rule 0.** Rule 1 alone named `load-generator/GET -> frontend-proxy/ingress`, the edge
+    where the deadline fired - true and no help. The deepest span still running when the proxy
+    gave up is frontend's call into the frozen catalog, and that is the hop."""
+    (tree,) = spantree.build(FREEZE)
+
+    old = spantree.error_or_self_time_hop(tree)
+    assert old is not None and old.callee == "frontend-proxy/ingress", "rules 1-2, as before"
+
+    hop = spantree.degrading_hop(tree)
+    assert hop is not None
+    assert hop.callee == "frontend/oteldemo.ProductCatalogService/GetProduct"
+    assert hop.caller == "frontend/executing api route (pages)"
+    assert hop.gave_up == "frontend-proxy/ingress"
+    assert hop.label().endswith("(still waiting 516.8s after frontend-proxy/ingress gave up)")
+    assert hop.share == 1.0, "a span that outlives its root is 100% of the trace, capped"
+
+
+def test_rule_0_leaves_ordinary_errors_to_rule_1() -> None:
+    """Three shapes that must not read as hangs:
+
+    - an erroring parent whose child finished inside it (the ordinary propagated error);
+    - an async consumer that starts after the erroring producer ended, however long it runs;
+    - a child that outlives its erroring parent by skew-sized milliseconds.
+    """
+    propagated = [
+        span("f", "", "frontend", "GET /", 0, 50, error=True),
+        span("c", "f", "checkout", "PlaceOrder", 2, 40, error=True),
+        span("p", "c", "payment", "Charge", 3, 30),
+    ]
+    consumer = [
+        span("c", "", "checkout", "PlaceOrder", 0, 20, error=True),
+        span("k", "c", "checkout", "orders publish", 5, 4),
+        span("a", "k", "accounting", "order-consumed", 30, 90000),
+    ]
+    skew = [
+        span("px", "", "frontend-proxy", "ingress", 0, 15000, error=True),
+        span("fe", "px", "frontend", "GET", 0.2, 15000.5),
+    ]
+    for spans in (propagated, consumer, skew):
+        (tree,) = spantree.build(spans)
+        assert spantree.hang_hop(tree) is None
+        assert spantree.degrading_hop(tree) == spantree.error_or_self_time_hop(tree)
+
+
+def test_a_call_that_waited_past_the_deadline_and_then_errored_is_still_the_waiting_call() -> None:
+    """**The replay's correction** (R3 and R5, 2026-09-24). checkout's call into the partitioned
+    catalog errored after 560 s, and rule 1 rightly named it. A rule 0 that skipped erroring spans
+    named its non-erroring parent instead, one level further from the fault. The waiting call is
+    the waiting call however it ended: rule 0 keeps rule 1's callee and adds how long it waited."""
+    spans = [
+        span("px", "", "frontend-proxy", "ingress", 0, 15000, error=True),
+        span("po", "px", "checkout", "PlaceOrder", 1, 560640),
+        span("prep", "po", "checkout", "prepareOrderItemsAndShippingQuoteFromCart", 2, 560635),
+        span(
+            "gp",
+            "prep",
+            "checkout",
+            "oteldemo.ProductCatalogService/GetProduct",
+            3,
+            560633,
+            error=True,
+        ),
+    ]
+    (tree,) = spantree.build(spans)
+    old = spantree.error_or_self_time_hop(tree)
+    new = spantree.degrading_hop(tree)
+    assert old is not None and new is not None
+    assert new.callee == old.callee == "checkout/oteldemo.ProductCatalogService/GetProduct"
+    assert new.gave_up == "frontend-proxy/ingress"
+
+
+def test_the_nearest_erroring_ancestor_is_the_one_named_as_giving_up() -> None:
+    """Two deadlines above one waiting call: the proxy's at 15 s, then frontend's own at 60 s. The
+    one that abandoned it last and nearest is frontend's."""
+    spans = [
+        span("px", "", "frontend-proxy", "ingress", 0, 15000, error=True),
+        span("fe", "px", "frontend", "GET", 1, 60000, error=True),
+        span("g", "fe", "frontend", "grpc GetProduct", 2, 500000),
+    ]
+    (tree,) = spantree.build(spans)
+    hop = spantree.degrading_hop(tree)
+    assert hop is not None and hop.callee == "frontend/grpc GetProduct"
+    assert hop.gave_up == "frontend/GET"
+
+
+def test_the_depth_is_the_worlds() -> None:
+    """v1 renders exactly as before; v2 draws the freeze's culprit span that v1's six elided."""
+    assert spantree.max_depth_for("v1") == spantree.MAX_DEPTH == 6
+    assert spantree.max_depth_for("v2") == spantree.V2_MAX_DEPTH > spantree.MAX_DEPTH
+    assert spantree.max_depth_for("some-future-world") == spantree.MAX_DEPTH
+
+    (tree,) = spantree.build(FREEZE)
+    at_v1 = "\n".join(spantree.render(tree))
+    at_v2 = "\n".join(spantree.render(tree, spantree.max_depth_for("v2")))
+    assert "1 deeper span(s) elided" in at_v1
+    assert "ProductCatalogService/GetProduct 531800.9ms" not in at_v1
+    assert "ProductCatalogService/GetProduct 531800.9ms" in at_v2
+    assert "elided" not in at_v2
+
+
+def test_an_error_spans_status_message_is_printed_and_bounded() -> None:
+    """The one thing a span carries that a metric does not (Q94): the service's own reason."""
+    failing = span("g", "", "product-catalog", "GetProduct", 0, 2.4, error=True)
+    failing = failing.model_copy(
+        update={"status_message": "Product Catalog Fail\nFeature Flag Enabled"}
+    )
+    ok = span("h", "g", "product-catalog", "GetFlag", 1, 1).model_copy(
+        update={"status_message": "not an error, not printed"}
+    )
+    (tree,) = spantree.build([failing, ok])
+    text = "\n".join(spantree.render(tree))
+    assert "ERROR: Product Catalog Fail Feature Flag Enabled" in text, "one line, whitespace folded"
+    assert "not printed" not in text
+
+    long = failing.model_copy(update={"status_message": "x" * 1000})
+    (tree,) = spantree.build([long])
+    (line,) = [ln for ln in spantree.render(tree) if "ERROR" in ln]
+    assert line.endswith("ERROR: " + "x" * spantree.STATUS_MESSAGE_MAX)
+
+
+def test_a_stored_trace_result_renders_at_the_depth_it_was_read_at() -> None:
+    """`max_depth` is stored on the result, so a replay renders what the specialist read. An
+    envelope stored before Q94 has no such field and renders at v1's six, as it did."""
+    from faultline.tools.results import TraceResult
+
+    stored = TraceResult(service="frontend", spans=FREEZE)
+    assert stored.max_depth == spantree.MAX_DEPTH
+    assert "1 deeper span(s) elided" in stored.body()
+
+    v2 = TraceResult(service="frontend", spans=FREEZE, max_depth=spantree.max_depth_for("v2"))
+    assert "elided" not in v2.body()
+    round_tripped = TraceResult.model_validate_json(v2.model_dump_json())
+    assert round_tripped.body() == v2.body()

@@ -3,7 +3,7 @@ origin: scenario:redis-cart-dependency-latency
 split: dev
 fault_class: dependency_latency
 recorded_from: 2026-09-09T04:57:58+00:00
-capability: cap:dd651ccc
+capability: cap:d2b243e0
 onset_to_page: 3m50s
 page_to_fix: 5m00s
 fix_to_all_clear: 2m16s

@@ -3,7 +3,7 @@ origin: scenario:v2-product-catalog-freeze
 split: dev
 fault_class: process_freeze
 recorded_from: 2026-09-24T16:53:28+00:00
-capability: cap:dd651ccc
+capability: cap:d2b243e0
 onset_to_page: 4m46s
 page_to_fix: 5m00s
 fix_to_all_clear: 5m16s
@@ -41,12 +41,13 @@ behaviour had changed, so it was reporting the problem, not causing it.
 
 **Frontend, because its latency was the first thing to move.** It looked like a slow
 frontend, and it was not one. The error traces showed the proxy giving up at 15 s. Below the
-proxy, frontend's own `GET /api/products/{productId}` span did not end when the proxy gave
-up. In one trace it stayed open for **531.8 seconds**, almost nine minutes, and closed only
-when the fix went in. Frontend was not doing work in that time. It was waiting on a call it
-had made downstream. The span for that call sat one level deeper, and the trace view elided
-it, so the tool did not name the service being waited on. The degrading-hop line named the
-proxy hop, which was true and of no help.
+proxy, frontend's own request did not end when the proxy gave up. Its call into the catalog,
+`grpc.oteldemo.ProductCatalogService/GetProduct`, stayed open for up to **531.8 seconds**
+across the window's error traces, almost nine minutes, and closed only when the fix went in. The trace tool named
+that call as the degrading hop, *still waiting 516.8 s after frontend-proxy/ingress gave up*.
+In three of the ten frontend traces it named frontend's call into recommendation instead,
+which was waiting on the catalog in turn. Frontend was not doing work in that time. Every
+trace put the time in a call frontend had made and was still waiting on.
 
 **The seven silent services, as a group.** Seven services going quiet in the same minute
 looks like seven failures, and chasing them one by one would have cost the rest of the
@@ -71,8 +72,11 @@ nothing. What mattered was which lines were *missing*. A catalog cut off from th
 keeps running and logs its failed telemetry exports once a minute. This one logged nothing,
 so it was not running.
 
-**Its traces.** Not one error trace from the catalog in the whole window. A running catalog
-under this much hung traffic would have failed some of it and said so in a span.
+**Its traces.** None of the catalog's spans in the window were errors. The only catalog spans
+at all were requests it served *after* the fix, in about a tenth of a second each (115 and
+118 ms in the two traces drawn in full). They sat under frontend calls that had been open for
+five and eight minutes, so each had waited in the catalog's backlog the whole time. A running catalog under this much hung traffic would have failed some of it
+while it happened and said so in a span.
 
 **What changed.** Nothing. No deploy, no image, no configuration, no flag on any service
 involved.
@@ -116,9 +120,8 @@ Everything was quiet 5m16s after the resume.
   three minutes after the page, in the same minute as six services that had nothing wrong
   with them.
 - Would the page alone have led you to the right service? **No.** It names the edge. The
-  path to the catalog runs through frontend's traces, which show frontend waiting on
-  something one level too deep to see, and then through the silent services' dependency
-  on it.
+  path to the catalog runs through frontend's traces, which name the catalog as the call
+  frontend was still waiting on minutes after the proxy gave up.
 - **Absence was the evidence, three times over.** No errors on frontend, no values on the
   catalog, and no runtime reports from it. Every one of those answers is a query returning
   nothing. Reading "no series matched" as "nothing wrong here" is the most expensive mistake

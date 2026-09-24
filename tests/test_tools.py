@@ -396,6 +396,43 @@ def test_a_tempo_status_arrives_as_a_name_or_a_number_and_is_stored_as_a_name() 
     assert _spans_of_otlp("t", trace(0), UTC)[0].error is False
 
 
+def test_a_tempo_status_message_is_kept_and_the_depth_is_the_worlds() -> None:
+    """Q94: OTLP's `status.message` was dropped at parse time, so no renderer could print it.
+    And `trace_query` stamps the world's rendering depth on its result."""
+    from faultline.tools.spantree import max_depth_for
+    from faultline.tools.tools import _spans_of_otlp
+
+    trace = {
+        "batches": [
+            {
+                "resource": {"attributes": []},
+                "scopeSpans": [
+                    {
+                        "spans": [
+                            {
+                                "spanId": "a",
+                                "name": "GetProduct",
+                                "startTimeUnixNano": "0",
+                                "endTimeUnixNano": "1000000",
+                                "status": {
+                                    "code": "STATUS_CODE_ERROR",
+                                    "message": "Product Catalog Fail Feature Flag Enabled",
+                                },
+                            }
+                        ]
+                    }
+                ],
+            }
+        ]
+    }
+    (parsed,) = _spans_of_otlp("t", trace, UTC)
+    assert parsed.status_message == "Product Catalog Fail Feature Flag Enabled"
+    for world in ("v1", "v2"):
+        with patch("faultline.telemetry.get_json", _tempo(1, START, spans_per_trace=3)):
+            result = Tools(ToolSettings(world=world)).trace_query("cartservice", START, END)
+        assert result.max_depth == max_depth_for(world)
+
+
 # --- read-only as a surface property -------------------------------------------
 
 

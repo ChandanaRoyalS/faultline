@@ -3,7 +3,7 @@ origin: scenario:cart-redis-misconfig
 split: dev
 fault_class: bad_config
 recorded_from: 2026-09-09T03:47:19+00:00
-capability: cap:dd651ccc
+capability: cap:d2b243e0
 onset_to_page: 2m46s
 page_to_fix: 5m00s
 fix_to_all_clear: 3m46s

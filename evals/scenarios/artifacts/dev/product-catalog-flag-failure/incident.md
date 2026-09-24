@@ -3,7 +3,7 @@ origin: scenario:product-catalog-flag-failure
 split: dev
 fault_class: bad_config
 recorded_from: 2026-09-09T04:43:03+00:00
-capability: cap:dd651ccc
+capability: cap:d2b243e0
 onset_to_page: 3m04s
 page_to_fix: 5m00s
 fix_to_all_clear: 1m34s
@@ -62,8 +62,9 @@ it by returning errors for one product. The failing service was working correctl
 configuration that made it fail lived somewhere else entirely, in a component with no
 telemetry of any kind.
 
-The errors were real and were attributable to product catalog. The *cause* was not, and
-no amount of investigating product catalog would have found it.
+The errors were real and were attributable to product catalog. The *cause* was not.
+Investigating product catalog could show that a flag was the reason, because its own error
+text says so, but not where that flag lived or who had changed it.
 
 ## Resolution
 
@@ -91,8 +92,12 @@ back to; one configuration value was wrong and was set back.
   failing consistently while every other input succeeds means something is deciding, and
   something that decides is configured.
 - **The cause was in a component with no telemetry.** Nothing in the metrics stack could
-  have surfaced it — not a dashboard, not an alert, not a trace attribute. The only route
-  to it was knowing that product catalog consults it, and then going to look at
+  have surfaced it — not a dashboard, not an alert. The catalog's own error text did point
+  that way. The status it returned names the enabled failure flag: frontend received it as
+  the gRPC error's details, and the trace tool prints such a status on an error span. That
+  says *a flag* made the catalog fail. It does not say where the flag is set or who set it,
+  and the flag service records nothing. The route to the cause was that pointer, plus
+  knowing that product catalog consults the flag service, and then going to look at
   something the observability stack does not know exists.
 - Did the loudest service turn out to be the culprit? **No**, but for an unusual reason:
   the loudest service was loadgenerator as always, and the *second* loudest was the
