@@ -1,0 +1,279 @@
+{
+  "alerts_at_fire": [
+    "ServiceHighErrorRate/load-generator",
+    "ServiceHighErrorRate/frontend-proxy",
+    "ServiceHighLatency/load-generator",
+    "ServiceHighLatency/frontend-proxy"
+  ],
+  "alerts_over_window": [
+    {
+      "alert": "ServiceHighErrorRate",
+      "began_after_revert": false,
+      "first_seen": "2026-09-24T11:18:50+00:00",
+      "last_seen": "2026-09-24T11:27:35+00:00",
+      "minutes_firing": 9.0,
+      "service": "frontend-proxy"
+    },
+    {
+      "alert": "ServiceHighErrorRate",
+      "began_after_revert": false,
+      "first_seen": "2026-09-24T11:18:50+00:00",
+      "last_seen": "2026-09-24T11:27:35+00:00",
+      "minutes_firing": 9.0,
+      "service": "load-generator"
+    },
+    {
+      "alert": "ServiceHighLatency",
+      "began_after_revert": false,
+      "first_seen": "2026-09-24T11:18:50+00:00",
+      "last_seen": "2026-09-24T11:27:35+00:00",
+      "minutes_firing": 9.0,
+      "service": "frontend-proxy"
+    },
+    {
+      "alert": "ServiceHighLatency",
+      "began_after_revert": false,
+      "first_seen": "2026-09-24T11:18:50+00:00",
+      "last_seen": "2026-09-24T11:27:35+00:00",
+      "minutes_firing": 9.0,
+      "service": "load-generator"
+    },
+    {
+      "alert": "ServiceHighErrorRate",
+      "began_after_revert": false,
+      "first_seen": "2026-09-24T11:19:50+00:00",
+      "last_seen": "2026-09-24T11:21:35+00:00",
+      "minutes_firing": 2.0,
+      "service": "fraud-detection"
+    },
+    {
+      "alert": "ServiceHighLatency",
+      "began_after_revert": false,
+      "first_seen": "2026-09-24T11:19:50+00:00",
+      "last_seen": "2026-09-24T11:28:35+00:00",
+      "minutes_firing": 9.0,
+      "service": "frontend"
+    },
+    {
+      "alert": "ServiceHighErrorRate",
+      "began_after_revert": false,
+      "first_seen": "2026-09-24T11:20:50+00:00",
+      "last_seen": "2026-09-24T11:22:35+00:00",
+      "minutes_firing": 2.0,
+      "service": "recommendation"
+    },
+    {
+      "alert": "ServiceHighLatency",
+      "began_after_revert": false,
+      "first_seen": "2026-09-24T11:20:50+00:00",
+      "last_seen": "2026-09-24T11:21:35+00:00",
+      "minutes_firing": 1.0,
+      "service": "fraud-detection"
+    },
+    {
+      "alert": "ServiceHighLatency",
+      "began_after_revert": false,
+      "first_seen": "2026-09-24T11:21:50+00:00",
+      "last_seen": "2026-09-24T11:22:35+00:00",
+      "minutes_firing": 1.0,
+      "service": "flagd"
+    },
+    {
+      "alert": "ServiceHighLatency",
+      "began_after_revert": false,
+      "first_seen": "2026-09-24T11:21:50+00:00",
+      "last_seen": "2026-09-24T11:22:35+00:00",
+      "minutes_firing": 1.0,
+      "service": "recommendation"
+    },
+    {
+      "alert": "ServiceNoTraffic",
+      "began_after_revert": false,
+      "first_seen": "2026-09-24T11:21:50+00:00",
+      "last_seen": "2026-09-24T11:24:35+00:00",
+      "minutes_firing": 3.0,
+      "service": "accounting"
+    },
+    {
+      "alert": "ServiceNoTraffic",
+      "began_after_revert": false,
+      "first_seen": "2026-09-24T11:21:50+00:00",
+      "last_seen": "2026-09-24T11:24:35+00:00",
+      "minutes_firing": 3.0,
+      "service": "currency"
+    },
+    {
+      "alert": "ServiceNoTraffic",
+      "began_after_revert": false,
+      "first_seen": "2026-09-24T11:21:50+00:00",
+      "last_seen": "2026-09-24T11:24:35+00:00",
+      "minutes_firing": 3.0,
+      "service": "email"
+    },
+    {
+      "alert": "ServiceNoTraffic",
+      "began_after_revert": false,
+      "first_seen": "2026-09-24T11:21:50+00:00",
+      "last_seen": "2026-09-24T11:24:35+00:00",
+      "minutes_firing": 3.0,
+      "service": "payment"
+    },
+    {
+      "alert": "ServiceNoTraffic",
+      "began_after_revert": false,
+      "first_seen": "2026-09-24T11:21:50+00:00",
+      "last_seen": "2026-09-24T11:24:35+00:00",
+      "minutes_firing": 3.0,
+      "service": "product-catalog"
+    },
+    {
+      "alert": "ServiceNoTraffic",
+      "began_after_revert": false,
+      "first_seen": "2026-09-24T11:21:50+00:00",
+      "last_seen": "2026-09-24T11:24:35+00:00",
+      "minutes_firing": 3.0,
+      "service": "quote"
+    },
+    {
+      "alert": "ServiceNoTraffic",
+      "began_after_revert": false,
+      "first_seen": "2026-09-24T11:21:50+00:00",
+      "last_seen": "2026-09-24T11:24:35+00:00",
+      "minutes_firing": 3.0,
+      "service": "shipping"
+    },
+    {
+      "alert": "ServiceHighErrorRate",
+      "began_after_revert": true,
+      "first_seen": "2026-09-24T11:26:50+00:00",
+      "last_seen": "2026-09-24T11:28:35+00:00",
+      "minutes_firing": 2.0,
+      "service": "accounting"
+    },
+    {
+      "alert": "ServiceHighErrorRate",
+      "began_after_revert": true,
+      "first_seen": "2026-09-24T11:26:50+00:00",
+      "last_seen": "2026-09-24T11:28:35+00:00",
+      "minutes_firing": 2.0,
+      "service": "checkout"
+    },
+    {
+      "alert": "ServiceHighErrorRate",
+      "began_after_revert": true,
+      "first_seen": "2026-09-24T11:26:50+00:00",
+      "last_seen": "2026-09-24T11:28:35+00:00",
+      "minutes_firing": 2.0,
+      "service": "frontend"
+    },
+    {
+      "alert": "ServiceHighErrorRate",
+      "began_after_revert": true,
+      "first_seen": "2026-09-24T11:26:50+00:00",
+      "last_seen": "2026-09-24T11:28:35+00:00",
+      "minutes_firing": 2.0,
+      "service": "product-catalog"
+    },
+    {
+      "alert": "ServiceHighErrorRate",
+      "began_after_revert": true,
+      "first_seen": "2026-09-24T11:26:50+00:00",
+      "last_seen": "2026-09-24T11:28:35+00:00",
+      "minutes_firing": 2.0,
+      "service": "recommendation"
+    },
+    {
+      "alert": "ServiceHighLatency",
+      "began_after_revert": true,
+      "first_seen": "2026-09-24T11:27:50+00:00",
+      "last_seen": "2026-09-24T11:28:35+00:00",
+      "minutes_firing": 1.0,
+      "service": "checkout"
+    },
+    {
+      "alert": "ServiceHighLatency",
+      "began_after_revert": true,
+      "first_seen": "2026-09-24T11:27:50+00:00",
+      "last_seen": "2026-09-24T11:28:35+00:00",
+      "minutes_firing": 1.0,
+      "service": "product-catalog"
+    },
+    {
+      "alert": "ServiceHighLatency",
+      "began_after_revert": true,
+      "first_seen": "2026-09-24T11:27:50+00:00",
+      "last_seen": "2026-09-24T11:28:35+00:00",
+      "minutes_firing": 1.0,
+      "service": "recommendation"
+    }
+  ],
+  "baseline_clear_at": "2026-09-24T11:14:05+00:00",
+  "bundle_schema_version": 2,
+  "capture_set": 2,
+  "expected_remediation_class": "restart",
+  "fault_class": "process_freeze",
+  "injection": {
+    "method": "v2-product-catalog-freeze",
+    "params": {},
+    "target": "product-catalog"
+  },
+  "origin": "scenario:v2-product-catalog-freeze",
+  "reachability": {
+    "answers_idle_or_absent": [
+      "runtime"
+    ],
+    "derived_from": "the bundle's own captures (T7.5)",
+    "none_can_answer": false,
+    "runtime_series": 9,
+    "target_log_lines": 0
+  },
+  "recorded_by": "evalharness.rehearse",
+  "recorder": {
+    "git_dirty": true,
+    "git_sha": "629ec5975575449221ce211faa9c8696924b2984",
+    "tool": "evalharness.rehearse"
+  },
+  "scenario_fingerprint": "e06fbcc0bfa1b069c70a829a048d4892337b45bbff12f528218dbfffe5992220",
+  "scenario_id": "v2-product-catalog-freeze",
+  "seconds_of_steady_state": 300,
+  "seconds_to_alert": 286,
+  "seconds_to_settle": 301,
+  "split": "dev",
+  "t_alert_firing": "2026-09-24T11:18:51+00:00",
+  "t_clear": "2026-09-24T11:28:52+00:00",
+  "t_inject": "2026-09-24T11:14:05+00:00",
+  "t_revert": "2026-09-24T11:23:51+00:00",
+  "title": "The product catalog process is frozen - its socket accepts and nothing answers",
+  "window": {
+    "end": "2026-09-24T11:30:52+00:00",
+    "start": "2026-09-24T11:09:05+00:00"
+  },
+  "world": {
+    "compose_digest": "e9c12d18a7a09ef631823da07f1a75274225d872d792dfbcdbaac2f3d6b3025e",
+    "docker_arch": "arm64",
+    "ffs_stub_image_id": "sha256:90f2fc6f5806a8914ef2740ff7c6348a1ddd4225bccc8f3398e58d03b3c1a512",
+    "ffs_stub_source_digest": null,
+    "host_platform": "Darwin/arm64",
+    "observability_digest": "c2250d4fe7bd8523ac401ae2263ddb8cf3c30b45caf3ac1990bde6c7dd30ad57",
+    "observability_files": {
+      "compose/otelcol-extras-v2.yml": "48cd277022d94eb34a9cedd743fab54efb1d78ce59258349b06360917495b443",
+      "compose/prometheus/alert-rules-v2.yml": "7f006a034167ffd3c1eacc17f9d952f73eeb22d1936aa17669626c442fa8f20b",
+      "compose/prometheus/alertmanager.yml": "cec8f9f623152c001d14a53c8c3a6930ad35665d5ee093117ff17cf0d09d61f1",
+      "compose/prometheus/prometheus-config-v2.yaml": "b2e8c9c59bcbfa5d7235748871db1852de74d59c43d89723a2d260c0aaf45867",
+      "compose/promtail-config.yml": "2d43bc91f78cf65504a1091e406a7e97bcece0a194dc5f27cf1fd4c49edb72ec",
+      "compose/tempo-v2.yaml": "f1aab321ba20aabc01d899e0579c79b67d50367713e4407873be1803df560a08",
+      "world-v2/src/otel-collector/otelcol-config.yml": "0a472a67088ca6fa1d5a222ce8c633aa26bbb75cd8d11558c2feaabdfc70141e"
+    },
+    "otel_demo_image": "ghcr.io/open-telemetry/demo:2.2.0-cart",
+    "otel_demo_image_digest": "ghcr.io/open-telemetry/demo@sha256:1adaf3b33fbf4d42e5a1fa68fec1ea1b645d50471881179bd7be0a0ce2656706",
+    "world_name": "v2"
+  },
+  "world_lock": {
+    "acquired": true,
+    "host": "chandanas-MacBook-Air.local",
+    "pid": 47942,
+    "reason": "rehearse v2-product-catalog-freeze",
+    "since": "2026-09-24T11:14:00.537720+00:00",
+    "token": "47942-1790248440.537265"
+  }
+}
