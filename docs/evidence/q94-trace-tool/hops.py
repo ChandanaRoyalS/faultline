@@ -22,10 +22,10 @@ from faultline.tools.tools import Tools
 
 def at(hhmm):
     h, m = hhmm.split(":")
-    return datetime(2026, 9, 24, int(h), int(m), tzinfo=timezone.utc)
+    return datetime(2026, 9, 24, int(h), int(m), tzinfo=timezone.utc)  # noqa: UP017
 
 
-now = datetime.now(timezone.utc)
+now = datetime.now(timezone.utc)  # noqa: UP017
 WINDOWS = [
     ("R1 feature_flag", "02:24", "02:46", ("frontend", "product-catalog")),
     ("R2 freeze", "04:03", "04:17", ("frontend", "frontend-proxy", "product-catalog")),
