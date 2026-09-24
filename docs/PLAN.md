@@ -1287,7 +1287,7 @@ design; `docs/design/t6.1-capability-review.md` the narrative review behind `cap
 
 **Two things the pre-registration got wrong, amended before any run.** *The stamp moves.* §2.4 said
 `prompts:b6837dd449ca` stays; §2.3 registered Q29; a contract's schema is in the digest, so the two
-were inconsistent and the build found it. HEAD is `prompts:06f24e827915`, both arms run at it, and
+were inconsistent and the build found it. HEAD became `prompts:06f24e827915`, both arms run at it, and
 until sweep 12 no scored run exists at HEAD - README's table says so rather than showing the previous
 stamp's figures under the new one. *The order of passes.* §4 alternated arms pass by pass;
 `faultline-sweep --tier weekly` makes its three passes in one invocation by construction, so the

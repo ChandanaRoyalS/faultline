@@ -275,7 +275,8 @@ nothing.
 Reply with JSON only, matching this schema:
 {"disposition": "investigate|duplicate|noise",
  "duplicate_of": "<incident id, or null>",
- "suspected_fault_class": "bad_deploy|bad_config|dependency_latency|resource_exhaustion|unknown",
+ "suspected_fault_class": "bad_deploy|bad_config|dependency_latency|resource_exhaustion|
+    feature_flag|process_freeze|network_partition|datastore_corruption|disk_fill|unknown",
  "confidence": "high|medium|low",
  "reasoning": "<one or two sentences>"}"""
 
@@ -588,6 +589,16 @@ answers the second one.
   a wrong version, a build that cannot start.
 - `bad_config`: a configuration value is itself wrong - it names the wrong address, port,
   credential, limit or flag - **and the wrongness of that value is the failure**.
+- `feature_flag`: a runtime flag was flipped in the flag store and the flagged code path is
+  what fails - no artifact and no configuration file changed, so the change log is empty.
+- `process_freeze`: the service's process is stopped while its socket still accepts - callers
+  hang to their deadlines rather than fail, and the service writes nothing at all.
+- `network_partition`: the service is cut off from the network - callers hang exactly as for a
+  freeze, but the service is running and its own log complains that it cannot reach anything.
+- `datastore_corruption`: the service's store is reachable and healthy and its contents cannot
+  be read - parse or decode failures on read, with the connection itself fine.
+- `disk_fill`: the service's storage is full - writes fail with no space left, and a service
+  that cannot write its data halts or refuses rather than running slow.
 
 A change record is **evidence for** a class, never the class itself. Almost every failure has
 some act upstream of it, and classifying by that act collapses this taxonomy into two values.
@@ -601,8 +612,16 @@ that inserts delay into a call path is `dependency_latency`: the wait is the fai
 reference pointed at the wrong artifact is `bad_deploy`, even though an image reference is
 configuration.
 
+Three of these look alike from a caller and are told apart by the culprit's own signals. A
+`process_freeze` and a `network_partition` both hang their callers; the frozen process is silent
+and the partitioned one logs that it cannot reach anything. A `disk_fill` and a `bad_config` on
+the same service both stop its writes; the full disk says *no space left* in the service's own
+log while a misconfiguration names the wrong address or credential.
+
 The same discipline applies to `remediation_class`: name the fix that would actually resolve
-this, which is not always the inverse of the last change.
+this, which is not always the inverse of the last change. `reconnect` restores connectivity,
+`restore_data` flushes or restores a store's contents, `free_storage` frees or grows storage;
+use them when that is the fix, not the nearest of the older five.
 
 NAME THE SERVICE. `service` is the one you are blaming, and it is a claim you are making rather
 than the place the investigation began. The service that alerted first is often the one that
@@ -619,15 +638,19 @@ invented runners-up are worse than none. Do not pad it to length.
 Reply with JSON only, matching this schema:
 {{"root_cause": "<one paragraph>",
  "service": "<the service you are blaming>",
- "fault_class": "bad_deploy|bad_config|dependency_latency|resource_exhaustion|unknown",
- "remediation_class": "rollback|restart|config_revert|scale|none",
+ "fault_class": "bad_deploy|bad_config|dependency_latency|resource_exhaustion|
+    feature_flag|process_freeze|network_partition|datastore_corruption|disk_fill|unknown",
+ "remediation_class": "rollback|restart|config_revert|scale|
+    reconnect|restore_data|free_storage|none",
  "confidence": "high|medium|low",
  "evidence": ["<result_id>"],
  "reasoning": "<how the evidence supports the root cause>",
  "open_questions": ["<what is still unsettled>"],
  "alternatives": [{{"root_cause": "<one sentence>", "service": "<service>",
-   "fault_class": "bad_deploy|bad_config|dependency_latency|resource_exhaustion|unknown",
-   "remediation_class": "rollback|restart|config_revert|scale|none",
+   "fault_class": "bad_deploy|bad_config|dependency_latency|resource_exhaustion|
+      feature_flag|process_freeze|network_partition|datastore_corruption|disk_fill|unknown",
+   "remediation_class": "rollback|restart|config_revert|scale|
+      reconnect|restore_data|free_storage|none",
    "why_not": "<what demotes this below the one above>"}}]}}"""
 
 
@@ -795,7 +818,8 @@ permitted action addresses the mechanism, or the right fix is outside what this 
 abstention costs nothing and a wrong action costs a working service. Say why in `if_wrong`.
 
 Reply with JSON only, matching this schema:
-{"remediation_class": "rollback|restart|config_revert|scale|none",
+{"remediation_class": "rollback|restart|config_revert|scale|
+   reconnect|restore_data|free_storage|none",
  "action_id": "<allowlist id, or empty when abstaining>",
  "target": "<service, or empty when abstaining>",
  "rests_on": ["<result_id>"],
@@ -819,7 +843,8 @@ itself.
 
 You may not use any of these words, in any case: inject, injected, injection, injector, fault,
 faultline, chaos, scenario, rehearsal, rehearse, pumba, netem, bad_deploy, bad_config,
-dependency_latency, resource_exhaustion. Write "failure", "incident", "the cause", "the change"
+dependency_latency, resource_exhaustion, feature_flag, process_freeze, network_partition,
+datastore_corruption, disk_fill. Write "failure", "incident", "the cause", "the change"
 instead. A record naming a class of failure hands the reader the answer rather than the
 investigation.
 

@@ -14,20 +14,42 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class FaultClass(StrEnum):
-    """Fault classes the injector supports. T1.4 built these four and **there is no fifth**.
+    """Fault classes the injector supports: T1.4's four, and the five T7.0 measured.
 
-    ADR-0029 (T7.57) audited the question and T7.0 is closed on it: four mechanisms bound
-    one-to-one to these four by test, a remediation set in which `config_revert` already fixes
-    three of them, one unused remediation (`scale`) this world can neither cause nor perform, and
-    a topology that flattens every page. A new member here must also be added to the `FaultClass`
-    `Literal` in `faultline.agents.contracts` - `tests/test_freeze.py` binds the two - and that
-    moves `prompt_digest`, which strands every figure the repository has published.
+    A class is individuated by the injector mechanism that produces it (ADR-0043). The first four
+    are T1.4's. The five below were each **attempted live on the v2 world, pre-registered, and
+    admitted only on the registered criteria** - pages within twelve minutes on the target or a
+    direct caller, distinct from a named comparator in a dimension the agent's tools expose,
+    reverts within ten (`evals/runs/PREREGISTRATION-T7.0.md`; results under `evals/attempts/`,
+    2026-09-22/24). Two candidates the plan named did not make it: a flood flag (A5) produced no
+    signal but request rate, and a wrong credential (A6) and an N+1 image (A7) are `bad_config`'s
+    and `bad_deploy`'s own mechanisms. Nine is the ceiling the registration set.
+
+    A member here must also be in the `FaultClass` `Literal` in `faultline.agents.contracts` -
+    `tests/test_freeze.py` binds the two - and adding one moves `prompt_digest`. The five were
+    added together, once, so it moved once: `06f24e827915` -> the digest `tests/test_harness_run.py`
+    records as `T70_DIGEST`. Every figure published before it stands at the old stamp.
     """
 
     BAD_DEPLOY = "bad_deploy"
     DEPENDENCY_LATENCY = "dependency_latency"
     RESOURCE_EXHAUSTION = "resource_exhaustion"
     BAD_CONFIG = "bad_config"
+    FEATURE_FLAG = "feature_flag"
+    """A flag flipped in the world's flag store (flagd). A1: pages as errors on the caller; leaves
+    no compose change, so `change_history` is empty while the world is broken."""
+    PROCESS_FREEZE = "process_freeze"
+    """The target's process stopped (`docker pause`) while its socket stays open. A2: callers hang
+    rather than fail; thirteen alerts on ten services; the target's log is silent."""
+    NETWORK_PARTITION = "network_partition"
+    """The target cut from the network (`docker network disconnect`). A3: the same hang as a
+    freeze, separable only by the target's own export failures in its log."""
+    DATASTORE_CORRUPTION = "datastore_corruption"
+    """The target's datastore reachable and its contents unparseable. A4b: pages on the caller
+    that reads the store once per request; parse failures in the culprit's log."""
+    DISK_FILL = "disk_fill"
+    """The target's only writable data directory filled to capacity. A8b: the broker halts in
+    seconds, its producer hangs then fails, its consumers starve; the broker's log names it."""
 
 
 class Split(StrEnum):
@@ -44,6 +66,12 @@ class RemediationClass(StrEnum):
     RESTART = "restart"
     CONFIG_REVERT = "config_revert"
     SCALE = "scale"
+    RECONNECT = "reconnect"
+    """Restore the target's connectivity (T7.0: `network_partition`'s fix)."""
+    RESTORE_DATA = "restore_data"
+    """Flush or restore the target's stored data (T7.0: `datastore_corruption`'s fix)."""
+    FREE_STORAGE = "free_storage"
+    """Free or grow the target's storage (T7.0: `disk_fill`'s fix)."""
 
 
 class Injection(BaseModel):

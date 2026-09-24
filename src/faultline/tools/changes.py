@@ -105,6 +105,11 @@ HARNESS_VOCABULARY: frozenset[str] = frozenset(
         "bad_config",
         "dependency_latency",
         "resource_exhaustion",
+        "feature_flag",
+        "process_freeze",
+        "network_partition",
+        "datastore_corruption",
+        "disk_fill",
     }
 )
 """Terms whose appearance **anywhere** an agent can see is a leak, in any context.

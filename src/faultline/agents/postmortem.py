@@ -79,7 +79,8 @@ That is what a reader actually carries to the next incident.
 
 You may not use any of these words, in any case: inject, injected, injection, injector,
 faultline, chaos, scenario, rehearsal, rehearse, pumba, netem, bad_deploy, bad_config,
-dependency_latency, resource_exhaustion. Do not name the incident's identifier.
+dependency_latency, resource_exhaustion, feature_flag, process_freeze, network_partition,
+datastore_corruption, disk_fill. Do not name the incident's identifier.
 
 Never claim the system recovered or that a fix worked. Nobody ran one. Saying so would be false.
 

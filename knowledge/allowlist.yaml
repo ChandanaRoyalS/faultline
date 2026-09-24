@@ -77,3 +77,78 @@ actions:
       here rather than omitted so that its absence is a recorded fact instead of a hole -
       and so nothing proposes an action the world cannot perform.
     excluded_targets: []
+
+  # The three below entered with T7.0's classes (2026-09-24), because a partition, a corrupted
+  # store and a full disk are undone by none of the four above. Each is something this world can
+  # do and the executor cannot yet: T6.2 built rollback_image, revert_config and restart_service,
+  # and nothing else runs. They are `unperformable` for that reason and that reason alone - not
+  # because the world refuses them, which is `scale_service`'s case - and the status flips when
+  # the executor learns each one. Until then a proposer may name the class and must not expect
+  # the action to run.
+
+  - id: reconnect_service
+    remediation_class: reconnect
+    summary: >-
+      Re-attach the service's container to the network it was cut from, without recreating
+      it.
+    target_selector: incident_scoped_service
+    preconditions:
+      - The service's own log says it cannot reach anything - export or upstream failures -
+        while its process is running and its callers hang.
+    blast_radius: >-
+      One service. Requests that hung while it was cut off wake at once when it returns and
+      fail past their deadlines together, for a few minutes, before the world is quiet.
+    reversible: true
+    approval: required
+    status: unperformable
+    unperformable_reason: >-
+      Not built. The executor performs rollback_image, revert_config and restart_service only
+      (T6.2). The world can do this - `docker network connect` undid the fault in T7.0's A3
+      and the world was quiet six minutes later (ADR-0043 addendum, 2026-09-24) - and the
+      status flips when the executor learns it.
+    excluded_targets: []
+
+  - id: restore_store
+    remediation_class: restore_data
+    summary: >-
+      Discard or restore the contents of the service's datastore so that what the service
+      reads is parseable again.
+    target_selector: incident_scoped_service
+    preconditions:
+      - The store answers and the service's errors are parse or decode failures on read, not
+        connection failures.
+    blast_radius: >-
+      One service's stored state. Discarding it loses whatever it held; in this world the
+      stores hold session state only.
+    reversible: false
+    approval: required
+    status: unperformable
+    unperformable_reason: >-
+      Not built. The executor performs rollback_image, revert_config and restart_service only
+      (T6.2). The world can do this - a `FLUSHALL` on the store undid the fault in T7.0's A4b
+      and every alert cleared within four minutes (ADR-0043 addendum, 2026-09-24) - and the
+      status flips when the executor learns it.
+    excluded_targets: []
+
+  - id: free_storage
+    remediation_class: free_storage
+    summary: >-
+      Free space in the service's data directory - remove what filled it, or recreate the
+      service on an empty directory - and restart whatever stopped consuming from it.
+    target_selector: incident_scoped_service
+    preconditions:
+      - The service's own log says no space left on device, or that its data directory has
+        failed.
+    blast_radius: >-
+      The service and everything that reads through it. A broker halted on a full disk has
+      stopped its producers and starved its consumers already; freeing the disk brings the
+      producers back at once and the consumers only when they are restarted.
+    reversible: false
+    approval: required
+    status: unperformable
+    unperformable_reason: >-
+      Not built. The executor performs rollback_image, revert_config and restart_service only
+      (T6.2). The world can do this - recreating the broker on an empty directory and
+      restarting its consumers undid the fault in T7.0's A8b in four minutes (ADR-0043
+      addendum, 2026-09-24) - and the status flips when the executor learns it.
+    excluded_targets: []

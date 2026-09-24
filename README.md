@@ -25,9 +25,16 @@ shows is `20260907T103142Z-cart-redis-misconfig`: `bad_config` against `bad_conf
 
 ## Results at a glance
 
-**Culprit service 21 / 30, fault class 20 / 24, six abstentions** — thirty runs on the
-60-document corpus this pipeline now retrieves from, at `prompts:06f24e827915`. They are T6.5's
-WITH arm, ten dev scenarios three times each, pre-registered in
+**Culprit service 0 / 0, fault class 0 / 0, no runs yet at `prompts:8dda4a19da2f`** — the stamp
+this repository ships since T7.0 added five fault classes and three remediation classes on
+2026-09-24 (nine and eight; each new class attempted live on the v2 world under a pre-registration,
+`evals/attempts/`). A prompt change is a different pipeline ([ADR-0022](docs/adr/0022-evaluation-harness.md)),
+so the table below shows zeros at this stamp until the first sweep runs at it, and the last
+figure follows, at the stamp it was measured under.
+
+**The last figure: culprit service 21 of 30, fault class 20 of 24, six abstentions** — thirty
+runs on the 60-document corpus this pipeline retrieves from, at `prompts:06f24e827915`. They are
+T6.5's WITH arm, ten dev scenarios three times each, pre-registered in
 [`PREREGISTRATION-T6.5.md`](evals/runs/PREREGISTRATION-T6.5.md) with seven amendments merged
 before any of them ran.
 
@@ -97,40 +104,39 @@ Ablation runs are excluded from the table above because they are a different pip
 way the B0 arm is.
 
 <!-- scenario-table:begin -->
-Per scenario. The first four columns are at `prompts:06f24e827915`, the stamp this
+Per scenario. The first four columns are at `prompts:8dda4a19da2f`, the stamp this
 repository ships, on the current world (`90e9f29e578e`): scored runs only, demos, the B0
 arm and ablation arms excluded. `class` and `service` are correct / answered;
 abstentions are counted in `abst`, not as wrong. The last two columns pool every stamp
 on this world - **context, not a figure**: a prompt change is a different pipeline, and
 the pooled column is here so a reader can see how thin `n` is at any one stamp. Holdout
 scenarios have no run on this world at all; the zeros are the record.
-R = 3 on every dev scenario with a run, which is what makes a row a small
-sample rather than a single observation (RESULTS.md).
+No dev scenario has a run at this stamp.
 
 | scenario | split | n | class | abst | service | n, all stamps | class, all stamps |
 |---|---|---:|---:|---:|---:|---:|---:|
-| `ad-memory-squeeze` | dev | 3 | 1 / 2 | 1 | 2 / 3 | 7 | 2 / 5 |
-| `cart-bad-image-tag` | dev | 3 | 0 / 2 | 1 | 2 / 3 | 7 | 4 / 6 |
-| `cart-dependency-latency` | dev | 3 | 3 / 3 | 0 | 3 / 3 | 8 | 8 / 8 |
-| `cart-redis-misconfig` | dev | 3 | 1 / 2 | 1 | 3 / 3 | 8 | 5 / 6 |
-| `frauddetection-memory-squeeze` | dev | 3 | 3 / 3 | 0 | 3 / 3 | 7 | 7 / 7 |
-| `payment-telemetry-blackout` | dev | 3 | 3 / 3 | 0 | 3 / 3 | 7 | 7 / 7 |
-| `product-catalog-flag-failure` | dev | 3 | 2 / 2 | 1 | 0 / 3 | 7 | 5 / 5 |
-| `redis-cart-dependency-latency` | dev | 3 | 3 / 3 | 0 | 0 / 3 | 8 | 8 / 8 |
-| `shipping-quote-misconfig` | dev | 3 | 2 / 2 | 1 | 2 / 3 | 8 | 5 / 6 |
-| `shipping-wrong-image` | dev | 3 | 2 / 2 | 1 | 3 / 3 | 8 | 5 / 6 |
+| `ad-memory-squeeze` | dev | 0 | — | 0 | — | 7 | 2 / 5 |
+| `cart-bad-image-tag` | dev | 0 | — | 0 | — | 7 | 4 / 6 |
+| `cart-dependency-latency` | dev | 0 | — | 0 | — | 8 | 8 / 8 |
+| `cart-redis-misconfig` | dev | 0 | — | 0 | — | 8 | 5 / 6 |
+| `frauddetection-memory-squeeze` | dev | 0 | — | 0 | — | 7 | 7 / 7 |
+| `payment-telemetry-blackout` | dev | 0 | — | 0 | — | 7 | 7 / 7 |
+| `product-catalog-flag-failure` | dev | 0 | — | 0 | — | 7 | 5 / 5 |
+| `redis-cart-dependency-latency` | dev | 0 | — | 0 | — | 8 | 8 / 8 |
+| `shipping-quote-misconfig` | dev | 0 | — | 0 | — | 8 | 5 / 6 |
+| `shipping-wrong-image` | dev | 0 | — | 0 | — | 8 | 5 / 6 |
 | `email-wrong-image` | holdout | 0 | — | 0 | — | 0 | — |
 | `productcatalog-dependency-latency` | holdout | 0 | — | 0 | — | 0 | — |
 | `recommendation-memory-squeeze` | holdout | 0 | — | 0 | — | 0 | — |
-| **all** | | **30** | **20 / 24** | **6** | **21 / 30** | **75** | **56 / 64** |
+| **all** | | **0** | **—** | **0** | **—** | **75** | **56 / 64** |
 
 Regenerate with `uv run python -m evalharness.scenario_table --write`; `tests/test_scenario_table.py` fails when this block and the tree disagree.
 <!-- scenario-table:end -->
 
-**Read the abstentions before the accuracy.** 6 of 30 runs at this stamp named no class, against
-3 of 30 in dev sweep 12 on the 25-document corpus — the system is built to say `unknown` rather
-than guess, and coverage and accuracy are reported apart on purpose
-([ADR-0022](docs/adr/0022-evaluation-harness.md)).
+**Read the abstentions before the accuracy.** 0 of 0 runs at this stamp named no class — there
+are none yet. At the last stamp six of thirty did, against three of thirty in dev sweep 12 on the
+25-document corpus — the system is built to say `unknown` rather than guess, and coverage and
+accuracy are reported apart on purpose ([ADR-0022](docs/adr/0022-evaluation-harness.md)).
 
 **Doubling is the finding T6.5 did not predict.** Its §7 registered abstention as *at least as
 common* in the arm with the narrower corpus, and the opposite happened: this arm, with the wider
@@ -150,8 +156,9 @@ in the catalog (Q27, an `INFRASTRUCTURE` node with no telemetry of its own) and 
 node was still missed 0 / 3, and so was the control, which says the catalog entry alone does not
 move the culprit axis and points at Q28 — a prompt-side change, and Phase 7's.
 
-**10 of the 10 dev scenarios carry a run at this stamp; 0 of the 3 holdout scenarios do** — the
-dev row filled when T6.5 ran on this corpus; the holdout zeros never will: the set has been entered three times and a fourth entry is blocked by
+**0 of the 10 dev scenarios carry a run at this stamp; 0 of the 3 holdout scenarios do** — the
+dev row will fill when the first sweep runs at this stamp (it was full, ten of ten, at the last
+one); the holdout zeros never will: the set has been entered three times and a fourth entry is blocked by
 [ADR-0029](docs/adr/0029-four-fault-classes-and-why-there-is-no-fifth.md) — a three-scenario holdout
 read four times is not a holdout. Every one of the 13 has been scored at least once across the four
 world generations in [`evals/runs/`](evals/runs/), and all thirteen are **recorded** on this one.

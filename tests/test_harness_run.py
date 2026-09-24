@@ -795,7 +795,9 @@ also handed.
 
 
 Q29_DIGEST = "06f24e827915"
-"""**HEAD.** `Proposal` reports unexpected keys instead of refusing them (Q29, T6.1).
+"""`Proposal` reports unexpected keys instead of refusing them (Q29, T6.1). **Every figure in
+RESULTS.md, README's table and the P6 batches stands at this stamp**; it held from T6.1 through
+the whole of P6 and T7.0's attempts.
 
 **Moved by one line of schema and nothing else.** `extra="forbid"` puts `additionalProperties:
 false` into a contract's JSON schema, and the schema is in the digest, so relaxing it moves the
@@ -816,6 +818,29 @@ the reasoning and ADR-0028 Addendum 2 the decision.
 """
 
 
+T70_DIGEST = "8dda4a19da2f"
+"""**HEAD.** Nine fault classes and eight remediation classes (T7.0, 2026-09-24).
+
+**Moved by the contracts and the prompts together, once, after every attempt was run.**
+`FaultClass` gained `feature_flag`, `process_freeze`, `network_partition`, `datastore_corruption`
+and `disk_fill` - each attempted live on the v2 world under `PREREGISTRATION-T7.0.md` (and the
+A4b/A8b re-registrations) and admitted only on the registered criteria - and `RemediationClass`
+gained `reconnect`, `restore_data` and `free_storage`, because a partition, a corrupted store and
+a full disk are undone by none of the older five. Both are `Literal`s in `_CONTRACTS`' schemas, so
+the schema block moved; and the synthesizer's prompt defines the five new classes in the same
+mechanism terms as the four, enumerates all nine in three JSON shapes, and bans their names in the
+narrative vocabulary, so the prose moved as well. `capability_version` did not: `cap:dd651ccc`.
+
+**Why once and why now.** `PREREGISTRATION-T7.0.md` fixed it in advance: *"The class list is then
+changed once, in a single patch, with both fingerprints recorded - not per attempt and not before
+all eight are run."* Nine attempts, five admitted, and this is the patch. Nothing scored on the v2
+world exists to strand; every figure at `06f24e827915` was taken on v1 and stands there. **The
+baselines were not moved** (Q92): B0's `CLASS_TO_REMEDIATION` and B1's and B2's prompts still name
+four classes, as measured, and that is a property of a four-class baseline the next catalog will
+measure rather than a defect this patch hides.
+"""
+
+
 def test_the_stamp_names_which_pipeline_produced_a_run() -> None:
     """`runtime_version` is the package version plus a digest over every role system prompt and
     every contract schema, so it moves when and only when the agent is a different agent.
@@ -825,8 +850,8 @@ def test_the_stamp_names_which_pipeline_produced_a_run() -> None:
     """
     from faultline.agents.stamp import prompt_digest
 
-    assert prompt_digest() == Q29_DIGEST, (
-        f"expected T6.1's pipeline {Q29_DIGEST}. If a prompt or a contract moved again, "
+    assert prompt_digest() == T70_DIGEST, (
+        f"expected T7.0's pipeline {T70_DIGEST}. If a prompt or a contract moved again, "
         f"add its digest here - and if it moved after a pre-registration was written, the sweep "
         f"it governs is measuring something nobody planned to measure."
     )
@@ -838,7 +863,8 @@ def test_the_stamp_names_which_pipeline_produced_a_run() -> None:
         BATCH_C_DIGEST,
         TOP3_DIGEST,
         Q25B_DIGEST,
-    }, "HEAD is none of the earlier pipelines, dev sweeps 9 to 11 included"
+        Q29_DIGEST,
+    }, "HEAD is none of the earlier pipelines, dev sweeps 9 to 12 and the P6 batches included"
     assert (
         len(
             {
@@ -852,10 +878,12 @@ def test_the_stamp_names_which_pipeline_produced_a_run() -> None:
                 BATCH_C_DIGEST,
                 TOP3_DIGEST,
                 Q25B_DIGEST,
+                Q29_DIGEST,
+                T70_DIGEST,
             }
         )
-        == 10
-    ), "ten pipelines, six of them measured — dev sweeps 10 and 11 measured Q25b, not this"
+        == 12
+    ), "twelve pipelines, seven of them measured — nothing is measured at T7.0's yet"
 
 
 def test_the_harness_side_paths_are_not_covered_by_the_stamp() -> None:
@@ -1126,7 +1154,7 @@ def test_the_correlate_budget_is_not_a_stamp_input() -> None:
     ):
         assert stamp_module.prompt_digest() == before
     stamp_module.prompt_digest.cache_clear()
-    assert stamp_module.runtime_version() == f"faultline/0.0.1+prompts:{Q29_DIGEST}"
+    assert stamp_module.runtime_version() == f"faultline/0.0.1+prompts:{T70_DIGEST}"
 
 
 # --- T7.14: the rule that fires at rest ----------------------------------------------------
