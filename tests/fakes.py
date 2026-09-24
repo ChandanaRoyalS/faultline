@@ -7,7 +7,7 @@ laptop with no world running, which is the point.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -19,6 +19,7 @@ class RecordedCall:
     args: tuple[str, ...]
     cwd: Path | None
     check: bool
+    env: Mapping[str, str] | None = None
 
 
 @dataclass
@@ -30,10 +31,15 @@ class FakeRunner:
     calls: list[RecordedCall] = field(default_factory=list)
 
     def run(
-        self, args: Sequence[str], *, cwd: Path | None = None, check: bool = True
+        self,
+        args: Sequence[str],
+        *,
+        cwd: Path | None = None,
+        check: bool = True,
+        env: Mapping[str, str] | None = None,
     ) -> CommandResult:
         joined = " ".join(args)
-        self.calls.append(RecordedCall(args=tuple(args), cwd=cwd, check=check))
+        self.calls.append(RecordedCall(args=tuple(args), cwd=cwd, check=check, env=env))
         stdout = next((v for k, v in self.stdout.items() if k in joined), "")
         returncode = next((v for k, v in self.returncodes.items() if k in joined), 0)
         result = CommandResult(args=tuple(args), returncode=returncode, stdout=stdout, stderr="")

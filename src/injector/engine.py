@@ -109,13 +109,22 @@ class Engine:
             # Injecting twice would overwrite the restore record with post-fault
             # values and strand the world in the broken state permanently.
             raise InjectorError(f"{fault_id} is already active; stop it first")
+        if definition.world != self.settings.world:
+            # A v1 definition names v1's containers; on v2 those names address nothing, or -
+            # worse, where a name is shared - the wrong thing. Refuse rather than guess.
+            raise InjectorError(
+                f"{fault_id} is a {definition.world} fault and the injector is on world "
+                f"{self.settings.world!r} (FAULTLINE_TOOLS_WORLD); it cannot be injected here"
+            )
 
-        outcome = self._handler_for(definition).inject(definition)
+        handler = self._handler_for(definition)
+        outcome = handler.inject(definition)
         injection = ActiveInjection(
             definition=definition, started_at=self._clock(), restore=outcome.restore
         )
         self._store.add(injection)
-        self._emit(record_for_start(definition, at=injection.started_at))
+        if handler.records_change:
+            self._emit(record_for_start(definition, at=injection.started_at))
         return StartResult(injection=injection, changes=outcome.changes)
 
     def stop(self, fault_id: str) -> StopResult:
@@ -124,15 +133,17 @@ class Engine:
         if injection is None:
             return StopResult(fault_id=fault_id, was_active=False, changes=["not active"])
 
+        handler = self._handler_for(injection.definition)
         try:
-            changes = self._handler_for(injection.definition).restore(injection.restore)
+            changes = handler.restore(injection.restore)
         except (CommandError, InjectorError) as exc:
             # Keep the state entry: the fault is still applied, and the operator
             # needs the restore data to try again.
             return StopResult(fault_id=fault_id, was_active=True, error=str(exc))
 
         self._store.remove(fault_id)
-        self._emit(record_for_stop(injection.definition, at=self._clock()))
+        if handler.records_change:
+            self._emit(record_for_stop(injection.definition, at=self._clock()))
         return StopResult(fault_id=fault_id, was_active=True, changes=changes)
 
     def acknowledge_external_restore(self, service: str) -> list[str]:

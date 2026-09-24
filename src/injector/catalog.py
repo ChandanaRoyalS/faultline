@@ -19,7 +19,7 @@ from __future__ import annotations
 from evalharness.scenario import FaultClass
 from injector.faults import target_kind
 from injector.models import FaultDefinition, TargetKind
-from injector.world import CONTAINER_SERVICES, SERVICE_CONTAINERS
+from injector.world import container_services, service_containers
 
 
 class CatalogError(RuntimeError):
@@ -29,11 +29,9 @@ class CatalogError(RuntimeError):
 def check_target(definition: FaultDefinition) -> None:
     """Raise unless `target` uses the naming convention this definition's mechanism needs."""
     kind = target_kind(definition)
-    wanted, other = (
-        (SERVICE_CONTAINERS, CONTAINER_SERVICES)
-        if kind is TargetKind.SERVICE
-        else (CONTAINER_SERVICES, SERVICE_CONTAINERS)
-    )
+    services = service_containers(definition.world)
+    containers = container_services(definition.world)
+    wanted, other = (services, containers) if kind is TargetKind.SERVICE else (containers, services)
     if definition.target in wanted:
         return
 
