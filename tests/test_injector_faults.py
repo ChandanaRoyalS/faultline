@@ -785,15 +785,15 @@ class _SequencedNetworks(FakeRunner):
         super().__init__(stdout={"{{.Id}}": "abc\n"})
         self._network_bodies = list(network_bodies)
 
-    def run(self, args, *, cwd=None, check=True):  # type: ignore[no-untyped-def]
+    def run(self, args, *, cwd=None, check=True, env=None):  # type: ignore[no-untyped-def]
         if "Networks" in " ".join(args) and self._network_bodies:
             from injector.docker import CommandResult
 
-            self.calls.append(RecordedCall(args=tuple(args), cwd=cwd, check=check))
+            self.calls.append(RecordedCall(args=tuple(args), cwd=cwd, check=check, env=env))
             return CommandResult(
                 args=tuple(args), returncode=0, stdout=self._network_bodies.pop(0), stderr=""
             )
-        return super().run(args, cwd=cwd, check=check)
+        return super().run(args, cwd=cwd, check=check, env=env)
 
 
 def test_network_partition_disconnects_and_captures_aliases(settings: InjectorSettings) -> None:

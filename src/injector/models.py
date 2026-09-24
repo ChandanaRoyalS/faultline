@@ -48,6 +48,11 @@ class FaultDefinition(BaseModel):
     target: str = Field(description="Container or compose service the fault is aimed at")
     description: str
     params: dict[str, ParamValue] = Field(default_factory=dict)
+    world: str = "v1"
+    """Which demo generation the target names belong to (T7.0 #6). A definition is validated
+    against its own world's naming map and the engine refuses to start it on any other, so a v1
+    catalog entry cannot be injected into a v2 compose project by a stray environment variable.
+    Every T1.4 entry is v1's and says so by default."""
 
 
 class MemoryLimitRestore(BaseModel):

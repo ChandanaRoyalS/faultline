@@ -12,6 +12,7 @@ network in `make check`.
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
@@ -42,7 +43,12 @@ class CommandRunner(Protocol):
     """Runs a command and reports what happened."""
 
     def run(
-        self, args: Sequence[str], *, cwd: Path | None = None, check: bool = True
+        self,
+        args: Sequence[str],
+        *,
+        cwd: Path | None = None,
+        check: bool = True,
+        env: Mapping[str, str] | None = None,
     ) -> CommandResult: ...
 
 
@@ -59,14 +65,22 @@ class SubprocessRunner:
     """The real thing: subprocess with an argv list and no shell."""
 
     def run(
-        self, args: Sequence[str], *, cwd: Path | None = None, check: bool = True
+        self,
+        args: Sequence[str],
+        *,
+        cwd: Path | None = None,
+        check: bool = True,
+        env: Mapping[str, str] | None = None,
     ) -> CommandResult:
         # An argument list with shell=False by construction: a fault parameter is
-        # data, and must never get a chance to be read as shell code.
+        # data, and must never get a chance to be read as shell code. `env` is layered over
+        # the process environment the way `DEMO_VERSION=2.2.0 docker compose ...` is in the
+        # Makefile: compose reads the pinned tag from it and `.env`'s `latest` never wins.
         try:
             completed = subprocess.run(
                 list(args),
                 cwd=cwd,
+                env={**os.environ, **env} if env else None,
                 capture_output=True,
                 text=True,
                 check=False,
@@ -337,7 +351,9 @@ class ComposeCli:
         ADR-0038): in a world with no CD system the declared definition *is* the previous state,
         and change history records `before=None` on purpose (`injector.changelog`)."""
         result = self._runner.run(
-            [*self._base_args(), "config", "--format", "json"], cwd=self._settings.world_dir
+            [*self._base_args(), "config", "--format", "json"],
+            cwd=self._settings.world_dir,
+            env=self._settings.compose_env,
         )
         document = json.loads(result.stdout)
         spec = document["services"][service]
@@ -366,7 +382,7 @@ class ComposeCli:
         for override in overrides:
             args += ["-f", str(override)]
         args += ["up", "-d", "--no-build", "--no-deps", "--force-recreate", service]
-        self._runner.run(args, cwd=self._settings.world_dir)
+        self._runner.run(args, cwd=self._settings.world_dir, env=self._settings.compose_env)
 
     def stop(self, service: str) -> None:
         """Stop a service's container without removing it.
@@ -374,7 +390,11 @@ class ComposeCli:
         An explicitly stopped container is not brought back by its `restart: always`
         policy, which is what makes a service stay down for the duration of a fault.
         """
-        self._runner.run([*self._base_args(), "stop", service], cwd=self._settings.world_dir)
+        self._runner.run(
+            [*self._base_args(), "stop", service],
+            cwd=self._settings.world_dir,
+            env=self._settings.compose_env,
+        )
 
     def container_id(self, service: str) -> str | None:
         """The running container behind a compose service, or None if it is not up.
@@ -385,7 +405,9 @@ class ComposeCli:
         rather than guessing at the naming convention.
         """
         result = self._runner.run(
-            [*self._base_args(), "ps", "--quiet", service], cwd=self._settings.world_dir
+            [*self._base_args(), "ps", "--quiet", service],
+            cwd=self._settings.world_dir,
+            env=self._settings.compose_env,
         )
         ids = result.stdout.split()
         return ids[0] if ids else None

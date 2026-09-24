@@ -20,6 +20,14 @@ gets wrong.
 
 Services behind a compose profile (the demo's test runners) are left out: they are
 not part of the world `make world-up` starts, so nothing may target them.
+
+**Two worlds, two maps** (T7.0 #6, 2026-09-24). v2 names every container after its service, so
+its map is the identity over 28 services plus this repository's four telemetry containers - and
+it is still a map rather than an assumption, because `canonical_service` on v1 turns
+`load-generator` into `loadgenerator`, which on v2 is a service that does not exist. Which map is
+live follows `ToolSettings.world`, the one setting that names the world for the whole run; the
+module-level `SERVICE_CONTAINERS` stays v1's for the callers that read it as a constant, and
+`service_containers()` is what reads the current world's.
 """
 
 from __future__ import annotations
@@ -63,6 +71,69 @@ CONTAINER_SERVICES: dict[str, str] = {
 """The reverse. Some names are their own opposite (`kafka`, `frontend`) - that is fine:
 those services can be addressed by either mechanism without ambiguity."""
 
+SERVICE_CONTAINERS_V2: dict[str, str] = {
+    name: name
+    for name in (
+        "accounting",
+        "ad",
+        "alertmanager",
+        "cart",
+        "checkout",
+        "currency",
+        "email",
+        "flagd",
+        "flagd-ui",
+        "fraud-detection",
+        "frontend",
+        "frontend-proxy",
+        "grafana",
+        "image-provider",
+        "jaeger",
+        "kafka",
+        "llm",
+        "load-generator",
+        "loki",
+        "opensearch",
+        "otel-collector",
+        "payment",
+        "postgresql",
+        "product-catalog",
+        "product-reviews",
+        "prometheus",
+        "promtail",
+        "quote",
+        "recommendation",
+        "shipping",
+        "tempo",
+        "valkey-cart",
+    )
+}
+"""v2 at tag 2.2.0: every `container_name` equals its service name, across the demo's compose
+file and `compose/telemetry-v2.yml`. Read off the files on 2026-09-24; the drift test in
+`tests/test_injector_world.py` compares against the clone whenever it is present."""
+
+SERVICE_CONTAINERS_BY_WORLD: dict[str, dict[str, str]] = {
+    "v1": SERVICE_CONTAINERS,
+    "v2": SERVICE_CONTAINERS_V2,
+}
+
+
+def _world() -> str:
+    # Lazy for the same reason `injector.settings` is: `faultline.tools` imports this module.
+    from faultline.tools.settings import ToolSettings
+
+    return ToolSettings().world
+
+
+def service_containers(world: str | None = None) -> dict[str, str]:
+    """Compose service name -> container name, for `world` (default: the tools' world)."""
+    return SERVICE_CONTAINERS_BY_WORLD[world or _world()]
+
+
+def container_services(world: str | None = None) -> dict[str, str]:
+    """The reverse of `service_containers`, for `world`."""
+    return {container: service for service, container in service_containers(world).items()}
+
 
 def canonical_service(name: str) -> str:
     """The single identity behind either of the world's two names for a service.
@@ -81,8 +152,11 @@ def canonical_service(name: str) -> str:
 
     An unknown name is returned unchanged. This is an identity function, not a validator -
     `injector.catalog.check_target` is the validator, and it runs at import.
+
+    **World-aware since T7.0 #6**: on v2 the map is the identity, and reading v1's here would
+    turn v2's `load-generator` into a service v2 does not have.
     """
-    return CONTAINER_SERVICES.get(name, name)
+    return container_services().get(name, name)
 
 
 def same_service(left: str, right: str) -> bool:

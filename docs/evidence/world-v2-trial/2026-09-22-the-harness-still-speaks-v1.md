@@ -72,3 +72,33 @@ and it should be surveyed before then rather than after.
 every PromQL this repository sends resolves to at least one series on the world it is pointed at —
 which is what `gate`'s new "no service reports a call rate" refusal does for two queries, and what
 nothing does for the rest.
+
+---
+
+## Addendum, 2026-09-24 — the injector follows the world (T7.0 #6)
+
+Two rows above are closed and one the survey did not list is closed with them:
+
+- **`injector/world.py`**: no longer falls through by accident. `SERVICE_CONTAINERS_V2` is read off
+  v2's compose files (the identity over 28 services plus the four telemetry containers) and
+  `canonical_service` / `service_containers()` follow `ToolSettings.world`; a drift test compares
+  the map to the clone whenever it is present, as v1's does. On v2, v1's map was not accidentally
+  right everywhere: it would have turned `load-generator` into `loadgenerator`, a service v2 does
+  not have.
+- **The scoring-path warning** (*"it will stop failing loudly the moment the v2 injector lands"*):
+  it does not. `FaultDefinition.world` names the world a definition's targets belong to, every
+  shipped entry is `v1`, `check_target` validates against the definition's own world, and the
+  engine **refuses** to start a definition on any other world — so the v1 catalog on a v2 injector
+  fails at `start`, by name, not at `docker` with *No such container*.
+- **Not on the list, and the reason #6 existed**: `InjectorSettings` knew one world. `compose_digest`
+  therefore hashed v1's three files into whatever bundle asked, on whichever world the tools were
+  reading — a manifest naming a world it was not recorded on, which is the lie ADR-0014 is built
+  against. `InjectorSettings.world` now defaults to the tools' world, and the clone directory, the
+  compose triple and the environment compose needs (`DEMO_VERSION=2.2.0`, which v2's `.env` does not
+  pin) all derive from it; a `FAULTLINE_INJECTOR_WORLD` that disagrees with `FAULTLINE_TOOLS_WORLD`
+  refuses to construct. Both file lists and the version pin are held to the Makefile by test.
+
+Still open from the table: **Q88** (the kafka rate), the gate's remedy text (now that
+`kafka_consumers(world)` exists it should read from there), `KNOWN_ABSENT`'s prose (a stamp move,
+to be folded into the next one), the provenance cover set for v2's collector config (Q31's hole),
+and `rehearse.STUB_IMAGE`.
