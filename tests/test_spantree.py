@@ -119,6 +119,29 @@ def test_orphans_are_attached_and_counted_rather_than_dropped() -> None:
     assert "2 spans, 1 unattached" in header
 
 
+def test_a_cycle_in_the_spans_renders_as_a_tree_instead_of_recursing_forever() -> None:
+    """R5 (2026-09-24): `trace_query checkout --errors` on a kafka disk fill died of RecursionError
+    in `render` - a real trace whose spans formed a cycle. The tool must not raise on the store's
+    data; the cycle's extra edges are cut, every span is kept, and the header counts the ones hung
+    under the root."""
+    spans = [
+        span("f", "", "frontend", "GET /", 0, 50),
+        span("a", "f", "checkout", "PlaceOrder", 5, 30),
+        span("b", "c", "kafka", "publish", 10, 5),  # b's parent is c ...
+        span("c", "b", "kafka", "consume", 12, 5),  # ... and c's parent is b
+        span("s", "s", "cart", "GetCart", 20, 2),  # its own parent
+    ]
+    (tree,) = spantree.build(spans)
+
+    lines = spantree.render(tree)  # must return
+    joined = "\n".join(lines)
+    assert tree.span_count == 5
+    assert "5 spans" in lines[0] and "unattached" in lines[0]
+    for name in ("PlaceOrder", "publish", "consume", "GetCart"):
+        assert name in joined, f"{name} was lost"
+    assert spantree.degrading_hop(tree) is not None
+
+
 def test_render_carries_offset_depth_duration_self_time_and_status() -> None:
     """Everything a verdict said it could not see in the flat list, on every line."""
     (tree,) = spantree.build(CART)
