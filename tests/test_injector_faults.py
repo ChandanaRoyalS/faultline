@@ -74,8 +74,9 @@ def squeeze(runner: FakeRunner, settings: InjectorSettings) -> ResourceExhaustio
 
 
 def test_catalog_covers_every_class_once_per_world() -> None:
-    """v1's catalog is T1.4's four; v2's is T7.0's five rehearsal definitions, one per new class.
-    T7.1 grows v2's; until then the shape is pinned so a class cannot lose its rehearsal entry."""
+    """v1's catalog is T1.4's four; v2's is all nine - T7.0's five rehearsal definitions and, from
+    T7.1, the four old mechanisms carried to v2 (docs/design/t7.1-candidates.md). Pinned so a
+    class cannot lose its v2 entry, and so v1 cannot gain a class it never had."""
     by_world: dict[str, set[FaultClass]] = {}
     for f in CATALOG:
         by_world.setdefault(f.world, set()).add(f.fault_class)
@@ -85,13 +86,7 @@ def test_catalog_covers_every_class_once_per_world() -> None:
         FaultClass.DEPENDENCY_LATENCY,
         FaultClass.BAD_CONFIG,
     }
-    assert by_world["v2"] == {
-        FaultClass.FEATURE_FLAG,
-        FaultClass.PROCESS_FREEZE,
-        FaultClass.NETWORK_PARTITION,
-        FaultClass.DATASTORE_CORRUPTION,
-        FaultClass.DISK_FILL,
-    }
+    assert by_world["v2"] == set(FaultClass), "every class has a v2 definition from T7.1"
     assert by_world["v1"] | by_world["v2"] == set(FaultClass), "every class has a definition"
     assert len({f.id for f in CATALOG}) == len(CATALOG), "fault ids must be unique"
 
@@ -362,7 +357,7 @@ def test_crashloop_restores_the_same_way_as_the_other_image_swaps(
 def test_every_bad_deploy_is_a_different_shape_of_failure(settings: InjectorSettings) -> None:
     """Same class, five signatures: serves-then-fails, flaps, never starts, and two that
     start and then die - one on memory (exit 137) and one on configuration (exit 1)."""
-    bad_deploys = [f for f in CATALOG if f.fault_class is FaultClass.BAD_DEPLOY]
+    bad_deploys = [f for f in CATALOG if f.fault_class is FaultClass.BAD_DEPLOY and f.world == "v1"]
 
     assert {f.id for f in bad_deploys} == {
         "flag-service-bad-deploy",
@@ -384,6 +379,36 @@ def test_every_bad_deploy_is_a_different_shape_of_failure(settings: InjectorSett
     assert {str(f.params.get("expect_start")) for f in swaps} == {"yes", "no"}, (
         "the image-swap deploys must declare expect_start, and cover both outcomes"
     )
+
+
+def test_the_v2_old_mechanism_definitions_carry_v2_values_not_v1s() -> None:
+    """T7.1: the four old mechanisms on v2 address v2's names - `cart`, `ad`, `VALKEY_ADDR`, the
+    2.2.0 image repository - never v1's (`cartservice`, `REDIS_ADDR`, `v1.2.1-*`). A v1 value
+    on a v2 definition addresses nothing, or the wrong thing where names collide."""
+    v2_old = {
+        f.id: f
+        for f in CATALOG
+        if f.world == "v2"
+        and f.fault_class
+        in {
+            FaultClass.BAD_CONFIG,
+            FaultClass.BAD_DEPLOY,
+            FaultClass.RESOURCE_EXHAUSTION,
+            FaultClass.DEPENDENCY_LATENCY,
+        }
+    }
+    assert set(v2_old) == {
+        "v2-cart-valkey-misconfig",
+        "v2-cart-bad-image-tag",
+        "v2-ad-memory-squeeze",
+        "v2-cart-dependency-latency",
+    }
+    for f in v2_old.values():
+        flat = " ".join(str(v) for v in f.params.values())
+        assert "v1.2.1" not in flat and "REDIS_ADDR" not in flat, f"{f.id} carries a v1 value"
+    image = str(v2_old["v2-cart-bad-image-tag"].params["image"])
+    assert image.startswith("ghcr.io/open-telemetry/demo:2.2.0-cart")
+    assert v2_old["v2-cart-bad-image-tag"].params["expect_start"] == "no"
 
 
 def test_bad_image_tag_stops_the_service_before_pointing_it_at_the_missing_tag(

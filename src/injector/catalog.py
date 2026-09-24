@@ -536,6 +536,68 @@ CATALOG: tuple[FaultDefinition, ...] = _validated(
                 "restart_after": "accounting,fraud-detection,checkout",
             },
         ),
+        # --- T7.1: the four v1 mechanisms on v2, first candidate of each old row -----------
+        # docs/design/t7.1-candidates.md. None of these handlers has run against v2; each is
+        # smoked (inject / status / stop / stop) to T1.4's bar before its scenario is authored.
+        # Values read off the running world on 2026-09-24, not carried from v1.
+        FaultDefinition(
+            id="v2-cart-valkey-misconfig",
+            fault_class=FaultClass.BAD_CONFIG,
+            target="cart",
+            world="v2",
+            description=(
+                "Point cart at the wrong valkey port (v1's cart-redis-misconfig, renamed with the "
+                "store). The store is up and the config is wrong: every cart operation fails, a "
+                "config_revert, not a rollback."
+            ),
+            # Live value `valkey-cart:6379` (docker exec cart printenv, 2026-09-24).
+            params={"env_var": "VALKEY_ADDR", "value": "valkey-cart:6380"},
+        ),
+        FaultDefinition(
+            id="v2-cart-bad-image-tag",
+            fault_class=FaultClass.BAD_DEPLOY,
+            target="cart",
+            world="v2",
+            description=(
+                "Deploy cart on an image tag that was never pushed (v1's cart-bad-image-tag). The "
+                "container never starts, so cart goes dark rather than erroring."
+            ),
+            # The running image is ghcr.io/open-telemetry/demo:2.2.0-cart (docker inspect); a
+            # plausible hotfix tag on the real repository, so the investigator has to notice the
+            # tag is wrong rather than that the image is foreign.
+            params={
+                "image": "ghcr.io/open-telemetry/demo:2.2.0-cart-hotfix.2",
+                "expect_start": "no",
+            },
+        ),
+        FaultDefinition(
+            id="v2-ad-memory-squeeze",
+            fault_class=FaultClass.RESOURCE_EXHAUSTION,
+            target="ad",
+            world="v2",
+            description=(
+                "Shrink ad's memory limit below its JVM working set (v1's ad-memory-squeeze). The "
+                "heap was sized for the old ceiling, so the kernel OOM-kills it and the frontend "
+                "loses its ad panel while everything else serves."
+            ),
+            # Resting 238.8MiB of a 300MiB limit (docker stats, 2026-09-24). 192m is 80 % of the
+            # working set - v1's 256m sat about as far under v1's - so the kill is prompt without
+            # the container failing to start at all (T7.20's band has two edges). A starting value
+            # for the smoke; the rehearsal measures it and the scenario records what it was.
+            params={"memory": "192m"},
+        ),
+        FaultDefinition(
+            id="v2-cart-dependency-latency",
+            fault_class=FaultClass.DEPENDENCY_LATENCY,
+            target="cart",
+            world="v2",
+            description=(
+                "Add 300ms of network delay to cart (v1's cart-dependency-latency), past the "
+                "250ms p95 threshold, so checkout slows without anything erroring outright."
+            ),
+            # cart is on opentelemetry-demo with one interface (docker inspect, 2026-09-24).
+            params={"delay_ms": 300, "jitter_ms": 0, "duration": "1h", "interface": "eth0"},
+        ),
     )
 )
 
