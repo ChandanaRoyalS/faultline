@@ -2,6 +2,8 @@
 
     FAULTLINE_TOOLS_WORLD=v2 uv run python -m evalharness.readback SERVICE START END [--errors]
 
+    START/END: HH:MM or HH:MM:SS (UTC, today), or ISO 8601 (a bare timestamp is UTC)
+
 START and END are UTC clock times today (`03:00`) or ISO timestamps. What is printed is exactly
 what an investigating agent would be handed for that service over that window: the error-ratio
 and p95 series, the service's log lines from both ends of the window, its traces as span trees
@@ -26,10 +28,18 @@ from faultline.tools.tools import Tools
 
 
 def _moment(text: str) -> datetime:
-    if len(text) == 5 and text[2] == ":":
+    """`HH:MM` or `HH:MM:SS` as UTC today; otherwise ISO 8601, **read as UTC when it carries no
+    zone** - `fromisoformat(...).astimezone(UTC)` took a bare timestamp as local time and shifted
+    R5's seconds-wide window by the Mac's UTC offset into an empty stretch of kafka's log
+    (2026-09-24)."""
+    if text.count(":") in (1, 2) and "T" not in text and "-" not in text:
         today = datetime.now(UTC).date()
-        return datetime.combine(today, datetime.strptime(text, "%H:%M").time(), tzinfo=UTC)
-    return datetime.fromisoformat(text).astimezone(UTC)
+        fmt = "%H:%M" if text.count(":") == 1 else "%H:%M:%S"
+        return datetime.combine(today, datetime.strptime(text, fmt).time(), tzinfo=UTC)
+    moment = datetime.fromisoformat(text)
+    if moment.tzinfo is None:
+        return moment.replace(tzinfo=UTC)
+    return moment.astimezone(UTC)
 
 
 def main() -> None:
