@@ -572,3 +572,33 @@ def test_the_v2_spanmetrics_connector_keys_resources_on_the_service_not_the_cont
         f"resource_metrics_key_attributes includes {per_container & set(key)}, which changes "
         "on every recreate and reintroduces the second writer."
     )
+
+
+def test_the_v2_tempo_has_its_own_config_with_compaction_bounded() -> None:
+    """**Tempo on v2 was OOM-killed compacting parquet blocks, twice** (Q91, 2026-09-24).
+
+    35 seconds after a restart, five seconds into its first compaction - four vParquet3 blocks
+    merged on a store carrying 45 live and 154 compacted metas - under the same 400M limit v1
+    idles at 92-95% of. The parquet writer buffers a 100 MiB row group per output block by
+    default; that is the peak. v2 gets its own config file, because v1's `tempo.yaml` is an
+    `observability_digest` input and v2's tuning must not orphan v1's bundles, and the config
+    bounds the row group and the compacted block. The limit is not raised here: it is measured
+    from `container_memory_usage_total{container_name="tempo"}` after the rehearsals.
+    """
+    import yaml
+
+    tempo = telemetry_v2()["services"]["tempo"]
+    mounts = [v for v in tempo["volumes"] if str(v).endswith("/etc/tempo/tempo.yaml:ro")]
+    assert mounts == ["../compose/tempo-v2.yaml:/etc/tempo/tempo.yaml:ro"], (
+        "v2's Tempo must mount its own config, not v1's tempo.yaml, whose digest v1's bundles carry"
+    )
+    config = yaml.safe_load((COMPOSE / "tempo-v2.yaml").read_text())
+    row_group = config["storage"]["trace"]["block"]["parquet_row_group_size_bytes"]
+    assert row_group <= 16 * 1024 * 1024, (
+        f"parquet_row_group_size_bytes is {row_group}: the compaction working set is this many "
+        "bytes per output block, and 100 MiB (the default) killed Tempo under 400M"
+    )
+    assert config["compactor"]["compaction"]["max_block_bytes"] <= 512 * 1024 * 1024
+    assert config["ingester"]["max_block_duration"] == "30s", "ADR-0037's cut is kept"
+    v1 = yaml.safe_load((COMPOSE / "tempo.yaml").read_text())
+    assert "block" not in v1["storage"]["trace"], "v1's tempo.yaml is untouched by Q91"

@@ -1,0 +1,60 @@
+# T7.0 - Grafana Tempo on the v2 world. `compose/tempo.yaml` is v1's, and is an input to v1's
+# `observability_digest`, so v2's tuning lives here rather than there: editing v1's file would
+# orphan every v1 bundle for a change v1 never needed.
+#
+# Everything below `compactor:` that is not in v1's file is the answer to Q91, measured 2026-09-24:
+# Tempo was OOM-killed (`OOMKilled=true`, exit 137) 35 seconds after a restart, five seconds into
+# its first compaction - four vParquet3 blocks merged at once on a store carrying 45 live blocks and
+# 154 compacted metas - and again on the next restart, because the blocks were still there. On v1
+# Tempo already idled at 92-95% of its 400 MiB limit (`telemetry.yml`); v2 emits more spans, the
+# 30-second block cut that ADR-0037 requires (kept - see tempo.yaml for why 5m blinded the trace
+# tool) makes many small blocks, and **the parquet writer buffers a 100 MiB row group by default**
+# per output block while compacting. Under GOMEMLIMIT 320 MiB that is the peak.
+#
+# Bounded rather than the limit raised: the row group is capped at 10 MiB and a compacted block at
+# 100 MiB, which keeps compaction's working set in tens of megabytes. **The container limit stays
+# 400 M until it is measured**, not inherited: v2's collector runs the `docker_stats` receiver, so
+# `max_over_time(container_memory_usage_total{container_name="tempo"}[6h])` in Prometheus after the
+# first rehearsals is Tempo's real peak on this world, and the limit is set from that. Carrying v1's
+# 400 M forward was the mistake `alert-rules-v2.yml` refused to make with thresholds.
+#
+# Storage is ephemeral (only this file is mounted), so a `--force-recreate` starts it empty. That is
+# how the store was unblocked for the rehearsals; it is not the fix, and the bounds below are.
+
+server:
+  http_listen_port: 3200
+
+distributor:
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: 0.0.0.0:4317
+
+ingester:
+  # ADR-0037: 30s so the trace tool is never more than a block behind the incident it explains.
+  max_block_duration: 30s
+  max_block_bytes: 52428800
+  complete_block_timeout: 2m
+
+compactor:
+  compaction:
+    block_retention: 24h
+    # A compacted block may not exceed 100 MiB (default 100 GiB): with 30-second input blocks the
+    # compactor would otherwise merge a day into one output and hold its row groups while doing so.
+    max_block_bytes: 104857600
+
+storage:
+  trace:
+    backend: local
+    local:
+      path: /var/tempo/traces
+    wal:
+      path: /var/tempo/wal
+    block:
+      # The parquet row group the writer buffers in memory before flushing: 10 MiB, not the
+      # default 100 MiB. This is the knob the OOM was about.
+      parquet_row_group_size_bytes: 10485760
+
+usage_report:
+  reporting_enabled: false
