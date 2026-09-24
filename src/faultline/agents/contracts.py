@@ -212,9 +212,33 @@ class SpecialistFindings(BaseModel):
 
 
 FaultClass = Literal[
-    "bad_deploy", "bad_config", "dependency_latency", "resource_exhaustion", "unknown"
+    "bad_deploy",
+    "bad_config",
+    "dependency_latency",
+    "resource_exhaustion",
+    "feature_flag",
+    "process_freeze",
+    "network_partition",
+    "datastore_corruption",
+    "disk_fill",
+    "unknown",
 ]
-RemediationClass = Literal["rollback", "restart", "config_revert", "scale", "none"]
+"""T1.4's four, T7.0's five (each attempted live and admitted on pre-registered criteria - see
+`evalharness.scenario.FaultClass`), and `unknown`, which belongs to the contract alone: a model may
+decline a class; no scenario is authored as one. Bound to the scenario enum by `test_freeze`."""
+RemediationClass = Literal[
+    "rollback",
+    "restart",
+    "config_revert",
+    "scale",
+    "reconnect",
+    "restore_data",
+    "free_storage",
+    "none",
+]
+"""The five T1.4 fixes plus three T7.0 added in the same stamp move as its classes, because a
+partition, a corrupted store and a full disk are undone by none of the five and mapping them onto
+the closest would make the remediation axis say nothing true for a third of the catalog."""
 
 
 class Candidate(BaseModel):

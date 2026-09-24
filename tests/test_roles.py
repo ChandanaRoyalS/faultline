@@ -1986,7 +1986,10 @@ def test_a_proposer_with_no_rejection_writes_no_rejection_section() -> None:
 def test_the_prompt_digest_is_unmoved_by_the_rejection_loop() -> None:
     """**The literal, asserted** (`PREREGISTRATION-T6.3.md` prediction 1). Every figure in
     RESULTS.md was measured under `prompts:06f24e827915`; a T6.3 that moved it would strand them
-    all, and the failure mode is silent - a changed stamp looks like a new agent, not like a bug."""
+    all, and the failure mode is silent - a changed stamp looks like a new agent, not like a bug.
+
+    The literal moved once since, on purpose and on record: T7.0's nine classes
+    (`test_harness_run.T70_DIGEST`, 2026-09-24). The rejection loop still moves nothing."""
     from faultline.agents.stamp import prompt_digest
 
-    assert prompt_digest() == "06f24e827915"
+    assert prompt_digest() == "8dda4a19da2f"

@@ -280,10 +280,14 @@ judged figure.**
 > `remediation_class`; it lasted one run), `prompts:b6837dd449ca` (Q25b —
 > reporting contracts accept unexpected keys and record them, requesting contracts still refuse
 > them, after `extra="forbid"` destroyed two whole verdicts on `cart-bad-image-tag` for $0.7323;
-> **dev sweeps 10 and 11 measured it**, and every figure in README's table is at it), and **HEAD
-> today is `prompts:06f24e827915`** (Q29, T6.1 — `Proposal` reports unexpected keys too, after
-> sweep 11 refused two proposals whole for a `confirm_within_seconds_note`; no prose changed, and
-> no scored run exists at this stamp until dev sweep 12, `PREREGISTRATION-T6.1.md`).
+> **dev sweeps 10 and 11 measured it**, and every figure in README's table is at it),
+> `prompts:06f24e827915` (Q29, T6.1 — `Proposal` reports unexpected keys too, after
+> sweep 11 refused two proposals whole for a `confirm_within_seconds_note`; no prose changed;
+> **dev sweep 12 and every P6 figure measured it**), and **HEAD today is `prompts:8dda4a19da2f`**
+> (T7.0, 2026-09-24 — nine fault classes and eight remediation classes, each new class attempted
+> live on the v2 world under `PREREGISTRATION-T7.0.md`; the contracts' schemas and the
+> synthesizer's class definitions moved together, once, after every attempt was run; no scored
+> run exists at this stamp yet, and none on the v2 world at all).
 >
 > *The line above previously named `a7330c098770` as HEAD and was correct on the day it was
 > written. It then went stale through four stamp moves while continuing to read as a statement

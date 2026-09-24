@@ -154,3 +154,52 @@ the fix question. Each still has to page, and page distinctly, and that needs wo
 **What this changes in practice**: the forecast becomes **five guaranteed, eight contingent on
 three measurements that can fail**, and `feature_flag` is built first because it is the only
 candidate with nothing left to establish.
+
+---
+
+## Addendum, 2026-09-24 — nine classes, measured; the stamp moved once
+
+**The decision stands, and its forecast is settled: five guaranteed became nine, at the ceiling.**
+Nine attempts were run on the live v2 world under `PREREGISTRATION-T7.0.md` and two
+re-registrations (A4b, A8b), each with its verdict read off the registered definitions and nothing
+else (`evals/attempts/*/RESULT.md`):
+
+| attempt | mechanism | verdict | class |
+|---|---|---|---|
+| A1 | flag flipped in flagd | pages, distinct on (b), reverts | `feature_flag` |
+| A2 | `docker pause` | pages, distinct on (a)(b)(c), reverts | `process_freeze` |
+| A3 | `docker network disconnect` | pages, distinct from A2 on (c) alone, reverts | `network_partition` |
+| A4 / A4b | corrupt the cart store via `exec` | A4 did not page (cadence); A4b pages, distinct on (c)(b), reverts | `datastore_corruption` |
+| A5 | flood flag | no signal but request rate | — |
+| A6 | wrong credential | pages; `bad_config`'s mechanism by definition | — (a scenario) |
+| A7 | N+1 image | does not page (Q90); `bad_deploy`'s mechanism by definition | — |
+| A8 / A8b | fill the broker's log directory | A8 void (wrong path); A8b pages, distinct on (a)(c), reverts | `disk_fill` |
+
+**The class list changed once, as the registration required**, in the patch this addendum lands
+with: `evalharness.scenario.FaultClass` and `faultline.agents.contracts.FaultClass` gained the five
+together (`test_freeze` binds them); the synthesizer's prompt defines each in the same mechanism
+terms as the four and enumerates all nine; the narrative vocabulary ban names them. **The prompt
+stamp moved from `06f24e827915` to `8dda4a19da2f`.** `capability_version` did not move:
+`cap:dd651ccc`. Every figure published before this addendum stands at the old stamp, on the v1
+world; nothing scored on v2 exists to strand.
+
+**`remediation_class` gained three members in the same move** — `reconnect`, `restore_data`,
+`free_storage` — because a partition, a corrupted store and a full disk are undone by none of the
+older five, and this ADR's own §2 is why the axis must stay honest: individuating a class by its fix
+was rejected *because* the two axes are scored separately, and an axis that says nothing true for a
+third of the classes is not a separate axis. The three allowlist entries that carry them are
+`unperformable` for a reason unlike `scale_service`'s: the world can do each (A3, A4b and A8b did),
+the executor does not yet, and the status flips when it learns them.
+
+**What this ADR's distinctness test decided in practice.** A2 and A3 collapse on (a), (b) and (d)
+— the registration predicted it — and separate on (c) alone, one log line on the culprit, confirmed
+through Loki under the label the agent queries. That is the thinnest distinction in the taxonomy
+and it is the same one a human operator uses; it is recorded as such in both classes' runbooks
+rather than hidden.
+
+**Three things the attempts taught about the rules rather than the classes**, each with a queue
+row rather than a change here: the page lands on the caller in four of five paging attempts (the
+topology, ADR-0029 §4, measured on v2); `ServiceHighLatency` is diluted by a service's own client
+spans, so an N+1 lowers the p95 it should raise (Q90); and on v2 a recreated container was a second
+writer to its service's series until the spanmetrics connector was keyed on the service (Q89,
+`2026-09-23-the-writer-that-was-not-single.md`).
