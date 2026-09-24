@@ -121,8 +121,16 @@ services:
   # one service a bounded disk is a one-line change that is free right now** - no v2 bundle exists
   # and nothing digests this file yet - and will not be free once the injector is migrated.
   #
-  # kafka's data lives at `/tmp/kraft-combined-logs` (apache/kafka:3.9.1's `log.dirs` default,
-  # confirmed 2026-09-22 when `/var/lib/kafka/data` was 4.0K). A 256 MiB tmpfs there is enough for
+  # kafka's data lives at `/tmp/kafka-logs`. **This file first said `/tmp/kraft-combined-logs`
+  # and was wrong**: that is apache/kafka's `log.dirs` default only for its shipped
+  # server.properties; when the image is configured through `KAFKA_*` environment variables, as
+  # the demo's is, it generates its properties and `log.dirs` is `/tmp/kafka-logs`. The 2026-09-22
+  # "confirmation" only showed `/var/lib/kafka/data` empty, which rules out one path and proves
+  # nothing about another. T7.0's A8 (2026-09-23) filled a 256 MiB tmpfs at the wrong path to the
+  # byte - `No space left on device` - while kafka's own log went on saying
+  # `dir=/tmp/kafka-logs` on every line, and nothing paged. The path a fault is aimed at has to be
+  # read off the running process, not off a default: the A8b precondition reads it from kafka's
+  # startup log. A 256 MiB tmpfs at the real path is enough for
   # the demo's traffic - ~1 KiB per order at 0.15 orders/s is ~13 MiB a day - and small enough to
   # fill in seconds. A Kafka broker whose only log dir cannot be written **halts**, which is what
   # a real disk-full outage does to a real broker, and `restart: unless-stopped` then crashloops
@@ -143,6 +151,6 @@ services:
     deploy: { resources: { limits: { memory: 1024M } } }
     volumes:
       - type: tmpfs
-        target: /tmp/kraft-combined-logs
+        target: /tmp/kafka-logs
         tmpfs:
           size: 268435456
