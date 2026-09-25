@@ -1,3 +1,19 @@
+# BLOCKED - do not rehearse. Recorded once, 2026-09-24; the bundle is marked INVALID.
+#
+# On v2 this design is a crashloop, not a misconfiguration that fails per request. v2's cart
+# connects to its store at startup and exits when it cannot: "Unhandled exception.
+# System.ApplicationException: Wasn't able to connect to redis" (44 exception lines in the fault).
+# checkout's calls are refused before they reach cart ("dial tcp ...:7070: connect: connection
+# refused"), the page is the callers' ServiceHighErrorRate, and cart itself only goes quiet
+# (ServiceNoTraffic at +8:45). v1's cart connected lazily and failed each call, which is the
+# incident this file's ground truth describes. On v2 there are no cart operations to fail.
+#
+# The candidate list carries T7.56's rule over: a service that exits fatally and crashloops is
+# bad_deploy's page, not bad_config's. It would also nearly duplicate v2-cart-bad-image-tag's
+# "never starts" page on the same target. So the slot is released, not refilled from this
+# design. The file is kept so the slot's history is visible, and v2/bad_config-2 goes to the
+# next candidate in docs/design/t7.1-candidates.md's order, v2-payment-telemetry-blackout.
+#
 # v2/bad_config-2 (dev) - see SPLIT-V2.md. Slot allocated before authoring; do not move.
 # Candidate order and eligibility: docs/design/t7.1-candidates.md (dev-only: v1's
 # cart-redis-misconfig is a published dev design, carried to v2 with the store's new name).
@@ -5,7 +21,6 @@ id: v2-cart-valkey-misconfig
 title: Cart service pointed at the wrong valkey port
 fault_class: bad_config
 split: dev
-slot: v2/bad_config-2
 world: v2
 injection:
   target: cart
@@ -46,3 +61,4 @@ rehearsed: false
 # Declared before recording, checked against the bundle after (T7.5): cart is .NET on v2, whose
 # runtime series v2 carries by service_name (dotnet_*/process_*), and S1 read 40 log lines a minute.
 answers_idle_or_absent: [runtime, logs]
+blocked: true

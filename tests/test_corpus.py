@@ -38,6 +38,9 @@ DEV_DOCUMENTS = 10
 to this number - a corpus that silently grows is one nobody has read."""
 
 OTHER_WORLD_NARRATIVES = ["v2-accounting-bad-credential", "v2-product-catalog-freeze"]
+OTHER_WORLD_INVALID = ["v2-cart-valkey-misconfig"]
+"""v2 dev bundles marked INVALID: recorded, blocked, and skipped for that reason before their
+world is read (`seed.dev_bundles` checks `INVALID.md` first)."""
 """Dev narratives recorded on v2, which the corpus holds out until T7.1's corpus piece (Q92)
 decides (`seed.CORPUS_WORLDS`). Pinned for `DEV_DOCUMENTS`'s reason: a v2 narrative landing is a
 conscious change here, and the day the corpus takes them this list and that constant move in the
@@ -96,7 +99,7 @@ def tree_acceptances() -> InMemoryAcceptanceStore:
 def test_every_dev_narrative_parses_into_the_same_five_sections() -> None:
     narratives = sorted(DEV.glob("*/incident.md"))
 
-    assert len(narratives) == 12 + len(OTHER_WORLD_NARRATIVES), (
+    assert len(narratives) == 12 + len(OTHER_WORLD_NARRATIVES) + len(OTHER_WORLD_INVALID), (
         "twelve v1 dev bundles carry a narrative (two are INVALID), plus the v2 ones"
     )
     for path in narratives:
@@ -195,11 +198,17 @@ def test_seeding_the_dev_tree_yields_exactly_the_ten_valid_narratives() -> None:
     assert seeded.count() == result.chunks
     assert sum(1 for name in result.seeded if name.endswith("(postmortem)")) == DEV_POSTMORTEMS
     assert sorted(name for name, _ in result.skipped) == sorted(
-        ["currency-cpu-throttle", "flag-service-crashloop", *OTHER_WORLD_NARRATIVES]
+        [
+            "currency-cpu-throttle",
+            "flag-service-crashloop",
+            *OTHER_WORLD_NARRATIVES,
+            *OTHER_WORLD_INVALID,
+        ]
     )
     why = dict(result.skipped)
     assert all(
-        "INVALID" in why[name] for name in ("currency-cpu-throttle", "flag-service-crashloop")
+        "INVALID" in why[name]
+        for name in ("currency-cpu-throttle", "flag-service-crashloop", *OTHER_WORLD_INVALID)
     )
     assert all("world v2" in why[name] for name in OTHER_WORLD_NARRATIVES), (
         "skipping is reported, not silent"
