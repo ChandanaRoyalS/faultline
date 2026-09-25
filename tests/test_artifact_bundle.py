@@ -81,6 +81,11 @@ NO_RUNTIME_METRICS = frozenset(
         "productcatalog-dependency-latency",
         "shipping-quote-misconfig",
         "shipping-wrong-image",
+        # T7.1 (2026-09-25): v2's shipping is Rust, and none of the v2 runtime families
+        # (`go_`, `dotnet_`, `jvm_`, `process_`, `v8js_`, `nodejs_`) has a series for it. The
+        # capture was empty over the five healthy minutes before the fault too, so this is the
+        # target, not the fault. The scenario declares `answers_idle_or_absent: []`.
+        "v2-shipping-quote-misconfig",
     }
 )
 """Bundles whose target exports no runtime metrics, so an empty `runtime.json` is the world
