@@ -399,6 +399,7 @@ def test_the_v2_old_mechanism_definitions_carry_v2_values_not_v1s() -> None:
     }
     assert set(v2_old) == {
         "v2-accounting-bad-credential",
+        "v2-payment-telemetry-blackout",
         "v2-cart-valkey-misconfig",
         "v2-cart-bad-image-tag",
         "v2-ad-memory-squeeze",
@@ -413,6 +414,11 @@ def test_the_v2_old_mechanism_definitions_carry_v2_values_not_v1s() -> None:
         "only the password moves from the live value; host, user and database stay v2's"
     )
     assert "wrong" not in credential.lower(), "the change record must not name the answer"
+    blackout = v2_old["v2-payment-telemetry-blackout"].params
+    assert blackout["env_var"] == "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", (
+        "traces only: the shared endpoint would silence payment's metrics too, and on v2 its "
+        "runtime series are what show the process alive while its traffic metric says otherwise"
+    )
     image = str(v2_old["v2-cart-bad-image-tag"].params["image"])
     assert image.startswith("ghcr.io/open-telemetry/demo:2.2.0-cart")
     assert v2_old["v2-cart-bad-image-tag"].params["expect_start"] == "no"
