@@ -1,0 +1,50 @@
+# v2/bad_config-2 (dev) - see SPLIT-V2.md. Slot allocated before authoring; do not move.
+# Candidate order and eligibility: docs/design/t7.1-candidates.md (dev-only: v1's
+# payment-telemetry-blackout is a published dev design). Took bad_config-2 when
+# v2-cart-valkey-misconfig was blocked (2026-09-24).
+id: v2-payment-telemetry-blackout
+title: Payment service healthy, serving, and invisible in the traffic metric
+fault_class: bad_config
+split: dev
+slot: v2/bad_config-2
+world: v2
+injection:
+  target: payment
+  method: v2-payment-telemetry-blackout
+  params:
+    env_var: "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT"
+    value: "http://127.0.0.1:4317"
+ground_truth:
+  root_cause: >
+    The payment service's OTEL_EXPORTER_OTLP_TRACES_ENDPOINT was repointed at a dead address. The
+    service itself is unaffected: it keeps accepting charges and exporting its metrics. Only its
+    spans stop. Because the traffic series is produced from spans by the collector's spanmetrics
+    connector, payment's traffic drains to zero and ServiceNoTraffic fires on a service that is
+    working. The fault is in the telemetry path, not in the service.
+  category: bad_config
+expected_evidence:
+  # From v1's payment-telemetry-blackout (dev-only, T7.36), adapted to v2. To be checked against
+  # the bundle at rehearsal and corrected there, as the first v2 scenarios' were. The v1 check
+  # that failed on v2 for the cart (a dependency address the service needs at startup) does not
+  # apply here: the trace exporter is not on payment's request path, and v1 measured checkout's
+  # error ratio at 0.0 throughout.
+  - alerts: ServiceNoTraffic on payment and nothing else; no error-rate or latency alert anywhere,
+      because nothing is failing and nothing is slow (v1 fired at +5:19, behind a 3m for clause)
+  - logs: payment keeps logging its charges throughout the blackout - v1 measured 111 charge lines
+      across the fault; a service that is actually down logs nothing
+  - metrics: payment's own runtime series (Node's v8js_*/nodejs_* by service_name) keep reporting,
+      because only the traces endpoint moved - a live process where the traffic metric shows none
+  - traces: checkout's client spans to payment continue and succeed; there are simply no payment
+      server spans below them, because the callee no longer exports its own
+  - change: OTEL_EXPORTER_OTLP_TRACES_ENDPOINT on payment changed to a dead address, coinciding
+      with onset - the only class that names the change itself
+  - discriminator: a payment that was down or frozen would stop its logs and its runtime series
+      and fail its callers; this one keeps all three, and only the span-derived traffic series
+      goes to zero
+expected_remediation_class: config_revert
+rehearsed: false
+alert_timeout_seconds: 900
+# v1 fired at +5:19: the 3m rate window has to drain before the 3m for clause starts.
+# Declared before recording, checked against the bundle after (T7.5): on v2 payment's runtime
+# series travel on the metrics exporter, which this fault leaves alone, and it logs every charge.
+answers_idle_or_absent: [runtime, logs]

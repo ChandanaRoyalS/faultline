@@ -561,6 +561,28 @@ CATALOG: tuple[FaultDefinition, ...] = _validated(
             },
         ),
         FaultDefinition(
+            id="v2-payment-telemetry-blackout",
+            fault_class=FaultClass.BAD_CONFIG,
+            target="payment",
+            world="v2",
+            description=(
+                "Repoint payment's OTLP *trace* exporter at a dead address (v1's "
+                "payment-telemetry-blackout). The service keeps serving and taking charges; only "
+                "its spans stop, so the spanmetrics traffic series drains and ServiceNoTraffic "
+                "fires on a service that is working - a config_revert, not a restart."
+            ),
+            # Live value: payment has only `OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317`
+            # (docker inspect, 2026-09-25). The per-signal traces variable overrides it for spans
+            # alone, as v1's design did, so payment's metrics - its Node runtime series among them
+            # - keep flowing: on v2 the runtime capture is expected to show a live process where
+            # the traffic metric shows none. 127.0.0.1:4317 inside the container has nothing
+            # listening; the exporter fails fast and the service is not affected.
+            params={
+                "env_var": "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT",
+                "value": "http://127.0.0.1:4317",
+            },
+        ),
+        FaultDefinition(
             id="v2-cart-valkey-misconfig",
             fault_class=FaultClass.BAD_CONFIG,
             target="cart",
