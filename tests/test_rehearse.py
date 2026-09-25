@@ -7,7 +7,9 @@ one that would look fine and be wrong.
 
 from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -746,3 +748,71 @@ def test_a_fact_that_would_overwrite_provenance_is_refused(
             _v2_scenario(), {"world": "v2", "world_lock": None}, tmp_path, {}
         )
     assert not (tmp_path / "manifest.json").exists(), "nothing is written when it refuses"
+
+
+# --- the log capture, split at the fault's start (T7.1) ------------------------------------------
+
+
+def _fake_loki(lines_per_minute: int, start: datetime, end: datetime) -> Any:
+    """A talkative service: one line every 60/lines_per_minute seconds across the window, in
+    one stream, answered the way Loki answers `query_range` with a limit and a direction."""
+    step = 60 / lines_per_minute
+    stamps: list[datetime] = []
+    moment = start
+    while moment < end:
+        stamps.append(moment)
+        moment += timedelta(seconds=step)
+
+    def get_json(_base: str, _path: str, params: dict[str, str]) -> dict[str, Any]:
+        lo = datetime.fromtimestamp(int(params["start"]) / 1e9, tz=UTC)
+        hi = datetime.fromtimestamp(int(params["end"]) / 1e9, tz=UTC)
+        inside = [s for s in stamps if lo <= s < hi]
+        if params["direction"] == "backward":
+            inside = inside[::-1]
+        kept = inside[: int(params["limit"])]
+        values = [[str(int(s.timestamp() * 1e9)), f"line at {s.isoformat()}"] for s in kept]
+        return {"data": {"result": [{"stream": {"service": "cart"}, "values": values}]}}
+
+    return get_json
+
+
+def test_a_talkative_services_capture_holds_the_fault_not_only_the_minutes_before_it(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """**v2-cart-valkey-misconfig, 2026-09-24.** Cart logs ~130 lines a minute. The capture kept
+    the first 500 of a window opening five minutes early, ended before the fault began, and held
+    none of the lines naming the cause. Split at onset, it keeps both sides."""
+    start = datetime(2026, 9, 24, 23, 36, 56, tzinfo=UTC)
+    onset = start + timedelta(minutes=5)
+    end = onset + timedelta(minutes=15)
+    monkeypatch.setattr(rehearse, "get_json", _fake_loki(130, start, end))
+    monkeypatch.setattr(
+        rehearse,
+        "discover_log_source",
+        lambda _c: rehearse.LogSource(selector='{service="cart"}', label="service"),
+    )
+
+    text = rehearse.loki_logs("cart", start, end, onset=onset)
+    body = [ln for ln in text.splitlines() if ln and not ln.startswith("#")]
+    stamps = [datetime.fromisoformat(ln.split("  ")[0]) for ln in body]
+
+    assert len(body) == rehearse.LOG_LINES_BEFORE_ONSET + rehearse.LOG_LINES_FROM_ONSET
+    assert sum(s < onset for s in stamps) == rehearse.LOG_LINES_BEFORE_ONSET
+    assert sum(s >= onset for s in stamps) == rehearse.LOG_LINES_FROM_ONSET
+    assert stamps == sorted(stamps), "one timeline, oldest first"
+    assert max(s for s in stamps if s < onset) > onset - timedelta(minutes=1), (
+        "the lines kept before onset are the newest ones, just before it"
+    )
+    assert min(s for s in stamps if s >= onset) < onset + timedelta(seconds=1), (
+        "the lines kept from onset start at onset"
+    )
+    assert f"# ---- onset {onset.isoformat(timespec='seconds')} ----" in text
+    assert "earlier lines were not captured" in text and "later lines were not captured" in text
+
+    whole = rehearse.loki_logs("cart", start, end)
+    whole_stamps = [
+        datetime.fromisoformat(ln.split("  ")[0])
+        for ln in whole.splitlines()
+        if ln and not ln.startswith("#")
+    ]
+    assert max(whole_stamps) < onset, "without onset: the old capture, which misses the fault"
