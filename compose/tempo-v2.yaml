@@ -43,11 +43,28 @@ distributor:
         grpc:
           endpoint: 0.0.0.0:4417
 
+# **Search had a blind band from about 3 to 15 minutes back** (Q102, measured 2026-09-25). A search
+# reads the ingesters for recent data and the backend blocks only for data older than the query
+# frontend's `query_backend_after` (default 15m). The ingester drops a block `complete_block_timeout`
+# after flushing it, and ADR-0037 set that to 2m (v1's memory reason, carried here), so anything
+# between about 3 and 15 minutes old was on neither path. Nothing was lost: it came back once it
+# aged past 15 minutes. Two probes five minutes apart found every minute 4-14 minutes old empty, on
+# every service, and the band moved with the clock. The trace tool is asked about onset 3-6 minutes
+# before the agent runs, which is inside it. **The three values below make the two paths overlap**:
+# the backend is searched from 3 minutes back, a flushed block reaches the blocklist within a
+# 1-minute poll, and the ingester keeps it for 5 minutes, so 3-5 minutes back is on both paths.
+# Accepted only on the measurement pre-stated in Q102, not on this arithmetic.
+query_frontend:
+  search:
+    query_backend_after: 3m
+    query_ingesters_until: 30m
+
 ingester:
   # ADR-0037: 30s so the trace tool is never more than a block behind the incident it explains.
   max_block_duration: 30s
   max_block_bytes: 52428800
-  complete_block_timeout: 2m
+  # Q102: 5m, not ADR-0037's 2m. Must stay above `blocklist_poll` and `query_backend_after`.
+  complete_block_timeout: 5m
 
 compactor:
   compaction:
@@ -58,6 +75,9 @@ compactor:
 
 storage:
   trace:
+    # Q102: 1m, not the default 5m, so a flushed block is searchable on the backend path well
+    # before `query_backend_after` sends searches there.
+    blocklist_poll: 1m
     backend: local
     local:
       path: /var/tempo/traces
