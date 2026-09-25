@@ -1,0 +1,508 @@
+# target container: payment
+# loki labels: service, stream
+# selector: {service="payment"}
+# 500 lines
+# before onset (2026-09-25T00:13:04+00:00): 100 lines, the newest kept (limit reached: earlier lines were not captured)
+# from onset: 400 lines, the oldest kept (limit reached: later lines were not captured)
+
+2026-09-25T00:12:49+00:00      cardType: 'visa',
+2026-09-25T00:12:49+00:00      lastFourDigits: '8031',
+2026-09-25T00:12:49+00:00      amount: {
+2026-09-25T00:12:49+00:00        units: { low: 742, high: 0, unsigned: false },
+2026-09-25T00:12:49+00:00        nanos: 349226003,
+2026-09-25T00:12:49+00:00        currencyCode: 'CAD'
+2026-09-25T00:12:49+00:00      },
+2026-09-25T00:12:49+00:00      loyalty_level: 'silver'
+2026-09-25T00:12:49+00:00    }
+2026-09-25T00:12:49+00:00  }
+2026-09-25T00:12:54+00:00  {
+2026-09-25T00:12:54+00:00    resource: {
+2026-09-25T00:12:54+00:00      attributes: {
+2026-09-25T00:12:54+00:00        'process.pid': 1,
+2026-09-25T00:12:54+00:00        'process.executable.name': '/nodejs/bin/node',
+2026-09-25T00:12:54+00:00        'process.executable.path': '/nodejs/bin/node',
+2026-09-25T00:12:54+00:00        'process.command_args': [
+2026-09-25T00:12:54+00:00          '/nodejs/bin/node',
+2026-09-25T00:12:54+00:00          '--require=./opentelemetry.js',
+2026-09-25T00:12:54+00:00          '/usr/src/app/node_modules/thread-stream/lib/worker.js'
+2026-09-25T00:12:54+00:00        ],
+2026-09-25T00:12:54+00:00        'process.runtime.version': '22.21.1',
+2026-09-25T00:12:54+00:00        'process.runtime.name': 'nodejs',
+2026-09-25T00:12:54+00:00        'process.runtime.description': 'Node.js',
+2026-09-25T00:12:54+00:00        'process.command': '/usr/src/app/node_modules/thread-stream/lib/worker.js',
+2026-09-25T00:12:54+00:00        'process.owner': 'nonroot',
+2026-09-25T00:12:54+00:00        'os.type': 'linux',
+2026-09-25T00:12:54+00:00        'os.version': '7.0.12-linuxkit',
+2026-09-25T00:12:54+00:00        'host.name': 'ced512ac3723',
+2026-09-25T00:12:54+00:00        'host.arch': 'arm64',
+2026-09-25T00:12:54+00:00        'service.namespace': 'opentelemetry-demo',
+2026-09-25T00:12:54+00:00        'service.version': '2.2.0',
+2026-09-25T00:12:54+00:00        'service.name': 'payment'
+2026-09-25T00:12:54+00:00      }
+2026-09-25T00:12:54+00:00    },
+2026-09-25T00:12:54+00:00    instrumentationScope: { name: 'payment-logger', version: '1.0.0', schemaUrl: undefined },
+2026-09-25T00:12:54+00:00    timestamp: 1790295174394000,
+2026-09-25T00:12:54+00:00    traceId: 'd2ae7da2a84845fadbeaa09a89e1fb4d',
+2026-09-25T00:12:54+00:00    spanId: '853df74518e96647',
+2026-09-25T00:12:54+00:00    traceFlags: '01',
+2026-09-25T00:12:54+00:00    severityText: 'info',
+2026-09-25T00:12:54+00:00    severityNumber: 9,
+2026-09-25T00:12:54+00:00    body: 'Charge request received.',
+2026-09-25T00:12:54+00:00    attributes: {
+2026-09-25T00:12:54+00:00      request: {
+2026-09-25T00:12:54+00:00        amount: { currencyCode: 'USD', units: [Object], nanos: 809999998 },
+2026-09-25T00:12:54+00:00        creditCard: {
+2026-09-25T00:12:54+00:00          creditCardNumber: '4485-4803-8707-3547',
+2026-09-25T00:12:54+00:00          creditCardCvv: 682,
+2026-09-25T00:12:54+00:00          creditCardExpirationYear: 2039,
+2026-09-25T00:12:54+00:00          creditCardExpirationMonth: 9
+2026-09-25T00:12:54+00:00        }
+2026-09-25T00:12:54+00:00      }
+2026-09-25T00:12:54+00:00    }
+2026-09-25T00:12:54+00:00  }
+2026-09-25T00:12:54+00:00  {
+2026-09-25T00:12:54+00:00    resource: {
+2026-09-25T00:12:54+00:00      attributes: {
+2026-09-25T00:12:54+00:00        'process.pid': 1,
+2026-09-25T00:12:54+00:00        'process.executable.name': '/nodejs/bin/node',
+2026-09-25T00:12:54+00:00        'process.executable.path': '/nodejs/bin/node',
+2026-09-25T00:12:54+00:00        'process.command_args': [
+2026-09-25T00:12:54+00:00          '/nodejs/bin/node',
+2026-09-25T00:12:54+00:00          '--require=./opentelemetry.js',
+2026-09-25T00:12:54+00:00          '/usr/src/app/node_modules/thread-stream/lib/worker.js'
+2026-09-25T00:12:54+00:00        ],
+2026-09-25T00:12:54+00:00        'process.runtime.version': '22.21.1',
+2026-09-25T00:12:54+00:00        'process.runtime.name': 'nodejs',
+2026-09-25T00:12:54+00:00        'process.runtime.description': 'Node.js',
+2026-09-25T00:12:54+00:00        'process.command': '/usr/src/app/node_modules/thread-stream/lib/worker.js',
+2026-09-25T00:12:54+00:00        'process.owner': 'nonroot',
+2026-09-25T00:12:54+00:00        'os.type': 'linux',
+2026-09-25T00:12:54+00:00        'os.version': '7.0.12-linuxkit',
+2026-09-25T00:12:54+00:00        'host.name': 'ced512ac3723',
+2026-09-25T00:12:54+00:00        'host.arch': 'arm64',
+2026-09-25T00:12:54+00:00        'service.namespace': 'opentelemetry-demo',
+2026-09-25T00:12:54+00:00        'service.version': '2.2.0',
+2026-09-25T00:12:54+00:00        'service.name': 'payment'
+2026-09-25T00:12:54+00:00      }
+2026-09-25T00:12:54+00:00    },
+2026-09-25T00:12:54+00:00    instrumentationScope: { name: 'payment-logger', version: '1.0.0', schemaUrl: undefined },
+2026-09-25T00:12:54+00:00    timestamp: 1790295174395000,
+2026-09-25T00:12:54+00:00    traceId: 'd2ae7da2a84845fadbeaa09a89e1fb4d',
+2026-09-25T00:12:54+00:00    spanId: '853df74518e96647',
+2026-09-25T00:12:54+00:00    traceFlags: '01',
+2026-09-25T00:12:54+00:00    severityText: 'info',
+2026-09-25T00:12:54+00:00    severityNumber: 9,
+2026-09-25T00:12:54+00:00    body: 'Transaction complete.',
+2026-09-25T00:12:54+00:00    attributes: {
+2026-09-25T00:12:54+00:00      transactionId: '38c01519-13c9-47f0-ac8b-3f53e25c1e03',
+2026-09-25T00:12:54+00:00      cardType: 'visa',
+2026-09-25T00:12:54+00:00      lastFourDigits: '3547',
+2026-09-25T00:12:54+00:00      amount: {
+2026-09-25T00:12:54+00:00        units: { low: 47042, high: 0, unsigned: false },
+2026-09-25T00:12:54+00:00        nanos: 809999998,
+2026-09-25T00:12:54+00:00        currencyCode: 'USD'
+2026-09-25T00:12:54+00:00      },
+2026-09-25T00:12:54+00:00      loyalty_level: 'gold'
+2026-09-25T00:12:54+00:00    }
+2026-09-25T00:12:54+00:00  }
+# ---- onset 2026-09-25T00:13:04+00:00 ----
+2026-09-25T00:13:09+00:00  {
+2026-09-25T00:13:09+00:00    resource: {
+2026-09-25T00:13:09+00:00      attributes: {
+2026-09-25T00:13:09+00:00        'process.pid': 1,
+2026-09-25T00:13:09+00:00        'process.executable.name': '/nodejs/bin/node',
+2026-09-25T00:13:09+00:00        'process.executable.path': '/nodejs/bin/node',
+2026-09-25T00:13:09+00:00        'process.command_args': [
+2026-09-25T00:13:09+00:00          '/nodejs/bin/node',
+2026-09-25T00:13:09+00:00          '--require=./opentelemetry.js',
+2026-09-25T00:13:09+00:00          '/usr/src/app/node_modules/thread-stream/lib/worker.js'
+2026-09-25T00:13:09+00:00        ],
+2026-09-25T00:13:09+00:00        'process.runtime.version': '22.21.1',
+2026-09-25T00:13:09+00:00        'process.runtime.name': 'nodejs',
+2026-09-25T00:13:09+00:00        'process.runtime.description': 'Node.js',
+2026-09-25T00:13:09+00:00        'process.command': '/usr/src/app/node_modules/thread-stream/lib/worker.js',
+2026-09-25T00:13:09+00:00        'process.owner': 'nonroot',
+2026-09-25T00:13:09+00:00        'os.type': 'linux',
+2026-09-25T00:13:09+00:00        'os.version': '7.0.12-linuxkit',
+2026-09-25T00:13:09+00:00        'host.name': '408c0fd57d47',
+2026-09-25T00:13:09+00:00        'host.arch': 'arm64',
+2026-09-25T00:13:09+00:00        'service.namespace': 'opentelemetry-demo',
+2026-09-25T00:13:09+00:00        'service.version': '2.2.0',
+2026-09-25T00:13:09+00:00        'service.name': 'payment'
+2026-09-25T00:13:09+00:00      }
+2026-09-25T00:13:09+00:00    },
+2026-09-25T00:13:09+00:00    instrumentationScope: { name: 'payment-logger', version: '1.0.0', schemaUrl: undefined },
+2026-09-25T00:13:09+00:00    timestamp: 1790295188845000,
+2026-09-25T00:13:09+00:00    traceId: undefined,
+2026-09-25T00:13:09+00:00    spanId: undefined,
+2026-09-25T00:13:09+00:00    traceFlags: undefined,
+2026-09-25T00:13:09+00:00    severityText: 'info',
+2026-09-25T00:13:09+00:00    severityNumber: 9,
+2026-09-25T00:13:09+00:00    body: 'payment gRPC server started on 0.0.0.0:50051',
+2026-09-25T00:13:09+00:00    attributes: {}
+2026-09-25T00:13:09+00:00  }
+2026-09-25T00:13:09+00:00  {
+2026-09-25T00:13:09+00:00    resource: {
+2026-09-25T00:13:09+00:00      attributes: {
+2026-09-25T00:13:09+00:00        'process.pid': 1,
+2026-09-25T00:13:09+00:00        'process.executable.name': '/nodejs/bin/node',
+2026-09-25T00:13:09+00:00        'process.executable.path': '/nodejs/bin/node',
+2026-09-25T00:13:09+00:00        'process.command_args': [
+2026-09-25T00:13:09+00:00          '/nodejs/bin/node',
+2026-09-25T00:13:09+00:00          '--require=./opentelemetry.js',
+2026-09-25T00:13:09+00:00          '/usr/src/app/node_modules/thread-stream/lib/worker.js'
+2026-09-25T00:13:09+00:00        ],
+2026-09-25T00:13:09+00:00        'process.runtime.version': '22.21.1',
+2026-09-25T00:13:09+00:00        'process.runtime.name': 'nodejs',
+2026-09-25T00:13:09+00:00        'process.runtime.description': 'Node.js',
+2026-09-25T00:13:09+00:00        'process.command': '/usr/src/app/node_modules/thread-stream/lib/worker.js',
+2026-09-25T00:13:09+00:00        'process.owner': 'nonroot',
+2026-09-25T00:13:09+00:00        'os.type': 'linux',
+2026-09-25T00:13:09+00:00        'os.version': '7.0.12-linuxkit',
+2026-09-25T00:13:09+00:00        'host.name': '408c0fd57d47',
+2026-09-25T00:13:09+00:00        'host.arch': 'arm64',
+2026-09-25T00:13:09+00:00        'service.namespace': 'opentelemetry-demo',
+2026-09-25T00:13:09+00:00        'service.version': '2.2.0',
+2026-09-25T00:13:09+00:00        'service.name': 'payment'
+2026-09-25T00:13:09+00:00      }
+2026-09-25T00:13:09+00:00    },
+2026-09-25T00:13:09+00:00    instrumentationScope: { name: 'payment-logger', version: '1.0.0', schemaUrl: undefined },
+2026-09-25T00:13:09+00:00    timestamp: 1790295189227000,
+2026-09-25T00:13:09+00:00    traceId: 'e1deeaaaaf378def901486154c430a54',
+2026-09-25T00:13:09+00:00    spanId: '8f549fff46a3df9c',
+2026-09-25T00:13:09+00:00    traceFlags: '01',
+2026-09-25T00:13:09+00:00    severityText: 'info',
+2026-09-25T00:13:09+00:00    severityNumber: 9,
+2026-09-25T00:13:09+00:00    body: 'Charge request received.',
+2026-09-25T00:13:09+00:00    attributes: {
+2026-09-25T00:13:09+00:00      request: {
+2026-09-25T00:13:09+00:00        amount: { currencyCode: 'USD', units: [Object], nanos: 899999998 },
+2026-09-25T00:13:09+00:00        creditCard: {
+2026-09-25T00:13:09+00:00          creditCardNumber: '4532-4211-7434-1278',
+2026-09-25T00:13:09+00:00          creditCardCvv: 114,
+2026-09-25T00:13:09+00:00          creditCardExpirationYear: 2039,
+2026-09-25T00:13:09+00:00          creditCardExpirationMonth: 2
+2026-09-25T00:13:09+00:00        }
+2026-09-25T00:13:09+00:00      }
+2026-09-25T00:13:09+00:00    }
+2026-09-25T00:13:09+00:00  }
+2026-09-25T00:13:09+00:00  {
+2026-09-25T00:13:09+00:00    resource: {
+2026-09-25T00:13:09+00:00      attributes: {
+2026-09-25T00:13:09+00:00        'process.pid': 1,
+2026-09-25T00:13:09+00:00        'process.executable.name': '/nodejs/bin/node',
+2026-09-25T00:13:09+00:00        'process.executable.path': '/nodejs/bin/node',
+2026-09-25T00:13:09+00:00        'process.command_args': [
+2026-09-25T00:13:09+00:00          '/nodejs/bin/node',
+2026-09-25T00:13:09+00:00          '--require=./opentelemetry.js',
+2026-09-25T00:13:09+00:00          '/usr/src/app/node_modules/thread-stream/lib/worker.js'
+2026-09-25T00:13:09+00:00        ],
+2026-09-25T00:13:09+00:00        'process.runtime.version': '22.21.1',
+2026-09-25T00:13:09+00:00        'process.runtime.name': 'nodejs',
+2026-09-25T00:13:09+00:00        'process.runtime.description': 'Node.js',
+2026-09-25T00:13:09+00:00        'process.command': '/usr/src/app/node_modules/thread-stream/lib/worker.js',
+2026-09-25T00:13:09+00:00        'process.owner': 'nonroot',
+2026-09-25T00:13:09+00:00        'os.type': 'linux',
+2026-09-25T00:13:09+00:00        'os.version': '7.0.12-linuxkit',
+2026-09-25T00:13:09+00:00        'host.name': '408c0fd57d47',
+2026-09-25T00:13:09+00:00        'host.arch': 'arm64',
+2026-09-25T00:13:09+00:00        'service.namespace': 'opentelemetry-demo',
+2026-09-25T00:13:09+00:00        'service.version': '2.2.0',
+2026-09-25T00:13:09+00:00        'service.name': 'payment'
+2026-09-25T00:13:09+00:00      }
+2026-09-25T00:13:09+00:00    },
+2026-09-25T00:13:09+00:00    instrumentationScope: { name: 'payment-logger', version: '1.0.0', schemaUrl: undefined },
+2026-09-25T00:13:09+00:00    timestamp: 1790295189237000,
+2026-09-25T00:13:09+00:00    traceId: 'e1deeaaaaf378def901486154c430a54',
+2026-09-25T00:13:09+00:00    spanId: '8f549fff46a3df9c',
+2026-09-25T00:13:09+00:00    traceFlags: '01',
+2026-09-25T00:13:09+00:00    severityText: 'info',
+2026-09-25T00:13:09+00:00    severityNumber: 9,
+2026-09-25T00:13:09+00:00    body: 'Transaction complete.',
+2026-09-25T00:13:09+00:00    attributes: {
+2026-09-25T00:13:09+00:00      transactionId: '0a05e6e9-9d24-4f68-816d-db820fa69f51',
+2026-09-25T00:13:09+00:00      cardType: 'visa',
+2026-09-25T00:13:09+00:00      lastFourDigits: '1278',
+2026-09-25T00:13:09+00:00      amount: {
+2026-09-25T00:13:09+00:00        units: { low: 221, high: 0, unsigned: false },
+2026-09-25T00:13:09+00:00        nanos: 899999998,
+2026-09-25T00:13:09+00:00        currencyCode: 'USD'
+2026-09-25T00:13:09+00:00      },
+2026-09-25T00:13:09+00:00      loyalty_level: 'silver'
+2026-09-25T00:13:09+00:00    }
+2026-09-25T00:13:09+00:00  }
+2026-09-25T00:13:18+00:00  {
+2026-09-25T00:13:18+00:00    resource: {
+2026-09-25T00:13:18+00:00      attributes: {
+2026-09-25T00:13:18+00:00        'process.pid': 1,
+2026-09-25T00:13:18+00:00        'process.executable.name': '/nodejs/bin/node',
+2026-09-25T00:13:18+00:00        'process.executable.path': '/nodejs/bin/node',
+2026-09-25T00:13:18+00:00        'process.command_args': [
+2026-09-25T00:13:18+00:00          '/nodejs/bin/node',
+2026-09-25T00:13:18+00:00          '--require=./opentelemetry.js',
+2026-09-25T00:13:18+00:00          '/usr/src/app/node_modules/thread-stream/lib/worker.js'
+2026-09-25T00:13:18+00:00        ],
+2026-09-25T00:13:18+00:00        'process.runtime.version': '22.21.1',
+2026-09-25T00:13:18+00:00        'process.runtime.name': 'nodejs',
+2026-09-25T00:13:18+00:00        'process.runtime.description': 'Node.js',
+2026-09-25T00:13:18+00:00        'process.command': '/usr/src/app/node_modules/thread-stream/lib/worker.js',
+2026-09-25T00:13:18+00:00        'process.owner': 'nonroot',
+2026-09-25T00:13:18+00:00        'os.type': 'linux',
+2026-09-25T00:13:18+00:00        'os.version': '7.0.12-linuxkit',
+2026-09-25T00:13:18+00:00        'host.name': '408c0fd57d47',
+2026-09-25T00:13:18+00:00        'host.arch': 'arm64',
+2026-09-25T00:13:18+00:00        'service.namespace': 'opentelemetry-demo',
+2026-09-25T00:13:18+00:00        'service.version': '2.2.0',
+2026-09-25T00:13:18+00:00        'service.name': 'payment'
+2026-09-25T00:13:18+00:00      }
+2026-09-25T00:13:18+00:00    },
+2026-09-25T00:13:18+00:00    instrumentationScope: { name: 'payment-logger', version: '1.0.0', schemaUrl: undefined },
+2026-09-25T00:13:18+00:00    timestamp: 1790295197814000,
+2026-09-25T00:13:18+00:00    traceId: 'a493c4cb0f48df919d7cf99643f6d396',
+2026-09-25T00:13:18+00:00    spanId: '10e9ba6409dd2921',
+2026-09-25T00:13:18+00:00    traceFlags: '01',
+2026-09-25T00:13:18+00:00    severityText: 'info',
+2026-09-25T00:13:18+00:00    severityNumber: 9,
+2026-09-25T00:13:18+00:00    body: 'Charge request received.',
+2026-09-25T00:13:18+00:00    attributes: {
+2026-09-25T00:13:18+00:00      request: {
+2026-09-25T00:13:18+00:00        amount: { currencyCode: 'USD', units: [Object], nanos: 729999995 },
+2026-09-25T00:13:18+00:00        creditCard: {
+2026-09-25T00:13:18+00:00          creditCardNumber: '4929-5431-0337-5647',
+2026-09-25T00:13:18+00:00          creditCardCvv: 793,
+2026-09-25T00:13:18+00:00          creditCardExpirationYear: 2039,
+2026-09-25T00:13:18+00:00          creditCardExpirationMonth: 6
+2026-09-25T00:13:18+00:00        }
+2026-09-25T00:13:18+00:00      }
+2026-09-25T00:13:18+00:00    }
+2026-09-25T00:13:18+00:00  }
+2026-09-25T00:13:18+00:00  {
+2026-09-25T00:13:18+00:00    resource: {
+2026-09-25T00:13:18+00:00      attributes: {
+2026-09-25T00:13:18+00:00        'process.pid': 1,
+2026-09-25T00:13:18+00:00        'process.executable.name': '/nodejs/bin/node',
+2026-09-25T00:13:18+00:00        'process.executable.path': '/nodejs/bin/node',
+2026-09-25T00:13:18+00:00        'process.command_args': [
+2026-09-25T00:13:18+00:00          '/nodejs/bin/node',
+2026-09-25T00:13:18+00:00          '--require=./opentelemetry.js',
+2026-09-25T00:13:18+00:00          '/usr/src/app/node_modules/thread-stream/lib/worker.js'
+2026-09-25T00:13:18+00:00        ],
+2026-09-25T00:13:18+00:00        'process.runtime.version': '22.21.1',
+2026-09-25T00:13:18+00:00        'process.runtime.name': 'nodejs',
+2026-09-25T00:13:18+00:00        'process.runtime.description': 'Node.js',
+2026-09-25T00:13:18+00:00        'process.command': '/usr/src/app/node_modules/thread-stream/lib/worker.js',
+2026-09-25T00:13:18+00:00        'process.owner': 'nonroot',
+2026-09-25T00:13:18+00:00        'os.type': 'linux',
+2026-09-25T00:13:18+00:00        'os.version': '7.0.12-linuxkit',
+2026-09-25T00:13:18+00:00        'host.name': '408c0fd57d47',
+2026-09-25T00:13:18+00:00        'host.arch': 'arm64',
+2026-09-25T00:13:18+00:00        'service.namespace': 'opentelemetry-demo',
+2026-09-25T00:13:18+00:00        'service.version': '2.2.0',
+2026-09-25T00:13:18+00:00        'service.name': 'payment'
+2026-09-25T00:13:18+00:00      }
+2026-09-25T00:13:18+00:00    },
+2026-09-25T00:13:18+00:00    instrumentationScope: { name: 'payment-logger', version: '1.0.0', schemaUrl: undefined },
+2026-09-25T00:13:18+00:00    timestamp: 1790295197815000,
+2026-09-25T00:13:18+00:00    traceId: 'a493c4cb0f48df919d7cf99643f6d396',
+2026-09-25T00:13:18+00:00    spanId: '10e9ba6409dd2921',
+2026-09-25T00:13:18+00:00    traceFlags: '01',
+2026-09-25T00:13:18+00:00    severityText: 'info',
+2026-09-25T00:13:18+00:00    severityNumber: 9,
+2026-09-25T00:13:18+00:00    body: 'Transaction complete.',
+2026-09-25T00:13:18+00:00    attributes: {
+2026-09-25T00:13:18+00:00      transactionId: '8f01d776-13ea-469d-923a-f900ea16ee0c',
+2026-09-25T00:13:18+00:00      cardType: 'visa',
+2026-09-25T00:13:18+00:00      lastFourDigits: '5647',
+2026-09-25T00:13:18+00:00      amount: {
+2026-09-25T00:13:18+00:00        units: { low: 10947, high: 0, unsigned: false },
+2026-09-25T00:13:18+00:00        nanos: 729999995,
+2026-09-25T00:13:18+00:00        currencyCode: 'USD'
+2026-09-25T00:13:18+00:00      },
+2026-09-25T00:13:18+00:00      loyalty_level: 'bronze'
+2026-09-25T00:13:18+00:00    }
+2026-09-25T00:13:18+00:00  }
+2026-09-25T00:13:32+00:00  {
+2026-09-25T00:13:32+00:00    resource: {
+2026-09-25T00:13:32+00:00      attributes: {
+2026-09-25T00:13:32+00:00        'process.pid': 1,
+2026-09-25T00:13:32+00:00        'process.executable.name': '/nodejs/bin/node',
+2026-09-25T00:13:32+00:00        'process.executable.path': '/nodejs/bin/node',
+2026-09-25T00:13:32+00:00        'process.command_args': [
+2026-09-25T00:13:32+00:00          '/nodejs/bin/node',
+2026-09-25T00:13:32+00:00          '--require=./opentelemetry.js',
+2026-09-25T00:13:32+00:00          '/usr/src/app/node_modules/thread-stream/lib/worker.js'
+2026-09-25T00:13:32+00:00        ],
+2026-09-25T00:13:32+00:00        'process.runtime.version': '22.21.1',
+2026-09-25T00:13:32+00:00        'process.runtime.name': 'nodejs',
+2026-09-25T00:13:32+00:00        'process.runtime.description': 'Node.js',
+2026-09-25T00:13:32+00:00        'process.command': '/usr/src/app/node_modules/thread-stream/lib/worker.js',
+2026-09-25T00:13:32+00:00        'process.owner': 'nonroot',
+2026-09-25T00:13:32+00:00        'os.type': 'linux',
+2026-09-25T00:13:32+00:00        'os.version': '7.0.12-linuxkit',
+2026-09-25T00:13:32+00:00        'host.name': '408c0fd57d47',
+2026-09-25T00:13:32+00:00        'host.arch': 'arm64',
+2026-09-25T00:13:32+00:00        'service.namespace': 'opentelemetry-demo',
+2026-09-25T00:13:32+00:00        'service.version': '2.2.0',
+2026-09-25T00:13:32+00:00        'service.name': 'payment'
+2026-09-25T00:13:32+00:00      }
+2026-09-25T00:13:32+00:00    },
+2026-09-25T00:13:32+00:00    instrumentationScope: { name: 'payment-logger', version: '1.0.0', schemaUrl: undefined },
+2026-09-25T00:13:32+00:00    timestamp: 1790295211794000,
+2026-09-25T00:13:32+00:00    traceId: '762bc9a68ddfc5cc44c47108a61fbf5c',
+2026-09-25T00:13:32+00:00    spanId: 'ecedc803ce25473f',
+2026-09-25T00:13:32+00:00    traceFlags: '01',
+2026-09-25T00:13:32+00:00    severityText: 'info',
+2026-09-25T00:13:32+00:00    severityNumber: 9,
+2026-09-25T00:13:32+00:00    body: 'Charge request received.',
+2026-09-25T00:13:32+00:00    attributes: {
+2026-09-25T00:13:32+00:00      request: {
+2026-09-25T00:13:32+00:00        amount: { currencyCode: 'USD', units: [Object], nanos: 899999998 },
+2026-09-25T00:13:32+00:00        creditCard: {
+2026-09-25T00:13:32+00:00          creditCardNumber: '4539-1103-5661-7083',
+2026-09-25T00:13:32+00:00          creditCardCvv: 784,
+2026-09-25T00:13:32+00:00          creditCardExpirationYear: 2039,
+2026-09-25T00:13:32+00:00          creditCardExpirationMonth: 4
+2026-09-25T00:13:32+00:00        }
+2026-09-25T00:13:32+00:00      }
+2026-09-25T00:13:32+00:00    }
+2026-09-25T00:13:32+00:00  }
+2026-09-25T00:13:32+00:00  {
+2026-09-25T00:13:32+00:00    resource: {
+2026-09-25T00:13:32+00:00      attributes: {
+2026-09-25T00:13:32+00:00        'process.pid': 1,
+2026-09-25T00:13:32+00:00        'process.executable.name': '/nodejs/bin/node',
+2026-09-25T00:13:32+00:00        'process.executable.path': '/nodejs/bin/node',
+2026-09-25T00:13:32+00:00        'process.command_args': [
+2026-09-25T00:13:32+00:00          '/nodejs/bin/node',
+2026-09-25T00:13:32+00:00          '--require=./opentelemetry.js',
+2026-09-25T00:13:32+00:00          '/usr/src/app/node_modules/thread-stream/lib/worker.js'
+2026-09-25T00:13:32+00:00        ],
+2026-09-25T00:13:32+00:00        'process.runtime.version': '22.21.1',
+2026-09-25T00:13:32+00:00        'process.runtime.name': 'nodejs',
+2026-09-25T00:13:32+00:00        'process.runtime.description': 'Node.js',
+2026-09-25T00:13:32+00:00        'process.command': '/usr/src/app/node_modules/thread-stream/lib/worker.js',
+2026-09-25T00:13:32+00:00        'process.owner': 'nonroot',
+2026-09-25T00:13:32+00:00        'os.type': 'linux',
+2026-09-25T00:13:32+00:00        'os.version': '7.0.12-linuxkit',
+2026-09-25T00:13:32+00:00        'host.name': '408c0fd57d47',
+2026-09-25T00:13:32+00:00        'host.arch': 'arm64',
+2026-09-25T00:13:32+00:00        'service.namespace': 'opentelemetry-demo',
+2026-09-25T00:13:32+00:00        'service.version': '2.2.0',
+2026-09-25T00:13:32+00:00        'service.name': 'payment'
+2026-09-25T00:13:32+00:00      }
+2026-09-25T00:13:32+00:00    },
+2026-09-25T00:13:32+00:00    instrumentationScope: { name: 'payment-logger', version: '1.0.0', schemaUrl: undefined },
+2026-09-25T00:13:32+00:00    timestamp: 1790295211795000,
+2026-09-25T00:13:32+00:00    traceId: '762bc9a68ddfc5cc44c47108a61fbf5c',
+2026-09-25T00:13:32+00:00    spanId: 'ecedc803ce25473f',
+2026-09-25T00:13:32+00:00    traceFlags: '01',
+2026-09-25T00:13:32+00:00    severityText: 'info',
+2026-09-25T00:13:32+00:00    severityNumber: 9,
+2026-09-25T00:13:32+00:00    body: 'Transaction complete.',
+2026-09-25T00:13:32+00:00    attributes: {
+2026-09-25T00:13:32+00:00      transactionId: '4784381c-a95b-4e5e-aeb4-953dd0f733c7',
+2026-09-25T00:13:32+00:00      cardType: 'visa',
+2026-09-25T00:13:32+00:00      lastFourDigits: '7083',
+2026-09-25T00:13:32+00:00      amount: {
+2026-09-25T00:13:32+00:00        units: { low: 221, high: 0, unsigned: false },
+2026-09-25T00:13:32+00:00        nanos: 899999998,
+2026-09-25T00:13:32+00:00        currencyCode: 'USD'
+2026-09-25T00:13:32+00:00      },
+2026-09-25T00:13:32+00:00      loyalty_level: 'silver'
+2026-09-25T00:13:32+00:00    }
+2026-09-25T00:13:32+00:00  }
+2026-09-25T00:13:49+00:00  {
+2026-09-25T00:13:49+00:00    resource: {
+2026-09-25T00:13:49+00:00      attributes: {
+2026-09-25T00:13:49+00:00        'process.pid': 1,
+2026-09-25T00:13:49+00:00        'process.executable.name': '/nodejs/bin/node',
+2026-09-25T00:13:49+00:00        'process.executable.path': '/nodejs/bin/node',
+2026-09-25T00:13:49+00:00        'process.command_args': [
+2026-09-25T00:13:49+00:00          '/nodejs/bin/node',
+2026-09-25T00:13:49+00:00          '--require=./opentelemetry.js',
+2026-09-25T00:13:49+00:00          '/usr/src/app/node_modules/thread-stream/lib/worker.js'
+2026-09-25T00:13:49+00:00        ],
+2026-09-25T00:13:49+00:00        'process.runtime.version': '22.21.1',
+2026-09-25T00:13:49+00:00        'process.runtime.name': 'nodejs',
+2026-09-25T00:13:49+00:00        'process.runtime.description': 'Node.js',
+2026-09-25T00:13:49+00:00        'process.command': '/usr/src/app/node_modules/thread-stream/lib/worker.js',
+2026-09-25T00:13:49+00:00        'process.owner': 'nonroot',
+2026-09-25T00:13:49+00:00        'os.type': 'linux',
+2026-09-25T00:13:49+00:00        'os.version': '7.0.12-linuxkit',
+2026-09-25T00:13:49+00:00        'host.name': '408c0fd57d47',
+2026-09-25T00:13:49+00:00        'host.arch': 'arm64',
+2026-09-25T00:13:49+00:00        'service.namespace': 'opentelemetry-demo',
+2026-09-25T00:13:49+00:00        'service.version': '2.2.0',
+2026-09-25T00:13:49+00:00        'service.name': 'payment'
+2026-09-25T00:13:49+00:00      }
+2026-09-25T00:13:49+00:00    },
+2026-09-25T00:13:49+00:00    instrumentationScope: { name: 'payment-logger', version: '1.0.0', schemaUrl: undefined },
+2026-09-25T00:13:49+00:00    timestamp: 1790295228447000,
+2026-09-25T00:13:49+00:00    traceId: '7d3798486412b68cdb69ea648370e7fe',
+2026-09-25T00:13:49+00:00    spanId: '95327b175de3176b',
+2026-09-25T00:13:49+00:00    traceFlags: '01',
+2026-09-25T00:13:49+00:00    severityText: 'info',
+2026-09-25T00:13:49+00:00    severityNumber: 9,
+2026-09-25T00:13:49+00:00    body: 'Charge request received.',
+2026-09-25T00:13:49+00:00    attributes: {
+2026-09-25T00:13:49+00:00      request: {
+2026-09-25T00:13:49+00:00        amount: { currencyCode: 'USD', units: [Object], nanos: 39999984 },
+2026-09-25T00:13:49+00:00        creditCard: {
+2026-09-25T00:13:49+00:00          creditCardNumber: '4432-8015-6152-0454',
+2026-09-25T00:13:49+00:00          creditCardCvv: 672,
+2026-09-25T00:13:49+00:00          creditCardExpirationYear: 2039,
+2026-09-25T00:13:49+00:00          creditCardExpirationMonth: 1
+2026-09-25T00:13:49+00:00        }
+2026-09-25T00:13:49+00:00      }
+2026-09-25T00:13:49+00:00    }
+2026-09-25T00:13:49+00:00  }
+2026-09-25T00:13:49+00:00  {
+2026-09-25T00:13:49+00:00    resource: {
+2026-09-25T00:13:49+00:00      attributes: {
+2026-09-25T00:13:49+00:00        'process.pid': 1,
+2026-09-25T00:13:49+00:00        'process.executable.name': '/nodejs/bin/node',
+2026-09-25T00:13:49+00:00        'process.executable.path': '/nodejs/bin/node',
+2026-09-25T00:13:49+00:00        'process.command_args': [
+2026-09-25T00:13:49+00:00          '/nodejs/bin/node',
+2026-09-25T00:13:49+00:00          '--require=./opentelemetry.js',
+2026-09-25T00:13:49+00:00          '/usr/src/app/node_modules/thread-stream/lib/worker.js'
+2026-09-25T00:13:49+00:00        ],
+2026-09-25T00:13:49+00:00        'process.runtime.version': '22.21.1',
+2026-09-25T00:13:49+00:00        'process.runtime.name': 'nodejs',
+2026-09-25T00:13:49+00:00        'process.runtime.description': 'Node.js',
+2026-09-25T00:13:49+00:00        'process.command': '/usr/src/app/node_modules/thread-stream/lib/worker.js',
+2026-09-25T00:13:49+00:00        'process.owner': 'nonroot',
+2026-09-25T00:13:49+00:00        'os.type': 'linux',
+2026-09-25T00:13:49+00:00        'os.version': '7.0.12-linuxkit',
+2026-09-25T00:13:49+00:00        'host.name': '408c0fd57d47',
+2026-09-25T00:13:49+00:00        'host.arch': 'arm64',
+2026-09-25T00:13:49+00:00        'service.namespace': 'opentelemetry-demo',
+2026-09-25T00:13:49+00:00        'service.version': '2.2.0',
+2026-09-25T00:13:49+00:00        'service.name': 'payment'
+2026-09-25T00:13:49+00:00      }
+2026-09-25T00:13:49+00:00    },
+2026-09-25T00:13:49+00:00    instrumentationScope: { name: 'payment-logger', version: '1.0.0', schemaUrl: undefined },
+2026-09-25T00:13:49+00:00    timestamp: 1790295228448000,
+2026-09-25T00:13:49+00:00    traceId: '7d3798486412b68cdb69ea648370e7fe',
+2026-09-25T00:13:49+00:00    spanId: '95327b175de3176b',
+2026-09-25T00:13:49+00:00    traceFlags: '01',
+2026-09-25T00:13:49+00:00    severityText: 'info',
+2026-09-25T00:13:49+00:00    severityNumber: 9,
+2026-09-25T00:13:49+00:00    body: 'Transaction complete.',
+2026-09-25T00:13:49+00:00    attributes: {
+2026-09-25T00:13:49+00:00      transactionId: 'bf675518-0362-4809-ad0d-c2defcd86d9f',
+2026-09-25T00:13:49+00:00      cardType: 'visa',
+2026-09-25T00:13:49+00:00      lastFourDigits: '0454',
+2026-09-25T00:13:49+00:00      amount: {
+2026-09-25T00:13:49+00:00        units: { low: 1803, high: 0, unsigned: false },
+2026-09-25T00:13:49+00:00        nanos: 39999984,
+2026-09-25T00:13:49+00:00        currencyCode: 'USD'
+2026-09-25T00:13:49+00:00      },
+2026-09-25T00:13:49+00:00      loyalty_level: 'platinum'
+2026-09-25T00:13:49+00:00    }
+2026-09-25T00:13:49+00:00  }
+2026-09-25T00:13:54+00:00  {
+2026-09-25T00:13:54+00:00    resource: {
+2026-09-25T00:13:54+00:00      attributes: {
+2026-09-25T00:13:54+00:00        'process.pid': 1,
+2026-09-25T00:13:54+00:00        'process.executable.name': '/nodejs/bin/node',

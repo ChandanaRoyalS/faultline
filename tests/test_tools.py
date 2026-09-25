@@ -692,6 +692,9 @@ not be possible to add a narrative that quietly falsifies it.
 
 
 NARRATIVE_EVIDENCE_V2: dict[str, set[str]] = {
+    # Alive and invisible: runtime and logs show the process working, the callers' Charge spans
+    # show it answering with nothing beneath them, and the change record names the endpoint.
+    "v2-payment-telemetry-blackout": {"metrics", "runtime_metrics", "logs", "traces", "changes"},
     # The page names the culprit. Its logs carry the cause inside a misleading label, and the
     # whole-window log read shows only healthy lines (Q100). The connect span's status carries
     # 28P01. Runtime shows it alive and throwing, and the change record names the variable.

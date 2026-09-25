@@ -23,26 +23,29 @@ ground_truth:
     working. The fault is in the telemetry path, not in the service.
   category: bad_config
 expected_evidence:
-  # From v1's payment-telemetry-blackout (dev-only, T7.36), adapted to v2. To be checked against
-  # the bundle at rehearsal and corrected there, as the first v2 scenarios' were. The v1 check
-  # that failed on v2 for the cart (a dependency address the service needs at startup) does not
-  # apply here: the trace exporter is not on payment's request path, and v1 measured checkout's
-  # error ratio at 0.0 throughout.
-  - alerts: ServiceNoTraffic on payment and nothing else; no error-rate or latency alert anywhere,
-      because nothing is failing and nothing is slow (v1 fired at +5:19, behind a 3m for clause)
-  - logs: payment keeps logging its charges throughout the blackout - v1 measured 111 charge lines
-      across the fault; a service that is actually down logs nothing
-  - metrics: payment's own runtime series (Node's v8js_*/nodejs_* by service_name) keep reporting,
-      because only the traces endpoint moved - a live process where the traffic metric shows none
-  - traces: checkout's client spans to payment continue and succeed; there are simply no payment
-      server spans below them, because the callee no longer exports its own
+  # From v1's payment-telemetry-blackout (dev-only, T7.36), checked against this scenario's bundle
+  # (recorded 2026-09-25, revert at +12:49) and read-backs of its window. Dev-only evidence.
+  - alerts: ServiceNoTraffic on payment and nothing else, during the fault or after the fix; no
+      error-rate or latency alert anywhere (bundle +7:49, v1 +5:19), the traffic series reaching
+      zero at ~+4:30 and the alert's 3m hold after it
+  - metrics: checkout's error ratio stays at zero and its rate and latency, frontend's, and those
+      of email, accounting and fraud-detection (which only see paid orders) do not move
+  - logs: payment keeps logging its charges throughout - `Charge request received.` and
+      `Transaction complete.`, 4-13 a minute through the fault against 6-12 before it (Loki
+      count_over_time); each record is a ~40-line structured object, so the bundle's split capture
+      holds the first minute after onset, including `payment gRPC server started`
+  - metrics: payment's own runtime series (Node's nodejs_eventloop_* and v8js_gc_*, 75 series by
+      service_name) report without a gap through the fault, because only the traces endpoint moved
+  - traces: every checkout trace in the window has a `checkout/oteldemo.PaymentService/Charge` span
+      of 1-2 ms, not an error, with its whole duration as self-time and no payment span beneath
+      it; payment's own traces for the window return nothing
   - change: OTEL_EXPORTER_OTLP_TRACES_ENDPOINT on payment changed to a dead address, coinciding
       with onset - the only class that names the change itself
   - discriminator: a payment that was down or frozen would stop its logs and its runtime series
-      and fail its callers; this one keeps all three, and only the span-derived traffic series
-      goes to zero
+      and fail or hang its callers; this one keeps all three, and only the span-derived traffic
+      series goes to zero
 expected_remediation_class: config_revert
-rehearsed: false
+rehearsed: true
 alert_timeout_seconds: 900
 # v1 fired at +5:19: the 3m rate window has to drain before the 3m for clause starts.
 # Declared before recording, checked against the bundle after (T7.5): on v2 payment's runtime

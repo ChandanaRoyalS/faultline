@@ -4617,6 +4617,23 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-09-25: the third v2 scenario, `v2-payment-telemetry-blackout`, rehearsed and labeled -
+slot `v2/bad_config-2` (dev), first recording.***
+
+- **The design.** v1's, carried to v2. Only the traces endpoint moves (the per-signal variable
+  overrides the shared one for spans alone), so payment's metrics keep flowing.
+- **What the recording showed.**
+  - One alert, `ServiceNoTraffic/payment`, at +7:49, and no error or latency alert anywhere.
+  - checkout's error ratio stayed at zero, and its `PaymentService/Charge` calls succeeded with
+    no payment span beneath them.
+  - payment's 75 Node runtime series ran without a gap, and its log kept 4-13 charges a minute.
+  - The declared `[runtime, logs]` matches the derived value.
+- **On v2 the runtime series are a second discriminator besides the logs.** On v1, payment
+  exported no runtime family at all.
+- **The first bundle with the split log capture** (#494). It holds the fault's first minute,
+  because payment's records are ~40-line objects.
+- Three v2 dev slots are now filled.
+
 ***2026-09-24: `v2-cart-valkey-misconfig` recorded once and blocked; `v2/bad_config-2` released.***
 
 - **What the recording showed.** On v2 the design is a crashloop. Cart connects to its store at
