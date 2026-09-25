@@ -400,6 +400,7 @@ def test_the_v2_old_mechanism_definitions_carry_v2_values_not_v1s() -> None:
     assert set(v2_old) == {
         "v2-accounting-bad-credential",
         "v2-payment-telemetry-blackout",
+        "v2-shipping-quote-misconfig",
         "v2-cart-valkey-misconfig",
         "v2-cart-bad-image-tag",
         "v2-ad-memory-squeeze",
@@ -418,6 +419,10 @@ def test_the_v2_old_mechanism_definitions_carry_v2_values_not_v1s() -> None:
     assert blackout["env_var"] == "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", (
         "traces only: the shared endpoint would silence payment's metrics too, and on v2 its "
         "runtime series are what show the process alive while its traffic metric says otherwise"
+    )
+    quote = v2_old["v2-shipping-quote-misconfig"].params
+    assert quote == {"env_var": "QUOTE_ADDR", "value": "http://quote-gone:8090"}, (
+        "v2 names the variable QUOTE_ADDR and the host quote; only the host moves"
     )
     image = str(v2_old["v2-cart-bad-image-tag"].params["image"])
     assert image.startswith("ghcr.io/open-telemetry/demo:2.2.0-cart")

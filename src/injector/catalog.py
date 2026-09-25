@@ -583,6 +583,23 @@ CATALOG: tuple[FaultDefinition, ...] = _validated(
             },
         ),
         FaultDefinition(
+            id="v2-shipping-quote-misconfig",
+            fault_class=FaultClass.BAD_CONFIG,
+            target="shipping",
+            world="v2",
+            description=(
+                "Point shipping at a quote host that does not resolve (v1's "
+                "shipping-quote-misconfig, v2's variable name). A broken service-to-service "
+                "address: on v1 the caller paged and shipping reported no errors of its own."
+            ),
+            # Live value `QUOTE_ADDR=http://quote:8090` (docker inspect shipping, 2026-09-25);
+            # v1's variable was QUOTE_SERVICE_ADDR and its host quoteservice. Only the host moves.
+            # The cart row's lesson is checked at rehearsal: a dependency address read at startup
+            # can make a v2 service exit rather than fail per call. Shipping calls quote over HTTP
+            # per request, so a host that does not resolve should fail each quote, not the start.
+            params={"env_var": "QUOTE_ADDR", "value": "http://quote-gone:8090"},
+        ),
+        FaultDefinition(
             id="v2-cart-valkey-misconfig",
             fault_class=FaultClass.BAD_CONFIG,
             target="cart",

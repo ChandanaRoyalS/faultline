@@ -1,0 +1,46 @@
+# v2/bad_config-3 (dev) - see SPLIT-V2.md. Slot allocated before authoring; do not move.
+# Candidate order and eligibility: docs/design/t7.1-candidates.md (dev-only: v1's
+# shipping-quote-misconfig is a published dev design). Took bad_config-3 when
+# v2-cart-valkey-misconfig was blocked and the row moved up (2026-09-24).
+id: v2-shipping-quote-misconfig
+title: Shipping service pointed at a quote service that does not resolve
+fault_class: bad_config
+split: dev
+slot: v2/bad_config-3
+world: v2
+injection:
+  target: shipping
+  method: v2-shipping-quote-misconfig
+  params:
+    env_var: "QUOTE_ADDR"
+    value: "http://quote-gone:8090"
+ground_truth:
+  root_cause: >
+    The shipping service's QUOTE_ADDR was changed to a host that does not resolve. Shipping cannot
+    price a delivery, so every checkout that reaches the quote step fails. The service that was
+    misconfigured is not the service that alerts: checkout carries the error rate and the page,
+    and quote, which only shipping calls, goes quiet.
+  category: bad_config
+expected_evidence:
+  # From v1's shipping-quote-misconfig (dev-only, T7.20/T7.22), adapted to v2's names. To be
+  # checked against the bundle at rehearsal and corrected there. Two things v1 measured may not
+  # carry: v2's shipping is Rust with its own client span to quote, so its error ratio may not
+  # stay at zero; and whether a startup read of the address makes it exit (the cart row's lesson).
+  - alerts: ServiceHighErrorRate on checkout and its callers on the checkout path; shipping itself
+      does not page (v1 fired checkout at +4:00)
+  - metrics: checkout's error ratio rises and holds, while shipping stays up and serving; quote's
+      request rate falls to zero, because the only service that calls it can no longer reach it
+  - logs: shipping keeps logging its quote requests, which shows it alive and being asked; whether
+      its log names the address it cannot reach is checked at rehearsal (on v1 it did not)
+  - traces: checkout's spans fail at the shipping quote step; the error text, now printed on an
+      error span, names what failed
+  - change: QUOTE_ADDR on shipping changed to an address that does not resolve, coinciding with
+      onset; change history asked of checkout, the service that pages, returns nothing
+  - discriminator: the service that pages is not the service that changed, and the service that
+      went quiet (quote) is healthy - the fault is in the address between them
+expected_remediation_class: config_revert
+rehearsed: false
+alert_timeout_seconds: 900
+# Declared before recording, checked against the bundle after (T7.5): shipping logs its requests;
+# v2's shipping is Rust, and no Rust runtime family is known to reach Prometheus on this world.
+answers_idle_or_absent: [logs]
