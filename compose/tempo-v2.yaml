@@ -53,7 +53,10 @@ distributor:
 # before the agent runs, which is inside it. **The three values below make the two paths overlap**:
 # the backend is searched from 3 minutes back, a flushed block reaches the blocklist within a
 # 1-minute poll, and the ingester keeps it for 5 minutes, so 3-5 minutes back is on both paths.
-# Accepted only on the measurement pre-stated in Q102, not on this arithmetic.
+# Accepted on the measurement pre-stated in Q102, not on this arithmetic: three probes over 20
+# minutes each, every minute non-empty, Tempo at 22-25% of its limit (ADR-0037 Addendum 2). The
+# old values also drew Tempo's own startup warning, `ingester.complete_block_timeout <
+# storage.trace.blocklist_poll`, which nothing read.
 query_frontend:
   search:
     query_backend_after: 3m

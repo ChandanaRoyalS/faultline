@@ -197,3 +197,41 @@ make, and this addendum records that the ADR's author would make it that way.
 
 **Q26 is retired**, as prediction 8 said it would be if it held: zero NaN-shaped failures across the
 sweep. **Q27 is landed and is not the fix** for `redis-cart`; prediction 6's own reading — Q28 — applies.
+
+## Addendum 2 (2026-09-25) — the band behind the newest trace (Q102)
+
+§2 measured how fresh the newest searchable trace was, and set `complete_block_timeout: 2m` (v1,
+for memory; carried to v2). **It never measured the minutes behind the newest trace, and they were
+the ones that mattered.** A search reads the ingesters for recent data and the backend blocks only
+for data older than the query frontend's `query_backend_after` (15m by default). An ingester drops a
+flushed block `complete_block_timeout` after flushing it. With 2m against 15m, traces between about
+three and fifteen minutes old were on neither path.
+
+**Measured on v2, 2026-09-25.** A read-back of `v2-shipping-quote-misconfig`, taken about fifteen
+minutes after the fault, found no traces at all for two minutes inside it, for any service. A
+minute-by-minute probe (`{}` search, limit 100) at 01:30 found every minute 4 to 14 minutes old
+empty; at 01:37 the empty band had moved with the clock and covered the same ages. The same
+minutes, read once they were older than fifteen minutes, held 6 to 12 checkout traces each, every
+one erroring. Nothing had been lost. **Tempo had said so at startup**: its configuration check
+logged `ingester.complete_block_timeout < storage.trace.blocklist_poll` ("You may receive 404s
+between the time the ingesters have flushed a trace and the querier is aware of the new block")
+on 2026-09-24 at 06:07, and nothing reads Tempo's startup warnings.
+
+**Why it matters more than the freshness §2 fixed.** §2's own comment in `compose/tempo.yaml` says
+onset is three to six minutes before the agent runs. That is inside the band. A live trace
+analyst asking about onset got empty searches for it, while the newest traces - after onset -
+were searchable. Read-backs taken hours later saw everything, which is how it went unnoticed.
+
+**Changed on v2 only** (`compose/tempo-v2.yaml`): `query_frontend.search.query_backend_after: 3m`,
+`ingester.complete_block_timeout: 5m`, `storage.trace.blocklist_poll: 1m`, so a flushed block is
+listed within a minute, the backend is searched from three minutes back, and the ingester keeps the
+block for five: three to five minutes back is on both paths. `test_the_v2_tempo_search_paths_overlap`
+pins the ordering. **Accepted on the measurement stated in Q102 before it was taken**: after a
+25-minute fill, three probes five minutes apart (02:10, 02:15, 02:20) found every one of the twenty
+minutes non-empty, the newest included; Tempo read 21.6%, 25.0% and 22.2% of its 1024M; Tempo's
+startup no longer logged the configuration warning; and no `failed to poll or create index` line
+appeared in the 35 minutes, where the old configuration logged one every ten minutes.
+
+**v1 is not changed.** Its `tempo.yaml` has the same 2m against the same default and its world is
+not running. Which v1 verdicts read traces inside the band has not been reviewed (Q102's open
+clause), so the trace-arm figures of Addendum 1 stand as measured, with that caveat attached.
