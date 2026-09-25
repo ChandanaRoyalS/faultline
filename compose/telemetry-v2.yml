@@ -63,8 +63,15 @@ services:
   # over. So: peak 374 + two ~220 MiB swings coinciding (compaction and a query) ~ 815 -> 1024M,
   # with GOMEMLIMIT at 75% so the Go runtime sees the ceiling before the kernel does.
   # `tests/test_world_v2.py` pins the limit to at least twice the sampled peak.
+  # **2.6.1, not v1's 2.4.2** (Q104, 2026-09-25). On 2.4.2 a tenant whose blocklist poll fails is
+  # dropped from the searchable blocklist until the next poll (`poller.go`, `Do`: `continue`),
+  # and on the local backend the poll fails whenever it walks a compacted block the compactor is
+  # deleting. From an hour after boot, search saw no stored blocks about half the time. 2.6.0 is
+  # the first release that keeps the tenant's previous blocklist when its poll fails (grafana/tempo
+  # #3860) and retries the tenant poll within the cycle. v1 keeps 2.4.2: its bundles carry its
+  # digest, and its half of Q104 stays open.
   tempo:
-    image: grafana/tempo:2.4.2
+    image: grafana/tempo:2.6.1
     container_name: tempo
     command: -config.file=/etc/tempo/tempo.yaml
     environment:

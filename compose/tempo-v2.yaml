@@ -81,17 +81,10 @@ storage:
     # Q102: 1m, not the default 5m, so a flushed block is searchable on the backend path well
     # before `query_backend_after` sends searches there.
     blocklist_poll: 1m
-    # **Q104: a failed poll emptied the searchable blocklist** (measured 2026-09-25). From an hour
-    # after boot, when compacted blocks start being deleted (`compacted_block_retention` 1h), the
-    # index poll fails in the same second as each deletion - `failed to poll or create index for
-    # tenant ... no such file or directory`, twice per cycle (the default tolerance of 1 is two
-    # attempts) - and until the next poll the search inspects zero blocks. A fixed two-minute
-    # window read 20 traces or none in alternate minutes: none in 10 of 20 probes over five
-    # minutes. The old 5m poll had the same race half as often. Retry the tenant poll within the
-    # cycle, and spread the pollers so the query side stops landing on the compactor's deletion
-    # second. Accepted only on the measurement pre-stated in Q104.
-    blocklist_poll_tolerate_consecutive_errors: 10
-    blocklist_poll_jitter_ms: 15000
+    # Q104's first candidate, `blocklist_poll_tolerate_consecutive_errors: 10` and
+    # `blocklist_poll_jitter_ms: 15000`, failed its acceptance (none in 87 of 120 probes) and is
+    # removed. On 2.4.2 the first setting counts failing tenants, not retries, so it could not help.
+    # The fix is the image (`telemetry-v2.yml`).
     backend: local
     local:
       path: /var/tempo/traces

@@ -254,3 +254,11 @@ carries the candidate values and a longer acceptance, stated before it runs: at 
 from a fresh Tempo, which is past the deletion onset, then 30 minutes of probes. **The lesson for
 any acceptance of a store: measure it past its first retention or compaction boundary, not only
 from a clean start.**
+
+**Later the same day: the config candidate failed, and the fix is the image.** Q104's first
+candidate on 2.4.2 failed its acceptance: the fixed window was empty in 87 of 120 probes. It rested
+on reading a setting's meaning from Tempo's current source rather than the running version's. On
+2.4.2, `blocklist_poll_tolerate_consecutive_errors` counts failing tenants, and a failing tenant is
+dropped from the blocklist. 2.6.0 is the first release that keeps the previous blocklist when a
+tenant's poll fails. v2's Tempo moves to 2.6.1 under the same acceptance. **Second lesson, beside the
+first: read the behaviour of the version that is running, at its tag, before configuring it.**
