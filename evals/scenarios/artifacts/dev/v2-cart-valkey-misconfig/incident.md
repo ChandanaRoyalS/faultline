@@ -3,6 +3,7 @@ origin: scenario:v2-cart-valkey-misconfig
 split: dev
 fault_class: bad_config
 recorded_from: 2026-09-24T23:41:56+00:00
+capability: cap:d2b243e0
 onset_to_page: 3m46s
 page_to_fix: 5m00s
 fix_to_all_clear: 5m02s

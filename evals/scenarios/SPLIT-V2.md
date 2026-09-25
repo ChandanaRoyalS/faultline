@@ -119,3 +119,4 @@ scenarios are authored, one line per slot, and never rewritten.
 |------|-------|----------|----------|
 | `v2/process_freeze-1` | dev | `v2-product-catalog-freeze` | 2026-09-24, third recording (the first two are under its `superseded/`) |
 | `v2/bad_config-1` | dev | `v2-accounting-bad-credential` | 2026-09-24, first recording |
+| ~~`v2/bad_config-2`~~ | dev | ~~`v2-cart-valkey-misconfig`~~ | 2026-09-24, recorded once and **blocked**: on v2 the design crashloops (`bad_deploy`'s page). The slot is released to the next candidate |

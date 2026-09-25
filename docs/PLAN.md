@@ -4617,6 +4617,20 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-09-24: `v2-cart-valkey-misconfig` recorded once and blocked; `v2/bad_config-2` released.***
+
+- **What the recording showed.** On v2 the design is a crashloop. Cart connects to its store at
+  startup and exits (`Wasn't able to connect to redis`). Checkout is refused dialing it, the page
+  is the callers' (+3:46), and cart only goes quiet (`ServiceNoTraffic` +8:45).
+- **Why it is blocked.** v1's lazily connecting cart failed each call. The candidate list's
+  T7.56 rule applies: a crashloop is `bad_deploy`'s page, and this one nearly duplicates
+  `v2-cart-bad-image-tag`'s on the same target.
+- **Where it leaves things.** The bundle is kept, marked INVALID. The slot goes to
+  `v2-payment-telemetry-blackout`, the next candidate in order.
+- **The recorder's defect it exposed.** The recorder's log capture holds the first 500 lines from
+  five minutes before the fault, so a talkative service's capture ends before the fault starts.
+  The capture is split at the fault's start before the next recording.
+
 ***2026-09-24: the second v2 scenario, `v2-accounting-bad-credential`, rehearsed and labeled -
 slot `v2/bad_config-1` (dev), first recording.***
 
