@@ -645,6 +645,23 @@ def test_the_v2_tempo_search_paths_overlap() -> None:
     assert held <= ingesters_until, "the ingesters must be searched for as long as they hold data"
 
 
+def test_the_v2_tempo_poll_survives_a_block_deleted_under_it() -> None:
+    """**A failed index poll emptied the searchable blocklist** (Q104, measured 2026-09-25).
+
+    From an hour after boot, compacted blocks are deleted, and a poll that lists a block in the
+    second it is deleted fails - on Tempo 2.4.2 the tenant then has no searchable blocks until the
+    next poll. A fixed two-minute window read 20 traces and zero in alternate minutes. The poll
+    retries within the cycle, and the pollers are spread off the deletion second.
+    """
+    import yaml
+
+    trace = yaml.safe_load((COMPOSE / "tempo-v2.yaml").read_text())["storage"]["trace"]
+    assert trace["blocklist_poll_tolerate_consecutive_errors"] >= 5, (
+        "the default of 1 is two attempts, and both failed in every cycle measured (Q104)"
+    )
+    assert trace["blocklist_poll_jitter_ms"] > 0, "unjittered, the query poll lands on deletion"
+
+
 def test_the_v2_tempo_exporter_does_not_back_pressure_the_pipeline() -> None:
     """**A Tempo outage must cost traces, not alerts** (Q93, 2026-09-24).
 

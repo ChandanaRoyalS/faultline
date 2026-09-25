@@ -235,3 +235,22 @@ appeared in the 35 minutes, where the old configuration logged one every ten min
 **v1 is not changed.** Its `tempo.yaml` has the same 2m against the same default and its world is
 not running. Which v1 verdicts read traces inside the band has not been reviewed (Q102's open
 clause), so the trace-arm figures of Addendum 1 stand as measured, with that caveat attached.
+
+## Addendum 3 (2026-09-25, later) — what Addendum 2's acceptance could not see (Q104)
+
+Addendum 2's acceptance ran for 35 minutes from a freshly recreated Tempo. **That was too short to
+measure the store's steady state**, and the steady state had a second defect. An hour after boot,
+compacted blocks start being deleted (`compacted_block_retention`, 1h). From then on, the index poll
+fails in the same second as each deletion, and on Tempo 2.4.2 a tenant whose poll fails has no
+searchable blocks until the next poll. A fixed two-minute window, searched every 15 seconds for
+five minutes, read 20 traces or none in alternate minutes. A coverage probe taken in a dark minute
+found the whole previous hour and a quarter empty, including windows that had been read back an
+hour earlier. The old values had the same race half as often, and it is the unexplained symptom
+Addendum 2's measurement already contained.
+
+Addendum 2's overlap stands: the 3-15-minute band is closed, and nothing in this measurement
+reopens it. What does not stand is the implication that trace search was sound after Q102. Q104
+carries the candidate values and a longer acceptance, stated before it runs: at least 2.5 hours
+from a fresh Tempo, which is past the deletion onset, then 30 minutes of probes. **The lesson for
+any acceptance of a store: measure it past its first retention or compaction boundary, not only
+from a clean start.**
