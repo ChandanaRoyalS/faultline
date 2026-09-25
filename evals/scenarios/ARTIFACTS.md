@@ -21,6 +21,16 @@ evals/scenarios/artifacts/<split>/<scenario-id>/
 above `runtime.json`. The ten bundles recorded before the fifth capture carry no
 `capture_set` and are staying that way — see below.
 
+**What `logs/<target>.txt` holds depends on when it was recorded.** Until 2026-09-24 it held the
+first 500 lines of the whole window, which opens five minutes before the fault. For a talkative
+service that is five healthy minutes and nothing else. `v2-cart-valkey-misconfig`'s cart logged
+~130 lines a minute, and its capture ended two minutes before the fault began. Since then the
+capture is split at the fault's start: the newest 100 lines before it and the oldest 400 from it,
+separated by a `# ---- onset … ----` line. The header states each part's count and whether it hit
+its limit. The file's first `#` lines say which capture a bundle has; an older bundle's `# N
+lines` header and no onset marker mean the whole-window capture. Nothing recorded before the
+change is rewritten.
+
 The path is the quarantine (T1.6): `<split>` is the scenario's own split, and the guard
 tests in `tests/test_contamination.py` fail the build if a bundle lands on the wrong side.
 

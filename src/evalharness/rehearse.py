@@ -667,12 +667,70 @@ def discover_log_source(container: str) -> LogSource:
     return source
 
 
-def loki_logs(container: str, start: datetime, end: datetime, limit: int = 500) -> str:
+LOG_LINES_BEFORE_ONSET = 100
+"""Lines kept from before the fault, the newest of them: the service as it was just before.
+Split with `LOG_LINES_FROM_ONSET` so the capture's 500 hold both sides of the fault's start."""
+
+LOG_LINES_FROM_ONSET = 400
+"""Lines kept from the fault's start onward, the oldest of them: the fault as it began.
+
+**Why the capture is split (T7.1, 2026-09-24).** It used to keep the first 500 lines of the
+whole window, which opens five minutes before the fault. `v2-cart-valkey-misconfig`'s cart logs
+every call, about 130 lines a minute, so its capture ran out at 23:40:04 for a fault that began
+at 23:41:56, and held nothing from the fault: the lines naming the cause (`Wasn't able to connect
+to redis`) were never captured. A talkative service filled the budget on its healthy minutes.
+Anchoring the larger part on the fault's start keeps the evidence and the lines just before it
+side by side. The file's header says which part hit its limit, so a capped side is legible."""
+
+
+def _loki_lines(
+    selector: str, start: datetime, end: datetime, limit: int, direction: str
+) -> list[str]:
+    payload = get_json(
+        LOKI,
+        "/loki/api/v1/query_range",
+        {
+            "query": selector,
+            "start": str(int(start.timestamp() * 1e9)),
+            "end": str(int(end.timestamp() * 1e9)),
+            "limit": str(limit),
+            "direction": direction,
+        },
+    )
+    data = payload.get("data")
+    streams = data.get("result", []) if isinstance(data, dict) else []
+    entries: list[tuple[int, str]] = []
+    for stream in streams:
+        if not isinstance(stream, dict):
+            continue
+        for entry in stream.get("values", []):
+            if isinstance(entry, list) and len(entry) == 2:
+                entries.append((int(entry[0]), str(entry[1])))
+    # Loki applies the limit across streams in `direction` order; the file is written oldest
+    # first whichever side was queried, so a reader reads one timeline.
+    entries.sort(key=lambda pair: pair[0])
+    return [
+        f"{datetime.fromtimestamp(ns / 1e9, tz=UTC).isoformat(timespec='seconds')}  {text}"
+        for ns, text in entries
+    ]
+
+
+def loki_logs(
+    container: str,
+    start: datetime,
+    end: datetime,
+    onset: datetime | None = None,
+) -> str:
     """Best effort. Log collection must never invalidate an otherwise good rehearsal.
 
     When it fails it has to fail legibly: the file records the selector that was tried and
     the label values that exist, so the next person fixes it in one step instead of
     rediscovering Loki's label space by hand.
+
+    With `onset`, the capture is two parts: the newest `LOG_LINES_BEFORE_ONSET` lines before
+    it and the oldest `LOG_LINES_FROM_ONSET` from it. Without, the whole window's first
+    `LOG_LINES_BEFORE_ONSET + LOG_LINES_FROM_ONSET` lines, as every bundle before the split was
+    captured.
     """
     source = discover_log_source(container)
     header = [f"# target container: {container}", *source.notes]
@@ -695,35 +753,52 @@ def loki_logs(container: str, start: datetime, end: datetime, limit: int = 500) 
         return with_values("no selector matched - nothing captured")
 
     header.append(f"# selector: {source.selector}")
+    total = LOG_LINES_BEFORE_ONSET + LOG_LINES_FROM_ONSET
     try:
-        payload = get_json(
-            LOKI,
-            "/loki/api/v1/query_range",
-            {
-                "query": source.selector,
-                "start": str(int(start.timestamp() * 1e9)),
-                "end": str(int(end.timestamp() * 1e9)),
-                "limit": str(limit),
-                "direction": "forward",
-            },
-        )
+        if onset is None or not start < onset < end:
+            before: list[str] = []
+            after = _loki_lines(source.selector, start, end, total, "forward")
+            split = None
+        else:
+            before = _loki_lines(source.selector, start, onset, LOG_LINES_BEFORE_ONSET, "backward")
+            after = _loki_lines(source.selector, onset, end, LOG_LINES_FROM_ONSET, "forward")
+            split = onset
     except NETWORK_ERRORS as exc:
         return "\n".join([*header, f"# query failed: {exc}", "# collect these by hand"]) + "\n"
 
-    data = payload.get("data")
-    streams = data.get("result", []) if isinstance(data, dict) else []
-    lines: list[str] = []
-    for stream in streams:
-        if not isinstance(stream, dict):
-            continue
-        for entry in stream.get("values", []):
-            if isinstance(entry, list) and len(entry) == 2:
-                moment = datetime.fromtimestamp(int(entry[0]) / 1e9, tz=UTC)
-                lines.append(f"{moment.isoformat(timespec='seconds')}  {entry[1]}")
-
+    lines = before + after
     if not lines:
         return with_values("selector is valid but matched no lines in this window")
-    return "\n".join([*header, f"# {len(lines)} lines", "", *lines]) + "\n"
+    if split is None:
+        capped = " (limit reached: later lines were not captured)" if len(after) >= total else ""
+        return "\n".join([*header, f"# {len(lines)} lines{capped}", "", *lines]) + "\n"
+
+    at = split.isoformat(timespec="seconds")
+    before_note = f"# before onset ({at}): {len(before)} lines, the newest kept" + (
+        " (limit reached: earlier lines were not captured)"
+        if len(before) >= LOG_LINES_BEFORE_ONSET
+        else ""
+    )
+    after_note = f"# from onset: {len(after)} lines, the oldest kept" + (
+        " (limit reached: later lines were not captured)"
+        if len(after) >= LOG_LINES_FROM_ONSET
+        else ""
+    )
+    return (
+        "\n".join(
+            [
+                *header,
+                f"# {len(lines)} lines",
+                before_note,
+                after_note,
+                "",
+                *before,
+                f"# ---- onset {at} ----",
+                *after,
+            ]
+        )
+        + "\n"
+    )
 
 
 def find_scenario(scenario_id: str) -> Scenario:
@@ -1306,7 +1381,7 @@ def _rehearse_locked(
         print(f"  captured {name}")
 
     container = container_for(scenario.injection.target)
-    captured_logs = loki_logs(container, window_start, window_end)
+    captured_logs = loki_logs(container, window_start, window_end, onset=t_inject)
     print(f"  captured logs for {container}")
 
     facts: dict[str, Any] = {
