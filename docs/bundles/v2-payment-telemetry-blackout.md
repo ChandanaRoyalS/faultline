@@ -1,17 +1,80 @@
----
-origin: scenario:v2-payment-telemetry-blackout
-split: dev
-fault_class: bad_config
-recorded_from: 2026-09-25T00:13:04+00:00
-capability: cap:d2b243e0
-onset_to_page: 7m49s
-page_to_fix: 5m00s
-fix_to_all_clear: 50s
----
-
 # Payment service healthy, serving, and invisible in the traffic metric
 
-## What was observed
+## The scenario
+
+| | |
+|---|---|
+| scenario | `v2-payment-telemetry-blackout` |
+| fault class | **`bad_config`** |
+| expected remediation | `config_revert` |
+| split | `dev` |
+| injected at | `payment` via `v2-payment-telemetry-blackout` |
+| time to page | 7m49s |
+| steady state captured | 300s |
+| capture window | 2026-09-25T00:08:04+00:00 → 2026-09-25T00:28:43+00:00 |
+
+The clock below runs from the moment the fault went in.
+
+| | |
+|---|---|
+| `t_inject` | T+0m00s |
+| first alert firing | T+7m49s |
+| `t_revert` | T+12m49s |
+| all clear | T+13m39s |
+
+## What fired, and when
+
+| when | service | alert | firing for | |
+|---|---|---|---:|---|
+| T+7m30s | `payment` | ServiceNoTraffic | 6.0 min | **paged** |
+
+## What the bundle contains
+
+| capture | query |
+|---|---|
+| `metrics/alerts-firing.json` | `ALERTS{alertstate="firing"}` |
+| `metrics/call-rate.json` | `sum by(service_name) (rate(traces_span_metrics_calls_total[5m]))` |
+| `metrics/error-ratio.json` | `sum by(service_name) (rate(traces_span_metrics_calls_total{status_code="STATUS_CODE_ERROR"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total[5m]))` |
+| `metrics/latency-p95.json` | `histogram_quantile(0.95, sum by(service_name, le) (rate(traces_span_metrics_duration_milliseconds_bucket{span_kind!="SPAN_KIND_INTERNAL"}[5m])))` |
+| `metrics/runtime.json` | `{__name__=~"go_.*|dotnet_.*|jvm_.*|process_.*|v8js_.*|nodejs_.*",service_name="payment"}` |
+
+`logs/payment.txt` — 509 lines.
+
+## A look at the logs
+
+From `logs/payment.txt` (---- onset 2026-09-25T00:13:04+00:00 ----):
+
+```
+2026-09-25T00:12:49+00:00      cardType: 'visa',
+2026-09-25T00:12:49+00:00      lastFourDigits: '8031',
+2026-09-25T00:12:49+00:00      amount: {
+2026-09-25T00:12:49+00:00        units: { low: 742, high: 0, unsigned: false },
+2026-09-25T00:12:49+00:00        nanos: 349226003,
+2026-09-25T00:12:49+00:00        currencyCode: 'CAD'
+2026-09-25T00:12:49+00:00      },
+2026-09-25T00:12:49+00:00      loyalty_level: 'silver'
+2026-09-25T00:12:49+00:00    }
+2026-09-25T00:12:49+00:00  }
+2026-09-25T00:12:54+00:00  {
+2026-09-25T00:12:54+00:00    resource: {
+```
+
+_488 further lines are in the bundle._
+
+## The incident record
+
+Written from the responder's chair, by someone who did not know the fault class
+or that anything had been injected. This text is also corpus material, which is
+why it never names the injector.
+
+**It keeps its own clock.** The table above is measured from the injection, which
+is the only origin the manifest records; a narrative's `T+` offsets are the
+responder's own and start wherever that responder started counting — usually the
+page, sometimes the injection, sometimes an event in the logs. The same moment can
+therefore carry two different offsets on this page. The absolute timestamps in the
+bundle are the tiebreak.
+
+### What was observed
 
 The page was one alert, `ServiceNoTraffic` on **payment**, 7m49s after the trouble started.
 Nothing else fired then and nothing fired afterwards: no error-rate alert and no latency
@@ -26,7 +89,7 @@ it has been paid for, kept receiving orders.
 That is the contradiction the page sets up. Payment was apparently receiving no requests,
 while every order in the system went through it and came out paid.
 
-## What was checked
+### What was checked
 
 **Whether payment was down.** It was not. Its runtime series (Node's event-loop delay and
 utilisation, V8's garbage collections, 75 series in all) reported without a gap through the
@@ -58,7 +121,7 @@ its tracing was not reaching anyone.
 payment`. That is where payment sends its spans. Its metrics go through a separate setting,
 which had not changed, and that is why its runtime series kept arriving.
 
-## Root cause
+### Root cause
 
 Payment's trace exporter was pointed at an address with nothing listening on it, so the service
 stopped shipping spans. Nothing about the service itself changed. It kept accepting and
@@ -66,7 +129,7 @@ completing charges, kept logging them, and kept exporting its metrics. The traff
 alert watches is built from those spans, so it went to zero and the alert fired on a service
 that was working. The fault was in the telemetry path, not in the service.
 
-## Resolution
+### Resolution
 
 The trace endpoint was set back to the collector and payment was recreated with it. Its spans
 started arriving again, and the alert cleared 50 seconds after the fix. No order had failed, so
@@ -75,7 +138,7 @@ there was nothing to replay or reconcile.
 Class of fix: **config_revert**. One setting was wrong and it was set back. Nothing was deployed
 and nothing needed restarting for its own sake.
 
-## Detection notes
+### Detection notes
 
 - Onset to first page: **7m49s**, most of it the traffic series draining and the alert's
   three-minute hold. Services on the page: **one**. By the fix: **one**.
@@ -92,3 +155,7 @@ and nothing needed restarting for its own sake.
 - **What separates this from a service that is really gone:** a dead or frozen payment would
   stop its runtime series and its log, and its callers would fail or hang. This one kept all
   three going. Only its own spans stopped.
+
+---
+
+Rendered from [`evals/scenarios/artifacts/dev/v2-payment-telemetry-blackout/`](../../evals/scenarios/artifacts/dev/v2-payment-telemetry-blackout/) by `faultline-render`. [All bundles](README.md).

@@ -1,6 +1,6 @@
 # The bundles, rendered
 
-Every recorded rehearsal in this repository as a readable page — 18 in all: **15 runnable** (12 dev, 3 holdout) and **3 that could not fire** (3 dev).
+Every recorded rehearsal in this repository as a readable page — 19 in all: **16 runnable** (13 dev, 3 holdout) and **3 that could not fire** (3 dev).
 
 A bundle is what one rehearsal left behind — the manifest, the Prometheus captures,
 a slice of one service's logs, the exact queries, and the narrative a responder wrote
@@ -37,6 +37,7 @@ benchmark** — see [RESULTS.md](../RESULTS.md).
 | [`shipping-wrong-image`](shipping-wrong-image.md) | `bad_deploy` | Shipping service deployed with another service's image — 8 alerts over the window |
 | [`v2-accounting-bad-credential`](v2-accounting-bad-credential.md) | `bad_config` | Accounting's database password rotated to one the database does not accept — 1 alerts over the window |
 | [`v2-cart-valkey-misconfig`](v2-cart-valkey-misconfig.md) | `bad_config` | **⚠ nothing fired** — the fault could not bind |
+| [`v2-payment-telemetry-blackout`](v2-payment-telemetry-blackout.md) | `bad_config` | Payment service healthy, serving, and invisible in the traffic metric — 1 alerts over the window |
 | [`v2-product-catalog-freeze`](v2-product-catalog-freeze.md) | `process_freeze` | The product catalog process is frozen - its socket accepts and nothing answers — 18 alerts over the window |
 
 ## Holdout split
