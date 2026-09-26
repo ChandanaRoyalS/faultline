@@ -86,6 +86,45 @@ def test_a_dirty_baseline_aborts_before_anything_is_injected(
     assert not list(tmp_path.iterdir()), "an aborted rehearsal must leave no partial bundle"
 
 
+def test_an_interrupted_recording_reverts_its_fault(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Q103: a Ctrl-C in the alert wait left a payment fault live for 11m52s.
+
+    Whatever stops the recording between `start` and `stop`, the fault comes back off before
+    the interruption propagates, and no partial bundle is written.
+    """
+    calls: list[tuple[str, ...]] = []
+
+    def fake_injector(*args: str) -> str:
+        calls.append(args)
+        if args == ("list",):
+            return "currency-cpu-throttle\n"
+        return "no active injections\n"
+
+    def interrupted(*_: object) -> tuple[None, list[str]]:
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(rehearse, "injector", fake_injector)
+    monkeypatch.setattr(rehearse, "firing_alerts", list)
+    monkeypatch.setattr(rehearse, "ARTIFACT_ROOT", tmp_path)
+    monkeypatch.setattr(rehearse, "container_memory_usage", lambda: [("kafka", 5.0, "ok")])
+    monkeypatch.setattr(rehearse, "orphaned_image_references", list)
+    monkeypatch.setattr(rehearse, "container_uptimes", lambda: [("kafka", 9999)])
+    monkeypatch.setattr(rehearse, "wait_until", interrupted)
+
+    with pytest.raises(KeyboardInterrupt):
+        rehearse.rehearse(
+            "currency-cpu-throttle", dwell=1, alert_timeout=1, force=True, baseline_timeout=1
+        )
+
+    assert ("start", "currency-cpu-throttle") in calls
+    assert calls[-1] == ("stop", "currency-cpu-throttle"), (
+        f"the fault was left live after the interruption: {calls}"
+    )
+    assert not list(tmp_path.iterdir()), "an interrupted recording must leave no partial bundle"
+
+
 def test_alert_evolution_marks_what_paged_and_what_came_later() -> None:
     """The narrative has to show growth; a flat list understates the blast radius."""
     facts = {

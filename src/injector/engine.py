@@ -133,6 +133,21 @@ class Engine:
         if injection is None:
             return StopResult(fault_id=fault_id, was_active=False, changes=["not active"])
 
+        if injection.definition.world != self.settings.world:
+            # **A fault is reverted on the world it was started on** (Q103, 2026-09-25). A v2
+            # payment fault, stopped from a shell without FAULTLINE_TOOLS_WORLD=v2, was "reverted"
+            # through v1's compose files (`no such service: payment`). Refuse before touching
+            # anything, and keep the state entry so the right world can finish the job.
+            return StopResult(
+                fault_id=fault_id,
+                was_active=True,
+                error=(
+                    f"{fault_id} was started on world {injection.definition.world!r} and the "
+                    f"injector is on {self.settings.world!r}; set "
+                    f"FAULTLINE_TOOLS_WORLD={injection.definition.world} and stop it again"
+                ),
+            )
+
         handler = self._handler_for(injection.definition)
         try:
             changes = handler.restore(injection.restore)

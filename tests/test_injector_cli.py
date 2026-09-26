@@ -120,6 +120,38 @@ def test_stop_reverts_and_clears_the_state(
     assert make_engine(settings, runner).active() == {}
 
 
+def test_stop_refuses_a_fault_started_on_another_world(
+    settings: InjectorSettings,
+    runner: FakeRunner,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Q103: a v2 fault stopped from a v1 shell was recreated through v1's compose files.
+
+    The revert must happen on the world the fault was started on, or not at all - and a refused
+    stop keeps the state entry, so the right world can finish the job.
+    """
+    main(["start", "recommendation-memory-squeeze"], engine=make_engine(settings, runner))
+    runner.calls.clear()
+    capsys.readouterr()
+
+    monkeypatch.setenv("FAULTLINE_TOOLS_WORLD", "v2")
+    elsewhere = InjectorSettings(
+        world_dir=tmp_path / "world-v2",
+        state_dir=settings.state_dir,
+        ffs_stub_context=settings.ffs_stub_context,
+    )
+    assert elsewhere.world == "v2"
+
+    code = main(["stop", "recommendation-memory-squeeze"], engine=make_engine(elsewhere, runner))
+
+    assert code != 0
+    assert "FAULTLINE_TOOLS_WORLD=v1" in capsys.readouterr().err
+    assert runner.calls == [], "nothing may be touched on the wrong world"
+    assert "recommendation-memory-squeeze" in make_engine(elsewhere, runner).active()
+
+
 def test_stopping_an_inactive_fault_is_a_successful_no_op(
     settings: InjectorSettings, runner: FakeRunner, capsys: pytest.CaptureFixture[str]
 ) -> None:
