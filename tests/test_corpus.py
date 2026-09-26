@@ -44,6 +44,7 @@ OTHER_WORLD_NARRATIVES = [
     "v2-shipping-quote-misconfig",
     "v2-frontend-cart-misconfig",
     "v2-product-catalog-flag-failure",
+    "v2-cart-flag-failure",
 ]
 OTHER_WORLD_INVALID = ["v2-cart-valkey-misconfig"]
 """v2 dev bundles marked INVALID: recorded, blocked, and skipped for that reason before their

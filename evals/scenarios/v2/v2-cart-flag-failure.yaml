@@ -26,33 +26,36 @@ ground_truth:
     off fixes it.
   category: feature_flag
 expected_evidence:
-  # A new design: nothing here is measured yet. Written before the first recording and checked
-  # against the bundle, as every v2 scenario's list has been, and corrected there. The shares are
-  # measured at rest (2026-09-26): EmptyCart is 0.133 of cart's 1.28 server spans a second.
-  - alerts: not predicted as a shape. Cart's own error ratio is bounded by EmptyCart's small share
-      of its spans and may stay under the line; checkout's client span to EmptyCart is about one in
-      thirteen of its spans, so checkout may page on errors; a failing call that waits on connect
-      retries may page latency instead. No page at all blocks the scenario
-  - metrics: cart's error ratio rises on EmptyCart alone, while AddItem and GetCart stay clean;
-      checkout's orders keep completing - payment, email and accounting keep their traffic
-  - logs: cart's log (116 to 174 lines a minute at rest) carries each EmptyCart call and the bad
-      store's failure to connect, naming the host it tried
-  - traces: cart's EmptyCart server span errors with its status message (Can't access cart
-      storage), with no store call beneath it; checkout's EmptyCart client span errors under a
-      PlaceOrder that does not
-  - metrics: cart's .NET runtime series (36, by service_name) report through the fault - the
-      process is up
+  # Written before the first recording and checked against it (2026-09-26, t_inject 20:17:03,
+  # revert at +10:45). The page's shape was not predicted; it paged, so by the candidate list's
+  # rule it is a scenario. Cart and checkout never restarted (probe every 20 s).
+  - alerts: ServiceHighErrorRate on checkout alone (page 5m45s), and nothing else during the fault
+      or after the fix; cart, where the flag acts, stays under the line (4.5% at most)
+  - metrics: checkout's error ratio holds at 7-8% while its orders complete - payment, email and
+      accounting keep their traffic, and frontend, frontend-proxy and load-generator stay at zero
+      errors; checkout's p95 rises from ~30ms to 110-160ms (no latency alert), frontend's from ~38ms
+      to ~60ms
+  - logs: cart logs each EmptyCartAsync call, then within a second `Wasn't able to connect to
+      redis` and the gRPC server's FailedPrecondition, 4 to 12 a minute, one per EmptyCart and none
+      outside the fault; its AddItemAsync and GetCartAsync lines continue at their usual rate
+  - traces: checkout's orders complete with one failing call, oteldemo.CartService/EmptyCart, under
+      a PlaceOrder that does not error, taking from ~60ms to 5.1s; cart's EmptyCart span carries
+      `Can't access cart storage` with only a flagd ResolveBoolean beneath it and no store call,
+      while GetCart in the same traces runs its HGET in about a millisecond
+  - metrics: cart's .NET runtime series (39) report through the fault without a gap - the process
+      is up
   - change: nothing recorded - no deploy, no configuration change, no restart; flagd reloads its
       own file and leaves no change record
-  - discriminator: cart fails one operation and serves the others, and its store is healthy for
-      them - the failing path uses a different store address the cart holds only for EmptyCart,
-      behind a feature flag; nothing in change history, so the flag's value is the change
+  - discriminator: the log says the cart cannot reach its store, and the store is healthy - cart
+      reads and writes it for every other operation in the same minute; the one failing operation
+      makes a flag lookup and never reaches the store, and nothing is in change history, so the
+      flag's value is the change
 expected_remediation_class: config_revert
-rehearsed: false
+rehearsed: true
 alert_timeout_seconds: 900
 # Declared before recording, checked against the bundle after (T7.5). Measured on the running
-# world 2026-09-26, as the candidate list asks: Prometheus holds 36 .NET runtime series for cart
-# (24 families, dotnet_*), and its Loki stream logged 116 to 174 lines a minute at rest, 5 to 9 of
-# them EmptyCartAsync calls. If the bundle's capture says otherwise, the declaration is corrected
-# against it, not argued with.
+# world 2026-09-26, as the candidate list asks: Prometheus held 36 .NET runtime series for cart
+# (24 families, dotnet_*), and its Loki stream logged 116 to 174 lines a minute at rest. The first
+# recording confirmed both classes: 39 runtime series and 500 target log lines, and the recorder
+# derived [runtime, logs].
 answers_idle_or_absent: [runtime, logs]

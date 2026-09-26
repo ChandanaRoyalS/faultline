@@ -4617,6 +4617,31 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-09-26: the ninth v2 scenario, `v2-cart-flag-failure`, rehearsed and labeled - slot
+`v2/feature_flag-2` (dev), first recording.***
+
+- **The design.** New: flagd's `cartFailure` set to `on`. Read at source before authoring, it is
+  narrower than the candidate list's "errors on the cart write path": only `EmptyCart` switches to a
+  store on `badhost:1234`, and checkout ignores `EmptyCart`'s error. The page's shape was not
+  predicted; the rule was written first: any page is a scenario, no page blocks it.
+- **What the recording showed.**
+  - The page is `ServiceHighErrorRate` on checkout alone, at 5m45s, and nothing else fires. All
+    clear 2m01s after the fix.
+  - Checkout holds 7-8% errors while every order completes: payment, email and accounting keep
+    their traffic and the storefront sees no errors. Its p95 rises to 110-160ms (no latency
+    alert), because each order waits on the failing call, up to 5.1 s.
+  - Cart, where the flag acts, stays under the line at 4.5%.
+  - Cart's log says `Wasn't able to connect to redis` once per `EmptyCart`, while its `AddItem` and
+    `GetCart` use the same store normally. The failing span shows a flag lookup and no store call.
+  - No restarts on cart or checkout; memory peaks 66% and 44%.
+- **Distinct from `v2/feature_flag-1` on (a).** There the edge paged (frontend, frontend-proxy)
+  with the culprit under the line; here the orchestrator pages alone, on a call it does not act on,
+  with the storefront clean.
+- **How it was recorded.** On AC power, grafana restarted and settled first, under `caffeinate`
+  with the pre-state guard. The host did not sleep.
+- **Next in the row:** `v2-fraud-detection-flag-queue-lag` (`kafkaQueueProblems`) for
+  `v2/feature_flag-3`.
+
 ***2026-09-26: the eighth v2 scenario, `v2-product-catalog-flag-failure`, rehearsed and labeled -
 slot `v2/feature_flag-1` (dev), first recording. The `feature_flag` row opens.***
 

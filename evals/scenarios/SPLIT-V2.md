@@ -126,3 +126,4 @@ scenarios are authored, one line per slot, and never rewritten.
 | `v2/bad_config-5` | holdout | `v2-accounting-kafka-misconfig` | 2026-09-26, first recording. Value `kafka:9094`, not the candidate list's `kafka:9093` (v2 Kafka's controller listener), decided before recording (`t7.1-candidates.md`) |
 | `v2/bad_config-6` | holdout | `v2-checkout-currency-misconfig` | 2026-09-26, first recording. Distinct from `v2-shipping-quote-misconfig` on (a), the comparator and prediction named before recording (`t7.1-candidates.md`) |
 | `v2/feature_flag-1` | dev | `v2-product-catalog-flag-failure` | 2026-09-26, first recording; reproduced A1's page (the culprit under the line) |
+| `v2/feature_flag-2` | dev | `v2-cart-flag-failure` | 2026-09-26, first recording; checkout pages while its orders complete |

@@ -720,6 +720,11 @@ NARRATIVE_EVIDENCE_V2: dict[str, set[str]] = {
     # own GetProduct span carries its status message beside the page's successful lookups;
     # runtime shows the catalog up; change history answers "nothing" - the load-bearing negative.
     "v2-product-catalog-flag-failure": {"metrics", "runtime_metrics", "logs", "traces", "changes"},
+    # The caller pages on a call it ignores. Metrics carry checkout's errors beside orders that
+    # complete; the traces put them on EmptyCart, whose cart span makes a flag lookup and no store
+    # call; cart's log says it cannot reach the store while its other operations use it; runtime
+    # shows cart up; change history answers "nothing".
+    "v2-cart-flag-failure": {"metrics", "runtime_metrics", "logs", "traces", "changes"},
     # Holdout. The page names the culprit and reads as down. Metrics carry its rate going to zero
     # and everyone else's holding; runtime shows it alive; its log names the address and the
     # refused connection, and fraud-detection's shows the topic still read; traces show none of

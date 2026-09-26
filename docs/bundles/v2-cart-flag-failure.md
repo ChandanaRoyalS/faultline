@@ -1,17 +1,80 @@
----
-origin: scenario:v2-cart-flag-failure
-split: dev
-fault_class: feature_flag
-recorded_from: 2026-09-26T20:17:03+00:00
-capability: cap:d2b243e0
-onset_to_page: 5m45s
-page_to_fix: 5m00s
-fix_to_all_clear: 2m01s
----
-
 # A feature flag makes the cart fail to empty after an order
 
-## What was observed
+## The scenario
+
+| | |
+|---|---|
+| scenario | `v2-cart-flag-failure` |
+| fault class | **`feature_flag`** |
+| expected remediation | `config_revert` |
+| split | `dev` |
+| injected at | `cart` via `v2-cart-flag-failure` |
+| time to page | 5m45s |
+| steady state captured | 300s |
+| capture window | 2026-09-26T20:12:03+00:00 → 2026-09-26T20:31:49+00:00 |
+
+The clock below runs from the moment the fault went in.
+
+| | |
+|---|---|
+| `t_inject` | T+0m00s |
+| first alert firing | T+5m45s |
+| `t_revert` | T+10m45s |
+| all clear | T+12m46s |
+
+## What fired, and when
+
+| when | service | alert | firing for | |
+|---|---|---|---:|---|
+| T+5m30s | `checkout` | ServiceHighErrorRate | 7.0 min | **paged** |
+
+## What the bundle contains
+
+| capture | query |
+|---|---|
+| `metrics/alerts-firing.json` | `ALERTS{alertstate="firing"}` |
+| `metrics/call-rate.json` | `sum by(service_name) (rate(traces_span_metrics_calls_total[5m]))` |
+| `metrics/error-ratio.json` | `sum by(service_name) (rate(traces_span_metrics_calls_total{status_code="STATUS_CODE_ERROR"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total[5m]))` |
+| `metrics/latency-p95.json` | `histogram_quantile(0.95, sum by(service_name, le) (rate(traces_span_metrics_duration_milliseconds_bucket{span_kind!="SPAN_KIND_INTERNAL"}[5m])))` |
+| `metrics/runtime.json` | `{__name__=~"go_.*|dotnet_.*|jvm_.*|process_.*|v8js_.*|nodejs_.*",service_name="cart"}` |
+
+`logs/cart.txt` — 509 lines.
+
+## A look at the logs
+
+From `logs/cart.txt` (---- onset 2026-09-26T20:17:03+00:00 ----):
+
+```
+2026-09-26T20:16:11+00:00  info: cart.cartstore.ValkeyCartStore[0]
+2026-09-26T20:16:11+00:00        AddItemAsync called with userId=1ddee8f4-b9e7-11f1-b5af-ea5dfb8fa78a, productId=HQTGWGPNH4, quantity=1
+2026-09-26T20:16:11+00:00  info: cart.cartstore.ValkeyCartStore[0]
+2026-09-26T20:16:11+00:00        GetCartAsync called with userId=1ddee8f4-b9e7-11f1-b5af-ea5dfb8fa78a
+2026-09-26T20:16:11+00:00  info: cart.cartstore.ValkeyCartStore[0]
+2026-09-26T20:16:11+00:00        GetCartAsync called with userId=1ddee8f4-b9e7-11f1-b5af-ea5dfb8fa78a
+2026-09-26T20:16:11+00:00  info: cart.cartstore.ValkeyCartStore[0]
+2026-09-26T20:16:11+00:00        EmptyCartAsync called with userId=1ddee8f4-b9e7-11f1-b5af-ea5dfb8fa78a
+2026-09-26T20:16:12+00:00  info: cart.cartstore.ValkeyCartStore[0]
+2026-09-26T20:16:12+00:00        AddItemAsync called with userId=1e83423c-b9e7-11f1-b5af-ea5dfb8fa78a, productId=2ZYFJ3GM2N, quantity=1
+2026-09-26T20:16:12+00:00  info: cart.cartstore.ValkeyCartStore[0]
+2026-09-26T20:16:12+00:00        GetCartAsync called with userId=1e83423c-b9e7-11f1-b5af-ea5dfb8fa78a
+```
+
+_488 further lines are in the bundle._
+
+## The incident record
+
+Written from the responder's chair, by someone who did not know the fault class
+or that anything had been injected. This text is also corpus material, which is
+why it never names the injector.
+
+**It keeps its own clock.** The table above is measured from the injection, which
+is the only origin the manifest records; a narrative's `T+` offsets are the
+responder's own and start wherever that responder started counting — usually the
+page, sometimes the injection, sometimes an event in the logs. The same moment can
+therefore carry two different offsets on this page. The absolute timestamps in the
+bundle are the tiebreak.
+
+### What was observed
 
 The page was one alert, `ServiceHighErrorRate` on **checkout**, 5m45s after the trouble started.
 Nothing else fired, then or later, and nothing fired after the fix.
@@ -26,7 +89,7 @@ normal rate.
 That is the puzzle on the page: checkout erroring on 7-8% of its spans while every order it was
 asked to place went through.
 
-## What was checked
+### What was checked
 
 **Checkout's error traces, to see which of its calls failed.** Every order completed: the cart
 read, the product lookups, the currency conversions, the shipping quote, the payment and the
@@ -68,7 +131,7 @@ slightly.
 restart. The one thing in the failing span besides the error is the feature-flag lookup made just
 before it, on the only operation that failed.
 
-## Root cause
+### Root cause
 
 The `cartFailure` feature flag was turned on in the flag service. With it on, cart's `EmptyCart`
 switches to a second store configured with an address that does not exist, tries to connect, and
@@ -78,7 +141,7 @@ completed, each one slowed by the failing call and each customer's cart left ful
 Checkout paged on the errors of a call it does not act on. Nothing was deployed or reconfigured,
 and the cart's store was healthy. The fault was the flag's value.
 
-## Resolution
+### Resolution
 
 The flag was turned back off. The flag service picks up the change on its own, so nothing was
 restarted or redeployed. `EmptyCart` went back to the real store and succeeded at once, and the
@@ -87,7 +150,7 @@ fired during recovery.
 
 Class of fix: **config_revert**. One setting was wrong and it was set back.
 
-## Detection notes
+### Detection notes
 
 - Onset to first page: **5m45s**. Services on the page: **one**, checkout, which was not at fault.
   By the fix: **one**.
@@ -105,3 +168,7 @@ Class of fix: **config_revert**. One setting was wrong and it was set back.
 - **Look at what the failing span did instead.** It made a feature-flag lookup and never reached the
   store. With nothing in change history, a flag evaluated on exactly the failing path is the change
   to look at.
+
+---
+
+Rendered from [`evals/scenarios/artifacts/dev/v2-cart-flag-failure/`](../../evals/scenarios/artifacts/dev/v2-cart-flag-failure/) by `faultline-render`. [All bundles](README.md).
