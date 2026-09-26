@@ -38,7 +38,7 @@ benchmark** — see [RESULTS.md](../RESULTS.md).
 | [`v2-accounting-bad-credential`](v2-accounting-bad-credential.md) | `bad_config` | Accounting's database password rotated to one the database does not accept — 1 alerts over the window |
 | [`v2-cart-valkey-misconfig`](v2-cart-valkey-misconfig.md) | `bad_config` | **⚠ nothing fired** — the fault could not bind |
 | [`v2-payment-telemetry-blackout`](v2-payment-telemetry-blackout.md) | `bad_config` | Payment service healthy, serving, and invisible in the traffic metric — 1 alerts over the window |
-| [`v2-product-catalog-freeze`](v2-product-catalog-freeze.md) | `process_freeze` | The product catalog process is frozen - its socket accepts and nothing answers — 18 alerts over the window |
+| [`v2-product-catalog-freeze`](v2-product-catalog-freeze.md) | `process_freeze` | The product catalog process is frozen - its socket accepts and nothing answers — 20 alerts over the window |
 
 ## Holdout split
 

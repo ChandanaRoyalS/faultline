@@ -4617,6 +4617,53 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-09-26: the three v2 bundles re-recorded on a world whose trace search works, and their
+narratives rewritten from the new captures - Q101, Q102 and Q104 landed together.***
+
+- **Why they were re-recorded.** Reading back `v2-shipping-quote-misconfig` found Tempo's search
+  blind to traces 3-15 minutes old (Q102), which is the band a live investigation asks about.
+  Fixing it moved `observability_digest`, so every v2 bundle had to be recorded again.
+  - The fix's first acceptance was too short. It missed a second defect: from an hour after
+    boot, a failed blocklist poll left Tempo searching no stored blocks, about half the time
+    (Q104).
+  - A config-only candidate on 2.4.2 failed its acceptance. It rested on reading a setting from
+    Tempo's current source instead of the running version's.
+  - Tempo 2.6.1 passed on the pre-stated test. A first run was voided because the Mac slept.
+  - Q101 (product-catalog 20M to 100M) moved `compose_digest` in the same re-record.
+  - The intermediate recordings made on the Q102-only world are in each bundle's `superseded/`,
+    beside the originals.
+- **The batch.**
+  - Recorded back to back under `caffeinate`, on AC power, with a pre-state guard (silent list
+    `none`, quote's clock `current`) before each recording. The host sleep check at the end came
+    back empty.
+  - The pre-flight needed two routine recycles first: quote (Q98, lagging after the host's
+    earlier sleep) and load-generator (98.8% of 5000M, the documented growth).
+  - Grafana, at 92.3% of 175M, was restarted before an earlier attempt. It is not in the
+    evidence path.
+- **What moved in the stories.**
+  - **Freeze.** It pages at 5m01s with four alerts: the callers' error and latency together.
+    Nine services go quiet, and the call into the catalog is held open up to 588.3 s.
+    The recovery is new: at the resume the woken backlog exhausts Postgres's connection slots
+    (157 refusals, `too many clients already`). The catalog answers `Product Not Found` for
+    products that exist, and six recovery-only alerts fire.
+    Postgres did not restart. At 80M it was OOM-killed on the same burst (Q96), and at 256M the
+    burst meets the connection limit instead. The narrative now separates the recovery's errors
+    from the fault's.
+  - **Accounting.** It pages at 3m46s. The error ratio holds at exactly 0.3333. The
+    whole-incident log read's ends are now the restart banner and the bottom of a `28P01` trace.
+    The earlier claim that both ends were healthy described its own recording's window and is
+    not repeated. A `libgssapi_krb5` line before the first failure is named as the driver's
+    fallback, not the cause.
+  - **Payment.** It pages at 8m20s. Checkout's error ratio is zero throughout this time, and
+    charges run 4-11 a minute through the fault against 6-13 before it.
+- **Found on the way, and queued.**
+  - Q103: the recorder has no `finally`, so an interrupted run left a payment fault live for
+    11m52s. `faultline-inject stop` reverted it against v1's compose until the world was named.
+  - The observation in Q104: after a host sleep, some SDKs stamp spans in minutes the VM was
+    suspended.
+- **`v2-shipping-quote-misconfig`** has two superseded recordings on older worlds. It is rebased
+  onto this world, recorded once more, and labeled next.
+
 ***2026-09-25: the third v2 scenario, `v2-payment-telemetry-blackout`, rehearsed and labeled -
 slot `v2/bad_config-2` (dev), first recording.***
 

@@ -24,20 +24,21 @@ ground_truth:
   category: bad_config
 expected_evidence:
   # From v1's payment-telemetry-blackout (dev-only, T7.36), checked against this scenario's bundle
-  # (recorded 2026-09-25, revert at +12:49) and read-backs of its window. Dev-only evidence.
+  # as re-recorded 2026-09-26 on Tempo 2.6.1 (Q102, Q104; revert at +13:20; two earlier
+  # recordings in superseded/) and read-backs of its window. Dev-only evidence.
   - alerts: ServiceNoTraffic on payment and nothing else, during the fault or after the fix; no
-      error-rate or latency alert anywhere (bundle +7:49, v1 +5:19), the traffic series reaching
-      zero at ~+4:30 and the alert's 3m hold after it
+      error-rate or latency alert anywhere (bundle page 8m20s, v1 +5:19), the traffic series
+      reaching zero at ~+5:00 and the alert's 3m hold after it
   - metrics: checkout's error ratio stays at zero and its rate and latency, frontend's, and those
       of email, accounting and fraud-detection (which only see paid orders) do not move
   - logs: payment keeps logging its charges throughout - `Charge request received.` and
-      `Transaction complete.`, 4-13 a minute through the fault against 6-12 before it (Loki
+      `Transaction complete.`, 4-11 a minute through the fault against 6-13 before it (Loki
       count_over_time); each record is a ~40-line structured object, so the bundle's split capture
       holds the first minute after onset, including `payment gRPC server started`
   - metrics: payment's own runtime series (Node's nodejs_eventloop_* and v8js_gc_*, 75 series by
       service_name) report without a gap through the fault, because only the traces endpoint moved
   - traces: every checkout trace in the window has a `checkout/oteldemo.PaymentService/Charge` span
-      of 1-2 ms, not an error, with its whole duration as self-time and no payment span beneath
+      of 2-3 ms, not an error, with its whole duration as self-time and no payment span beneath
       it; payment's own traces for the window return nothing
   - change: OTEL_EXPORTER_OTLP_TRACES_ENDPOINT on payment changed to a dead address, coinciding
       with onset - the only class that names the change itself
