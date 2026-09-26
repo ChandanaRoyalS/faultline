@@ -30,31 +30,36 @@ ground_truth:
     Kafka is not at fault; the fault is the broker address accounting holds.
   category: bad_config
 expected_evidence:
-  # A new design: nothing here is measured yet. Written before the first recording and checked
-  # against the bundle, as every v2 scenario's list has been, and corrected there.
-  - alerts: ServiceNoTraffic on accounting alone, once its request rate has drained and the
-      alert's hold has passed; no error-rate or latency alert anywhere, because nothing calls
-      accounting and nothing upstream waits on it
-  - metrics: accounting's request rate falls to zero and its error ratio and latency have no
-      values; checkout's rate and fraud-detection's rate hold
-  - logs: accounting's per-order lines stop; its Kafka client logs refused connections to
-      kafka:9094 (at rest it logs 4 to 26 lines a minute, 2026-09-26)
-  - traces: accounting has no spans in the fault window; checkout's orders publish to Kafka
-      without error and fraud-detection's consume spans continue
-  - metrics: accounting's .NET runtime series (42, by service_name) report through the fault -
-      the process is up
-  - change: KAFKA_ADDR on accounting changed to a port with nothing listening, coinciding with
-      onset; change history asked of kafka returns nothing
+  # Written before the first recording and checked against it (2026-09-26, t_inject 06:42:40,
+  # revert at +12:47). The design held; the items gained the recording's numbers. The probe during
+  # the fault saw one container, restarts 0 - no crashloop (T7.56).
+  - alerts: ServiceNoTraffic on accounting alone (page 7m47s); no error-rate or latency alert
+      anywhere, during the fault or after the fix, because nothing calls accounting and nothing
+      upstream waits on it
+  - metrics: accounting's request rate falls from ~0.4/s to zero by ~+5:00 and its error ratio and
+      latency have no values from then; checkout's error ratio stays zero and every other service
+      keeps its traffic
+  - logs: accounting's `Order details` lines (6 to 11 a minute) stop; its Kafka client logs
+      `1/1 brokers are down` ~1,160 times a minute with `kafka:9094` in the thread name, and at the
+      start `Connecting to Kafka` and `Connection refused` for 172.18.0.2:9094; after the fix it
+      logs 116 orders in a minute, the backlog
+  - traces: accounting has no spans in the fault window; checkout's orders complete end to end
+      without error; after the fix accounting's order-consumed spans resume with their database
+      writes
+  - metrics: accounting's .NET runtime series (42) report through the fault without a gap - the
+      process is up
+  - change: KAFKA_ADDR on accounting changed to kafka:9094, coinciding with onset; nothing changed
+      on kafka, checkout or fraud-detection
   - discriminator: a silent service that is alive and has no caller to fail; the broker is healthy,
-      because the other consumer of the same topic keeps reading it, so the fault is the address
-      accounting holds for it - unlike a telemetry blackout, its own log shows it doing no work
+      because fraud-detection keeps reading the same topic (3 to 15 orders a minute, per its log),
+      so the fault is the address accounting holds for it - its own log shows it trying and doing
+      no work; the orders are delayed, not lost (group lag zero after the catch-up)
 expected_remediation_class: config_revert
-rehearsed: false
+rehearsed: true
 alert_timeout_seconds: 900
 # Declared before recording, checked against the bundle after (T7.5). Measured on the running
 # world 2026-09-26, as the candidate list asks: Prometheus holds 42 .NET runtime series for
 # accounting (24 families, dotnet_*), and its Loki stream logged 4 to 26 lines a minute at rest
-# over 15 minutes. The fault should leave the process running and logging its failed broker
-# connections. If the bundle's capture says otherwise, the declaration is corrected against it,
-# not argued with.
+# over 15 minutes. The first recording confirmed both: 42 runtime series and 484 target log lines,
+# and the recorder derived [runtime, logs].
 answers_idle_or_absent: [runtime, logs]

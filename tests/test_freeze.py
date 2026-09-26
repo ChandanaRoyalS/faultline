@@ -158,12 +158,15 @@ def test_the_corpus_item_reports_holdout_chunks_as_a_number() -> None:
 
 def test_holdout_origins_are_read_from_the_committed_bundles() -> None:
     """Derived from what is on disk, so a new holdout scenario is covered without anyone
-    remembering to add it to a list."""
+    remembering to add it to a list. The list here is pinned so that a new holdout bundle is a
+    visible change: v2's first, `v2-accounting-kafka-misconfig` (T7.1, 2026-09-26), joined the
+    contamination count by landing on disk, and this list with it."""
     origins = freeze.holdout_origins()
     assert origins == [
         "scenario:email-wrong-image",
         "scenario:productcatalog-dependency-latency",
         "scenario:recommendation-memory-squeeze",
+        "scenario:v2-accounting-kafka-misconfig",
     ]
 
 

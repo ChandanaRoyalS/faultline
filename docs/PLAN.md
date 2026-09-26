@@ -4617,6 +4617,42 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-09-26: the sixth v2 scenario and the first v2 holdout, `v2-accounting-kafka-misconfig`,
+rehearsed and labeled - slot `v2/bad_config-5` (holdout), first recording.***
+
+- **The design.** The candidate list's row 5: accounting's `KAFKA_ADDR` points at a port on the
+  Kafka host where nothing listens. **The value is `kafka:9094`, not the list's `kafka:9093`.**
+  That value was carried from v1, and on v2 9093 is Kafka's own KRaft controller listener (`nc -z`
+  open; 9094 closed). Decided before authoring and written in the candidate list.
+- **T7.56's rule, checked live.** v1's accounting exited on an unreachable broker and crashlooped.
+  v2's is .NET, subscribes without connecting and blocks in `Consume()`. A probe sampled the
+  container every 20s through the fault: one container, restarts 0. No crashloop, so the design
+  stands in `bad_config`.
+- **What the recording showed.**
+  - The page is `ServiceNoTraffic` on accounting alone, at 7m47s. Nothing else fired, during the
+    fault or after the fix. All clear 1m01s after the fix.
+  - Accounting's rate falls to zero by about five minutes, and its error ratio and latency have
+    no values. Its 42 .NET runtime series report without a gap.
+  - Its log floods with `1/1 brokers are down`, about 1,160 lines a minute, each carrying
+    `kafka:9094` in the thread name. `Connecting to Kafka: kafka:9094` and `Connection refused`
+    are at the start. Its per-order lines stop.
+  - Fraud-detection keeps reading the same topic throughout, and checkout's orders complete.
+- **The recovery.** Accounting resumed from its committed offset: 116 orders in the first minute
+  after the fix, the same as fraud-detection read during the fault and that minute, and lag zero
+  afterwards. The orders were delayed, not lost.
+- **Distinct from the row's blackout.** Both page `ServiceNoTraffic` on a live service. Payment's
+  callers kept succeeding and it logged its charges; accounting has no callers, and its log shows
+  it doing no work.
+- **Holdout.** The bundle is under `artifacts/holdout/` and stays out of the corpus. The narrative
+  is in the v2 acceptance table, as v1's holdout narratives are in v1's, and not in the corpus
+  test's list of dev narratives. The rendered page is for people (`docs/bundles/README.md`).
+  Landing on disk put it into the freeze's holdout-origin list, which the corpus's contamination
+  count reads (it must stay 0); `test_freeze.py`'s pinned copy of that list gains it.
+- **How it was recorded.** On AC power, which the recording function now enforces, under
+  `caffeinate` with the pre-state guard. The host did not sleep.
+- **Five of `bad_config`'s six slots are filled.** Row 6, `v2-checkout-currency-misconfig`, is
+  next.
+
 ***2026-09-26: the fifth v2 scenario, `v2-frontend-cart-misconfig`, rehearsed and labeled -
 slot `v2/bad_config-4` (dev), first recording.***
 
