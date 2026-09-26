@@ -1,0 +1,65 @@
+# v2/feature_flag-1 (dev) - see SPLIT-V2.md. Slot allocated before authoring; do not move.
+# Candidate order and eligibility: docs/design/t7.1-candidates.md, feature_flag row 1 (dev-only:
+# A1 and R1 are published). The injector definition is the rehearsal set's (T7.0 #5): flagd's
+# productCatalogFailure set to "on" in the bind-mounted demo.flagd.json, which flagd reloads.
+# The injector rewrites that file with two-space JSON, which drops one blank line the demo ships
+# with; the running world's clone has carried that one-line difference since A1/R1 (git -C world-v2
+# diff, 2026-09-26), so the rewrite is now byte-identical. Nothing digests the file.
+id: v2-product-catalog-flag-failure
+title: A feature flag makes the product catalog fail one product
+fault_class: feature_flag
+split: dev
+slot: v2/feature_flag-1
+world: v2
+injection:
+  target: product-catalog
+  method: v2-product-catalog-flag-failure
+  params:
+    flag: "productCatalogFailure"
+    variant: "on"
+ground_truth:
+  root_cause: >
+    The productCatalogFailure feature flag was switched on in the flag service. The product
+    catalog checks it on every GetProduct for one product, OLJCESPC7Z, and fails that product
+    when it is on, so every page and order that includes it fails while every other product is
+    served normally. Nothing was deployed or reconfigured and no change record exists; the
+    catalog is behaving exactly as written. The fault is the flag's value, and turning it off
+    fixes it.
+  category: feature_flag
+expected_evidence:
+  # From A1 (by hand, 2026-09-22) and R1 (through the injector, 2026-09-24), dev-only evidence.
+  # Written before the first recording and checked against the bundle, as every v2 scenario's
+  # list has been, and corrected there.
+  - alerts: ServiceHighErrorRate on the callers - frontend-proxy first, then frontend, about five
+      and a half to six minutes in (A1 +5:37 and +6:07, R1 +5:31 and +6:01); product-catalog
+      itself may cross the line briefly (R1 5.64%) or stay under it (A1 4.63%), because one failing
+      product is diluted across everything it serves; no latency alert anywhere
+  - metrics: product-catalog's error ratio rises to a partial, flat few percent; frontend and
+      frontend-proxy hold higher (~7-9%), because one failing product fails the whole page;
+      checkout's rises a little from orders that contain the product; p95 unchanged everywhere -
+      the failures are fast
+  - logs: product-catalog has no Loki stream (24h, 2026-09-26) and logs nothing under the flag
+      (A1); the frontend's log carries the flag's words within seconds, a 13 INTERNAL error reading
+      `Product Catalog Fail Feature Flag Enabled`, and later checkout's `failed to get product`
+      for product OLJCESPC7Z (R1)
+  - traces: failing traces end at product-catalog's own GetProduct server span, in error in about
+      0.1ms, and its status message names the flag (printed since Q94); the trace tool names it as
+      the degrading hop; every failing GetProduct is for the same product id, and the others
+      succeed
+  - metrics: product-catalog's Go runtime series (9, by service_name) report through the fault -
+      the process is up and not strained
+  - change: nothing recorded - no deploy, no configuration change, no restart; flagd reloads its
+      own file and leaves no change record
+  - discriminator: nothing changed that change history can see, and the culprit's own error names
+      a feature flag; one product fails and every other succeeds, which is a data-dependent branch,
+      not an overloaded or broken service - the fix is the flag, not a rollback or a restart
+expected_remediation_class: config_revert
+rehearsed: false
+alert_timeout_seconds: 900
+# Declared before recording, checked against the bundle after (T7.5). Measured on the running
+# world 2026-09-26, as the candidate list asks: Prometheus holds 9 Go runtime series for
+# product-catalog (8 families, go_*), and Loki has no product-catalog stream in 24 hours (the
+# freeze bundle's capture found 0 target log lines the same day). Runtime is the one class that
+# can say whether the catalog was idle or absent. If the bundle's capture says otherwise, the
+# declaration is corrected against it, not argued with.
+answers_idle_or_absent: [runtime]
