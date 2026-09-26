@@ -447,6 +447,25 @@ def test_the_v2_old_mechanism_definitions_carry_v2_values_not_v1s() -> None:
     assert v2_old["v2-cart-bad-image-tag"].params["expect_start"] == "no"
 
 
+def test_the_v2_flag_definitions_name_the_demo_flag_and_the_service_that_reads_it() -> None:
+    """T7.1: a v2 flag definition flips one of the demo's own flagd flags, and its target is the
+    service whose code reads that flag - the culprit a scenario is scored against, not flagd.
+    Pinned per definition, read at source (product-catalog `checkProductFailure`, cart
+    `CartService.EmptyCart`)."""
+    flags = {
+        f.id: (f.target, dict(f.params))
+        for f in CATALOG
+        if f.world == "v2" and f.fault_class is FaultClass.FEATURE_FLAG
+    }
+    assert flags == {
+        "v2-product-catalog-flag-failure": (
+            "product-catalog",
+            {"flag": "productCatalogFailure", "variant": "on"},
+        ),
+        "v2-cart-flag-failure": ("cart", {"flag": "cartFailure", "variant": "on"}),
+    }
+
+
 def test_bad_image_tag_stops_the_service_before_pointing_it_at_the_missing_tag(
     settings: InjectorSettings,
 ) -> None:

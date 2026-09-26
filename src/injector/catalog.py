@@ -482,6 +482,24 @@ CATALOG: tuple[FaultDefinition, ...] = _validated(
             params={"flag": "productCatalogFailure", "variant": "on"},
         ),
         FaultDefinition(
+            id="v2-cart-flag-failure",
+            fault_class=FaultClass.FEATURE_FLAG,
+            target="cart",
+            world="v2",
+            description=(
+                "Flip flagd's cartFailure to on. Cart's EmptyCart switches to a store at a host "
+                "that does not exist and fails; AddItem and GetCart keep the real store. Checkout "
+                "empties the cart after an order is paid and ignores the failure, so orders "
+                "complete. A new design (T7.1's feature_flag row 2)."
+            ),
+            # Read at source (world-v2/src/cart, 2026-09-26): CartService.EmptyCart checks the
+            # flag and uses a second ValkeyCartStore built on "badhost:1234", which tries to
+            # connect on every call, under a lock, with ConnectRetry 30; checkout's PlaceOrder
+            # discards EmptyCart's error (`_ = cs.emptyUserCart`). How long each failing call
+            # takes is unmeasured, and is what the rehearsal measures.
+            params={"flag": "cartFailure", "variant": "on"},
+        ),
+        FaultDefinition(
             id="v2-product-catalog-freeze",
             fault_class=FaultClass.PROCESS_FREEZE,
             target="product-catalog",

@@ -1,0 +1,58 @@
+# v2/feature_flag-2 (dev) - see SPLIT-V2.md. Slot allocated before authoring; do not move.
+# Candidate order and eligibility: docs/design/t7.1-candidates.md, feature_flag row 2 - a new
+# design. Read at source before authoring: the flag breaks only EmptyCart, and checkout ignores
+# that error, so the page's shape is unmeasured; the candidate list records the reading and the
+# rule (a page of any shape is a scenario, no page blocks it) before recording.
+id: v2-cart-flag-failure
+title: A feature flag makes the cart fail to empty after an order
+fault_class: feature_flag
+split: dev
+slot: v2/feature_flag-2
+world: v2
+injection:
+  target: cart
+  method: v2-cart-flag-failure
+  params:
+    flag: "cartFailure"
+    variant: "on"
+ground_truth:
+  root_cause: >
+    The cartFailure feature flag was switched on in the flag service. With it on, the cart
+    service's EmptyCart uses a store at a host that does not exist and fails, while adding to and
+    reading carts keep using the real store and keep working. Checkout empties the customer's cart
+    after an order is paid and shipped, and ignores that call's failure, so orders complete and the
+    customers' carts are left full. Nothing was deployed or reconfigured and no change record
+    exists; the cart is behaving exactly as written. The fault is the flag's value, and turning it
+    off fixes it.
+  category: feature_flag
+expected_evidence:
+  # A new design: nothing here is measured yet. Written before the first recording and checked
+  # against the bundle, as every v2 scenario's list has been, and corrected there. The shares are
+  # measured at rest (2026-09-26): EmptyCart is 0.133 of cart's 1.28 server spans a second.
+  - alerts: not predicted as a shape. Cart's own error ratio is bounded by EmptyCart's small share
+      of its spans and may stay under the line; checkout's client span to EmptyCart is about one in
+      thirteen of its spans, so checkout may page on errors; a failing call that waits on connect
+      retries may page latency instead. No page at all blocks the scenario
+  - metrics: cart's error ratio rises on EmptyCart alone, while AddItem and GetCart stay clean;
+      checkout's orders keep completing - payment, email and accounting keep their traffic
+  - logs: cart's log (116 to 174 lines a minute at rest) carries each EmptyCart call and the bad
+      store's failure to connect, naming the host it tried
+  - traces: cart's EmptyCart server span errors with its status message (Can't access cart
+      storage), with no store call beneath it; checkout's EmptyCart client span errors under a
+      PlaceOrder that does not
+  - metrics: cart's .NET runtime series (36, by service_name) report through the fault - the
+      process is up
+  - change: nothing recorded - no deploy, no configuration change, no restart; flagd reloads its
+      own file and leaves no change record
+  - discriminator: cart fails one operation and serves the others, and its store is healthy for
+      them - the failing path uses a different store address the cart holds only for EmptyCart,
+      behind a feature flag; nothing in change history, so the flag's value is the change
+expected_remediation_class: config_revert
+rehearsed: false
+alert_timeout_seconds: 900
+# Declared before recording, checked against the bundle after (T7.5). Measured on the running
+# world 2026-09-26, as the candidate list asks: Prometheus holds 36 .NET runtime series for cart
+# (24 families, dotnet_*), and its Loki stream logged 116 to 174 lines a minute at rest, 5 to 9 of
+# them EmptyCartAsync calls. If the bundle's capture says otherwise, the declaration is corrected
+# against it, not argued with.
+answers_idle_or_absent: [runtime, logs]
