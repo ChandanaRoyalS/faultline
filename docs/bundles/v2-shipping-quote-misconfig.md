@@ -1,17 +1,68 @@
----
-origin: scenario:v2-shipping-quote-misconfig
-split: dev
-fault_class: bad_config
-recorded_from: 2026-09-26T05:34:41+00:00
-capability: cap:d2b243e0
-onset_to_page: 4m46s
-page_to_fix: 5m00s
-fix_to_all_clear: 5m02s
----
-
 # Shipping service pointed at a quote service that does not resolve
 
-## What was observed
+## The scenario
+
+| | |
+|---|---|
+| scenario | `v2-shipping-quote-misconfig` |
+| fault class | **`bad_config`** |
+| expected remediation | `config_revert` |
+| split | `dev` |
+| injected at | `shipping` via `v2-shipping-quote-misconfig` |
+| time to page | 4m46s |
+| steady state captured | 300s |
+| capture window | 2026-09-26T05:29:41+00:00 → 2026-09-26T05:51:29+00:00 |
+
+The clock below runs from the moment the fault went in.
+
+| | |
+|---|---|
+| `t_inject` | T+0m00s |
+| first alert firing | T+4m46s |
+| `t_revert` | T+9m46s |
+| all clear | T+14m48s |
+
+## What fired, and when
+
+| when | service | alert | firing for | |
+|---|---|---|---:|---|
+| T+4m30s | `checkout` | ServiceHighErrorRate | 9.0 min | **paged** |
+| T+4m30s | `shipping` | ServiceHighErrorRate | 10.0 min | **paged** |
+| T+7m30s | `accounting` | ServiceNoTraffic | 3.0 min | joined later |
+| T+7m30s | `email` | ServiceNoTraffic | 3.0 min | joined later |
+| T+7m30s | `fraud-detection` | ServiceHighErrorRate | 2.0 min | joined later |
+| T+7m30s | `payment` | ServiceNoTraffic | 3.0 min | joined later |
+| T+7m30s | `quote` | ServiceNoTraffic | 3.0 min | joined later |
+| T+8m30s | `fraud-detection` | ServiceHighLatency | 1.0 min | joined later |
+| T+9m30s | `frontend` | ServiceHighErrorRate | 2.0 min | joined later |
+| T+9m30s | `frontend-proxy` | ServiceHighErrorRate | 2.0 min | joined later |
+
+## What the bundle contains
+
+| capture | query |
+|---|---|
+| `metrics/alerts-firing.json` | `ALERTS{alertstate="firing"}` |
+| `metrics/call-rate.json` | `sum by(service_name) (rate(traces_span_metrics_calls_total[5m]))` |
+| `metrics/error-ratio.json` | `sum by(service_name) (rate(traces_span_metrics_calls_total{status_code="STATUS_CODE_ERROR"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total[5m]))` |
+| `metrics/latency-p95.json` | `histogram_quantile(0.95, sum by(service_name, le) (rate(traces_span_metrics_duration_milliseconds_bucket{span_kind!="SPAN_KIND_INTERNAL"}[5m])))` |
+| `metrics/runtime.json` | `{__name__=~"go_.*|dotnet_.*|jvm_.*|process_.*|v8js_.*|nodejs_.*",service_name="shipping"}` |
+
+`logs/shipping.txt` — 9 lines.
+
+## The incident record
+
+Written from the responder's chair, by someone who did not know the fault class
+or that anything had been injected. This text is also corpus material, which is
+why it never names the injector.
+
+**It keeps its own clock.** The table above is measured from the injection, which
+is the only origin the manifest records; a narrative's `T+` offsets are the
+responder's own and start wherever that responder started counting — usually the
+page, sometimes the injection, sometimes an event in the logs. The same moment can
+therefore carry two different offsets on this page. The absolute timestamps in the
+bundle are the tiebreak.
+
+### What was observed
 
 The page was two alerts in the same moment, `ServiceHighErrorRate` on **checkout** and on
 **shipping**, 4m46s after the trouble started. Checkout's error ratio had been zero. It rose from
@@ -25,7 +76,7 @@ few spans it still made. About five minutes after the page, frontend and fronten
 their error thresholds at 5-6%, carrying checkout's failures up to the storefront. The storefront
 itself browsed normally. Only orders were failing.
 
-## What was checked
+### What was checked
 
 **The error text, because it was the first thing a responder would read.** Frontend's log and
 checkout's error span both said the same thing: `shipping quote failure: failed POST to email
@@ -63,7 +114,7 @@ consequence, not three more failures.
 address the failing call was built from. Nothing had changed on checkout, on quote, or on any
 service that alerted apart from shipping.
 
-## Root cause
+### Root cause
 
 Shipping's `QUOTE_ADDR` was changed to a host that does not resolve. Shipping reads the address
 on every request, so it kept running and kept answering, and every quote request failed at the
@@ -73,7 +124,7 @@ calls to quote, checkout on its failed calls to shipping. Quote was healthy and 
 nothing reached it. No service's code was wrong. The fault was the address shipping held for
 quote.
 
-## Resolution
+### Resolution
 
 `QUOTE_ADDR` was set back to the quote service's address and shipping was recreated with it.
 Quote's requests resumed within a minute, orders completed again, and the error ratios drained
@@ -82,7 +133,7 @@ during recovery.
 
 Class of fix: **config_revert**. One setting was wrong and it was set back.
 
-## Detection notes
+### Detection notes
 
 - Onset to first page: **4m46s**. Services on the page: **two**, and one of them was the service
   that changed. By the fix: **ten alerts across nine services**.
@@ -100,3 +151,7 @@ Class of fix: **config_revert**. One setting was wrong and it was set back.
 - **When a target has no logs and no runtime series, its spans are the only evidence of it.**
   Shipping's reachability is `[]`: nothing the tools read can say whether it was idle or absent.
   This incident never needs to ask, because shipping's own spans show it running.
+
+---
+
+Rendered from [`evals/scenarios/artifacts/dev/v2-shipping-quote-misconfig/`](../../evals/scenarios/artifacts/dev/v2-shipping-quote-misconfig/) by `faultline-render`. [All bundles](README.md).

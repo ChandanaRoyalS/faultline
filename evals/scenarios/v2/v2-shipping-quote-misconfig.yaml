@@ -23,26 +23,31 @@ ground_truth:
     code is wrong and quote is not at fault; the fault is the address shipping holds for quote.
   category: bad_config
 expected_evidence:
-  # From v1's shipping-quote-misconfig (dev-only, T7.20/T7.22), adapted to v2's names. The first
-  # recording (2026-09-25, superseded) corrected three items before the re-record - the alerts, the
-  # logs and the discriminator; the rest are checked against the re-recorded bundle and corrected
-  # there. The cart row's lesson was checked too: shipping reads QUOTE_ADDR per request, and it
-  # stayed up (restarts 0).
-  - alerts: ServiceHighErrorRate on checkout and on shipping together, at the page; frontend and
-      frontend-proxy follow, and the services past the quote step go quiet (v1 paged checkout alone)
-  - metrics: checkout's error ratio rises and holds, while shipping stays up and serving; quote's
+  # From v1's shipping-quote-misconfig (dev-only, T7.20/T7.22), adapted to v2's names, and checked
+  # against this scenario's bundle as recorded 2026-09-26 on the final world (Tempo 2.6.1, the
+  # 100M catalog; revert at +9:46). Two earlier recordings on older worlds are in superseded/: the
+  # first corrected the ground truth and the declaration, the second was recorded before Q102/Q104.
+  # The cart row's lesson was checked: shipping reads QUOTE_ADDR per request, and it stayed up
+  # (restarts 0).
+  - alerts: ServiceHighErrorRate on checkout and on shipping together (page 4m46s); ServiceNoTraffic
+      on quote, payment, email and accounting about three minutes later, with fraud-detection
+      errors; frontend and frontend-proxy errors about five minutes after the page (v1 paged
+      checkout alone). Nothing fires during recovery
+  - metrics: checkout's error ratio rises to about a quarter and holds, and its latency falls
+      (failing orders finish fast); shipping's error ratio is 100% while it keeps serving; quote's
       request rate falls to zero, because the only service that calls it can no longer reach it
-  - logs: shipping's own log is not reachable on v2 (OTLP only, to a store no tool reads); quote's
-      log is, and whether it stops logging requests for the fault's length is checked at the
-      re-record
-  - traces: checkout's spans fail at the shipping quote step; the error text, now printed on an
-      error span, names what failed
+  - logs: shipping's and checkout's logs are not reachable on v2 (OTLP only, to a store no tool
+      reads); quote's log stops recording `POST /getquote` for the fault's length; frontend's log
+      carries checkout's error text
+  - traces: checkout's PlaceOrder error text calls the shipping quote failure a failed POST to the
+      email service (checkout's own mislabel); below it shipping's `POST quote-gone` client span
+      fails with `Name or service not known`, and the trace tool names it as the degrading hop
   - change: QUOTE_ADDR on shipping changed to an address that does not resolve, coinciding with
       onset; change history asked of checkout returns nothing
   - discriminator: shipping and checkout both page, but the service that went quiet (quote) is
       healthy and nothing changed on checkout - the fault is in the address shipping holds for quote
 expected_remediation_class: config_revert
-rehearsed: false
+rehearsed: true
 alert_timeout_seconds: 900
 # Declared before recording, checked against the bundle after (T7.5). **Corrected from [logs] to
 # [] against the first recording, not argued with** (2026-09-25; that recording is in the bundle's
