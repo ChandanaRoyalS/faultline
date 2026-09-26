@@ -1,0 +1,57 @@
+# v2/feature_flag-3 (dev) - see SPLIT-V2.md. Slot allocated before authoring; do not move.
+# Candidate order and eligibility: docs/design/t7.1-candidates.md, feature_flag row 3 - a new
+# design. Read at source before authoring: the flag slows the consumer and multiplies the
+# producer; the page's shape is not predicted beyond a possible latency page on fraud-detection,
+# and the candidate list records the reading and the rule (any page is a scenario, no page blocks
+# it) before recording.
+id: v2-fraud-detection-flag-queue-lag
+title: A feature flag floods the orders queue and slows its consumer
+fault_class: feature_flag
+split: dev
+slot: v2/feature_flag-3
+world: v2
+injection:
+  target: fraud-detection
+  method: v2-fraud-detection-flag-queue-lag
+  params:
+    flag: "kafkaQueueProblems"
+    variant: "on"
+ground_truth:
+  root_cause: >
+    The kafkaQueueProblems feature flag was switched on in the flag service. With it on,
+    fraud-detection sleeps a second before processing each order it reads from Kafka, and checkout
+    publishes every placed order a hundred extra times to the same topic. The consumer falls
+    further behind every second while orders keep being placed successfully. Kafka is healthy and
+    nothing was deployed or reconfigured; no change record exists. The fault is the flag's value,
+    and turning it off fixes it.
+  category: feature_flag
+expected_evidence:
+  # A new design: nothing here is measured yet. Written before the first recording and checked
+  # against the bundle, as every v2 scenario's list has been, and corrected there. Measured at
+  # rest (2026-09-26): fraud-detection's `orders receive` p95 98ms and `orders process` p95 1.9ms
+  # at 0.15/s each; the latency rule's line is 250ms.
+  - alerts: not predicted as a shape. If fraud-detection's per-record `orders process` span covers
+      the sleep, ServiceHighLatency on fraud-detection; no page at all blocks the scenario
+  - metrics: fraud-detection's consume rate is capped near one record a second while the topic
+      receives far more; accounting's consumer traffic multiplies with the duplicates; checkout's
+      orders keep completing
+  - logs: fraud-detection logs `FeatureFlag 'kafkaQueueProblems' is enabled, sleeping 1 second`
+      before each record, and its `Consumed record` counter climbs by one a second; accounting logs
+      each duplicate it refuses
+  - traces: fraud-detection's `orders process` spans last about a second each; checkout's publish
+      is followed by the overload it logs
+  - metrics: fraud-detection's JVM runtime series (51, by service_name) report through the fault -
+      the process is up
+  - change: nothing recorded - no deploy, no configuration change, no restart; flagd reloads its
+      own file and leaves no change record
+  - discriminator: nothing is failing and nothing changed in change history; a consumer that has
+      slowed to exactly one record a second and a topic receiving each order many times are the two
+      halves of one flag, named in both services' logs
+expected_remediation_class: config_revert
+rehearsed: false
+alert_timeout_seconds: 900
+# Declared before recording, checked against the bundle after (T7.5). Measured on the running
+# world 2026-09-26, as the candidate list asks: Prometheus holds 51 JVM runtime series for
+# fraud-detection (14 families), and its Loki stream logged 7 to 11 lines a minute at rest. If the
+# bundle's capture says otherwise, the declaration is corrected against it, not argued with.
+answers_idle_or_absent: [runtime, logs]

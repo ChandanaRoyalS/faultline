@@ -451,7 +451,7 @@ def test_the_v2_flag_definitions_name_the_demo_flag_and_the_service_that_reads_i
     """T7.1: a v2 flag definition flips one of the demo's own flagd flags, and its target is the
     service whose code reads that flag - the culprit a scenario is scored against, not flagd.
     Pinned per definition, read at source (product-catalog `checkProductFailure`, cart
-    `CartService.EmptyCart`)."""
+    `CartService.EmptyCart`, fraud-detection's consumer loop)."""
     flags = {
         f.id: (f.target, dict(f.params))
         for f in CATALOG
@@ -463,6 +463,10 @@ def test_the_v2_flag_definitions_name_the_demo_flag_and_the_service_that_reads_i
             {"flag": "productCatalogFailure", "variant": "on"},
         ),
         "v2-cart-flag-failure": ("cart", {"flag": "cartFailure", "variant": "on"}),
+        "v2-fraud-detection-flag-queue-lag": (
+            "fraud-detection",
+            {"flag": "kafkaQueueProblems", "variant": "on"},
+        ),
     }
 
 
