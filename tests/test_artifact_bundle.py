@@ -86,6 +86,11 @@ NO_RUNTIME_METRICS = frozenset(
         # capture was empty over the five healthy minutes before the fault too, so this is the
         # target, not the fault. The scenario declares `answers_idle_or_absent: []`.
         "v2-shipping-quote-misconfig",
+        # T7.1 (2026-09-26): v2's email is Ruby, and none of the v2 runtime families (nor `ruby_`)
+        # has a series for it - measured on the running world before authoring, and the capture
+        # was empty over the five healthy minutes before the fault too. The scenario declares
+        # `answers_idle_or_absent: [logs]`.
+        "v2-email-flag-memory-leak",
     }
 )
 """Bundles whose target exports no runtime metrics, so an empty `runtime.json` is the world

@@ -31,35 +31,37 @@ ground_truth:
     empty.
   category: feature_flag
 expected_evidence:
-  # A new design: nothing here is measured yet except what the candidate list records (email at
-  # 46-49 MiB of 100 MiB at rest, 2-11 emails a minute, about 1.9KB kept per email per unit of the
-  # multiplier, 11-17ms per email at 1000x). Written before the first recording and checked against
-  # the bundle, as every v2 scenario's list has been, and corrected there.
-  - alerts: not predicted as a shape. v2 has no memory rule, so a page can come only from email
-      dying. If most emails die mid-request, checkout's email call errors on most orders, about
-      5-6% of checkout's spans, near the line, so ServiceHighErrorRate on checkout is possible
-      and not certain; ServiceNoTraffic on email is possible if its spans stop. No page at all
-      blocks the scenario and the slot passes to the next reserve
-  - metrics: email's request rate falls and turns intermittent; checkout's error ratio rises while
-      its orders complete - payment, accounting and fraud-detection keep their traffic; the
-      frontend stays clean
-  - logs: email's log shows its server starting again and again, each start after a few `Order
-      confirmation email sent` lines, with nothing logged before the kill
-  - traces: checkout's HTTP POST to email errors under a PlaceOrder that does not error; email's own
-      spans appear only for emails that completed
-  - metrics: email has no runtime series; its container's restart count climbs and each exit is an
-      OOM kill (read by the recording, not by the tools)
+  # Written before the first recording and checked against it (2026-09-26, t_inject 23:30:38,
+  # revert at +9:16). The page was not predicted as a shape and the guess (errors on checkout) was
+  # wrong: it paged latency, so by the row's rule it is a scenario. Probe every 20 s.
+  - alerts: ServiceHighLatency on email alone (page 4m16s), then ServiceHighLatency on checkout
+      (+6:00) - two alerts by the fix and none after it; checkout's errors stay under the line
+      (1.6-3.6%) and no ServiceNoTraffic fires
+  - metrics: email's p95 from 20-36ms to 345ms at +1 and 870-960ms from +4, with no error spans at
+      all and its span rate falling from ~0.5 to ~0.22 a second; checkout's p95 from ~31ms to
+      550-590ms; payment, accounting and fraud-detection keep their rates - orders complete
+  - logs: email's request log shows each completed confirmation taking 0.28-0.97s (0.002-0.04s at
+      rest), and its server starting again - `== Sinatra (v4.2.1) has taken the stage` and Puma's
+      banner - 24 times in 9 minutes, 0 to 4 a minute, each after one or two confirmations, with
+      nothing logged before any of them; confirmations sent fall from 6-10 to 1-7 a minute
+  - traces: email's send_email span holds 280-670ms of self-time with only a fast template render
+      beneath it; checkout's HTTP POST to email errors with `EOF` after 100-480ms under a PlaceOrder
+      that does not error, the charge, cart, shipment and publication succeeding beside it
+  - metrics: email has no runtime series; read on the container (not by the tools), its memory
+      stood at 99.2-99.8% of 100M before each restart and its restart count went 0 to 24; the
+      runtime did not flag the exits as OOM kills
   - change: nothing recorded - no deploy, no configuration change, no limit change; flagd reloads
-      its own file and leaves no change record, and the kills are the runtime's, not a change
-  - discriminator: a service killed for memory over and over, with its limit unchanged and nothing
-      deployed, is growing on its own - the size of what it keeps per email, and nothing in change
-      history, point to a switch that changes its behaviour without a deploy
+      its own file and leaves no change record, and the restarts are the runtime's, not a change
+  - discriminator: a service that sat at half its unchanged limit for days now fills it within one
+      or two requests of the same traffic, each request costing a hundred times the time in its own
+      code, with nothing in change history - something changed what a request does without a
+      deploy, and on this world that is a feature flag
 expected_remediation_class: config_revert
-rehearsed: false
+rehearsed: true
 alert_timeout_seconds: 900
 # Declared before recording, checked against the bundle after (T7.5). Measured on the running
 # world 2026-09-26, as the candidate list asks: Prometheus held no runtime series for email (none
 # of go_, dotnet_, jvm_, process_, v8js_, nodejs_ or ruby_), and its Loki stream logged 4 to 22
-# lines a minute at rest. If the bundle's capture says otherwise, the declaration is corrected
-# against it, not argued with.
+# lines a minute at rest. The first recording confirmed it: 0 runtime series and 482 target log
+# lines, and the recorder derived [logs].
 answers_idle_or_absent: [logs]

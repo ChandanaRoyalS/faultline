@@ -4617,6 +4617,31 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-09-26: the thirteenth v2 scenario, `v2-email-flag-memory-leak`, rehearsed and labeled -
+slot `v2/feature_flag-6` (holdout), first recording, by the reserve. The `feature_flag` row is full.***
+
+- **Row 6 blocked on its verification (decided).** `recommendationCacheFailure`'s cache miss calls
+  `GetProduct(Empty)` - confirmed in the running image, `Empty` serialises to an empty id and the
+  catalog answers `NotFound` - so the cache never fills and nothing leaks. The row's purpose, memory
+  growth as `resource_exhaustion`'s look-alike, does not exist on this world, and what the flag does
+  instead sits beside the recorded dev ad and catalog flags (section 1). Blocked without a recording.
+- **The reserve (decided): `emailMemoryLeak`, variant `10000x`**, chosen once before authoring from
+  measurement (about 1.9KB kept per email per unit of the multiplier, email at half its 100M limit,
+  2 to 11 emails a minute), with the rule that no page blocks it and the variant is not re-tried.
+- **It paged, on latency - the shape was guessed wrong.** `ServiceHighLatency` on email at 4m16s,
+  then on checkout. Each email took 0.28-0.97s (0.002-0.04s at rest) and email restarted 24 times,
+  after every one or two emails, at 99%+ of its limit, logging nothing before each start. No error
+  span; checkout's email calls ended in `EOF`, under the line; orders completed. All clear 5m00s
+  after the fix, no restarts after it, memory back to rest within two minutes.
+- **Docker did not flag the kills as OOM** and kept no events for the window; the candidate list
+  records it for the `resource_exhaustion` row.
+- **Distinct in the row on (a).** Holdout: under `artifacts/holdout/`, pinned in
+  `tests/test_freeze.py`, in no corpus.
+- **How it was recorded.** On AC power, grafana restarted and settled first, under `caffeinate`
+  with the pre-state guard. The host did not sleep.
+- **`feature_flag` is full**: four dev, two holdout, rows 4 and 6 taken by reserves. Next in the
+  candidate list: `bad_deploy`.
+
 ***2026-09-26: the twelfth v2 scenario, `v2-payment-flag-unreachable`, rehearsed and labeled -
 slot `v2/feature_flag-5` (holdout), first recording. Its fix leaves a residue no gate saw.***
 
