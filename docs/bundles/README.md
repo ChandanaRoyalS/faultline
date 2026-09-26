@@ -1,6 +1,6 @@
 # The bundles, rendered
 
-Every recorded rehearsal in this repository as a readable page — 20 in all: **17 runnable** (14 dev, 3 holdout) and **3 that could not fire** (3 dev).
+Every recorded rehearsal in this repository as a readable page — 21 in all: **18 runnable** (15 dev, 3 holdout) and **3 that could not fire** (3 dev).
 
 A bundle is what one rehearsal left behind — the manifest, the Prometheus captures,
 a slice of one service's logs, the exact queries, and the narrative a responder wrote
@@ -37,6 +37,7 @@ benchmark** — see [RESULTS.md](../RESULTS.md).
 | [`shipping-wrong-image`](shipping-wrong-image.md) | `bad_deploy` | Shipping service deployed with another service's image — 8 alerts over the window |
 | [`v2-accounting-bad-credential`](v2-accounting-bad-credential.md) | `bad_config` | Accounting's database password rotated to one the database does not accept — 1 alerts over the window |
 | [`v2-cart-valkey-misconfig`](v2-cart-valkey-misconfig.md) | `bad_config` | **⚠ nothing fired** — the fault could not bind |
+| [`v2-frontend-cart-misconfig`](v2-frontend-cart-misconfig.md) | `bad_config` | Frontend pointed at a cart port where nothing listens — 10 alerts over the window |
 | [`v2-payment-telemetry-blackout`](v2-payment-telemetry-blackout.md) | `bad_config` | Payment service healthy, serving, and invisible in the traffic metric — 1 alerts over the window |
 | [`v2-product-catalog-freeze`](v2-product-catalog-freeze.md) | `process_freeze` | The product catalog process is frozen - its socket accepts and nothing answers — 20 alerts over the window |
 | [`v2-shipping-quote-misconfig`](v2-shipping-quote-misconfig.md) | `bad_config` | Shipping service pointed at a quote service that does not resolve — 10 alerts over the window |

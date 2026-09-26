@@ -4617,6 +4617,37 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-09-26: the fifth v2 scenario, `v2-frontend-cart-misconfig`, rehearsed and labeled -
+slot `v2/bad_config-4` (dev), first recording.***
+
+- **The design.** New, the row's second reserve: the frontend's `CART_ADDR` moves from `cart:7070`
+  to `cart:7071`, a port on the cart host where nothing listens. The first reserve,
+  `v2-fraud-detection-kafka-misconfig`, was passed over before anything was recorded, because it
+  shares holdout row 5's mechanism (§1; written in the candidate list).
+- **The risk it carried, settled.** The frontend reads `CART_ADDR` at runtime, so the change took
+  effect on the recreate, and it did not exit at startup (the cart row's lesson). It was ready in
+  70ms and logged the first refused call within a second. No restarts.
+- **What the recording showed.**
+  - The page is `ServiceHighErrorRate` on checkout, frontend and frontend-proxy together, at
+    3m31s. Frontend holds at ~27% errors with its latency and rate unchanged. Checkout holds at
+    exactly 0.5 while its latency falls.
+  - Cart never alerts. Its rate falls from ~4.2/s to ~0.33/s, never to zero, with no errors.
+  - Accounting, currency, email, payment and quote go quiet about seven minutes in. Nine alerts on
+    nine services by the fix. One, fraud-detection's, starts 44s after the fix, from a single
+    fifteen-second error span recorded during the fault.
+- **What the design did not predict: checkout pages, and its error points away.** The frontend
+  cannot fill carts, so checkout reads empty ones. It sends shipping a quote request with no
+  items, shipping answers 400, and checkout reports `shipping quote failure: failed POST to email
+  service: expected 200, got 400`. Checkout's trace has no product lookups in it, which is what
+  says the cart was empty. The frontend's `CartService/GetCart` span has nothing beneath it, and
+  its log names `ECONNREFUSED ...:7071`. `expected_evidence` was corrected against the recording.
+  The ground truth held, so the fingerprint did not move and nothing was re-recorded.
+- **Reachability.** `[runtime, logs]`, declared from the measured world and confirmed by the
+  recorder (75 runtime series, 400 target log lines).
+- **How it was recorded.** Under `caffeinate` with the pre-state guard. The host did not sleep, so
+  the run stands, but it was on battery a second time, against Q104's operating rule.
+- **Five v2 dev slots are now filled.** Next are the holdout rows, per the candidate list.
+
 ***2026-09-26: the fourth v2 scenario, `v2-shipping-quote-misconfig`, rehearsed and labeled -
 slot `v2/bad_config-3` (dev), third recording.***
 

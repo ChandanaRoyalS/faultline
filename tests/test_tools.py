@@ -709,6 +709,12 @@ NARRATIVE_EVIDENCE_V2: dict[str, set[str]] = {
     # span names the unresolvable host; the change record names the variable. The target itself
     # has no logs and no runtime series (reachability []), and the narrative does not need them.
     "v2-shipping-quote-misconfig": {"metrics", "logs", "traces", "changes"},
+    # The target pages beside checkout, whose error names shipping and email. Metrics carry the
+    # errors, checkout's exact one-half and cart's rate falling without errors; checkout's trace
+    # shows an empty cart and the frontend's cart span has nothing beneath it; the frontend's log
+    # names the refused port and cart's shows it serving; runtime shows the frontend up; the
+    # change record names the variable.
+    "v2-frontend-cart-misconfig": {"metrics", "runtime_metrics", "logs", "traces", "changes"},
 }
 """**v2's narratives, apart from v1's (T7.1).** `NARRATIVE_EVIDENCE` and the counts pinned on it
 are ADR-0019's claims about v1's investigations - *change history consulted in 11 of 11* - and

@@ -1,17 +1,89 @@
----
-origin: scenario:v2-frontend-cart-misconfig
-split: dev
-fault_class: bad_config
-recorded_from: 2026-09-26T06:12:49+00:00
-capability: cap:d2b243e0
-onset_to_page: 3m31s
-page_to_fix: 5m00s
-fix_to_all_clear: 4m02s
----
-
 # Frontend pointed at a cart port where nothing listens
 
-## What was observed
+## The scenario
+
+| | |
+|---|---|
+| scenario | `v2-frontend-cart-misconfig` |
+| fault class | **`bad_config`** |
+| expected remediation | `config_revert` |
+| split | `dev` |
+| injected at | `frontend` via `v2-frontend-cart-misconfig` |
+| time to page | 3m31s |
+| steady state captured | 300s |
+| capture window | 2026-09-26T06:07:49+00:00 → 2026-09-26T06:27:22+00:00 |
+
+The clock below runs from the moment the fault went in.
+
+| | |
+|---|---|
+| `t_inject` | T+0m00s |
+| first alert firing | T+3m31s |
+| `t_revert` | T+8m31s |
+| all clear | T+12m33s |
+
+## What fired, and when
+
+| when | service | alert | firing for | |
+|---|---|---|---:|---|
+| T+3m15s | `checkout` | ServiceHighErrorRate | 9.0 min | **paged** |
+| T+3m15s | `frontend` | ServiceHighErrorRate | 9.0 min | **paged** |
+| T+3m15s | `frontend-proxy` | ServiceHighErrorRate | 9.0 min | **paged** |
+| T+4m15s | `load-generator` | ServiceHighErrorRate | 7.0 min | joined later |
+| T+7m15s | `accounting` | ServiceNoTraffic | 2.0 min | joined later |
+| T+7m15s | `currency` | ServiceNoTraffic | 2.0 min | joined later |
+| T+7m15s | `email` | ServiceNoTraffic | 2.0 min | joined later |
+| T+7m15s | `payment` | ServiceNoTraffic | 2.0 min | joined later |
+| T+7m15s | `quote` | ServiceNoTraffic | 2.0 min | joined later |
+| T+9m15s | `fraud-detection` | ServiceHighErrorRate | 1.0 min | began after the revert |
+
+## What the bundle contains
+
+| capture | query |
+|---|---|
+| `metrics/alerts-firing.json` | `ALERTS{alertstate="firing"}` |
+| `metrics/call-rate.json` | `sum by(service_name) (rate(traces_span_metrics_calls_total[5m]))` |
+| `metrics/error-ratio.json` | `sum by(service_name) (rate(traces_span_metrics_calls_total{status_code="STATUS_CODE_ERROR"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total[5m]))` |
+| `metrics/latency-p95.json` | `histogram_quantile(0.95, sum by(service_name, le) (rate(traces_span_metrics_duration_milliseconds_bucket{span_kind!="SPAN_KIND_INTERNAL"}[5m])))` |
+| `metrics/runtime.json` | `{__name__=~"go_.*|dotnet_.*|jvm_.*|process_.*|v8js_.*|nodejs_.*",service_name="frontend"}` |
+
+`logs/frontend.txt` — 409 lines.
+
+## A look at the logs
+
+From `logs/frontend.txt` (---- onset 2026-09-26T06:12:49+00:00 ----):
+
+```
+2026-09-26T06:12:51+00:00  ▲ Next.js 16.1.1
+2026-09-26T06:12:51+00:00  - Local:         http://47564d80a64a:8080
+2026-09-26T06:12:51+00:00  - Network:       http://47564d80a64a:8080
+2026-09-26T06:12:51+00:00
+2026-09-26T06:12:51+00:00  ✓ Starting...
+2026-09-26T06:12:51+00:00  ✓ Ready in 70ms
+2026-09-26T06:12:51+00:00  Error: 14 UNAVAILABLE: No connection established. Last error: connect ECONNREFUSED 172.18.0.17:7071 (2026-09-26T06:12:51.919Z)
+2026-09-26T06:12:51+00:00      at <unknown> (.next/server/chunks/[root-of-the-server]__828d7226._.js:1:1971)
+2026-09-26T06:12:51+00:00      at new Promise (<anonymous>) {
+2026-09-26T06:12:51+00:00    code: 14,
+2026-09-26T06:12:51+00:00    details: 'No connection established. Last error: connect ECONNREFUSED 172.18.0.17:7071 (2026-09-26T06:12:51.919Z)',
+2026-09-26T06:12:51+00:00    metadata: [Metadata]
+```
+
+_388 further lines are in the bundle._
+
+## The incident record
+
+Written from the responder's chair, by someone who did not know the fault class
+or that anything had been injected. This text is also corpus material, which is
+why it never names the injector.
+
+**It keeps its own clock.** The table above is measured from the injection, which
+is the only origin the manifest records; a narrative's `T+` offsets are the
+responder's own and start wherever that responder started counting — usually the
+page, sometimes the injection, sometimes an event in the logs. The same moment can
+therefore carry two different offsets on this page. The absolute timestamps in the
+bundle are the tiebreak.
+
+### What was observed
 
 The page was three alerts in the same moment, `ServiceHighErrorRate` on **checkout**, on
 **frontend** and on **frontend-proxy**, 3m31s after the trouble started. Load-generator joined them
@@ -28,7 +100,7 @@ About seven minutes in, five services went quiet at once: `ServiceNoTraffic` on 
 currency, email, payment and quote. **Cart**, the service the storefront's failures would turn out
 to name, never alerted. Its error ratio stayed at zero and its latency did not move.
 
-## What was checked
+### What was checked
 
 **The error text, because it was the first thing a responder would read.** Checkout's error spans
 and the frontend's log said `shipping quote failure: failed POST to email service: expected 200,
@@ -82,7 +154,7 @@ silence was a consequence, not five more failures.
 the address the refused calls were going to. Nothing had changed on cart, on checkout or on
 shipping.
 
-## Root cause
+### Root cause
 
 The frontend's `CART_ADDR` was changed to a port on the cart host where nothing listens. The
 frontend came up normally and served its pages, and every cart call it made was refused at
@@ -92,7 +164,7 @@ sent shipping a quote request with no items, and failed each order on shipping's
 paged beside the frontend, with an error that names shipping and email. No service's code was
 wrong, and cart was not at fault. The fault was the address the frontend held for cart.
 
-## Resolution
+### Resolution
 
 `CART_ADDR` was set back to cart's address and the frontend was recreated with it. The refused
 calls stopped, carts filled again, orders completed, and the quiet services came back. The error
@@ -106,7 +178,7 @@ and a fifteen-second p95. The error search from the fix onwards found no errors 
 
 Class of fix: **config_revert**. One setting was wrong and it was set back.
 
-## Detection notes
+### Detection notes
 
 - Onset to first page: **3m31s**. Services on the page: **three**, and one of them was the service
   that changed. By the fix: **nine alerts across nine services**.
@@ -127,3 +199,7 @@ Class of fix: **config_revert**. One setting was wrong and it was set back.
   no server span beneath it, the call never arrived: look at the caller's address for it.
 - **An error ratio of exactly one half is a count, not a severity.** Two of the four spans in every
   order failed. Read as "half of orders fail", it undersells a total failure.
+
+---
+
+Rendered from [`evals/scenarios/artifacts/dev/v2-frontend-cart-misconfig/`](../../evals/scenarios/artifacts/dev/v2-frontend-cart-misconfig/) by `faultline-render`. [All bundles](README.md).
