@@ -4617,6 +4617,29 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-09-26: the eighth v2 scenario, `v2-product-catalog-flag-failure`, rehearsed and labeled -
+slot `v2/feature_flag-1` (dev), first recording. The `feature_flag` row opens.***
+
+- **The design.** A1/R1's, dev-only because both are published: flagd's `productCatalogFailure` set
+  to `on` in its bind-mounted file. The injector definition was already in the rehearsal set, so
+  only the scenario was authored.
+- **What the recording showed.** It reproduced A1's page, not R1's.
+  - The page is `ServiceHighErrorRate` on frontend and frontend-proxy together, at 6m00s, and
+    nothing else fires, during the fault or after the fix. All clear 3m01s after the fix.
+  - The catalog stays under the line at 4.64% at most (A1 4.63%, R1 5.64%), diluted by everything
+    else it serves; frontend holds at ~7-8% and frontend-proxy at ~8-9%. p95 unchanged everywhere.
+  - The frontend logs `Product Catalog Fail Feature Flag Enabled` seven seconds after onset.
+  - **R1's owed (d) read is collected.** `trace_query` shows the catalog's own `GetProduct` span in
+    error with the flag's status message, printed since Q94, and names it as the degrading hop; in
+    the same trace the page's other lookups succeed.
+  - Change history has nothing to show: the flag leaves no record, which is the class's (b).
+- **The world clone.** The injector's rewrite of `demo.flagd.json` was byte-identical to the file it
+  replaced; `world-v2` still differs from upstream by the one line A1/R1 left.
+- **How it was recorded.** On AC power, after the recording function refused on battery and the
+  pre-state guard refused on quote's clock (Q98; restarted, five minutes). Grafana restarted and
+  settled before the run and stayed on one container (57% to 75%). The host did not sleep.
+- **Next in the row:** `v2-cart-flag-failure` for `v2/feature_flag-2`, a new design.
+
 ***2026-09-26: the seventh v2 scenario and the second v2 holdout, `v2-checkout-currency-misconfig`,
 rehearsed and labeled - slot `v2/bad_config-6` (holdout), first recording. `bad_config` is full.***
 

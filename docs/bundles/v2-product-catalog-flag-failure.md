@@ -1,17 +1,60 @@
----
-origin: scenario:v2-product-catalog-flag-failure
-split: dev
-fault_class: feature_flag
-recorded_from: 2026-09-26T19:41:58+00:00
-capability: cap:d2b243e0
-onset_to_page: 6m00s
-page_to_fix: 5m00s
-fix_to_all_clear: 3m01s
----
-
 # A feature flag makes the product catalog fail one product
 
-## What was observed
+## The scenario
+
+| | |
+|---|---|
+| scenario | `v2-product-catalog-flag-failure` |
+| fault class | **`feature_flag`** |
+| expected remediation | `config_revert` |
+| split | `dev` |
+| injected at | `product-catalog` via `v2-product-catalog-flag-failure` |
+| time to page | 6m00s |
+| steady state captured | 300s |
+| capture window | 2026-09-26T19:36:58+00:00 → 2026-09-26T19:57:59+00:00 |
+
+The clock below runs from the moment the fault went in.
+
+| | |
+|---|---|
+| `t_inject` | T+0m00s |
+| first alert firing | T+6m00s |
+| `t_revert` | T+11m00s |
+| all clear | T+14m01s |
+
+## What fired, and when
+
+| when | service | alert | firing for | |
+|---|---|---|---:|---|
+| T+5m45s | `frontend` | ServiceHighErrorRate | 8.0 min | **paged** |
+| T+5m45s | `frontend-proxy` | ServiceHighErrorRate | 8.0 min | **paged** |
+
+## What the bundle contains
+
+| capture | query |
+|---|---|
+| `metrics/alerts-firing.json` | `ALERTS{alertstate="firing"}` |
+| `metrics/call-rate.json` | `sum by(service_name) (rate(traces_span_metrics_calls_total[5m]))` |
+| `metrics/error-ratio.json` | `sum by(service_name) (rate(traces_span_metrics_calls_total{status_code="STATUS_CODE_ERROR"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total[5m]))` |
+| `metrics/latency-p95.json` | `histogram_quantile(0.95, sum by(service_name, le) (rate(traces_span_metrics_duration_milliseconds_bucket{span_kind!="SPAN_KIND_INTERNAL"}[5m])))` |
+| `metrics/runtime.json` | `{__name__=~"go_.*|dotnet_.*|jvm_.*|process_.*|v8js_.*|nodejs_.*",service_name="product-catalog"}` |
+
+`logs/product-catalog.txt` — 9 lines.
+
+## The incident record
+
+Written from the responder's chair, by someone who did not know the fault class
+or that anything had been injected. This text is also corpus material, which is
+why it never names the injector.
+
+**It keeps its own clock.** The table above is measured from the injection, which
+is the only origin the manifest records; a narrative's `T+` offsets are the
+responder's own and start wherever that responder started counting — usually the
+page, sometimes the injection, sometimes an event in the logs. The same moment can
+therefore carry two different offsets on this page. The absolute timestamps in the
+bundle are the tiebreak.
+
+### What was observed
 
 The page was two alerts in the same moment, `ServiceHighErrorRate` on **frontend** and on
 **frontend-proxy**, 6m00s after the trouble started. Nothing else fired, then or later, and nothing
@@ -22,7 +65,7 @@ frontend and 8-9% for frontend-proxy. Load-generator, the synthetic shoppers, sa
 requests fail. Nothing got slower: no service's p95 moved, and request rates held. The storefront
 worked for most pages and most orders. Some failed quickly, over and over.
 
-## What was checked
+### What was checked
 
 **The page names the edge, not a cause.** Frontend-proxy only forwards what frontend returns, and
 frontend is the application the shoppers talk to. Both were reporting failures from somewhere
@@ -32,7 +75,7 @@ below them.
 began, the frontend logged `Error: 13 INTERNAL: Error: Product Catalog Fail Feature Flag Enabled`,
 and it kept logging it, 6 to 15 times a minute, until the fix. Now and then beside it, checkout's
 error for an order came up the same way: `failed to prepare order: failed to get product
-#"OLJCESPC7Z"`, one to five a minute. Both stopped with the fix.
+##"OLJCESPC7Z"`, one to five a minute. Both stopped with the fix.
 
 **The traces, to see who said it.** The failing traces ended at the product catalog.
 `frontend/grpc.oteldemo.ProductCatalogService/GetProduct` errored, and beneath it the catalog's own
@@ -61,7 +104,7 @@ restart, on the catalog or anywhere else. The error message is the change record
 feature flag is enabled, and a flag's value lives in the flag service, whose changes leave no
 record.
 
-## Root cause
+### Root cause
 
 The `productCatalogFailure` feature flag was turned on in the flag service. The product catalog
 checks it on every lookup of one product, OLJCESPC7Z, and refuses that product while it is on. Every
@@ -69,7 +112,7 @@ page and order that includes that product failed, fast, and every other product 
 normally. Nothing was deployed or reconfigured, and the catalog behaved exactly as it is written
 to. The fault was the flag's value.
 
-## Resolution
+### Resolution
 
 The flag was turned back off. The flag service picks up the change on its own, so nothing was
 restarted or redeployed. The refusals stopped at once, and the error ratios drained with their
@@ -78,7 +121,7 @@ five-minute windows. Everything was quiet 3m01s after the fix, and nothing fired
 Class of fix: **config_revert**. One setting was wrong and it was set back. Rolling back or
 restarting the catalog would have changed nothing: it was doing what the flag told it to.
 
-## Detection notes
+### Detection notes
 
 - Onset to first page: **6m00s**. Services on the page: **two**, neither of them the one with the
   failing span. By the fix: **two**.
@@ -97,3 +140,7 @@ restarting the catalog would have changed nothing: it was doing what the flag to
 - **An empty change history is not "nothing changed".** Feature flags change behaviour without a
   deploy and without a change record. When the error text names a flag, the flag's value is the
   change to look for.
+
+---
+
+Rendered from [`evals/scenarios/artifacts/dev/v2-product-catalog-flag-failure/`](../../evals/scenarios/artifacts/dev/v2-product-catalog-flag-failure/) by `faultline-render`. [All bundles](README.md).

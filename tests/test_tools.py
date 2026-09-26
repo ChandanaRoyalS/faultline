@@ -715,6 +715,11 @@ NARRATIVE_EVIDENCE_V2: dict[str, set[str]] = {
     # names the refused port and cart's shows it serving; runtime shows the frontend up; the
     # change record names the variable.
     "v2-frontend-cart-misconfig": {"metrics", "runtime_metrics", "logs", "traces", "changes"},
+    # The page names the edge; the culprit stays under the line. Metrics carry the flat partial
+    # ratios and the unchanged latency; the frontend's log carries the flag's words; the catalog's
+    # own GetProduct span carries its status message beside the page's successful lookups;
+    # runtime shows the catalog up; change history answers "nothing" - the load-bearing negative.
+    "v2-product-catalog-flag-failure": {"metrics", "runtime_metrics", "logs", "traces", "changes"},
     # Holdout. The page names the culprit and reads as down. Metrics carry its rate going to zero
     # and everyone else's holding; runtime shows it alive; its log names the address and the
     # refused connection, and fraud-detection's shows the topic still read; traces show none of
