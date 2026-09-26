@@ -640,6 +640,26 @@ CATALOG: tuple[FaultDefinition, ...] = _validated(
             params={"env_var": "KAFKA_ADDR", "value": "kafka:9094"},
         ),
         FaultDefinition(
+            id="v2-checkout-currency-misconfig",
+            fault_class=FaultClass.BAD_CONFIG,
+            target="checkout",
+            world="v2",
+            description=(
+                "Point checkout at a currency host that does not exist. The orchestrator itself is "
+                "misconfigured: every order fails at its first price conversion, before shipping "
+                "is asked for a quote, while currency stays healthy and goes idle. A new design "
+                "(v1's spare, never recorded; T7.1's holdout row 6)."
+            ),
+            # Live value `CURRENCY_ADDR=currency:7001` (docker inspect checkout, 2026-09-26). The
+            # host becomes `currencyservice`, v1's name for the service: a stale value of the
+            # kind a config carried across a rename leaves, which does not name the answer, and
+            # which does not resolve on v2 (getent from the kafka container: no answer; `currency`
+            # resolves). Checkout builds the client with grpc.NewClient, which does not connect at
+            # startup, so each Convert should fail rather than the container exit. Checked at
+            # rehearsal: a crashloop is bad_deploy's page and would block it.
+            params={"env_var": "CURRENCY_ADDR", "value": "currencyservice:7001"},
+        ),
+        FaultDefinition(
             id="v2-cart-valkey-misconfig",
             fault_class=FaultClass.BAD_CONFIG,
             target="cart",
