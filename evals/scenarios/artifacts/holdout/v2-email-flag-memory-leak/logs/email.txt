@@ -1,0 +1,490 @@
+# target container: email
+# loki labels: service, stream
+# selector: {service="email"}
+# 482 lines
+# before onset (2026-09-26T23:30:38+00:00): 82 lines, the newest kept
+# from onset: 400 lines, the oldest kept (limit reached: later lines were not captured)
+
+2026-09-26T23:25:46+00:00  Order confirmation email sent to: reed@example.com
+2026-09-26T23:25:46+00:00  172.18.0.9 - - [26/Sep/2026:23:25:46 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0064
+2026-09-26T23:25:54+00:00  Order confirmation email sent to: tobias@example.com
+2026-09-26T23:25:54+00:00  172.18.0.9 - - [26/Sep/2026:23:25:54 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0036
+2026-09-26T23:26:04+00:00  Order confirmation email sent to: tobias@example.com
+2026-09-26T23:26:04+00:00  172.18.0.9 - - [26/Sep/2026:23:26:04 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0085
+2026-09-26T23:26:24+00:00  Order confirmation email sent to: tobias@example.com
+2026-09-26T23:26:24+00:00  172.18.0.9 - - [26/Sep/2026:23:26:24 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0128
+2026-09-26T23:26:25+00:00  Order confirmation email sent to: jeff@example.com
+2026-09-26T23:26:25+00:00  172.18.0.9 - - [26/Sep/2026:23:26:25 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0025
+2026-09-26T23:26:33+00:00  Order confirmation email sent to: moore@example.com
+2026-09-26T23:26:33+00:00  172.18.0.9 - - [26/Sep/2026:23:26:33 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0026
+2026-09-26T23:26:37+00:00  Order confirmation email sent to: bill@example.com
+2026-09-26T23:26:37+00:00  172.18.0.9 - - [26/Sep/2026:23:26:37 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0057
+2026-09-26T23:26:49+00:00  Order confirmation email sent to: larry_sergei@example.com
+2026-09-26T23:26:49+00:00  172.18.0.9 - - [26/Sep/2026:23:26:49 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0038
+2026-09-26T23:26:58+00:00  Order confirmation email sent to: mark@example.com
+2026-09-26T23:26:58+00:00  172.18.0.9 - - [26/Sep/2026:23:26:58 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0109
+2026-09-26T23:27:12+00:00  Order confirmation email sent to: larry_sergei@example.com
+2026-09-26T23:27:12+00:00  172.18.0.9 - - [26/Sep/2026:23:27:12 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0061
+2026-09-26T23:27:14+00:00  Order confirmation email sent to: steve@example.com
+2026-09-26T23:27:14+00:00  172.18.0.9 - - [26/Sep/2026:23:27:14 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0100
+2026-09-26T23:27:23+00:00  Order confirmation email sent to: steve@example.com
+2026-09-26T23:27:23+00:00  172.18.0.9 - - [26/Sep/2026:23:27:23 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0064
+2026-09-26T23:27:26+00:00  Order confirmation email sent to: bill@example.com
+2026-09-26T23:27:26+00:00  172.18.0.9 - - [26/Sep/2026:23:27:26 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0057
+2026-09-26T23:27:35+00:00  Order confirmation email sent to: tobias@example.com
+2026-09-26T23:27:35+00:00  172.18.0.9 - - [26/Sep/2026:23:27:35 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0080
+2026-09-26T23:27:40+00:00  Order confirmation email sent to: moore@example.com
+2026-09-26T23:27:40+00:00  172.18.0.9 - - [26/Sep/2026:23:27:40 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0025
+2026-09-26T23:27:44+00:00  Order confirmation email sent to: jack@example.com
+2026-09-26T23:27:44+00:00  172.18.0.9 - - [26/Sep/2026:23:27:44 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0038
+2026-09-26T23:27:48+00:00  Order confirmation email sent to: larry_sergei@example.com
+2026-09-26T23:27:48+00:00  172.18.0.9 - - [26/Sep/2026:23:27:48 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0046
+2026-09-26T23:27:49+00:00  Order confirmation email sent to: steve@example.com
+2026-09-26T23:27:49+00:00  172.18.0.9 - - [26/Sep/2026:23:27:49 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0017
+2026-09-26T23:27:53+00:00  Order confirmation email sent to: steve@example.com
+2026-09-26T23:27:53+00:00  172.18.0.9 - - [26/Sep/2026:23:27:53 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0024
+2026-09-26T23:28:03+00:00  Order confirmation email sent to: bill@example.com
+2026-09-26T23:28:03+00:00  172.18.0.9 - - [26/Sep/2026:23:28:03 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0028
+2026-09-26T23:28:03+00:00  Order confirmation email sent to: moore@example.com
+2026-09-26T23:28:03+00:00  172.18.0.9 - - [26/Sep/2026:23:28:03 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0019
+2026-09-26T23:28:04+00:00  Order confirmation email sent to: reed@example.com
+2026-09-26T23:28:04+00:00  172.18.0.9 - - [26/Sep/2026:23:28:04 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0088
+2026-09-26T23:28:24+00:00  Order confirmation email sent to: jeff@example.com
+2026-09-26T23:28:24+00:00  172.18.0.9 - - [26/Sep/2026:23:28:24 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0385
+2026-09-26T23:28:30+00:00  Order confirmation email sent to: bill@example.com
+2026-09-26T23:28:30+00:00  172.18.0.9 - - [26/Sep/2026:23:28:30 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0056
+2026-09-26T23:28:33+00:00  Order confirmation email sent to: tobias@example.com
+2026-09-26T23:28:33+00:00  172.18.0.9 - - [26/Sep/2026:23:28:33 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0063
+2026-09-26T23:28:41+00:00  Order confirmation email sent to: larry_sergei@example.com
+2026-09-26T23:28:41+00:00  172.18.0.9 - - [26/Sep/2026:23:28:41 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0052
+2026-09-26T23:28:48+00:00  Order confirmation email sent to: reed@example.com
+2026-09-26T23:28:48+00:00  172.18.0.9 - - [26/Sep/2026:23:28:48 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0051
+2026-09-26T23:28:51+00:00  Order confirmation email sent to: steve@example.com
+2026-09-26T23:28:51+00:00  172.18.0.9 - - [26/Sep/2026:23:28:51 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0029
+2026-09-26T23:28:55+00:00  Order confirmation email sent to: steve@example.com
+2026-09-26T23:28:55+00:00  172.18.0.9 - - [26/Sep/2026:23:28:55 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0051
+2026-09-26T23:29:04+00:00  Order confirmation email sent to: tobias@example.com
+2026-09-26T23:29:04+00:00  172.18.0.9 - - [26/Sep/2026:23:29:04 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0027
+2026-09-26T23:29:48+00:00  Order confirmation email sent to: jeff@example.com
+2026-09-26T23:29:48+00:00  172.18.0.9 - - [26/Sep/2026:23:29:48 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0104
+2026-09-26T23:29:50+00:00  Order confirmation email sent to: reed@example.com
+2026-09-26T23:29:50+00:00  172.18.0.9 - - [26/Sep/2026:23:29:50 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0055
+2026-09-26T23:29:56+00:00  Order confirmation email sent to: reed@example.com
+2026-09-26T23:29:56+00:00  172.18.0.9 - - [26/Sep/2026:23:29:56 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0023
+2026-09-26T23:29:57+00:00  Order confirmation email sent to: larry_sergei@example.com
+2026-09-26T23:29:57+00:00  172.18.0.9 - - [26/Sep/2026:23:29:57 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0049
+2026-09-26T23:29:58+00:00  Order confirmation email sent to: jeff@example.com
+2026-09-26T23:29:58+00:00  172.18.0.9 - - [26/Sep/2026:23:29:58 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0272
+2026-09-26T23:30:00+00:00  Order confirmation email sent to: tobias@example.com
+2026-09-26T23:30:00+00:00  172.18.0.9 - - [26/Sep/2026:23:30:00 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0023
+2026-09-26T23:30:03+00:00  Order confirmation email sent to: reed@example.com
+2026-09-26T23:30:03+00:00  172.18.0.9 - - [26/Sep/2026:23:30:03 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0042
+2026-09-26T23:30:16+00:00  Order confirmation email sent to: bill@example.com
+2026-09-26T23:30:16+00:00  172.18.0.9 - - [26/Sep/2026:23:30:16 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0058
+2026-09-26T23:30:23+00:00  Order confirmation email sent to: jeff@example.com
+2026-09-26T23:30:23+00:00  172.18.0.9 - - [26/Sep/2026:23:30:23 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0023
+2026-09-26T23:30:33+00:00  Order confirmation email sent to: larry_sergei@example.com
+2026-09-26T23:30:33+00:00  172.18.0.9 - - [26/Sep/2026:23:30:33 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0162
+2026-09-26T23:30:37+00:00  Order confirmation email sent to: reed@example.com
+2026-09-26T23:30:37+00:00  172.18.0.9 - - [26/Sep/2026:23:30:37 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0041
+# ---- onset 2026-09-26T23:30:38+00:00 ----
+2026-09-26T23:30:45+00:00  Order confirmation email sent to: moore@example.com
+2026-09-26T23:30:45+00:00  172.18.0.9 - - [26/Sep/2026:23:30:45 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.3642
+2026-09-26T23:30:51+00:00  == Sinatra (v4.2.1) has taken the stage on 6060 for production with backup from Puma
+2026-09-26T23:30:51+00:00  I, [2026-09-26T23:30:51.649498 #1]  INFO -- : Instrumentation: OpenTelemetry::Instrumentation::Sinatra was successfully installed with the following options {install_rack: true}
+2026-09-26T23:30:51+00:00  Puma starting in single mode...
+2026-09-26T23:30:51+00:00  * Puma version: 7.1.0 ("Neon Witch")
+2026-09-26T23:30:51+00:00  * Ruby version: ruby 3.4.7 (2025-10-08 revision 7a5688e2a2) +PRISM [aarch64-linux-musl]
+2026-09-26T23:30:51+00:00  *  Min threads: 0
+2026-09-26T23:30:51+00:00  *  Max threads: 5
+2026-09-26T23:30:51+00:00  *  Environment: production
+2026-09-26T23:30:51+00:00  *          PID: 1
+2026-09-26T23:30:51+00:00  * Listening on http://0.0.0.0:6060
+2026-09-26T23:30:51+00:00  Use Ctrl-C to stop
+2026-09-26T23:31:08+00:00  Order confirmation email sent to: jack@example.com
+2026-09-26T23:31:08+00:00  172.18.0.9 - - [26/Sep/2026:23:31:08 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.6165
+2026-09-26T23:31:08+00:00  Order confirmation email sent to: steve@example.com
+2026-09-26T23:31:08+00:00  172.18.0.9 - - [26/Sep/2026:23:31:08 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.2828
+2026-09-26T23:31:27+00:00  == Sinatra (v4.2.1) has taken the stage on 6060 for production with backup from Puma
+2026-09-26T23:31:27+00:00  I, [2026-09-26T23:31:27.475836 #1]  INFO -- : Instrumentation: OpenTelemetry::Instrumentation::Sinatra was successfully installed with the following options {install_rack: true}
+2026-09-26T23:31:27+00:00  Puma starting in single mode...
+2026-09-26T23:31:27+00:00  * Puma version: 7.1.0 ("Neon Witch")
+2026-09-26T23:31:27+00:00  * Ruby version: ruby 3.4.7 (2025-10-08 revision 7a5688e2a2) +PRISM [aarch64-linux-musl]
+2026-09-26T23:31:27+00:00  *  Min threads: 0
+2026-09-26T23:31:27+00:00  *  Max threads: 5
+2026-09-26T23:31:27+00:00  *  Environment: production
+2026-09-26T23:31:27+00:00  *          PID: 1
+2026-09-26T23:31:27+00:00  * Listening on http://0.0.0.0:6060
+2026-09-26T23:31:27+00:00  Use Ctrl-C to stop
+2026-09-26T23:31:29+00:00  Order confirmation email sent to: larry_sergei@example.com
+2026-09-26T23:31:29+00:00  172.18.0.9 - - [26/Sep/2026:23:31:29 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.5139
+2026-09-26T23:31:33+00:00  Order confirmation email sent to: reed@example.com
+2026-09-26T23:31:33+00:00  172.18.0.9 - - [26/Sep/2026:23:31:33 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.3160
+2026-09-26T23:31:37+00:00  == Sinatra (v4.2.1) has taken the stage on 6060 for production with backup from Puma
+2026-09-26T23:31:37+00:00  I, [2026-09-26T23:31:37.667295 #1]  INFO -- : Instrumentation: OpenTelemetry::Instrumentation::Sinatra was successfully installed with the following options {install_rack: true}
+2026-09-26T23:31:37+00:00  Puma starting in single mode...
+2026-09-26T23:31:37+00:00  * Puma version: 7.1.0 ("Neon Witch")
+2026-09-26T23:31:37+00:00  * Ruby version: ruby 3.4.7 (2025-10-08 revision 7a5688e2a2) +PRISM [aarch64-linux-musl]
+2026-09-26T23:31:37+00:00  *  Min threads: 0
+2026-09-26T23:31:37+00:00  *  Max threads: 5
+2026-09-26T23:31:37+00:00  *  Environment: production
+2026-09-26T23:31:37+00:00  *          PID: 1
+2026-09-26T23:31:37+00:00  * Listening on http://0.0.0.0:6060
+2026-09-26T23:31:37+00:00  Use Ctrl-C to stop
+2026-09-26T23:31:39+00:00  Order confirmation email sent to: bill@example.com
+2026-09-26T23:31:39+00:00  172.18.0.9 - - [26/Sep/2026:23:31:39 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.8280
+2026-09-26T23:31:42+00:00  == Sinatra (v4.2.1) has taken the stage on 6060 for production with backup from Puma
+2026-09-26T23:31:42+00:00  I, [2026-09-26T23:31:42.634615 #1]  INFO -- : Instrumentation: OpenTelemetry::Instrumentation::Sinatra was successfully installed with the following options {install_rack: true}
+2026-09-26T23:31:42+00:00  Puma starting in single mode...
+2026-09-26T23:31:42+00:00  * Puma version: 7.1.0 ("Neon Witch")
+2026-09-26T23:31:42+00:00  * Ruby version: ruby 3.4.7 (2025-10-08 revision 7a5688e2a2) +PRISM [aarch64-linux-musl]
+2026-09-26T23:31:42+00:00  *  Min threads: 0
+2026-09-26T23:31:42+00:00  *  Max threads: 5
+2026-09-26T23:31:42+00:00  *  Environment: production
+2026-09-26T23:31:42+00:00  *          PID: 1
+2026-09-26T23:31:42+00:00  * Listening on http://0.0.0.0:6060
+2026-09-26T23:31:42+00:00  Use Ctrl-C to stop
+2026-09-26T23:31:49+00:00  Order confirmation email sent to: moore@example.com
+2026-09-26T23:31:49+00:00  172.18.0.9 - - [26/Sep/2026:23:31:49 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.5318
+2026-09-26T23:31:52+00:00  == Sinatra (v4.2.1) has taken the stage on 6060 for production with backup from Puma
+2026-09-26T23:31:52+00:00  I, [2026-09-26T23:31:52.627390 #1]  INFO -- : Instrumentation: OpenTelemetry::Instrumentation::Sinatra was successfully installed with the following options {install_rack: true}
+2026-09-26T23:31:52+00:00  Puma starting in single mode...
+2026-09-26T23:31:52+00:00  * Puma version: 7.1.0 ("Neon Witch")
+2026-09-26T23:31:52+00:00  * Ruby version: ruby 3.4.7 (2025-10-08 revision 7a5688e2a2) +PRISM [aarch64-linux-musl]
+2026-09-26T23:31:52+00:00  *  Min threads: 0
+2026-09-26T23:31:52+00:00  *  Max threads: 5
+2026-09-26T23:31:52+00:00  *  Environment: production
+2026-09-26T23:31:52+00:00  *          PID: 1
+2026-09-26T23:31:52+00:00  * Listening on http://0.0.0.0:6060
+2026-09-26T23:31:52+00:00  Use Ctrl-C to stop
+2026-09-26T23:31:57+00:00  Order confirmation email sent to: steve@example.com
+2026-09-26T23:31:57+00:00  172.18.0.9 - - [26/Sep/2026:23:31:57 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.5817
+2026-09-26T23:32:03+00:00  == Sinatra (v4.2.1) has taken the stage on 6060 for production with backup from Puma
+2026-09-26T23:32:03+00:00  I, [2026-09-26T23:32:03.733031 #1]  INFO -- : Instrumentation: OpenTelemetry::Instrumentation::Sinatra was successfully installed with the following options {install_rack: true}
+2026-09-26T23:32:03+00:00  Puma starting in single mode...
+2026-09-26T23:32:03+00:00  * Puma version: 7.1.0 ("Neon Witch")
+2026-09-26T23:32:03+00:00  * Ruby version: ruby 3.4.7 (2025-10-08 revision 7a5688e2a2) +PRISM [aarch64-linux-musl]
+2026-09-26T23:32:03+00:00  *  Min threads: 0
+2026-09-26T23:32:03+00:00  *  Max threads: 5
+2026-09-26T23:32:03+00:00  *  Environment: production
+2026-09-26T23:32:03+00:00  *          PID: 1
+2026-09-26T23:32:03+00:00  * Listening on http://0.0.0.0:6060
+2026-09-26T23:32:03+00:00  Use Ctrl-C to stop
+2026-09-26T23:32:10+00:00  Order confirmation email sent to: mark@example.com
+2026-09-26T23:32:10+00:00  172.18.0.9 - - [26/Sep/2026:23:32:10 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.6523
+2026-09-26T23:32:11+00:00  Order confirmation email sent to: mark@example.com
+2026-09-26T23:32:11+00:00  172.18.0.9 - - [26/Sep/2026:23:32:11 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.5166
+2026-09-26T23:32:17+00:00  == Sinatra (v4.2.1) has taken the stage on 6060 for production with backup from Puma
+2026-09-26T23:32:17+00:00  I, [2026-09-26T23:32:17.696449 #1]  INFO -- : Instrumentation: OpenTelemetry::Instrumentation::Sinatra was successfully installed with the following options {install_rack: true}
+2026-09-26T23:32:17+00:00  Puma starting in single mode...
+2026-09-26T23:32:17+00:00  * Puma version: 7.1.0 ("Neon Witch")
+2026-09-26T23:32:17+00:00  * Ruby version: ruby 3.4.7 (2025-10-08 revision 7a5688e2a2) +PRISM [aarch64-linux-musl]
+2026-09-26T23:32:17+00:00  *  Min threads: 0
+2026-09-26T23:32:17+00:00  *  Max threads: 5
+2026-09-26T23:32:17+00:00  *  Environment: production
+2026-09-26T23:32:17+00:00  *          PID: 1
+2026-09-26T23:32:17+00:00  * Listening on http://0.0.0.0:6060
+2026-09-26T23:32:17+00:00  Use Ctrl-C to stop
+2026-09-26T23:32:37+00:00  Order confirmation email sent to: larry_sergei@example.com
+2026-09-26T23:32:37+00:00  172.18.0.9 - - [26/Sep/2026:23:32:37 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.8424
+2026-09-26T23:32:47+00:00  Order confirmation email sent to: reed@example.com
+2026-09-26T23:32:47+00:00  172.18.0.9 - - [26/Sep/2026:23:32:47 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.3388
+2026-09-26T23:33:07+00:00  I, [2026-09-26T23:33:07.125868 #1]  INFO -- : Instrumentation: OpenTelemetry::Instrumentation::Sinatra was successfully installed with the following options {install_rack: true}
+2026-09-26T23:33:07+00:00  Puma starting in single mode...
+2026-09-26T23:33:07+00:00  * Puma version: 7.1.0 ("Neon Witch")
+2026-09-26T23:33:07+00:00  * Ruby version: ruby 3.4.7 (2025-10-08 revision 7a5688e2a2) +PRISM [aarch64-linux-musl]
+2026-09-26T23:33:07+00:00  *  Min threads: 0
+2026-09-26T23:33:07+00:00  *  Max threads: 5
+2026-09-26T23:33:07+00:00  *  Environment: production
+2026-09-26T23:33:07+00:00  *          PID: 1
+2026-09-26T23:33:07+00:00  == Sinatra (v4.2.1) has taken the stage on 6060 for production with backup from Puma
+2026-09-26T23:33:07+00:00  * Listening on http://0.0.0.0:6060
+2026-09-26T23:33:07+00:00  Use Ctrl-C to stop
+2026-09-26T23:33:22+00:00  Order confirmation email sent to: tobias@example.com
+2026-09-26T23:33:22+00:00  172.18.0.9 - - [26/Sep/2026:23:33:22 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.6380
+2026-09-26T23:33:29+00:00  == Sinatra (v4.2.1) has taken the stage on 6060 for production with backup from Puma
+2026-09-26T23:33:29+00:00  I, [2026-09-26T23:33:29.779337 #1]  INFO -- : Instrumentation: OpenTelemetry::Instrumentation::Sinatra was successfully installed with the following options {install_rack: true}
+2026-09-26T23:33:29+00:00  Puma starting in single mode...
+2026-09-26T23:33:29+00:00  * Puma version: 7.1.0 ("Neon Witch")
+2026-09-26T23:33:29+00:00  * Ruby version: ruby 3.4.7 (2025-10-08 revision 7a5688e2a2) +PRISM [aarch64-linux-musl]
+2026-09-26T23:33:29+00:00  *  Min threads: 0
+2026-09-26T23:33:29+00:00  *  Max threads: 5
+2026-09-26T23:33:29+00:00  *  Environment: production
+2026-09-26T23:33:29+00:00  *          PID: 1
+2026-09-26T23:33:29+00:00  * Listening on http://0.0.0.0:6060
+2026-09-26T23:33:29+00:00  Use Ctrl-C to stop
+2026-09-26T23:33:31+00:00  Order confirmation email sent to: tobias@example.com
+2026-09-26T23:33:31+00:00  172.18.0.9 - - [26/Sep/2026:23:33:31 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.5664
+2026-09-26T23:33:34+00:00  == Sinatra (v4.2.1) has taken the stage on 6060 for production with backup from Puma
+2026-09-26T23:33:34+00:00  I, [2026-09-26T23:33:34.608448 #1]  INFO -- : Instrumentation: OpenTelemetry::Instrumentation::Sinatra was successfully installed with the following options {install_rack: true}
+2026-09-26T23:33:34+00:00  Puma starting in single mode...
+2026-09-26T23:33:34+00:00  * Puma version: 7.1.0 ("Neon Witch")
+2026-09-26T23:33:34+00:00  * Ruby version: ruby 3.4.7 (2025-10-08 revision 7a5688e2a2) +PRISM [aarch64-linux-musl]
+2026-09-26T23:33:34+00:00  *  Min threads: 0
+2026-09-26T23:33:34+00:00  *  Max threads: 5
+2026-09-26T23:33:34+00:00  *  Environment: production
+2026-09-26T23:33:34+00:00  *          PID: 1
+2026-09-26T23:33:34+00:00  * Listening on http://0.0.0.0:6060
+2026-09-26T23:33:34+00:00  Use Ctrl-C to stop
+2026-09-26T23:33:35+00:00  Order confirmation email sent to: jeff@example.com
+2026-09-26T23:33:35+00:00  172.18.0.9 - - [26/Sep/2026:23:33:35 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.7032
+2026-09-26T23:33:38+00:00  == Sinatra (v4.2.1) has taken the stage on 6060 for production with backup from Puma
+2026-09-26T23:33:38+00:00  I, [2026-09-26T23:33:38.348482 #1]  INFO -- : Instrumentation: OpenTelemetry::Instrumentation::Sinatra was successfully installed with the following options {install_rack: true}
+2026-09-26T23:33:38+00:00  Puma starting in single mode...
+2026-09-26T23:33:38+00:00  * Puma version: 7.1.0 ("Neon Witch")
+2026-09-26T23:33:38+00:00  * Ruby version: ruby 3.4.7 (2025-10-08 revision 7a5688e2a2) +PRISM [aarch64-linux-musl]
+2026-09-26T23:33:38+00:00  *  Min threads: 0
+2026-09-26T23:33:38+00:00  *  Max threads: 5
+2026-09-26T23:33:38+00:00  *  Environment: production
+2026-09-26T23:33:38+00:00  *          PID: 1
+2026-09-26T23:33:38+00:00  * Listening on http://0.0.0.0:6060
+2026-09-26T23:33:38+00:00  Use Ctrl-C to stop
+2026-09-26T23:33:39+00:00  Order confirmation email sent to: steve@example.com
+2026-09-26T23:33:39+00:00  172.18.0.9 - - [26/Sep/2026:23:33:39 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.7031
+2026-09-26T23:33:49+00:00  Order confirmation email sent to: mark@example.com
+2026-09-26T23:33:49+00:00  172.18.0.9 - - [26/Sep/2026:23:33:49 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.6140
+2026-09-26T23:34:12+00:00  == Sinatra (v4.2.1) has taken the stage on 6060 for production with backup from Puma
+2026-09-26T23:34:12+00:00  I, [2026-09-26T23:34:12.837950 #1]  INFO -- : Instrumentation: OpenTelemetry::Instrumentation::Sinatra was successfully installed with the following options {install_rack: true}
+2026-09-26T23:34:12+00:00  Puma starting in single mode...
+2026-09-26T23:34:12+00:00  * Puma version: 7.1.0 ("Neon Witch")
+2026-09-26T23:34:12+00:00  * Ruby version: ruby 3.4.7 (2025-10-08 revision 7a5688e2a2) +PRISM [aarch64-linux-musl]
+2026-09-26T23:34:12+00:00  *  Min threads: 0
+2026-09-26T23:34:12+00:00  *  Max threads: 5
+2026-09-26T23:34:12+00:00  *  Environment: production
+2026-09-26T23:34:12+00:00  *          PID: 1
+2026-09-26T23:34:12+00:00  * Listening on http://0.0.0.0:6060
+2026-09-26T23:34:12+00:00  Use Ctrl-C to stop
+2026-09-26T23:34:27+00:00  Order confirmation email sent to: moore@example.com
+2026-09-26T23:34:27+00:00  172.18.0.9 - - [26/Sep/2026:23:34:27 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.9250
+2026-09-26T23:34:46+00:00  == Sinatra (v4.2.1) has taken the stage on 6060 for production with backup from Puma
+2026-09-26T23:34:46+00:00  I, [2026-09-26T23:34:46.722701 #1]  INFO -- : Instrumentation: OpenTelemetry::Instrumentation::Sinatra was successfully installed with the following options {install_rack: true}
+2026-09-26T23:34:46+00:00  Puma starting in single mode...
+2026-09-26T23:34:46+00:00  * Puma version: 7.1.0 ("Neon Witch")
+2026-09-26T23:34:46+00:00  * Ruby version: ruby 3.4.7 (2025-10-08 revision 7a5688e2a2) +PRISM [aarch64-linux-musl]
+2026-09-26T23:34:46+00:00  *  Min threads: 0
+2026-09-26T23:34:46+00:00  *  Max threads: 5
+2026-09-26T23:34:46+00:00  *  Environment: production
+2026-09-26T23:34:46+00:00  *          PID: 1
+2026-09-26T23:34:46+00:00  * Listening on http://0.0.0.0:6060
+2026-09-26T23:34:46+00:00  Use Ctrl-C to stop
+2026-09-26T23:35:01+00:00  Order confirmation email sent to: jeff@example.com
+2026-09-26T23:35:01+00:00  172.18.0.9 - - [26/Sep/2026:23:35:01 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.9747
+2026-09-26T23:35:06+00:00  Order confirmation email sent to: bill@example.com
+2026-09-26T23:35:06+00:00  172.18.0.9 - - [26/Sep/2026:23:35:06 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.3426
+2026-09-26T23:35:08+00:00  == Sinatra (v4.2.1) has taken the stage on 6060 for production with backup from Puma
+2026-09-26T23:35:08+00:00  I, [2026-09-26T23:35:08.642603 #1]  INFO -- : Instrumentation: OpenTelemetry::Instrumentation::Sinatra was successfully installed with the following options {install_rack: true}
+2026-09-26T23:35:08+00:00  Puma starting in single mode...
+2026-09-26T23:35:08+00:00  * Puma version: 7.1.0 ("Neon Witch")
+2026-09-26T23:35:08+00:00  * Ruby version: ruby 3.4.7 (2025-10-08 revision 7a5688e2a2) +PRISM [aarch64-linux-musl]
+2026-09-26T23:35:08+00:00  *  Min threads: 0
+2026-09-26T23:35:08+00:00  *  Max threads: 5
+2026-09-26T23:35:08+00:00  *  Environment: production
+2026-09-26T23:35:08+00:00  *          PID: 1
+2026-09-26T23:35:08+00:00  * Listening on http://0.0.0.0:6060
+2026-09-26T23:35:08+00:00  Use Ctrl-C to stop
+2026-09-26T23:35:12+00:00  Order confirmation email sent to: bill@example.com
+2026-09-26T23:35:12+00:00  172.18.0.9 - - [26/Sep/2026:23:35:12 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.6110
+2026-09-26T23:35:16+00:00  == Sinatra (v4.2.1) has taken the stage on 6060 for production with backup from Puma
+2026-09-26T23:35:16+00:00  I, [2026-09-26T23:35:16.433029 #1]  INFO -- : Instrumentation: OpenTelemetry::Instrumentation::Sinatra was successfully installed with the following options {install_rack: true}
+2026-09-26T23:35:16+00:00  Puma starting in single mode...
+2026-09-26T23:35:16+00:00  * Puma version: 7.1.0 ("Neon Witch")
+2026-09-26T23:35:16+00:00  * Ruby version: ruby 3.4.7 (2025-10-08 revision 7a5688e2a2) +PRISM [aarch64-linux-musl]
+2026-09-26T23:35:16+00:00  *  Min threads: 0
+2026-09-26T23:35:16+00:00  *  Max threads: 5
+2026-09-26T23:35:16+00:00  *  Environment: production
+2026-09-26T23:35:16+00:00  *          PID: 1
+2026-09-26T23:35:16+00:00  * Listening on http://0.0.0.0:6060
+2026-09-26T23:35:16+00:00  Use Ctrl-C to stop
+2026-09-26T23:35:17+00:00  Order confirmation email sent to: bill@example.com
+2026-09-26T23:35:17+00:00  172.18.0.9 - - [26/Sep/2026:23:35:17 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.5024
+2026-09-26T23:35:39+00:00  Order confirmation email sent to: jack@example.com
+2026-09-26T23:35:39+00:00  172.18.0.9 - - [26/Sep/2026:23:35:39 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.6706
+2026-09-26T23:35:43+00:00  == Sinatra (v4.2.1) has taken the stage on 6060 for production with backup from Puma
+2026-09-26T23:35:43+00:00  I, [2026-09-26T23:35:43.833405 #1]  INFO -- : Instrumentation: OpenTelemetry::Instrumentation::Sinatra was successfully installed with the following options {install_rack: true}
+2026-09-26T23:35:43+00:00  Puma starting in single mode...
+2026-09-26T23:35:43+00:00  * Puma version: 7.1.0 ("Neon Witch")
+2026-09-26T23:35:43+00:00  * Ruby version: ruby 3.4.7 (2025-10-08 revision 7a5688e2a2) +PRISM [aarch64-linux-musl]
+2026-09-26T23:35:43+00:00  *  Min threads: 0
+2026-09-26T23:35:43+00:00  *  Max threads: 5
+2026-09-26T23:35:43+00:00  *  Environment: production
+2026-09-26T23:35:43+00:00  *          PID: 1
+2026-09-26T23:35:43+00:00  * Listening on http://0.0.0.0:6060
+2026-09-26T23:35:43+00:00  Use Ctrl-C to stop
+2026-09-26T23:35:52+00:00  Order confirmation email sent to: larry_sergei@example.com
+2026-09-26T23:35:52+00:00  172.18.0.9 - - [26/Sep/2026:23:35:52 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.5286
+2026-09-26T23:35:56+00:00  Order confirmation email sent to: moore@example.com
+2026-09-26T23:35:56+00:00  172.18.0.9 - - [26/Sep/2026:23:35:56 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.3544
+2026-09-26T23:35:58+00:00  == Sinatra (v4.2.1) has taken the stage on 6060 for production with backup from Puma
+2026-09-26T23:35:58+00:00  I, [2026-09-26T23:35:58.049023 #1]  INFO -- : Instrumentation: OpenTelemetry::Instrumentation::Sinatra was successfully installed with the following options {install_rack: true}
+2026-09-26T23:35:58+00:00  Puma starting in single mode...
+2026-09-26T23:35:58+00:00  * Puma version: 7.1.0 ("Neon Witch")
+2026-09-26T23:35:58+00:00  * Ruby version: ruby 3.4.7 (2025-10-08 revision 7a5688e2a2) +PRISM [aarch64-linux-musl]
+2026-09-26T23:35:58+00:00  *  Min threads: 0
+2026-09-26T23:35:58+00:00  *  Max threads: 5
+2026-09-26T23:35:58+00:00  *  Environment: production
+2026-09-26T23:35:58+00:00  *          PID: 1
+2026-09-26T23:35:58+00:00  * Listening on http://0.0.0.0:6060
+2026-09-26T23:35:58+00:00  Use Ctrl-C to stop
+2026-09-26T23:36:00+00:00  Order confirmation email sent to: jeff@example.com
+2026-09-26T23:36:00+00:00  172.18.0.9 - - [26/Sep/2026:23:36:00 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.7281
+2026-09-26T23:36:01+00:00  Order confirmation email sent to: jeff@example.com
+2026-09-26T23:36:01+00:00  172.18.0.9 - - [26/Sep/2026:23:36:01 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.6712
+2026-09-26T23:36:16+00:00  == Sinatra (v4.2.1) has taken the stage on 6060 for production with backup from Puma
+2026-09-26T23:36:16+00:00  I, [2026-09-26T23:36:16.076469 #1]  INFO -- : Instrumentation: OpenTelemetry::Instrumentation::Sinatra was successfully installed with the following options {install_rack: true}
+2026-09-26T23:36:16+00:00  Puma starting in single mode...
+2026-09-26T23:36:16+00:00  * Puma version: 7.1.0 ("Neon Witch")
+2026-09-26T23:36:16+00:00  * Ruby version: ruby 3.4.7 (2025-10-08 revision 7a5688e2a2) +PRISM [aarch64-linux-musl]
+2026-09-26T23:36:16+00:00  *  Min threads: 0
+2026-09-26T23:36:16+00:00  *  Max threads: 5
+2026-09-26T23:36:16+00:00  *  Environment: production
+2026-09-26T23:36:16+00:00  *          PID: 1
+2026-09-26T23:36:16+00:00  * Listening on http://0.0.0.0:6060
+2026-09-26T23:36:16+00:00  Use Ctrl-C to stop
+2026-09-26T23:36:21+00:00  Order confirmation email sent to: jeff@example.com
+2026-09-26T23:36:21+00:00  172.18.0.9 - - [26/Sep/2026:23:36:21 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.6188
+2026-09-26T23:36:24+00:00  Order confirmation email sent to: larry_sergei@example.com
+2026-09-26T23:36:24+00:00  172.18.0.9 - - [26/Sep/2026:23:36:24 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.3411
+2026-09-26T23:36:28+00:00  == Sinatra (v4.2.1) has taken the stage on 6060 for production with backup from Puma
+2026-09-26T23:36:28+00:00  I, [2026-09-26T23:36:28.376272 #1]  INFO -- : Instrumentation: OpenTelemetry::Instrumentation::Sinatra was successfully installed with the following options {install_rack: true}
+2026-09-26T23:36:28+00:00  Puma starting in single mode...
+2026-09-26T23:36:28+00:00  * Puma version: 7.1.0 ("Neon Witch")
+2026-09-26T23:36:28+00:00  * Ruby version: ruby 3.4.7 (2025-10-08 revision 7a5688e2a2) +PRISM [aarch64-linux-musl]
+2026-09-26T23:36:28+00:00  *  Min threads: 0
+2026-09-26T23:36:28+00:00  *  Max threads: 5
+2026-09-26T23:36:28+00:00  *  Environment: production
+2026-09-26T23:36:28+00:00  *          PID: 1
+2026-09-26T23:36:28+00:00  * Listening on http://0.0.0.0:6060
+2026-09-26T23:36:28+00:00  Use Ctrl-C to stop
+2026-09-26T23:36:50+00:00  Order confirmation email sent to: mark@example.com
+2026-09-26T23:36:50+00:00  172.18.0.9 - - [26/Sep/2026:23:36:50 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.6466
+2026-09-26T23:37:08+00:00  Order confirmation email sent to: jeff@example.com
+2026-09-26T23:37:08+00:00  172.18.0.9 - - [26/Sep/2026:23:37:08 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.4500
+2026-09-26T23:37:09+00:00  == Sinatra (v4.2.1) has taken the stage on 6060 for production with backup from Puma
+2026-09-26T23:37:09+00:00  I, [2026-09-26T23:37:09.399637 #1]  INFO -- : Instrumentation: OpenTelemetry::Instrumentation::Sinatra was successfully installed with the following options {install_rack: true}
+2026-09-26T23:37:09+00:00  Puma starting in single mode...
+2026-09-26T23:37:09+00:00  * Puma version: 7.1.0 ("Neon Witch")
+2026-09-26T23:37:09+00:00  * Ruby version: ruby 3.4.7 (2025-10-08 revision 7a5688e2a2) +PRISM [aarch64-linux-musl]
+2026-09-26T23:37:09+00:00  *  Min threads: 0
+2026-09-26T23:37:09+00:00  *  Max threads: 5
+2026-09-26T23:37:09+00:00  *  Environment: production
+2026-09-26T23:37:09+00:00  *          PID: 1
+2026-09-26T23:37:09+00:00  * Listening on http://0.0.0.0:6060
+2026-09-26T23:37:09+00:00  Use Ctrl-C to stop
+2026-09-26T23:37:18+00:00  Order confirmation email sent to: moore@example.com
+2026-09-26T23:37:18+00:00  172.18.0.9 - - [26/Sep/2026:23:37:18 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.5849
+2026-09-26T23:37:23+00:00  == Sinatra (v4.2.1) has taken the stage on 6060 for production with backup from Puma
+2026-09-26T23:37:23+00:00  I, [2026-09-26T23:37:23.048250 #1]  INFO -- : Instrumentation: OpenTelemetry::Instrumentation::Sinatra was successfully installed with the following options {install_rack: true}
+2026-09-26T23:37:23+00:00  Puma starting in single mode...
+2026-09-26T23:37:23+00:00  * Puma version: 7.1.0 ("Neon Witch")
+2026-09-26T23:37:23+00:00  * Ruby version: ruby 3.4.7 (2025-10-08 revision 7a5688e2a2) +PRISM [aarch64-linux-musl]
+2026-09-26T23:37:23+00:00  *  Min threads: 0
+2026-09-26T23:37:23+00:00  *  Max threads: 5
+2026-09-26T23:37:23+00:00  *  Environment: production
+2026-09-26T23:37:23+00:00  *          PID: 1
+2026-09-26T23:37:23+00:00  * Listening on http://0.0.0.0:6060
+2026-09-26T23:37:23+00:00  Use Ctrl-C to stop
+2026-09-26T23:38:23+00:00  Order confirmation email sent to: jeff@example.com
+2026-09-26T23:38:23+00:00  172.18.0.9 - - [26/Sep/2026:23:38:23 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.5312
+2026-09-26T23:38:33+00:00  Order confirmation email sent to: tobias@example.com
+2026-09-26T23:38:33+00:00  172.18.0.9 - - [26/Sep/2026:23:38:33 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.3884
+2026-09-26T23:38:46+00:00  Order confirmation email sent to: jack@example.com
+2026-09-26T23:38:46+00:00  172.18.0.9 - - [26/Sep/2026:23:38:46 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.3049
+2026-09-26T23:39:10+00:00  == Sinatra (v4.2.1) has taken the stage on 6060 for production with backup from Puma
+2026-09-26T23:39:10+00:00  I, [2026-09-26T23:39:10.925671 #1]  INFO -- : Instrumentation: OpenTelemetry::Instrumentation::Sinatra was successfully installed with the following options {install_rack: true}
+2026-09-26T23:39:10+00:00  Puma starting in single mode...
+2026-09-26T23:39:10+00:00  * Puma version: 7.1.0 ("Neon Witch")
+2026-09-26T23:39:10+00:00  * Ruby version: ruby 3.4.7 (2025-10-08 revision 7a5688e2a2) +PRISM [aarch64-linux-musl]
+2026-09-26T23:39:10+00:00  *  Min threads: 0
+2026-09-26T23:39:10+00:00  *  Max threads: 5
+2026-09-26T23:39:10+00:00  *  Environment: production
+2026-09-26T23:39:10+00:00  *          PID: 1
+2026-09-26T23:39:10+00:00  * Listening on http://0.0.0.0:6060
+2026-09-26T23:39:10+00:00  Use Ctrl-C to stop
+2026-09-26T23:39:22+00:00  Order confirmation email sent to: moore@example.com
+2026-09-26T23:39:23+00:00  == Sinatra (v4.2.1) has taken the stage on 6060 for production with backup from Puma
+2026-09-26T23:39:23+00:00  I, [2026-09-26T23:39:23.815157 #1]  INFO -- : Instrumentation: OpenTelemetry::Instrumentation::Sinatra was successfully installed with the following options {install_rack: true}
+2026-09-26T23:39:23+00:00  Puma starting in single mode...
+2026-09-26T23:39:23+00:00  * Puma version: 7.1.0 ("Neon Witch")
+2026-09-26T23:39:23+00:00  * Ruby version: ruby 3.4.7 (2025-10-08 revision 7a5688e2a2) +PRISM [aarch64-linux-musl]
+2026-09-26T23:39:23+00:00  *  Min threads: 0
+2026-09-26T23:39:23+00:00  *  Max threads: 5
+2026-09-26T23:39:23+00:00  *  Environment: production
+2026-09-26T23:39:23+00:00  *          PID: 1
+2026-09-26T23:39:23+00:00  * Listening on http://0.0.0.0:6060
+2026-09-26T23:39:24+00:00  Use Ctrl-C to stop
+2026-09-26T23:39:29+00:00  Order confirmation email sent to: reed@example.com
+2026-09-26T23:39:29+00:00  172.18.0.9 - - [26/Sep/2026:23:39:29 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.5333
+2026-09-26T23:39:33+00:00  Order confirmation email sent to: steve@example.com
+2026-09-26T23:39:33+00:00  172.18.0.9 - - [26/Sep/2026:23:39:33 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.3005
+2026-09-26T23:39:49+00:00  == Sinatra (v4.2.1) has taken the stage on 6060 for production with backup from Puma
+2026-09-26T23:39:49+00:00  I, [2026-09-26T23:39:49.619211 #1]  INFO -- : Instrumentation: OpenTelemetry::Instrumentation::Sinatra was successfully installed with the following options {install_rack: true}
+2026-09-26T23:39:49+00:00  Puma starting in single mode...
+2026-09-26T23:39:49+00:00  * Puma version: 7.1.0 ("Neon Witch")
+2026-09-26T23:39:49+00:00  * Ruby version: ruby 3.4.7 (2025-10-08 revision 7a5688e2a2) +PRISM [aarch64-linux-musl]
+2026-09-26T23:39:49+00:00  *  Min threads: 0
+2026-09-26T23:39:49+00:00  *  Max threads: 5
+2026-09-26T23:39:49+00:00  *  Environment: production
+2026-09-26T23:39:49+00:00  *          PID: 1
+2026-09-26T23:39:49+00:00  * Listening on http://0.0.0.0:6060
+2026-09-26T23:39:49+00:00  Use Ctrl-C to stop
+2026-09-26T23:40:04+00:00  Order confirmation email sent to: reed@example.com
+2026-09-26T23:40:04+00:00  172.18.0.9 - - [26/Sep/2026:23:40:04 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0821
+2026-09-26T23:40:04+00:00  Order confirmation email sent to: moore@example.com
+2026-09-26T23:40:04+00:00  172.18.0.9 - - [26/Sep/2026:23:40:04 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0458
+2026-09-26T23:40:11+00:00  Order confirmation email sent to: tobias@example.com
+2026-09-26T23:40:11+00:00  172.18.0.9 - - [26/Sep/2026:23:40:11 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0161
+2026-09-26T23:40:12+00:00  Order confirmation email sent to: jeff@example.com
+2026-09-26T23:40:12+00:00  172.18.0.9 - - [26/Sep/2026:23:40:12 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0030
+2026-09-26T23:40:16+00:00  Order confirmation email sent to: bill@example.com
+2026-09-26T23:40:16+00:00  172.18.0.9 - - [26/Sep/2026:23:40:16 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0050
+2026-09-26T23:40:19+00:00  Order confirmation email sent to: mark@example.com
+2026-09-26T23:40:19+00:00  172.18.0.9 - - [26/Sep/2026:23:40:19 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0027
+2026-09-26T23:40:20+00:00  Order confirmation email sent to: tobias@example.com
+2026-09-26T23:40:20+00:00  172.18.0.9 - - [26/Sep/2026:23:40:20 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0063
+2026-09-26T23:40:22+00:00  Order confirmation email sent to: jeff@example.com
+2026-09-26T23:40:22+00:00  172.18.0.9 - - [26/Sep/2026:23:40:22 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0116
+2026-09-26T23:40:27+00:00  Order confirmation email sent to: jack@example.com
+2026-09-26T23:40:27+00:00  172.18.0.9 - - [26/Sep/2026:23:40:27 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0097
+2026-09-26T23:40:38+00:00  Order confirmation email sent to: reed@example.com
+2026-09-26T23:40:38+00:00  172.18.0.9 - - [26/Sep/2026:23:40:38 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0060
+2026-09-26T23:40:43+00:00  Order confirmation email sent to: tobias@example.com
+2026-09-26T23:40:43+00:00  172.18.0.9 - - [26/Sep/2026:23:40:43 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0037
+2026-09-26T23:41:00+00:00  Order confirmation email sent to: steve@example.com
+2026-09-26T23:41:00+00:00  172.18.0.9 - - [26/Sep/2026:23:41:00 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0390
+2026-09-26T23:41:36+00:00  Order confirmation email sent to: reed@example.com
+2026-09-26T23:41:36+00:00  172.18.0.9 - - [26/Sep/2026:23:41:36 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0293
+2026-09-26T23:41:36+00:00  Order confirmation email sent to: larry_sergei@example.com
+2026-09-26T23:41:36+00:00  172.18.0.9 - - [26/Sep/2026:23:41:36 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0185
+2026-09-26T23:41:39+00:00  Order confirmation email sent to: steve@example.com
+2026-09-26T23:41:39+00:00  172.18.0.9 - - [26/Sep/2026:23:41:39 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0079
+2026-09-26T23:41:41+00:00  Order confirmation email sent to: moore@example.com
+2026-09-26T23:41:41+00:00  172.18.0.9 - - [26/Sep/2026:23:41:41 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0028
+2026-09-26T23:42:00+00:00  Order confirmation email sent to: larry_sergei@example.com
+2026-09-26T23:42:00+00:00  172.18.0.9 - - [26/Sep/2026:23:42:00 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0095
+2026-09-26T23:42:02+00:00  Order confirmation email sent to: jeff@example.com
+2026-09-26T23:42:02+00:00  172.18.0.9 - - [26/Sep/2026:23:42:02 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0031
+2026-09-26T23:42:03+00:00  Order confirmation email sent to: jack@example.com
+2026-09-26T23:42:03+00:00  172.18.0.9 - - [26/Sep/2026:23:42:03 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0028
+2026-09-26T23:42:12+00:00  Order confirmation email sent to: moore@example.com
+2026-09-26T23:42:12+00:00  172.18.0.9 - - [26/Sep/2026:23:42:12 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0201
+2026-09-26T23:42:17+00:00  Order confirmation email sent to: jack@example.com
+2026-09-26T23:42:17+00:00  172.18.0.9 - - [26/Sep/2026:23:42:17 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0034
+2026-09-26T23:42:24+00:00  Order confirmation email sent to: mark@example.com
+2026-09-26T23:42:24+00:00  172.18.0.9 - - [26/Sep/2026:23:42:24 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0058
+2026-09-26T23:42:31+00:00  Order confirmation email sent to: moore@example.com
+2026-09-26T23:42:31+00:00  172.18.0.9 - - [26/Sep/2026:23:42:31 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0032
+2026-09-26T23:43:04+00:00  Order confirmation email sent to: bill@example.com
+2026-09-26T23:43:04+00:00  172.18.0.9 - - [26/Sep/2026:23:43:04 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0067
+2026-09-26T23:43:22+00:00  Order confirmation email sent to: larry_sergei@example.com
+2026-09-26T23:43:22+00:00  172.18.0.9 - - [26/Sep/2026:23:43:22 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0103
+2026-09-26T23:43:22+00:00  Order confirmation email sent to: tobias@example.com
+2026-09-26T23:43:22+00:00  172.18.0.9 - - [26/Sep/2026:23:43:22 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0075
+2026-09-26T23:43:26+00:00  Order confirmation email sent to: mark@example.com
+2026-09-26T23:43:26+00:00  172.18.0.9 - - [26/Sep/2026:23:43:26 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0075
+2026-09-26T23:43:39+00:00  Order confirmation email sent to: tobias@example.com
+2026-09-26T23:43:39+00:00  172.18.0.9 - - [26/Sep/2026:23:43:39 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0071
+2026-09-26T23:43:41+00:00  Order confirmation email sent to: jeff@example.com
+2026-09-26T23:43:41+00:00  172.18.0.9 - - [26/Sep/2026:23:43:41 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0052
+2026-09-26T23:43:59+00:00  Order confirmation email sent to: jeff@example.com
+2026-09-26T23:43:59+00:00  172.18.0.9 - - [26/Sep/2026:23:43:59 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0051
+2026-09-26T23:44:02+00:00  Order confirmation email sent to: reed@example.com

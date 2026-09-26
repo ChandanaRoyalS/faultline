@@ -747,6 +747,11 @@ NARRATIVE_EVIDENCE_V2: dict[str, set[str]] = {
     # client span fails in no time with nothing beneath it; runtime shows checkout up and its
     # goroutines climbing; change history answers "nothing".
     "v2-payment-flag-unreachable": {"metrics", "runtime_metrics", "logs", "traces", "changes"},
+    # Holdout. The target pages on latency while it crash-loops. Metrics carry its p95 and falling
+    # span rate with no errors; its log shows each slow confirmation and the server starting over
+    # with nothing before each start; the traces put the time in send_email and checkout's EOFs;
+    # there are no runtime series to cite; change history answers "nothing".
+    "v2-email-flag-memory-leak": {"metrics", "logs", "traces", "changes"},
     # Holdout. The page names the culprit and reads as down. Metrics carry its rate going to zero
     # and everyone else's holding; runtime shows it alive; its log names the address and the
     # refused connection, and fraud-detection's shows the topic still read; traces show none of
