@@ -5,7 +5,7 @@
 # and the candidate list records the reading and the rule (any page is a scenario, no page blocks
 # it) before recording.
 id: v2-fraud-detection-flag-queue-lag
-title: A feature flag floods the orders queue and slows its consumer
+title: A feature flag floods the orders queue, slows its consumer and breaks accounting
 fault_class: feature_flag
 split: dev
 slot: v2/feature_flag-3
@@ -31,25 +31,26 @@ ground_truth:
     accounting.
   category: feature_flag
 expected_evidence:
-  # Written before the first recording and corrected against it (2026-09-26, t_inject 20:59:40,
-  # revert at +9:16; superseded when this was re-recorded). The first recording paged, so by the
-  # candidate list's rule it is a scenario. It also showed what the source reading had not: the
-  # flag breaks accounting until a restart, so the ground truth was corrected and the scenario is
-  # re-recorded. The injector's revert stays flag-only (what an operator does); accounting is
-  # restarted by the recording routine afterwards, outside the recorded window.
-  - alerts: ServiceHighLatency on fraud-detection alone (first recording 4m16s); nothing else during
-      the fault or after the fix - accounting's failures raise no alert at all
-  - metrics: fraud-detection's p95 goes from ~88ms to ~1,380ms and its consume rate pins at exactly
-      one record a second; after the fix it drains the backlog at 34-45 a second; accounting's
-      traffic multiplies (~0.45 to ~31 spans a second) with zero errors and its p95 falls; the
-      checkout path is unchanged
+  # Corrected against the first recording (2026-09-26, t_inject 20:59:40, now in superseded/) and
+  # checked against the re-record (t_inject 21:29:48, revert at +9:00). The injector's revert is
+  # flag-only; accounting was restarted by the recording routine 69 s after the fix, outside the
+  # recorded settle. In the first recording nobody restarted it for eight minutes, and it refused
+  # every new order until they did.
+  - alerts: ServiceHighLatency on fraud-detection alone (page 4m00s; first recording 4m16s);
+      nothing else during the fault or after the fix - accounting's failures raise no alert at all
+  - metrics: fraud-detection's p95 goes from ~90ms to ~1,380ms and its consumption pins at exactly
+      one record a second; after the fix it drains the backlog (8,302 records in a minute) and its
+      lag returns to zero; accounting's span rate goes from ~0.45 to ~33 a second with zero errors
+      and its p95 falls from ~90ms to ~2ms; the checkout path is unchanged
   - logs: fraud-detection logs `FeatureFlag 'kafkaQueueProblems' is enabled, sleeping 1 second`
-      once a second and `Consumed record with orderId` for the same order id over and over;
-      accounting logs `Order parsing failed` for every order it reads - an identity conflict on
-      OrderEntity for the duplicates, then `Unexpected entry.EntityState - Detached` from SaveChanges -
-      and keeps doing so after the fix, one per order, until it is restarted
-  - traces: fraud-detection's `orders process` spans last ~1,003ms each; accounting's
-      order-consumed spans carry no error and no database call; checkout's orders complete
+      sixty times a minute and `Consumed record with orderId` for the same order id over and over;
+      accounting logs `Order details` then `Order parsing failed` for every record it reads, 700 to
+      2,400 a minute, originals included from the first full minute - an identity conflict on
+      OrderEntity for the duplicates; after the fix, until its restart, it refuses every record
+      (104 of 104 in 69 s), the new orders with `Unexpected entry.EntityState - Detached`
+  - traces: fraud-detection's `orders process` spans last ~1,003ms each, two hundred of them in a
+      single poll's trace; accounting's order-consumed spans carry no error and no database call;
+      checkout's orders complete
   - metrics: fraud-detection's JVM runtime series (51) report through the fault - the process is up
   - change: nothing recorded - no deploy, no configuration change, no restart; flagd reloads its
       own file and leaves no change record
@@ -58,10 +59,11 @@ expected_evidence:
       every order, silently, and it still is after the flag is off - the fix is the flag and a
       restart of accounting, and the orders refused in between are lost
 expected_remediation_class: config_revert
-rehearsed: false
+rehearsed: true
 alert_timeout_seconds: 900
 # Declared before recording, checked against the bundle after (T7.5). Measured on the running
 # world 2026-09-26, as the candidate list asks: Prometheus holds 51 JVM runtime series for
-# fraud-detection (14 families), and its Loki stream logged 7 to 11 lines a minute at rest. If the
-# bundle's capture says otherwise, the declaration is corrected against it, not argued with.
+# fraud-detection (14 families), and its Loki stream logged 7 to 11 lines a minute at rest. Both
+# recordings confirmed it: 51 runtime series and 447 target log lines, and the recorder derived
+# [runtime, logs].
 answers_idle_or_absent: [runtime, logs]
