@@ -123,3 +123,4 @@ scenarios are authored, one line per slot, and never rewritten.
 | `v2/bad_config-2` | dev | `v2-payment-telemetry-blackout` | 2026-09-25, first recording, into the slot the cart scenario released |
 | `v2/bad_config-3` | dev | `v2-shipping-quote-misconfig` | 2026-09-26, third recording, on the world Q101, Q102 and Q104 left (the first two, on older worlds, are under its `superseded/`) |
 | `v2/bad_config-4` | dev | `v2-frontend-cart-misconfig` | 2026-09-26, first recording. The row's second reserve: the first, `v2-fraud-detection-kafka-misconfig`, shares holdout row 5's mechanism and was passed over (`t7.1-candidates.md`) |
+| `v2/bad_config-5` | holdout | `v2-accounting-kafka-misconfig` | 2026-09-26, first recording. Value `kafka:9094`, not the candidate list's `kafka:9093` (v2 Kafka's controller listener), decided before recording (`t7.1-candidates.md`) |

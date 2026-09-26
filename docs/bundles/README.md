@@ -1,6 +1,6 @@
 # The bundles, rendered
 
-Every recorded rehearsal in this repository as a readable page — 21 in all: **18 runnable** (15 dev, 3 holdout) and **3 that could not fire** (3 dev).
+Every recorded rehearsal in this repository as a readable page — 22 in all: **19 runnable** (15 dev, 4 holdout) and **3 that could not fire** (3 dev).
 
 A bundle is what one rehearsal left behind — the manifest, the Prometheus captures,
 a slice of one service's logs, the exact queries, and the narrative a responder wrote
@@ -52,6 +52,7 @@ pre-registered entry.
 | [`email-wrong-image`](email-wrong-image.md) | `bad_deploy` | Email service deployed with another service's image — 2 alerts over the window |
 | [`productcatalog-dependency-latency`](productcatalog-dependency-latency.md) | `dependency_latency` | Product catalog network path acquires 300ms of delay, slowing every caller — 5 alerts over the window |
 | [`recommendation-memory-squeeze`](recommendation-memory-squeeze.md) | `resource_exhaustion` | Recommendation service memory limit cut below what its runtime needs to start — 3 alerts over the window |
+| [`v2-accounting-kafka-misconfig`](v2-accounting-kafka-misconfig.md) | `bad_config` | Accounting pointed at a Kafka port where nothing listens — 1 alerts over the window |
 
 ---
 
