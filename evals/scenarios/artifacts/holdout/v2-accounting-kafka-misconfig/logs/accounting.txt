@@ -1,0 +1,492 @@
+# target container: accounting
+# loki labels: service, stream
+# selector: {service="accounting"}
+# 484 lines
+# before onset (2026-09-26T06:42:40+00:00): 84 lines, the newest kept
+# from onset: 400 lines, the oldest kept (limit reached: later lines were not captured)
+
+2026-09-26T06:37:46+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T06:37:46+00:00        Order details: { "orderId": "c8e7b3d1-b974-11f1-a862-4659f9156b51", "shippingTrackingId": "42419f8e-445c-436f-826d-9cce31ea6d6c", "shippingCost": { "currencyCode": "CAD", "units": "252", "nanos": 632916408 }, "shippingAddress": { "streetAddress": "150 Elgin St", "city": "Ottawa", "state": "ON", "country": "Canada", "zipCode": "K2P1L4" }, "items": [ { "item": { "productId": "LS4PSXUNUM", "quantity": 5 }, "cost": { "currencyCode": "CAD", "units": "77", "nanos": 346165413 } }, { "item": { "productId": "2ZYFJ3GM2N", "quantity": 3 }, "cost": { "currencyCode": "CAD", "units": "280", "nanos": 948571428 } }, { "item": { "productId": "6E92ZMYYFZ", "quantity": 10 }, "cost": { "currencyCode": "CAD", "units": "93", "nanos": 604918177 } }, { "item": { "productId": "9SIQT8TOJO", "quantity": 3 }, "cost": { "currencyCode": "CAD", "units": "4816", "nanos": 70057496 } } ] }.
+2026-09-26T06:37:47+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T06:37:47+00:00        Order details: { "orderId": "c9909d41-b974-11f1-a862-4659f9156b51", "shippingTrackingId": "f7f34855-0968-4897-8b6b-4eec95bf3a91", "shippingCost": { "currencyCode": "USD", "units": "17", "nanos": 980000000 }, "shippingAddress": { "streetAddress": "One Apple Park Way", "city": "Cupertino", "state": "CA", "country": "United States", "zipCode": "95014" }, "items": [ { "item": { "productId": "1YMWWN1N4O", "quantity": 2 }, "cost": { "currencyCode": "USD", "units": "129", "nanos": 949999999 } } ] }.
+2026-09-26T06:38:06+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T06:38:06+00:00        Order details: { "orderId": "d50e95f0-b974-11f1-a862-4659f9156b51", "shippingTrackingId": "ab7c6cc1-e340-437a-bde3-0d657e579cb5", "shippingCost": { "currencyCode": "USD", "units": "89", "nanos": 900000000 }, "shippingAddress": { "streetAddress": "410 Terry Ave N", "city": "Seattle", "state": "WA", "country": "United States", "zipCode": "98109" }, "items": [ { "item": { "productId": "OLJCESPC7Z", "quantity": 10 }, "cost": { "currencyCode": "USD", "units": "101", "nanos": 959999999 } } ] }.
+2026-09-26T06:38:15+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T06:38:15+00:00        Order details: { "orderId": "da293049-b974-11f1-a862-4659f9156b51", "shippingTrackingId": "dd7480eb-355f-4e95-8e74-50cef0f013f3", "shippingCost": { "currencyCode": "USD", "units": "8", "nanos": 990000000 }, "shippingAddress": { "streetAddress": "One Microsoft Way", "city": "Redmond", "state": "WA", "country": "United States", "zipCode": "98052" }, "items": [ { "item": { "productId": "HQTGWGPNH4", "quantity": 1 }, "cost": { "currencyCode": "USD", "nanos": 990000000 } } ] }.
+2026-09-26T06:38:18+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T06:38:18+00:00        Order details: { "orderId": "dbf43e72-b974-11f1-a862-4659f9156b51", "shippingTrackingId": "554174c8-119a-42a0-a583-6cb133d4da5a", "shippingCost": { "currencyCode": "USD", "units": "233", "nanos": 740000000 }, "shippingAddress": { "streetAddress": "1 Hacker Way", "city": "Menlo Park", "state": "CA", "country": "United States", "zipCode": "94025" }, "items": [ { "item": { "productId": "2ZYFJ3GM2N", "quantity": 14 }, "cost": { "currencyCode": "USD", "units": "209", "nanos": 949999999 } }, { "item": { "productId": "0PUK6V6EV0", "quantity": 2 }, "cost": { "currencyCode": "USD", "units": "175" } }, { "item": { "productId": "66VCHSJNUP", "quantity": 10 }, "cost": { "currencyCode": "USD", "units": "349", "nanos": 949999999 } } ] }.
+2026-09-26T06:38:31+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T06:38:31+00:00        Order details: { "orderId": "e3d5641b-b974-11f1-a862-4659f9156b51", "shippingTrackingId": "fedab8d5-0cf1-4ca6-b588-72976af26d7f", "shippingCost": { "currencyCode": "USD", "units": "35", "nanos": 960000000 }, "shippingAddress": { "streetAddress": "410 Terry Ave N", "city": "Seattle", "state": "WA", "country": "United States", "zipCode": "98109" }, "items": [ { "item": { "productId": "9SIQT8TOJO", "quantity": 4 }, "cost": { "currencyCode": "USD", "units": "3599" } } ] }.
+2026-09-26T06:38:38+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T06:38:38+00:00        Order details: { "orderId": "e83a57cc-b974-11f1-a862-4659f9156b51", "shippingTrackingId": "3b4c2929-f800-46c6-ae03-ccfb71def907", "shippingCost": { "currencyCode": "USD", "units": "35", "nanos": 960000000 }, "shippingAddress": { "streetAddress": "One Microsoft Way", "city": "Redmond", "state": "WA", "country": "United States", "zipCode": "98052" }, "items": [ { "item": { "productId": "LS4PSXUNUM", "quantity": 4 }, "cost": { "currencyCode": "USD", "units": "57", "nanos": 799999999 } } ] }.
+2026-09-26T06:38:39+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T06:38:39+00:00        Order details: { "orderId": "e8af3b08-b974-11f1-a862-4659f9156b51", "shippingTrackingId": "c0303951-57fc-4f90-9be1-efe43c99a2ae", "shippingCost": { "currencyCode": "USD", "units": "8", "nanos": 990000000 }, "shippingAddress": { "streetAddress": "One Microsoft Way", "city": "Redmond", "state": "WA", "country": "United States", "zipCode": "98052" }, "items": [ { "item": { "productId": "9SIQT8TOJO", "quantity": 1 }, "cost": { "currencyCode": "USD", "units": "3599" } } ] }.
+2026-09-26T06:38:46+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T06:38:46+00:00        Order details: { "orderId": "ec900fd1-b974-11f1-a862-4659f9156b51", "shippingTrackingId": "06f6a3ca-dfe0-4b8a-9c0b-641748557005", "shippingCost": { "currencyCode": "USD", "units": "35", "nanos": 960000000 }, "shippingAddress": { "streetAddress": "One Microsoft Way", "city": "Redmond", "state": "WA", "country": "United States", "zipCode": "98052" }, "items": [ { "item": { "productId": "9SIQT8TOJO", "quantity": 2 }, "cost": { "currencyCode": "USD", "units": "3599" } }, { "item": { "productId": "2ZYFJ3GM2N", "quantity": 2 }, "cost": { "currencyCode": "USD", "units": "209", "nanos": 949999999 } } ] }.
+2026-09-26T06:38:47+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T06:38:47+00:00        Order details: { "orderId": "ed249f75-b974-11f1-a862-4659f9156b51", "shippingTrackingId": "c0585f1c-1193-423e-a798-12a89e50fc32", "shippingCost": { "currencyCode": "USD", "units": "188", "nanos": 789999999 }, "shippingAddress": { "streetAddress": "1 Hacker Way", "city": "Menlo Park", "state": "CA", "country": "United States", "zipCode": "94025" }, "items": [ { "item": { "productId": "L9ECAV7KIM", "quantity": 5 }, "cost": { "currencyCode": "USD", "units": "21", "nanos": 949999999 } }, { "item": { "productId": "OLJCESPC7Z", "quantity": 5 }, "cost": { "currencyCode": "USD", "units": "101", "nanos": 959999999 } }, { "item": { "productId": "1YMWWN1N4O", "quantity": 1 }, "cost": { "currencyCode": "USD", "units": "129", "nanos": 949999999 } }, { "item": { "productId": "0PUK6V6EV0", "quantity": 10 }, "cost": { "currencyCode": "USD", "units": "175" } } ] }.
+2026-09-26T06:38:57+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T06:38:57+00:00        Order details: { "orderId": "f39c6732-b974-11f1-a862-4659f9156b51", "shippingTrackingId": "1442f817-77c1-4366-8dd8-01bb0b43c1e4", "shippingCost": { "currencyCode": "USD", "units": "35", "nanos": 960000000 }, "shippingAddress": { "streetAddress": "2200 Mission College Blvd", "city": "Santa Clara", "state": "CA", "country": "United States", "zipCode": "95054" }, "items": [ { "item": { "productId": "6E92ZMYYFZ", "quantity": 4 }, "cost": { "currencyCode": "USD", "units": "69", "nanos": 950000000 } } ] }.
+2026-09-26T06:38:58+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T06:38:58+00:00        Order details: { "orderId": "f3bd3f6b-b974-11f1-a862-4659f9156b51", "shippingTrackingId": "9cffa119-5e1a-4375-9d87-2a116f0843b8", "shippingCost": { "currencyCode": "USD", "units": "35", "nanos": 960000000 }, "shippingAddress": { "streetAddress": "One Apple Park Way", "city": "Cupertino", "state": "CA", "country": "United States", "zipCode": "95014" }, "items": [ { "item": { "productId": "HQTGWGPNH4", "quantity": 1 }, "cost": { "currencyCode": "USD", "nanos": 990000000 } }, { "item": { "productId": "2ZYFJ3GM2N", "quantity": 3 }, "cost": { "currencyCode": "USD", "units": "209", "nanos": 949999999 } } ] }.
+2026-09-26T06:38:59+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T06:38:59+00:00        Order details: { "orderId": "f4b10c56-b974-11f1-a862-4659f9156b51", "shippingTrackingId": "44709976-dd57-4a7f-8997-564c39395d00", "shippingCost": { "currencyCode": "USD", "units": "179", "nanos": 800000000 }, "shippingAddress": { "streetAddress": "1600 Amphitheatre Parkway", "city": "Mountain View", "state": "CA", "country": "United States", "zipCode": "94043" }, "items": [ { "item": { "productId": "66VCHSJNUP", "quantity": 10 }, "cost": { "currencyCode": "USD", "units": "349", "nanos": 949999999 } }, { "item": { "productId": "LS4PSXUNUM", "quantity": 10 }, "cost": { "currencyCode": "USD", "units": "57", "nanos": 799999999 } } ] }.
+2026-09-26T06:39:01+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T06:39:01+00:00        Order details: { "orderId": "f5b5a760-b974-11f1-a862-4659f9156b51", "shippingTrackingId": "602142d0-e6be-498e-97d3-d14cd9be1145", "shippingCost": { "currencyCode": "CAD", "units": "252", "nanos": 632916408 }, "shippingAddress": { "streetAddress": "150 Elgin St", "city": "Ottawa", "state": "ON", "country": "Canada", "zipCode": "K2P1L4" }, "items": [ { "item": { "productId": "2ZYFJ3GM2N", "quantity": 10 }, "cost": { "currencyCode": "CAD", "units": "280", "nanos": 948571428 } }, { "item": { "productId": "6E92ZMYYFZ", "quantity": 1 }, "cost": { "currencyCode": "CAD", "units": "93", "nanos": 604918177 } }, { "item": { "productId": "LS4PSXUNUM", "quantity": 10 }, "cost": { "currencyCode": "CAD", "units": "77", "nanos": 346165413 } } ] }.
+2026-09-26T06:39:22+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T06:39:22+00:00        Order details: { "orderId": "0213b208-b975-11f1-a862-4659f9156b51", "shippingTrackingId": "86d9fbad-fe31-421b-b538-7d1cd99aac86", "shippingCost": { "currencyCode": "USD", "units": "98", "nanos": 890000000 }, "shippingAddress": { "streetAddress": "One Apple Park Way", "city": "Cupertino", "state": "CA", "country": "United States", "zipCode": "95014" }, "items": [ { "item": { "productId": "OLJCESPC7Z", "quantity": 5 }, "cost": { "currencyCode": "USD", "units": "101", "nanos": 959999999 } }, { "item": { "productId": "HQTGWGPNH4", "quantity": 2 }, "cost": { "currencyCode": "USD", "nanos": 990000000 } }, { "item": { "productId": "LS4PSXUNUM", "quantity": 4 }, "cost": { "currencyCode": "USD", "units": "57", "nanos": 799999999 } } ] }.
+2026-09-26T06:39:30+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T06:39:30+00:00        Order details: { "orderId": "070a3c84-b975-11f1-a862-4659f9156b51", "shippingTrackingId": "342b828d-e6b4-4474-8283-67fb9ee95de9", "shippingCost": { "currencyCode": "USD", "units": "170", "nanos": 810000000 }, "shippingAddress": { "streetAddress": "2200 Mission College Blvd", "city": "Santa Clara", "state": "CA", "country": "United States", "zipCode": "95054" }, "items": [ { "item": { "productId": "LS4PSXUNUM", "quantity": 4 }, "cost": { "currencyCode": "USD", "units": "57", "nanos": 799999999 } }, { "item": { "productId": "0PUK6V6EV0", "quantity": 10 }, "cost": { "currencyCode": "USD", "units": "175" } }, { "item": { "productId": "OLJCESPC7Z", "quantity": 5 }, "cost": { "currencyCode": "USD", "units": "101", "nanos": 959999999 } } ] }.
+2026-09-26T06:39:31+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T06:39:31+00:00        Order details: { "orderId": "07de244a-b975-11f1-a862-4659f9156b51", "shippingTrackingId": "c860b215-cc92-418f-80e9-8596765025c6", "shippingCost": { "currencyCode": "USD", "units": "80", "nanos": 909999999 }, "shippingAddress": { "streetAddress": "100 Winchester Circle", "city": "Los Gatos", "state": "CA", "country": "United States", "zipCode": "95032" }, "items": [ { "item": { "productId": "HQTGWGPNH4", "quantity": 5 }, "cost": { "currencyCode": "USD", "nanos": 990000000 } }, { "item": { "productId": "66VCHSJNUP", "quantity": 4 }, "cost": { "currencyCode": "USD", "units": "349", "nanos": 949999999 } } ] }.
+2026-09-26T06:39:34+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T06:39:34+00:00        Order details: { "orderId": "09441ff5-b975-11f1-a862-4659f9156b51", "shippingTrackingId": "6d97ed9c-4541-4b55-8472-108cdad2ccbb", "shippingCost": { "currencyCode": "USD", "units": "8", "nanos": 990000000 }, "shippingAddress": { "streetAddress": "2200 Mission College Blvd", "city": "Santa Clara", "state": "CA", "country": "United States", "zipCode": "95054" }, "items": [ { "item": { "productId": "L9ECAV7KIM", "quantity": 1 }, "cost": { "currencyCode": "USD", "units": "21", "nanos": 949999999 } } ] }.
+2026-09-26T06:39:46+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T06:39:46+00:00        Order details: { "orderId": "10880be5-b975-11f1-a862-4659f9156b51", "shippingTrackingId": "95c9e3b9-a719-47d3-b97b-9aef462d4c39", "shippingCost": { "currencyCode": "USD", "units": "161", "nanos": 819999999 }, "shippingAddress": { "streetAddress": "2200 Mission College Blvd", "city": "Santa Clara", "state": "CA", "country": "United States", "zipCode": "95054" }, "items": [ { "item": { "productId": "L9ECAV7KIM", "quantity": 17 }, "cost": { "currencyCode": "USD", "units": "21", "nanos": 949999999 } }, { "item": { "productId": "6E92ZMYYFZ", "quantity": 1 }, "cost": { "currencyCode": "USD", "units": "69", "nanos": 950000000 } } ] }.
+2026-09-26T06:39:51+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T06:39:51+00:00        Order details: { "orderId": "1339f916-b975-11f1-a862-4659f9156b51", "shippingTrackingId": "102da77d-67a1-42d4-bea9-736ca0a85615", "shippingCost": { "currencyCode": "USD", "units": "206", "nanos": 770000000 }, "shippingAddress": { "streetAddress": "One Apple Park Way", "city": "Cupertino", "state": "CA", "country": "United States", "zipCode": "95014" }, "items": [ { "item": { "productId": "6E92ZMYYFZ", "quantity": 5 }, "cost": { "currencyCode": "USD", "units": "69", "nanos": 950000000 } }, { "item": { "productId": "L9ECAV7KIM", "quantity": 5 }, "cost": { "currencyCode": "USD", "units": "21", "nanos": 949999999 } }, { "item": { "productId": "66VCHSJNUP", "quantity": 10 }, "cost": { "currencyCode": "USD", "units": "349", "nanos": 949999999 } }, { "item": { "productId": "1YMWWN1N4O", "quantity": 3 }, "cost": { "currencyCode": "USD", "units": "129", "nanos": 949999999 } } ] }.
+2026-09-26T06:39:54+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T06:39:54+00:00        Order details: { "orderId": "157ee576-b975-11f1-a862-4659f9156b51", "shippingTrackingId": "bfeeba1b-160d-473f-ab0d-f87a7dc9862b", "shippingCost": { "currencyCode": "USD", "units": "116", "nanos": 870000000 }, "shippingAddress": { "streetAddress": "2200 Mission College Blvd", "city": "Santa Clara", "state": "CA", "country": "United States", "zipCode": "95054" }, "items": [ { "item": { "productId": "6E92ZMYYFZ", "quantity": 1 }, "cost": { "currencyCode": "USD", "units": "69", "nanos": 950000000 } }, { "item": { "productId": "L9ECAV7KIM", "quantity": 10 }, "cost": { "currencyCode": "USD", "units": "21", "nanos": 949999999 } }, { "item": { "productId": "LS4PSXUNUM", "quantity": 2 }, "cost": { "currencyCode": "USD", "units": "57", "nanos": 799999999 } } ] }.
+2026-09-26T06:40:17+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T06:40:17+00:00        Order details: { "orderId": "22d2c8a1-b975-11f1-a862-4659f9156b51", "shippingTrackingId": "d7d4e847-40b2-4abe-adcc-f5d48f33cb4f", "shippingCost": { "currencyCode": "USD", "units": "89", "nanos": 900000000 }, "shippingAddress": { "streetAddress": "2200 Mission College Blvd", "city": "Santa Clara", "state": "CA", "country": "United States", "zipCode": "95054" }, "items": [ { "item": { "productId": "66VCHSJNUP", "quantity": 10 }, "cost": { "currencyCode": "USD", "units": "349", "nanos": 949999999 } } ] }.
+2026-09-26T06:40:29+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T06:40:29+00:00        Order details: { "orderId": "2a6135f4-b975-11f1-a862-4659f9156b51", "shippingTrackingId": "514ff3a4-65d3-44a1-aa16-66020d6c910a", "shippingCost": { "currencyCode": "USD", "units": "188", "nanos": 789999999 }, "shippingAddress": { "streetAddress": "1355 Market St", "city": "San Francisco", "state": "CA", "country": "United States", "zipCode": "94103" }, "items": [ { "item": { "productId": "66VCHSJNUP", "quantity": 10 }, "cost": { "currencyCode": "USD", "units": "349", "nanos": 949999999 } }, { "item": { "productId": "9SIQT8TOJO", "quantity": 1 }, "cost": { "currencyCode": "USD", "units": "3599" } }, { "item": { "productId": "0PUK6V6EV0", "quantity": 10 }, "cost": { "currencyCode": "USD", "units": "175" } } ] }.
+2026-09-26T06:40:36+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T06:40:36+00:00        Order details: { "orderId": "2e68b01c-b975-11f1-a862-4659f9156b51", "shippingTrackingId": "123dfe20-ea48-4a09-bcc9-0e023ca29aa5", "shippingCost": { "currencyCode": "USD", "units": "17", "nanos": 980000000 }, "shippingAddress": { "streetAddress": "1 Hacker Way", "city": "Menlo Park", "state": "CA", "country": "United States", "zipCode": "94025" }, "items": [ { "item": { "productId": "L9ECAV7KIM", "quantity": 2 }, "cost": { "currencyCode": "USD", "units": "21", "nanos": 949999999 } } ] }.
+2026-09-26T06:40:46+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T06:40:46+00:00        Order details: { "orderId": "3440d67e-b975-11f1-a862-4659f9156b51", "shippingTrackingId": "c1efad3a-c53f-45a7-9c7e-8215b93d67e2", "shippingCost": { "currencyCode": "USD", "units": "161", "nanos": 819999999 }, "shippingAddress": { "streetAddress": "1600 Amphitheatre Parkway", "city": "Mountain View", "state": "CA", "country": "United States", "zipCode": "94043" }, "items": [ { "item": { "productId": "L9ECAV7KIM", "quantity": 2 }, "cost": { "currencyCode": "USD", "units": "21", "nanos": 949999999 } }, { "item": { "productId": "1YMWWN1N4O", "quantity": 4 }, "cost": { "currencyCode": "USD", "units": "129", "nanos": 949999999 } }, { "item": { "productId": "9SIQT8TOJO", "quantity": 10 }, "cost": { "currencyCode": "USD", "units": "3599" } }, { "item": { "productId": "0PUK6V6EV0", "quantity": 2 }, "cost": { "currencyCode": "USD", "units": "175" } } ] }.
+2026-09-26T06:40:49+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T06:40:49+00:00        Order details: { "orderId": "365549a6-b975-11f1-a862-4659f9156b51", "shippingTrackingId": "98c3c82e-dfe2-44f4-bf58-8a5a28881c94", "shippingCost": { "currencyCode": "USD", "units": "161", "nanos": 819999999 }, "shippingAddress": { "streetAddress": "2200 Mission College Blvd", "city": "Santa Clara", "state": "CA", "country": "United States", "zipCode": "95054" }, "items": [ { "item": { "productId": "0PUK6V6EV0", "quantity": 3 }, "cost": { "currencyCode": "USD", "units": "175" } }, { "item": { "productId": "OLJCESPC7Z", "quantity": 15 }, "cost": { "currencyCode": "USD", "units": "101", "nanos": 959999999 } } ] }.
+2026-09-26T06:40:55+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T06:40:55+00:00        Order details: { "orderId": "39adc1aa-b975-11f1-a862-4659f9156b51", "shippingTrackingId": "a924171d-7710-4256-a3b6-623ec4920026", "shippingCost": { "currencyCode": "CAD", "units": "12", "nanos": 30138876 }, "shippingAddress": { "streetAddress": "150 Elgin St", "city": "Ottawa", "state": "ON", "country": "Canada", "zipCode": "K2P1L4" }, "items": [ { "item": { "productId": "1YMWWN1N4O", "quantity": 1 }, "cost": { "currencyCode": "CAD", "units": "173", "nanos": 895055285 } } ] }.
+2026-09-26T06:41:00+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T06:41:00+00:00        Order details: { "orderId": "3cda22b2-b975-11f1-a862-4659f9156b51", "shippingTrackingId": "93a74462-e5cb-494a-b6ca-8e50d6046e90", "shippingCost": { "currencyCode": "CAD", "units": "60", "nanos": 150694383 }, "shippingAddress": { "streetAddress": "150 Elgin St", "city": "Ottawa", "state": "ON", "country": "Canada", "zipCode": "K2P1L4" }, "items": [ { "item": { "productId": "LS4PSXUNUM", "quantity": 5 }, "cost": { "currencyCode": "CAD", "units": "77", "nanos": 346165413 } } ] }.
+2026-09-26T06:41:07+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T06:41:07+00:00        Order details: { "orderId": "40bd86ae-b975-11f1-a862-4659f9156b51", "shippingTrackingId": "a5c341e6-fd96-4b10-bf7d-dc2cd1221138", "shippingCost": { "currencyCode": "USD", "units": "44", "nanos": 950000000 }, "shippingAddress": { "streetAddress": "1 Hacker Way", "city": "Menlo Park", "state": "CA", "country": "United States", "zipCode": "94025" }, "items": [ { "item": { "productId": "0PUK6V6EV0", "quantity": 3 }, "cost": { "currencyCode": "USD", "units": "175" } }, { "item": { "productId": "2ZYFJ3GM2N", "quantity": 2 }, "cost": { "currencyCode": "USD", "units": "209", "nanos": 949999999 } } ] }.
+2026-09-26T06:41:08+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T06:41:08+00:00        Order details: { "orderId": "419fa01b-b975-11f1-a862-4659f9156b51", "shippingTrackingId": "309aea9e-8c07-4c7c-8aaa-7f37c0abfe33", "shippingCost": { "currencyCode": "USD", "units": "107", "nanos": 879999999 }, "shippingAddress": { "streetAddress": "100 Winchester Circle", "city": "Los Gatos", "state": "CA", "country": "United States", "zipCode": "95032" }, "items": [ { "item": { "productId": "2ZYFJ3GM2N", "quantity": 2 }, "cost": { "currencyCode": "USD", "units": "209", "nanos": 949999999 } }, { "item": { "productId": "66VCHSJNUP", "quantity": 10 }, "cost": { "currencyCode": "USD", "units": "349", "nanos": 949999999 } } ] }.
+2026-09-26T06:41:09+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T06:41:09+00:00        Order details: { "orderId": "41f7fc10-b975-11f1-a862-4659f9156b51", "shippingTrackingId": "60c3c4a3-c020-4a3d-b4b8-48fcb92b4b85", "shippingCost": { "currencyCode": "USD", "units": "35", "nanos": 960000000 }, "shippingAddress": { "streetAddress": "410 Terry Ave N", "city": "Seattle", "state": "WA", "country": "United States", "zipCode": "98109" }, "items": [ { "item": { "productId": "OLJCESPC7Z", "quantity": 1 }, "cost": { "currencyCode": "USD", "units": "101", "nanos": 959999999 } }, { "item": { "productId": "0PUK6V6EV0", "quantity": 3 }, "cost": { "currencyCode": "USD", "units": "175" } } ] }.
+2026-09-26T06:41:18+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T06:41:18+00:00        Order details: { "orderId": "472e8b24-b975-11f1-a862-4659f9156b51", "shippingTrackingId": "57a3e719-a109-478e-b517-694e5f03d3e4", "shippingCost": { "currencyCode": "USD", "units": "116", "nanos": 870000000 }, "shippingAddress": { "streetAddress": "One Microsoft Way", "city": "Redmond", "state": "WA", "country": "United States", "zipCode": "98052" }, "items": [ { "item": { "productId": "6E92ZMYYFZ", "quantity": 1 }, "cost": { "currencyCode": "USD", "units": "69", "nanos": 950000000 } }, { "item": { "productId": "HQTGWGPNH4", "quantity": 2 }, "cost": { "currencyCode": "USD", "nanos": 990000000 } }, { "item": { "productId": "1YMWWN1N4O", "quantity": 10 }, "cost": { "currencyCode": "USD", "units": "129", "nanos": 949999999 } } ] }.
+2026-09-26T06:41:23+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T06:41:23+00:00        Order details: { "orderId": "4a79546f-b975-11f1-a862-4659f9156b51", "shippingTrackingId": "9ebc569a-2fd0-4667-86d2-bb3e95ef12b8", "shippingCost": { "currencyCode": "USD", "units": "125", "nanos": 859999999 }, "shippingAddress": { "streetAddress": "1600 Amphitheatre Parkway", "city": "Mountain View", "state": "CA", "country": "United States", "zipCode": "94043" }, "items": [ { "item": { "productId": "OLJCESPC7Z", "quantity": 4 }, "cost": { "currencyCode": "USD", "units": "101", "nanos": 959999999 } }, { "item": { "productId": "1YMWWN1N4O", "quantity": 5 }, "cost": { "currencyCode": "USD", "units": "129", "nanos": 949999999 } }, { "item": { "productId": "LS4PSXUNUM", "quantity": 3 }, "cost": { "currencyCode": "USD", "units": "57", "nanos": 799999999 } }, { "item": { "productId": "2ZYFJ3GM2N", "quantity": 2 }, "cost": { "currencyCode": "USD", "units": "209", "nanos": 949999999 } } ] }.
+2026-09-26T06:41:30+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T06:41:30+00:00        Order details: { "orderId": "4eb75819-b975-11f1-a862-4659f9156b51", "shippingTrackingId": "cc0bb3e2-9d00-4d5f-ba18-d6ef4d3cd3eb", "shippingCost": { "currencyCode": "CAD", "units": "192", "nanos": 482222025 }, "shippingAddress": { "streetAddress": "150 Elgin St", "city": "Ottawa", "state": "ON", "country": "Canada", "zipCode": "K2P1L4" }, "items": [ { "item": { "productId": "6E92ZMYYFZ", "quantity": 1 }, "cost": { "currencyCode": "CAD", "units": "93", "nanos": 604918177 } }, { "item": { "productId": "0PUK6V6EV0", "quantity": 3 }, "cost": { "currencyCode": "CAD", "units": "234", "nanos": 179566563 } }, { "item": { "productId": "L9ECAV7KIM", "quantity": 10 }, "cost": { "currencyCode": "CAD", "units": "29", "nanos": 372808491 } }, { "item": { "productId": "9SIQT8TOJO", "quantity": 2 }, "cost": { "currencyCode": "CAD", "units": "4816", "nanos": 70057496 } } ] }.
+2026-09-26T06:41:40+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T06:41:40+00:00        Order details: { "orderId": "543e8356-b975-11f1-a862-4659f9156b51", "shippingTrackingId": "d9268066-82b1-4528-ba07-92aaad078ccf", "shippingCost": { "currencyCode": "USD", "units": "98", "nanos": 890000000 }, "shippingAddress": { "streetAddress": "One Apple Park Way", "city": "Cupertino", "state": "CA", "country": "United States", "zipCode": "95014" }, "items": [ { "item": { "productId": "6E92ZMYYFZ", "quantity": 10 }, "cost": { "currencyCode": "USD", "units": "69", "nanos": 950000000 } }, { "item": { "productId": "2ZYFJ3GM2N", "quantity": 1 }, "cost": { "currencyCode": "USD", "units": "209", "nanos": 949999999 } } ] }.
+2026-09-26T06:41:54+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T06:41:54+00:00        Order details: { "orderId": "5d0c24d2-b975-11f1-a862-4659f9156b51", "shippingTrackingId": "7deddb48-e5a6-4372-bb20-fb3ce404863d", "shippingCost": { "currencyCode": "USD", "units": "89", "nanos": 900000000 }, "shippingAddress": { "streetAddress": "One Microsoft Way", "city": "Redmond", "state": "WA", "country": "United States", "zipCode": "98052" }, "items": [ { "item": { "productId": "1YMWWN1N4O", "quantity": 10 }, "cost": { "currencyCode": "USD", "units": "129", "nanos": 949999999 } } ] }.
+2026-09-26T06:42:01+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T06:42:01+00:00        Order details: { "orderId": "612ad09f-b975-11f1-a862-4659f9156b51", "shippingTrackingId": "04afe7a6-1f8c-4f93-8ed7-446f0dc1c3d0", "shippingCost": { "currencyCode": "USD", "units": "161", "nanos": 819999999 }, "shippingAddress": { "streetAddress": "2200 Mission College Blvd", "city": "Santa Clara", "state": "CA", "country": "United States", "zipCode": "95054" }, "items": [ { "item": { "productId": "6E92ZMYYFZ", "quantity": 10 }, "cost": { "currencyCode": "USD", "units": "69", "nanos": 950000000 } }, { "item": { "productId": "66VCHSJNUP", "quantity": 4 }, "cost": { "currencyCode": "USD", "units": "349", "nanos": 949999999 } }, { "item": { "productId": "9SIQT8TOJO", "quantity": 4 }, "cost": { "currencyCode": "USD", "units": "3599" } } ] }.
+2026-09-26T06:42:13+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T06:42:13+00:00        Order details: { "orderId": "67ef5f3c-b975-11f1-a862-4659f9156b51", "shippingTrackingId": "dcef8ce4-f02c-4e6c-856a-2efc0923831b", "shippingCost": { "currencyCode": "USD", "units": "179", "nanos": 800000000 }, "shippingAddress": { "streetAddress": "2200 Mission College Blvd", "city": "Santa Clara", "state": "CA", "country": "United States", "zipCode": "95054" }, "items": [ { "item": { "productId": "HQTGWGPNH4", "quantity": 10 }, "cost": { "currencyCode": "USD", "nanos": 990000000 } }, { "item": { "productId": "0PUK6V6EV0", "quantity": 10 }, "cost": { "currencyCode": "USD", "units": "175" } } ] }.
+2026-09-26T06:42:23+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T06:42:23+00:00        Order details: { "orderId": "6dde2ab8-b975-11f1-a862-4659f9156b51", "shippingTrackingId": "f6aed86d-cae8-4373-9749-7d92043c8343", "shippingCost": { "currencyCode": "USD", "units": "125", "nanos": 859999999 }, "shippingAddress": { "streetAddress": "One Microsoft Way", "city": "Redmond", "state": "WA", "country": "United States", "zipCode": "98052" }, "items": [ { "item": { "productId": "L9ECAV7KIM", "quantity": 2 }, "cost": { "currencyCode": "USD", "units": "21", "nanos": 949999999 } }, { "item": { "productId": "0PUK6V6EV0", "quantity": 4 }, "cost": { "currencyCode": "USD", "units": "175" } }, { "item": { "productId": "HQTGWGPNH4", "quantity": 5 }, "cost": { "currencyCode": "USD", "nanos": 990000000 } }, { "item": { "productId": "6E92ZMYYFZ", "quantity": 3 }, "cost": { "currencyCode": "USD", "units": "69", "nanos": 950000000 } } ] }.
+2026-09-26T06:42:32+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T06:42:32+00:00        Order details: { "orderId": "7353563e-b975-11f1-a862-4659f9156b51", "shippingTrackingId": "e23ba6e5-ab73-40c9-a840-febd9f312286", "shippingCost": { "currencyCode": "USD", "units": "188", "nanos": 789999999 }, "shippingAddress": { "streetAddress": "1 Hacker Way", "city": "Menlo Park", "state": "CA", "country": "United States", "zipCode": "94025" }, "items": [ { "item": { "productId": "OLJCESPC7Z", "quantity": 12 }, "cost": { "currencyCode": "USD", "units": "101", "nanos": 959999999 } }, { "item": { "productId": "HQTGWGPNH4", "quantity": 5 }, "cost": { "currencyCode": "USD", "nanos": 990000000 } }, { "item": { "productId": "6E92ZMYYFZ", "quantity": 4 }, "cost": { "currencyCode": "USD", "units": "69", "nanos": 950000000 } } ] }.
+2026-09-26T06:42:32+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T06:42:32+00:00        Order details: { "orderId": "73b0039d-b975-11f1-a862-4659f9156b51", "shippingTrackingId": "b7e9469b-1a62-4b0e-ae41-c58088aaf9fa", "shippingCost": { "currencyCode": "USD", "units": "26", "nanos": 969999999 }, "shippingAddress": { "streetAddress": "2200 Mission College Blvd", "city": "Santa Clara", "state": "CA", "country": "United States", "zipCode": "95054" }, "items": [ { "item": { "productId": "2ZYFJ3GM2N", "quantity": 3 }, "cost": { "currencyCode": "USD", "units": "209", "nanos": 949999999 } } ] }.
+2026-09-26T06:42:38+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T06:42:38+00:00        Order details: { "orderId": "774cc123-b975-11f1-a862-4659f9156b51", "shippingTrackingId": "3277ff5f-66d3-4207-9975-9c9181e5702c", "shippingCost": { "currencyCode": "USD", "units": "44", "nanos": 950000000 }, "shippingAddress": { "streetAddress": "410 Terry Ave N", "city": "Seattle", "state": "WA", "country": "United States", "zipCode": "98109" }, "items": [ { "item": { "productId": "66VCHSJNUP", "quantity": 5 }, "cost": { "currencyCode": "USD", "units": "349", "nanos": 949999999 } } ] }.
+# ---- onset 2026-09-26T06:42:40+00:00 ----
+2026-09-26T06:42:42+00:00  Accounting service started
+2026-09-26T06:42:42+00:00  [CORECLR_ENABLE_PROFILING, 1]
+2026-09-26T06:42:42+00:00  [CORECLR_PROFILER, {918728DD-259F-4A6A-AC2B-B85E1B658318}]
+2026-09-26T06:42:42+00:00  [CORECLR_PROFILER_PATH, /app/OpenTelemetry.AutoInstrumentation.Native.so]
+2026-09-26T06:42:42+00:00  [DOTNET_RUNNING_IN_CONTAINER, true]
+2026-09-26T06:42:42+00:00  [DOTNET_STARTUP_HOOKS, /app/OpenTelemetry.AutoInstrumentation.StartupHook.dll]
+2026-09-26T06:42:42+00:00  [DOTNET_VERSION, 10.0.1]
+2026-09-26T06:42:42+00:00  [KAFKA_ADDR, kafka:9094]
+2026-09-26T06:42:42+00:00  [OTEL_DOTNET_AUTO_HOME, /app]
+2026-09-26T06:42:42+00:00  [OTEL_DOTNET_AUTO_RULE_ENGINE_ENABLED, false]
+2026-09-26T06:42:42+00:00  [OTEL_DOTNET_AUTO_TRACES_ADDITIONAL_SOURCES, Accounting.Consumer]
+2026-09-26T06:42:42+00:00  [OTEL_DOTNET_AUTO_TRACES_ENTITYFRAMEWORKCORE_INSTRUMENTATION_ENABLED, false]
+2026-09-26T06:42:42+00:00  [OTEL_EXPORTER_OTLP_ENDPOINT, http://otel-collector:4318]
+2026-09-26T06:42:42+00:00  [OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE, cumulative]
+2026-09-26T06:42:42+00:00  [OTEL_RESOURCE_ATTRIBUTES, service.namespace=opentelemetry-demo,service.version=2.2.0]
+2026-09-26T06:42:42+00:00  [OTEL_SERVICE_NAME, accounting]
+2026-09-26T06:42:42+00:00  %3|1790404962.557|FAIL|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: kafka:9094/bootstrap: Connect to ipv4#172.18.0.2:9094 failed: Connection refused (after 0ms in state CONNECT)
+2026-09-26T06:42:42+00:00  %3|1790404962.557|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:42+00:00  info: Accounting.Consumer[0]
+2026-09-26T06:42:42+00:00        Connecting to Kafka: kafka:9094
+2026-09-26T06:42:42+00:00  %3|1790404962.605|ERROR|rdkafka#consumer-1| [thrd:app]: rdkafka#consumer-1: kafka:9094/bootstrap: Connect to ipv4#172.18.0.2:9094 failed: Connection refused (after 0ms in state CONNECT)
+2026-09-26T06:42:42+00:00  %3|1790404962.608|FAIL|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: kafka:9094/bootstrap: Connect to ipv4#172.18.0.2:9094 failed: Connection refused (after 0ms in state CONNECT, 1 identical error(s) suppressed)
+2026-09-26T06:42:42+00:00  %3|1790404962.608|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:42+00:00  %3|1790404962.608|ERROR|rdkafka#consumer-1| [thrd:app]: rdkafka#consumer-1: kafka:9094/bootstrap: Connect to ipv4#172.18.0.2:9094 failed: Connection refused (after 0ms in state CONNECT, 1 identical error(s) suppressed)
+2026-09-26T06:42:42+00:00  %3|1790404962.659|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:42+00:00  %3|1790404962.710|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:42+00:00  %3|1790404962.762|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:42+00:00  %3|1790404962.814|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:42+00:00  %3|1790404962.866|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:42+00:00  %3|1790404962.917|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:42+00:00  %3|1790404962.969|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:43+00:00  %3|1790404963.020|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:43+00:00  %3|1790404963.071|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:43+00:00  %3|1790404963.123|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:43+00:00  %3|1790404963.175|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:43+00:00  %3|1790404963.227|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:43+00:00  %3|1790404963.278|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:43+00:00  %3|1790404963.329|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:43+00:00  %3|1790404963.381|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:43+00:00  %3|1790404963.435|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:43+00:00  %3|1790404963.487|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:43+00:00  %3|1790404963.539|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:43+00:00  %3|1790404963.593|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:43+00:00  %3|1790404963.643|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:43+00:00  %3|1790404963.694|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:43+00:00  %3|1790404963.746|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:43+00:00  %3|1790404963.797|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:43+00:00  %3|1790404963.848|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:43+00:00  %3|1790404963.899|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:43+00:00  %3|1790404963.951|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:44+00:00  %3|1790404964.002|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:44+00:00  %3|1790404964.053|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:44+00:00  %3|1790404964.107|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:44+00:00  %3|1790404964.157|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:44+00:00  %3|1790404964.209|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:44+00:00  %3|1790404964.260|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:44+00:00  %3|1790404964.312|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:44+00:00  %3|1790404964.363|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:44+00:00  %3|1790404964.414|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:44+00:00  %3|1790404964.465|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:44+00:00  %3|1790404964.517|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:44+00:00  %3|1790404964.569|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:44+00:00  %3|1790404964.622|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:44+00:00  %3|1790404964.673|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:44+00:00  %3|1790404964.725|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:44+00:00  %3|1790404964.777|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:44+00:00  %3|1790404964.828|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:44+00:00  %3|1790404964.879|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:44+00:00  %3|1790404964.931|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:44+00:00  %3|1790404964.982|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:45+00:00  %3|1790404965.033|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:45+00:00  %3|1790404965.086|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:45+00:00  %3|1790404965.137|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:45+00:00  %3|1790404965.189|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:45+00:00  %3|1790404965.241|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:45+00:00  %3|1790404965.293|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:45+00:00  %3|1790404965.344|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:45+00:00  %3|1790404965.396|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:45+00:00  %3|1790404965.448|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:45+00:00  %3|1790404965.500|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:45+00:00  %3|1790404965.551|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:45+00:00  %3|1790404965.618|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:45+00:00  %3|1790404965.670|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:45+00:00  %3|1790404965.723|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:45+00:00  %3|1790404965.775|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:45+00:00  %3|1790404965.826|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:45+00:00  %3|1790404965.877|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:45+00:00  %3|1790404965.929|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:45+00:00  %3|1790404965.980|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:46+00:00  %3|1790404966.032|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:46+00:00  %3|1790404966.083|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:46+00:00  %3|1790404966.134|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:46+00:00  %3|1790404966.186|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:46+00:00  %3|1790404966.238|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:46+00:00  %3|1790404966.290|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:46+00:00  %3|1790404966.341|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:46+00:00  %3|1790404966.392|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:46+00:00  %3|1790404966.444|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:46+00:00  %3|1790404966.495|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:46+00:00  %3|1790404966.547|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:46+00:00  %3|1790404966.599|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:46+00:00  %3|1790404966.651|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:46+00:00  %3|1790404966.703|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:46+00:00  %3|1790404966.754|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:46+00:00  %3|1790404966.805|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:46+00:00  %3|1790404966.856|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:46+00:00  %3|1790404966.908|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:46+00:00  %3|1790404966.959|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:47+00:00  %3|1790404967.011|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:47+00:00  %3|1790404967.062|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:47+00:00  %3|1790404967.113|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:47+00:00  %3|1790404967.166|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:47+00:00  %3|1790404967.217|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:47+00:00  %3|1790404967.270|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:47+00:00  %3|1790404967.321|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:47+00:00  %3|1790404967.373|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:47+00:00  %3|1790404967.424|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:47+00:00  %3|1790404967.476|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:47+00:00  %3|1790404967.527|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:47+00:00  %3|1790404967.579|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:47+00:00  %3|1790404967.630|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:47+00:00  %3|1790404967.681|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:47+00:00  %3|1790404967.733|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:47+00:00  %3|1790404967.785|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:47+00:00  %3|1790404967.837|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:47+00:00  %3|1790404967.888|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:47+00:00  %3|1790404967.939|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:47+00:00  %3|1790404967.991|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:48+00:00  %3|1790404968.042|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:48+00:00  %3|1790404968.094|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:48+00:00  %3|1790404968.145|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:48+00:00  %3|1790404968.197|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:48+00:00  %3|1790404968.248|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:48+00:00  %3|1790404968.300|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:48+00:00  %3|1790404968.351|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:48+00:00  %3|1790404968.403|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:48+00:00  %3|1790404968.454|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:48+00:00  %3|1790404968.507|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:48+00:00  %3|1790404968.558|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:48+00:00  %3|1790404968.611|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:48+00:00  %3|1790404968.663|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:48+00:00  %3|1790404968.715|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:48+00:00  %3|1790404968.769|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:48+00:00  %3|1790404968.819|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:48+00:00  %3|1790404968.870|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:48+00:00  %3|1790404968.922|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:48+00:00  %3|1790404968.973|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:49+00:00  %3|1790404969.025|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:49+00:00  %3|1790404969.076|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:49+00:00  %3|1790404969.128|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:49+00:00  %3|1790404969.180|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:49+00:00  %3|1790404969.231|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:49+00:00  %3|1790404969.282|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:49+00:00  %3|1790404969.334|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:49+00:00  %3|1790404969.385|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:49+00:00  %3|1790404969.437|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:49+00:00  %3|1790404969.489|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:49+00:00  %3|1790404969.542|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:49+00:00  %3|1790404969.595|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:49+00:00  %3|1790404969.647|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:49+00:00  %3|1790404969.698|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:49+00:00  %3|1790404969.749|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:49+00:00  %3|1790404969.801|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:49+00:00  %3|1790404969.852|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:49+00:00  %3|1790404969.903|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:49+00:00  %3|1790404969.955|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:50+00:00  %3|1790404970.006|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:50+00:00  %3|1790404970.058|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:50+00:00  %3|1790404970.110|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:50+00:00  %3|1790404970.161|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:50+00:00  %3|1790404970.212|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:50+00:00  %3|1790404970.263|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:50+00:00  %3|1790404970.315|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:50+00:00  %3|1790404970.367|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:50+00:00  %3|1790404970.418|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:50+00:00  %3|1790404970.470|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:50+00:00  %3|1790404970.521|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:50+00:00  %3|1790404970.573|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:50+00:00  %3|1790404970.624|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:50+00:00  %3|1790404970.676|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:50+00:00  %3|1790404970.727|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:50+00:00  %3|1790404970.779|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:50+00:00  %3|1790404970.830|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:50+00:00  %3|1790404970.881|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:50+00:00  %3|1790404970.933|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:50+00:00  %3|1790404970.985|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:51+00:00  %3|1790404971.036|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:51+00:00  %3|1790404971.089|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:51+00:00  %3|1790404971.141|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:51+00:00  %3|1790404971.193|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:51+00:00  %3|1790404971.244|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:51+00:00  %3|1790404971.295|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:51+00:00  %3|1790404971.347|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:51+00:00  %3|1790404971.399|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:51+00:00  %3|1790404971.452|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:51+00:00  %3|1790404971.504|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:51+00:00  %3|1790404971.557|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:51+00:00  %3|1790404971.609|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:51+00:00  %3|1790404971.660|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:51+00:00  %3|1790404971.711|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:51+00:00  %3|1790404971.763|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:51+00:00  %3|1790404971.814|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:51+00:00  %3|1790404971.866|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:51+00:00  %3|1790404971.917|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:51+00:00  %3|1790404971.968|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:52+00:00  %3|1790404972.019|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:52+00:00  %3|1790404972.071|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:52+00:00  %3|1790404972.123|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:52+00:00  %3|1790404972.174|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:52+00:00  %3|1790404972.225|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:52+00:00  %3|1790404972.277|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:52+00:00  %3|1790404972.329|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:52+00:00  %3|1790404972.381|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:52+00:00  %3|1790404972.432|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:52+00:00  %3|1790404972.484|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:52+00:00  %3|1790404972.535|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:52+00:00  %3|1790404972.587|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:52+00:00  %3|1790404972.638|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:52+00:00  %3|1790404972.689|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:52+00:00  %3|1790404972.741|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:52+00:00  %3|1790404972.792|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:52+00:00  %3|1790404972.844|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:52+00:00  %3|1790404972.895|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:52+00:00  %3|1790404972.947|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:52+00:00  %3|1790404972.998|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:53+00:00  %3|1790404973.049|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:53+00:00  %3|1790404973.101|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:53+00:00  %3|1790404973.152|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:53+00:00  %3|1790404973.203|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:53+00:00  %3|1790404973.255|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:53+00:00  %3|1790404973.306|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:53+00:00  %3|1790404973.360|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:53+00:00  %3|1790404973.412|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:53+00:00  %3|1790404973.464|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:53+00:00  %3|1790404973.516|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:53+00:00  %3|1790404973.567|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:53+00:00  %3|1790404973.620|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:53+00:00  %3|1790404973.679|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:53+00:00  %3|1790404973.729|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:53+00:00  %3|1790404973.780|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:53+00:00  %3|1790404973.832|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:53+00:00  %3|1790404973.883|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:53+00:00  %3|1790404973.935|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:53+00:00  %3|1790404973.986|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:54+00:00  %3|1790404974.037|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:54+00:00  %3|1790404974.088|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:54+00:00  %3|1790404974.140|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:54+00:00  %3|1790404974.191|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:54+00:00  %3|1790404974.243|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:54+00:00  %3|1790404974.295|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:54+00:00  %3|1790404974.346|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:54+00:00  %3|1790404974.398|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:54+00:00  %3|1790404974.449|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:54+00:00  %3|1790404974.501|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:54+00:00  %3|1790404974.552|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:54+00:00  %3|1790404974.604|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:54+00:00  %3|1790404974.656|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:54+00:00  %3|1790404974.707|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:54+00:00  %3|1790404974.759|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:54+00:00  %3|1790404974.810|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:54+00:00  %3|1790404974.862|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:54+00:00  %3|1790404974.913|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:54+00:00  %3|1790404974.964|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:55+00:00  %3|1790404975.017|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:55+00:00  %3|1790404975.069|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:55+00:00  %3|1790404975.121|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:55+00:00  %3|1790404975.173|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:55+00:00  %3|1790404975.227|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:55+00:00  %3|1790404975.280|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:55+00:00  %3|1790404975.332|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:55+00:00  %3|1790404975.384|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:55+00:00  %3|1790404975.436|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:55+00:00  %3|1790404975.487|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:55+00:00  %3|1790404975.539|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:55+00:00  %3|1790404975.590|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:55+00:00  %3|1790404975.643|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:55+00:00  %3|1790404975.693|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:55+00:00  %3|1790404975.744|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:55+00:00  %3|1790404975.796|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:55+00:00  %3|1790404975.847|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:55+00:00  %3|1790404975.899|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:55+00:00  %3|1790404975.950|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:56+00:00  %3|1790404976.002|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:56+00:00  %3|1790404976.053|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:56+00:00  %3|1790404976.105|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:56+00:00  %3|1790404976.157|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:56+00:00  %3|1790404976.208|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:56+00:00  %3|1790404976.261|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:56+00:00  %3|1790404976.313|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:56+00:00  %3|1790404976.364|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:56+00:00  %3|1790404976.415|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:56+00:00  %3|1790404976.467|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:56+00:00  %3|1790404976.519|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:56+00:00  %3|1790404976.570|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:56+00:00  %3|1790404976.621|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:56+00:00  %3|1790404976.672|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:56+00:00  %3|1790404976.724|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:56+00:00  %3|1790404976.777|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:56+00:00  %3|1790404976.828|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:56+00:00  %3|1790404976.880|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:56+00:00  %3|1790404976.931|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:56+00:00  %3|1790404976.982|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:57+00:00  %3|1790404977.034|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:57+00:00  %3|1790404977.085|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:57+00:00  %3|1790404977.137|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:57+00:00  %3|1790404977.189|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:57+00:00  %3|1790404977.241|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:57+00:00  %3|1790404977.292|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:57+00:00  %3|1790404977.346|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:57+00:00  %3|1790404977.397|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:57+00:00  %3|1790404977.449|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:57+00:00  %3|1790404977.501|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:57+00:00  %3|1790404977.552|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:57+00:00  %3|1790404977.606|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:57+00:00  %3|1790404977.657|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:57+00:00  %3|1790404977.710|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:57+00:00  %3|1790404977.761|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:57+00:00  %3|1790404977.813|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:57+00:00  %3|1790404977.864|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:57+00:00  %3|1790404977.915|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:57+00:00  %3|1790404977.967|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:58+00:00  %3|1790404978.018|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:58+00:00  %3|1790404978.070|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:58+00:00  %3|1790404978.121|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:58+00:00  %3|1790404978.173|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:58+00:00  %3|1790404978.224|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:58+00:00  %3|1790404978.275|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:58+00:00  %3|1790404978.327|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:58+00:00  %3|1790404978.379|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:58+00:00  %3|1790404978.430|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:58+00:00  %3|1790404978.482|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:58+00:00  %3|1790404978.534|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:58+00:00  %3|1790404978.585|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:58+00:00  %3|1790404978.638|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:58+00:00  %3|1790404978.690|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:58+00:00  %3|1790404978.742|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:58+00:00  %3|1790404978.794|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:58+00:00  %3|1790404978.846|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:58+00:00  %3|1790404978.897|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:58+00:00  %3|1790404978.948|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:59+00:00  %3|1790404979.000|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:59+00:00  %3|1790404979.051|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:59+00:00  %3|1790404979.104|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:59+00:00  %3|1790404979.156|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:59+00:00  %3|1790404979.209|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:59+00:00  %3|1790404979.260|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:59+00:00  %3|1790404979.312|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:59+00:00  %3|1790404979.364|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:59+00:00  %3|1790404979.417|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:59+00:00  %3|1790404979.468|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:59+00:00  %3|1790404979.519|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:59+00:00  %3|1790404979.571|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:59+00:00  %3|1790404979.624|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:59+00:00  %3|1790404979.675|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:59+00:00  %3|1790404979.725|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:59+00:00  %3|1790404979.777|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:59+00:00  %3|1790404979.828|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:59+00:00  %3|1790404979.879|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:59+00:00  %3|1790404979.930|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:42:59+00:00  %3|1790404979.982|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:43:00+00:00  %3|1790404980.033|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:43:00+00:00  %3|1790404980.085|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:43:00+00:00  %3|1790404980.137|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:43:00+00:00  %3|1790404980.189|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:43:00+00:00  %3|1790404980.241|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:43:00+00:00  %3|1790404980.292|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:43:00+00:00  %3|1790404980.343|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:43:00+00:00  %3|1790404980.395|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:43:00+00:00  %3|1790404980.447|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:43:00+00:00  %3|1790404980.499|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:43:00+00:00  %3|1790404980.550|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:43:00+00:00  %3|1790404980.602|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:43:00+00:00  %3|1790404980.653|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:43:00+00:00  %3|1790404980.705|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:43:00+00:00  %3|1790404980.757|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:43:00+00:00  %3|1790404980.809|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:43:00+00:00  %3|1790404980.861|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:43:00+00:00  %3|1790404980.913|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:43:00+00:00  %3|1790404980.964|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:43:01+00:00  %3|1790404981.015|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:43:01+00:00  %3|1790404981.067|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:43:01+00:00  %3|1790404981.119|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:43:01+00:00  %3|1790404981.170|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:43:01+00:00  %3|1790404981.222|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:43:01+00:00  %3|1790404981.276|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:43:01+00:00  %3|1790404981.327|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:43:01+00:00  %3|1790404981.379|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:43:01+00:00  %3|1790404981.433|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:43:01+00:00  %3|1790404981.484|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:43:01+00:00  %3|1790404981.536|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:43:01+00:00  %3|1790404981.587|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:43:01+00:00  %3|1790404981.641|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:43:01+00:00  %3|1790404981.692|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:43:01+00:00  %3|1790404981.744|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:43:01+00:00  %3|1790404981.795|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:43:01+00:00  %3|1790404981.846|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:43:01+00:00  %3|1790404981.898|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:43:01+00:00  %3|1790404981.949|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:43:02+00:00  %3|1790404982.001|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
+2026-09-26T06:43:02+00:00  %3|1790404982.052|ERROR|rdkafka#consumer-1| [thrd:kafka:9094/bootstrap]: 1/1 brokers are down
