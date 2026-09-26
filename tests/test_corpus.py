@@ -45,6 +45,7 @@ OTHER_WORLD_NARRATIVES = [
     "v2-frontend-cart-misconfig",
     "v2-product-catalog-flag-failure",
     "v2-cart-flag-failure",
+    "v2-fraud-detection-flag-queue-lag",
 ]
 OTHER_WORLD_INVALID = ["v2-cart-valkey-misconfig"]
 """v2 dev bundles marked INVALID: recorded, blocked, and skipped for that reason before their

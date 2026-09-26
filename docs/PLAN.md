@@ -4617,6 +4617,46 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-09-26: the tenth v2 scenario, `v2-fraud-detection-flag-queue-lag`, rehearsed and labeled -
+slot `v2/feature_flag-3` (dev), second recording. Its first recording found damage no gate saw.***
+
+- **The design.** New: flagd's `kafkaQueueProblems` set to `on` (100). Read at source first, it has
+  two halves where the mechanism assessment had one: fraud-detection sleeps a second per record,
+  and checkout publishes every order a hundred extra times. The page was not predicted; the rule
+  was written first: any page is a scenario, no page blocks it.
+- **The first recording paged, and found what the source reading had not.** `ServiceHighLatency`
+  on fraud-detection alone at 4m16s. Accounting, the topic's other consumer, refused every order
+  from about a minute in (an identity conflict on the duplicates, then `Unexpected
+  entry.EntityState: Detached` from `SaveChanges` on its long-lived session), with no error span
+  and no alert, and **kept refusing every new order after the flag was off**. The all-clear passed.
+  A per-minute Loki count in the read-back found it; accounting was restarted by hand eight
+  minutes after the revert, and the refused orders are lost. **Q106** opened: the recorder cannot
+  see damage a revert leaves when it raises no alert.
+- **Decided: correct and re-record, flag-only revert.** The ground truth now names both effects
+  and says the fix is the flag and a restart of accounting (it said "turning it off fixes it",
+  which was false); the fingerprint moved, so the scenario was re-recorded and the first recording
+  moved to `superseded/`. The labelled fix stays `config_revert`. The injector still only turns the
+  flag off; the recording routine restarts accounting afterwards and checks it.
+- **What the re-record showed.**
+  - The page is `ServiceHighLatency` on fraud-detection alone, at 4m00s; nothing else fires. All
+    clear 1m01s after the fix.
+  - Fraud-detection's p95 goes to ~1,380ms and it reads exactly one record a second; after the fix
+    it drains 8,302 records in a minute and its lag returns to zero.
+  - Accounting's span rate goes from ~0.45 to ~33 a second with no errors, while its log shows it
+    refusing every record from the first full minute, 700 to 2,400 a minute. In the 69 s between
+    the fix and its restart it refused 104 of 104, four of them new orders with `Detached`. After
+    the restart, no failures.
+  - No restarts on fraud-detection, accounting, checkout or kafka; fraud-detection's memory peaked
+    at 83%.
+- **One weakness, recorded rather than re-run.** The routine restarted accounting 69 s after the
+  fix, so this recording shows the post-fix damage for about a minute. The first recording showed
+  it for eight.
+- **How it was recorded.** On AC power, grafana restarted and settled first, under `caffeinate`
+  with the pre-state guard and a pre-check that accounting was not already failing. The host did
+  not sleep.
+- **Next in the row:** `v2-image-provider-flag-slow-load` for `v2/feature_flag-4`, whose flag the
+  candidate list says was not located at source; that is checked first.
+
 ***2026-09-26: the ninth v2 scenario, `v2-cart-flag-failure`, rehearsed and labeled - slot
 `v2/feature_flag-2` (dev), first recording.***
 

@@ -127,3 +127,4 @@ scenarios are authored, one line per slot, and never rewritten.
 | `v2/bad_config-6` | holdout | `v2-checkout-currency-misconfig` | 2026-09-26, first recording. Distinct from `v2-shipping-quote-misconfig` on (a), the comparator and prediction named before recording (`t7.1-candidates.md`) |
 | `v2/feature_flag-1` | dev | `v2-product-catalog-flag-failure` | 2026-09-26, first recording; reproduced A1's page (the culprit under the line) |
 | `v2/feature_flag-2` | dev | `v2-cart-flag-failure` | 2026-09-26, first recording; checkout pages while its orders complete |
+| `v2/feature_flag-3` | dev | `v2-fraud-detection-flag-queue-lag` | 2026-09-26, second recording, after the ground truth was corrected against the first (under its `superseded/`): the flag also breaks accounting until a restart |

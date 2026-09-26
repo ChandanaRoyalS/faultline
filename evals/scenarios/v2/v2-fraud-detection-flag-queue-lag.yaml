@@ -5,7 +5,7 @@
 # and the candidate list records the reading and the rule (any page is a scenario, no page blocks
 # it) before recording.
 id: v2-fraud-detection-flag-queue-lag
-title: A feature flag floods the orders queue and slows its consumer
+title: A feature flag floods the orders queue, slows its consumer and breaks accounting
 fault_class: feature_flag
 split: dev
 slot: v2/feature_flag-3
@@ -18,40 +18,52 @@ injection:
     variant: "on"
 ground_truth:
   root_cause: >
-    The kafkaQueueProblems feature flag was switched on in the flag service. With it on,
-    fraud-detection sleeps a second before processing each order it reads from Kafka, and checkout
-    publishes every placed order a hundred extra times to the same topic. The consumer falls
-    further behind every second while orders keep being placed successfully. Kafka is healthy and
-    nothing was deployed or reconfigured; no change record exists. The fault is the flag's value,
-    and turning it off fixes it.
+    The kafkaQueueProblems feature flag was switched on in the flag service, and it acts on both
+    sides of the orders topic. Fraud-detection sleeps a second before each order it reads, so it
+    consumes one record a second, and checkout publishes every placed order a hundred extra times,
+    so the consumer falls further behind every second while orders keep being placed. Accounting,
+    the topic's other consumer, receives every duplicate; the duplicates leave its long-lived
+    database session in a state where every save fails, and from seconds after onset it refuses
+    every order it reads, originals included, with no error span and no alert. Turning the flag off
+    ends the lag, but accounting keeps refusing orders until it is restarted, and the orders it
+    refused are never recorded. Kafka is healthy and nothing was deployed or reconfigured; no
+    change record exists. The fault is the flag's value; the fix is to turn it off and restart
+    accounting.
   category: feature_flag
 expected_evidence:
-  # A new design: nothing here is measured yet. Written before the first recording and checked
-  # against the bundle, as every v2 scenario's list has been, and corrected there. Measured at
-  # rest (2026-09-26): fraud-detection's `orders receive` p95 98ms and `orders process` p95 1.9ms
-  # at 0.15/s each; the latency rule's line is 250ms.
-  - alerts: not predicted as a shape. If fraud-detection's per-record `orders process` span covers
-      the sleep, ServiceHighLatency on fraud-detection; no page at all blocks the scenario
-  - metrics: fraud-detection's consume rate is capped near one record a second while the topic
-      receives far more; accounting's consumer traffic multiplies with the duplicates; checkout's
-      orders keep completing
+  # Corrected against the first recording (2026-09-26, t_inject 20:59:40, now in superseded/) and
+  # checked against the re-record (t_inject 21:29:48, revert at +9:00). The injector's revert is
+  # flag-only; accounting was restarted by the recording routine 69 s after the fix, outside the
+  # recorded settle. In the first recording nobody restarted it for eight minutes, and it refused
+  # every new order until they did.
+  - alerts: ServiceHighLatency on fraud-detection alone (page 4m00s; first recording 4m16s);
+      nothing else during the fault or after the fix - accounting's failures raise no alert at all
+  - metrics: fraud-detection's p95 goes from ~90ms to ~1,380ms and its consumption pins at exactly
+      one record a second; after the fix it drains the backlog (8,302 records in a minute) and its
+      lag returns to zero; accounting's span rate goes from ~0.45 to ~33 a second with zero errors
+      and its p95 falls from ~90ms to ~2ms; the checkout path is unchanged
   - logs: fraud-detection logs `FeatureFlag 'kafkaQueueProblems' is enabled, sleeping 1 second`
-      before each record, and its `Consumed record` counter climbs by one a second; accounting logs
-      each duplicate it refuses
-  - traces: fraud-detection's `orders process` spans last about a second each; checkout's publish
-      is followed by the overload it logs
-  - metrics: fraud-detection's JVM runtime series (51, by service_name) report through the fault -
-      the process is up
+      sixty times a minute and `Consumed record with orderId` for the same order id over and over;
+      accounting logs `Order details` then `Order parsing failed` for every record it reads, 700 to
+      2,400 a minute, originals included from the first full minute - an identity conflict on
+      OrderEntity for the duplicates; after the fix, until its restart, it refuses every record
+      (104 of 104 in 69 s), the new orders with `Unexpected entry.EntityState - Detached`
+  - traces: fraud-detection's `orders process` spans last ~1,003ms each, two hundred of them in a
+      single poll's trace; accounting's order-consumed spans carry no error and no database call;
+      checkout's orders complete
+  - metrics: fraud-detection's JVM runtime series (51) report through the fault - the process is up
   - change: nothing recorded - no deploy, no configuration change, no restart; flagd reloads its
       own file and leaves no change record
-  - discriminator: nothing is failing and nothing changed in change history; a consumer that has
-      slowed to exactly one record a second and a topic receiving each order many times are the two
-      halves of one flag, named in both services' logs
+  - discriminator: the page is latency on one consumer, and its log names the flag; the same order
+      id consumed again and again says the topic is flooded; accounting's log says it is refusing
+      every order, silently, and it still is after the flag is off - the fix is the flag and a
+      restart of accounting, and the orders refused in between are lost
 expected_remediation_class: config_revert
-rehearsed: false
+rehearsed: true
 alert_timeout_seconds: 900
 # Declared before recording, checked against the bundle after (T7.5). Measured on the running
 # world 2026-09-26, as the candidate list asks: Prometheus holds 51 JVM runtime series for
-# fraud-detection (14 families), and its Loki stream logged 7 to 11 lines a minute at rest. If the
-# bundle's capture says otherwise, the declaration is corrected against it, not argued with.
+# fraud-detection (14 families), and its Loki stream logged 7 to 11 lines a minute at rest. Both
+# recordings confirmed it: 51 runtime series and 447 target log lines, and the recorder derived
+# [runtime, logs].
 answers_idle_or_absent: [runtime, logs]

@@ -725,6 +725,18 @@ NARRATIVE_EVIDENCE_V2: dict[str, set[str]] = {
     # call; cart's log says it cannot reach the store while its other operations use it; runtime
     # shows cart up; change history answers "nothing".
     "v2-cart-flag-failure": {"metrics", "runtime_metrics", "logs", "traces", "changes"},
+    # One consumer pages on latency; the same flag floods the topic and breaks the other consumer,
+    # which never pages. Metrics carry the one-a-second pin and accounting's traffic without
+    # errors; logs name the flag, show the repeated order id and carry every refusal accounting
+    # makes, before and after the fix; traces show the one-second process spans; runtime shows the
+    # consumer up; change history answers "nothing".
+    "v2-fraud-detection-flag-queue-lag": {
+        "metrics",
+        "runtime_metrics",
+        "logs",
+        "traces",
+        "changes",
+    },
     # Holdout. The page names the culprit and reads as down. Metrics carry its rate going to zero
     # and everyone else's holding; runtime shows it alive; its log names the address and the
     # refused connection, and fraud-detection's shows the topic still read; traces show none of
