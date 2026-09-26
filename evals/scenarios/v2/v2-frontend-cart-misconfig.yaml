@@ -23,29 +23,38 @@ ground_truth:
     holds for cart.
   category: bad_config
 expected_evidence:
-  # A new design: nothing here is measured yet. Written before the first recording and checked
-  # against the bundle, as every v2 scenario's list has been, and corrected there.
-  - alerts: ServiceHighErrorRate on frontend and on its callers (frontend-proxy, load-generator);
-      cart itself does not page, because its other caller, checkout, still reaches it
-  - metrics: frontend's error ratio rises on its cart-dependent routes while its latency and its
-      browse path hold; cart's request rate falls by the frontend's share and does not reach zero
-  - logs: the frontend logs the refused cart calls (at rest it logs nothing - fifteen minutes,
-      zero lines, 2026-09-26); cart's own log shows no failure
-  - traces: the frontend's cart client spans fail with the refused connection, and no cart server
-      span sits beneath them; checkout's calls into cart succeed in the same window
-  - metrics: the frontend's Node runtime series (75, by service_name) report through the fault -
-      the process is up and answering
-  - change: CART_ADDR on frontend changed to a port with nothing listening, coinciding with onset;
-      change history asked of cart returns nothing
-  - discriminator: the service that pages is the one that changed, and the service its errors
-      name (cart) is healthy and busy with checkout - the fault is in the address, not in cart
+  # Written before the first recording and corrected against it (2026-09-26, t_inject 06:12:49).
+  # The recording added checkout to the page: the frontend cannot fill carts, so checkout reads
+  # empty ones and fails every order at shipping's quote.
+  - alerts: ServiceHighErrorRate on checkout, frontend and frontend-proxy together at 3m31s,
+      load-generator a minute later; ServiceNoTraffic on accounting, currency, email, payment and
+      quote about seven minutes in; cart never alerts
+  - metrics: frontend's error ratio settles at ~27% while its latency and request rate hold;
+      checkout's settles at exactly 0.5 (two of four spans in every order) while its latency
+      falls from ~28ms to under 5ms; cart's request rate falls from ~4.2/s to ~0.33/s, never to
+      zero, with zero errors and unchanged latency
+  - logs: the frontend, silent at rest, logs `14 UNAVAILABLE ... connect ECONNREFUSED ...:7071`
+      from its start until the fix, beside checkout's mislabelled error (`shipping quote failure`,
+      `failed POST to email service`, `expected 200, got 400`); cart's own log shows it serving GetCart
+      throughout
+  - traces: the frontend's grpc.oteldemo.CartService/GetCart client span errors with no cart span
+      beneath it (the degrading hop); checkout's PlaceOrder errors, and beneath it cart's GetCart
+      succeeds, no product or currency calls follow (the cart is empty), and shipping's get-quote
+      answers 400 without an error
+  - metrics: the frontend's Node runtime series (75) report without a gap - the process is up and
+      answering
+  - change: CART_ADDR on frontend changed to cart:7071, coinciding with onset; nothing changed on
+      cart, checkout or shipping
+  - discriminator: checkout pages beside the frontend with an error naming shipping and email, and
+      none of the three is at fault; its trace shows an empty cart, and the frontend's cart span
+      (nothing beneath it), its log (the refused port) and the change record name the address
 expected_remediation_class: config_revert
-rehearsed: false
+rehearsed: true
 alert_timeout_seconds: 900
 # Declared before recording, checked against the bundle after (T7.5). Measured on the running
 # world 2026-09-26, as the candidate list now asks: Prometheus holds 75 Node runtime series for
 # frontend (16 families, nodejs_eventloop_* and v8js_*), and the frontend's Loki stream exists but
-# logged 0 lines in 15 minutes at rest. Logs are declared because the fault makes it log (each
-# refused cart call); if the bundle's capture says otherwise, the declaration is corrected against
-# it, not argued with. Runtime is the class that settles idle or absent here.
+# logged 0 lines in 15 minutes at rest. Logs were declared because the fault should make it log.
+# The first recording confirmed both: 75 runtime series and 400 target log lines (the capture's
+# limit), and the recorder derived [runtime, logs].
 answers_idle_or_absent: [runtime, logs]
