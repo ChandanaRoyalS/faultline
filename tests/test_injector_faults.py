@@ -403,6 +403,7 @@ def test_the_v2_old_mechanism_definitions_carry_v2_values_not_v1s() -> None:
         "v2-shipping-quote-misconfig",
         "v2-frontend-cart-misconfig",
         "v2-accounting-kafka-misconfig",
+        "v2-checkout-currency-misconfig",
         "v2-cart-valkey-misconfig",
         "v2-cart-bad-image-tag",
         "v2-ad-memory-squeeze",
@@ -435,6 +436,11 @@ def test_the_v2_old_mechanism_definitions_carry_v2_values_not_v1s() -> None:
     assert kafka == {"env_var": "KAFKA_ADDR", "value": "kafka:9094"}, (
         "only the port moves from the live kafka:9092, and not to 9093, which is v2 Kafka's "
         "controller listener: 9094 has nothing on it, so the broker connection is refused"
+    )
+    currency = v2_old["v2-checkout-currency-misconfig"].params
+    assert currency == {"env_var": "CURRENCY_ADDR", "value": "currencyservice:7001"}, (
+        "only the host moves from the live currency:7001, to v1's name for the service, which "
+        "does not resolve on v2"
     )
     image = str(v2_old["v2-cart-bad-image-tag"].params["image"])
     assert image.startswith("ghcr.io/open-telemetry/demo:2.2.0-cart")

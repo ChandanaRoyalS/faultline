@@ -1,0 +1,60 @@
+# v2/bad_config-6 (HOLDOUT) - see SPLIT-V2.md. Slot allocated before authoring; do not move.
+# Nothing may be tuned against this scenario (ADR-0008): its bundle lands under artifacts/holdout/
+# and never reaches a corpus.
+#
+# Candidate order and eligibility: docs/design/t7.1-candidates.md, bad_config row 6 - a new design
+# (v1's spare, never recorded). Kept although it is close to the dev scenario
+# v2-shipping-quote-misconfig; its distinctness is decided at rehearsal against that scenario,
+# named as the comparator before recording, and predicted on (a) alone (candidate list,
+# 2026-09-26). The value is v1's name for the service, which does not resolve on v2.
+id: v2-checkout-currency-misconfig
+title: Checkout pointed at a currency host that does not exist
+fault_class: bad_config
+split: holdout
+slot: v2/bad_config-6
+world: v2
+injection:
+  target: checkout
+  method: v2-checkout-currency-misconfig
+  params:
+    env_var: "CURRENCY_ADDR"
+    value: "currencyservice:7001"
+ground_truth:
+  root_cause: >
+    Checkout's CURRENCY_ADDR was changed to a host name that does not resolve. Checkout stays up
+    and every order fails at its first price conversion, before shipping is asked for a quote and
+    before payment is charged. Currency itself is healthy and goes idle, because checkout is the
+    caller that stopped reaching it. No service's code is wrong and currency is not at fault; the
+    fault is the address checkout holds for currency.
+  category: bad_config
+expected_evidence:
+  # A new design: nothing here is measured yet. Written before the first recording and checked
+  # against the bundle, as every v2 scenario's list has been, and corrected there.
+  - alerts: ServiceHighErrorRate on checkout, with its callers (frontend, frontend-proxy,
+      load-generator) following as their thresholds allow; later ServiceNoTraffic on currency and
+      on the services only a priced order reaches (shipping, quote, payment, email, accounting).
+      Shipping does not page with errors - the (a) difference from v2-shipping-quote-misconfig
+  - metrics: checkout's error ratio rises and holds while its latency falls (orders fail early);
+      currency's request rate (0.53/s at rest, 2026-09-26) falls towards zero with no errors of its
+      own
+  - logs: neither checkout nor currency has a Loki stream (measured, 24h); the frontend's log
+      carries checkout's error text, `failed to prepare order` / `failed to convert price of ...`
+  - traces: checkout's PlaceOrder errors with that text; beneath it the
+      oteldemo.CurrencyService/Convert client span errors with no currency span beneath it, after
+      GetCart and GetProduct succeed, and no shipping call follows
+  - metrics: checkout's Go runtime series (9) report through the fault - the process is up
+  - change: CURRENCY_ADDR on checkout changed to a host that does not resolve, coinciding with
+      onset; nothing changed on currency
+  - discriminator: checkout pages and its error points at currency, but currency is healthy and
+      idle; the failing call never reaches it (no server span) and the change record names the
+      address - the fault is checkout's configuration, not currency
+expected_remediation_class: config_revert
+rehearsed: false
+alert_timeout_seconds: 900
+# Declared before recording, checked against the bundle after (T7.5). Measured on the running
+# world 2026-09-26, as the candidate list asks: Prometheus holds 9 Go runtime series for checkout
+# (8 families, go_*), and Loki has no checkout stream in 24 hours (checkout logs only over OTLP,
+# to a store no tool reads). So runtime is the one class that can say whether checkout was idle
+# or absent. If the bundle's capture says otherwise, the declaration is corrected against it,
+# not argued with.
+answers_idle_or_absent: [runtime]
