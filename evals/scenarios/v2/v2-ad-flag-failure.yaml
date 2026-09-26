@@ -1,0 +1,56 @@
+# v2/feature_flag-4 (dev) - see SPLIT-V2.md. Slot allocated before authoring; do not move.
+# Candidate order and eligibility: docs/design/t7.1-candidates.md, feature_flag. Row 4
+# (v2-image-provider-flag-slow-load) was blocked on its verification: nothing on this world triggers
+# its flag. The slot passed to the reserves; paymentFailure was passed over for section 1's reason
+# (it sits beside holdout row 5 on the charge step), and adFailure takes it. A new design. Its page
+# is predicted to be marginal (ad's ratio about 4.7% against the 5% line), and the rule written
+# before recording stands: any page is a scenario, no page blocks it.
+id: v2-ad-flag-failure
+title: A feature flag makes the ad service fail one request in ten
+fault_class: feature_flag
+split: dev
+slot: v2/feature_flag-4
+world: v2
+injection:
+  target: ad
+  method: v2-ad-flag-failure
+  params:
+    flag: "adFailure"
+    variant: "on"
+ground_truth:
+  root_cause: >
+    The adFailure feature flag was switched on in the flag service. With it on, the ad service
+    fails one GetAds request in ten with UNAVAILABLE, after choosing the ads, and the storefront's
+    ad requests fail with it. The ad service is otherwise healthy, and nothing was deployed or
+    reconfigured; no change record exists. The fault is the flag's value, and turning it off fixes
+    it.
+  category: feature_flag
+expected_evidence:
+  # A new design: nothing here is measured yet. Written before the first recording and checked
+  # against the bundle, as every v2 scenario's list has been, and corrected there. Measured at rest
+  # (2026-09-26): ad 0.472 spans a second, 0.220 of them GetAds; frontend 11.6 spans a second.
+  - alerts: not predicted as a shape. Ad's error ratio should sit near 4.7%, just under the 5%
+      line, so ServiceHighErrorRate on ad is possible and not certain; the frontend's ratio should
+      stay near 0.6%. No page at all blocks the scenario
+  - metrics: ad's error ratio rises to a flat few percent while its latency and rate hold; the
+      frontend's ad calls fail at the same one in ten
+  - logs: ad logs `GetAds Failed with status` for each failed request (it logs 24 to 30 lines a
+      minute at rest); the frontend's log may carry the UNAVAILABLE its ad call receives
+  - traces: ad's GetAds server span is in error with an `Error` event carrying UNAVAILABLE, under
+      the frontend's /api/data; the ads were chosen before it failed (getAdsByCategory beneath it
+      succeeds)
+  - metrics: ad's JVM runtime series (50, by service_name) report through the fault - the process
+      is up
+  - change: nothing recorded - no deploy, no configuration change, no restart; flagd reloads its
+      own file and leaves no change record
+  - discriminator: a steady one-in-ten failure with nothing strained and nothing changed in change
+      history is a deliberate branch, not a broken or overloaded service - the flag's value is the
+      change
+expected_remediation_class: config_revert
+rehearsed: false
+alert_timeout_seconds: 900
+# Declared before recording, checked against the bundle after (T7.5). Measured on the running
+# world 2026-09-26, as the candidate list asks: Prometheus holds 50 JVM runtime series for ad (14
+# families), and its Loki stream logged 24 to 30 lines a minute at rest. If the bundle's capture
+# says otherwise, the declaration is corrected against it, not argued with.
+answers_idle_or_absent: [runtime, logs]
