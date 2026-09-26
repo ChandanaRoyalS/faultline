@@ -720,6 +720,11 @@ NARRATIVE_EVIDENCE_V2: dict[str, set[str]] = {
     # refused connection, and fraud-detection's shows the topic still read; traces show none of
     # its own and checkout's orders completing; the change record names the variable.
     "v2-accounting-kafka-misconfig": {"metrics", "runtime_metrics", "logs", "traces", "changes"},
+    # Holdout. The target pages alone. Metrics carry its exact 0.4 and currency's rate going to zero
+    # with no errors; the frontend's log is the only reachable copy of checkout's error text; the
+    # Convert client span carries the resolver error with nothing beneath it; runtime shows
+    # checkout up; the change record names the variable.
+    "v2-checkout-currency-misconfig": {"metrics", "runtime_metrics", "logs", "traces", "changes"},
 }
 """**v2's narratives, apart from v1's (T7.1).** `NARRATIVE_EVIDENCE` and the counts pinned on it
 are ADR-0019's claims about v1's investigations - *change history consulted in 11 of 11* - and

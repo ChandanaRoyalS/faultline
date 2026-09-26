@@ -4617,6 +4617,46 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-09-26: the seventh v2 scenario and the second v2 holdout, `v2-checkout-currency-misconfig`,
+rehearsed and labeled - slot `v2/bad_config-6` (holdout), first recording. `bad_config` is full.***
+
+- **The design.** The candidate list's row 6: checkout's `CURRENCY_ADDR` points at a host that does
+  not resolve, `currencyservice:7001` (v1's name for the service; `getent`: no answer on v2).
+- **Kept though it is close to a dev scenario, and tested for it.** It is near
+  `v2-shipping-quote-misconfig`: a service holding an unresolvable address for a leaf. It was not
+  swapped out, because it is not a seen design and was pre-registered for the slot; swapping it
+  after seeing shipping's result would be choosing. Instead the comparator and the prediction were
+  written in the candidate list before recording: distinct on (a) alone.
+- **The result: distinct on (a), as predicted.** The page is `ServiceHighErrorRate` on checkout
+  alone, at 4m31s. Shipping never pages; it goes quiet with currency, quote, payment, email,
+  accounting and fraud-detection. In the comparator, checkout and shipping paged together.
+- **What the recording showed.**
+  - Checkout's error ratio holds at exactly 0.4 (two of five spans per order) while its latency
+    falls. Frontend and frontend-proxy follow at 5-6%.
+  - The error text, `failed to prepare order: failed to convert price of ... to USD`, drops the
+    cause. The `CurrencyService/Convert` client span carries it: `name resolver error: produced
+    zero addresses`, with no currency span beneath it. The trace tool names it.
+  - Currency has no errors and no spans; it is idle, not failing. Neither checkout nor currency
+    has a Loki stream, so the frontend's log is the only reachable copy of the error text.
+    Reachability `[runtime]`, confirmed (9 Go runtime series, 0 log lines).
+  - No crashloop: one checkout container through the fault, restarts 0.
+- **Fraud-detection's error alert after the fix is explained.** It is its
+  `flagd.evaluation.v1.Service/EventStream` subscription, which flagd closes every ten minutes
+  (`stream closed due to server-side timeout`) and which is recorded as a ten-minute error span.
+  Landing in a window with no orders, that one span is a 100% error ratio and a p95 at the
+  histogram's ceiling. `v2-frontend-cart-misconfig` recorded the same alert, and its narrative
+  describes the span as lasting fifteen seconds. That is checked next, and the narrative corrected
+  if it is the same span.
+- **Grafana blocked this recording twice (Q105, opened).** It refills its 175M limit within about
+  40 minutes of a restart. The run went ahead after a restart and the recorder's 300 s settle, with
+  a watcher on grafana (one container, no restart, 83% falling to 54%). A raise moves
+  `compose_digest`, so it waits for a measurement of what grafana holds.
+- **How it was recorded.** On AC power, after the recording function refused twice on battery;
+  under `caffeinate` with the pre-state guard. The host did not sleep.
+- **`bad_config` is full: four dev, two holdout, one blocked design** (`v2-cart-valkey-misconfig`).
+  The freeze test's pinned holdout list gains the scenario. Next is the next row in the candidate
+  list.
+
 ***2026-09-26: the sixth v2 scenario and the first v2 holdout, `v2-accounting-kafka-misconfig`,
 rehearsed and labeled - slot `v2/bad_config-5` (holdout), first recording.***
 
