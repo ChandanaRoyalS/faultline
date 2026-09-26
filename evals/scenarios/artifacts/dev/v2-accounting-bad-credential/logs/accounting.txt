@@ -1,482 +1,498 @@
 # target container: accounting
 # loki labels: service, stream
 # selector: {service="accounting"}
-# 474 lines
-# before onset (2026-09-25T02:39:20+00:00): 74 lines, the newest kept
+# 490 lines
+# before onset (2026-09-26T04:46:35+00:00): 90 lines, the newest kept
 # from onset: 400 lines, the oldest kept (limit reached: later lines were not captured)
 
-2026-09-25T02:34:28+00:00  info: Accounting.Consumer[174880625]
-2026-09-25T02:34:28+00:00        Order details: { "orderId": "a1632804-b889-11f1-a862-4659f9156b51", "shippingTrackingId": "e38fc972-e03f-412b-9bf3-d8df0ba3d031", "shippingCost": { "currencyCode": "CAD", "units": "60", "nanos": 150694383 }, "shippingAddress": { "streetAddress": "150 Elgin St", "city": "Ottawa", "state": "ON", "country": "Canada", "zipCode": "K2P1L4" }, "items": [ { "item": { "productId": "OLJCESPC7Z", "quantity": 5 }, "cost": { "currencyCode": "CAD", "units": "136", "nanos": 439706324 } } ] }.
-2026-09-25T02:34:37+00:00  info: Accounting.Consumer[174880625]
-2026-09-25T02:34:37+00:00        Order details: { "orderId": "a6e61a04-b889-11f1-a862-4659f9156b51", "shippingTrackingId": "f852cc91-8cfe-4911-8bf8-5050df05fb9f", "shippingCost": { "currencyCode": "USD", "units": "116", "nanos": 870000000 }, "shippingAddress": { "streetAddress": "1600 Amphitheatre Parkway", "city": "Mountain View", "state": "CA", "country": "United States", "zipCode": "94043" }, "items": [ { "item": { "productId": "9SIQT8TOJO", "quantity": 10 }, "cost": { "currencyCode": "USD", "units": "3599" } }, { "item": { "productId": "0PUK6V6EV0", "quantity": 3 }, "cost": { "currencyCode": "USD", "units": "175" } } ] }.
-2026-09-25T02:34:40+00:00  info: Accounting.Consumer[174880625]
-2026-09-25T02:34:40+00:00        Order details: { "orderId": "a861fa9b-b889-11f1-a862-4659f9156b51", "shippingTrackingId": "3057b067-eb3a-4bbe-a491-da0db2d20e92", "shippingCost": { "currencyCode": "USD", "units": "98", "nanos": 890000000 }, "shippingAddress": { "streetAddress": "1600 Amphitheatre Parkway", "city": "Mountain View", "state": "CA", "country": "United States", "zipCode": "94043" }, "items": [ { "item": { "productId": "LS4PSXUNUM", "quantity": 5 }, "cost": { "currencyCode": "USD", "units": "57", "nanos": 799999999 } }, { "item": { "productId": "6E92ZMYYFZ", "quantity": 4 }, "cost": { "currencyCode": "USD", "units": "69", "nanos": 950000000 } }, { "item": { "productId": "2ZYFJ3GM2N", "quantity": 2 }, "cost": { "currencyCode": "USD", "units": "209", "nanos": 949999999 } } ] }.
-2026-09-25T02:34:43+00:00  info: Accounting.Consumer[174880625]
-2026-09-25T02:34:43+00:00        Order details: { "orderId": "aab101cd-b889-11f1-a862-4659f9156b51", "shippingTrackingId": "130c1e9d-8a4e-48c1-8e49-b0985dcc65cf", "shippingCost": { "currencyCode": "USD", "units": "17", "nanos": 980000000 }, "shippingAddress": { "streetAddress": "100 Winchester Circle", "city": "Los Gatos", "state": "CA", "country": "United States", "zipCode": "95032" }, "items": [ { "item": { "productId": "LS4PSXUNUM", "quantity": 2 }, "cost": { "currencyCode": "USD", "units": "57", "nanos": 799999999 } } ] }.
-2026-09-25T02:35:15+00:00  info: Accounting.Consumer[174880625]
-2026-09-25T02:35:15+00:00        Order details: { "orderId": "bd6ef823-b889-11f1-a862-4659f9156b51", "shippingTrackingId": "2d20e2ab-33f3-4e78-a966-2e7af5ff74ba", "shippingCost": { "currencyCode": "USD", "units": "170", "nanos": 810000000 }, "shippingAddress": { "streetAddress": "1355 Market St", "city": "San Francisco", "state": "CA", "country": "United States", "zipCode": "94103" }, "items": [ { "item": { "productId": "HQTGWGPNH4", "quantity": 2 }, "cost": { "currencyCode": "USD", "nanos": 990000000 } }, { "item": { "productId": "1YMWWN1N4O", "quantity": 4 }, "cost": { "currencyCode": "USD", "units": "129", "nanos": 949999999 } }, { "item": { "productId": "L9ECAV7KIM", "quantity": 3 }, "cost": { "currencyCode": "USD", "units": "21", "nanos": 949999999 } }, { "item": { "productId": "2ZYFJ3GM2N", "quantity": 10 }, "cost": { "currencyCode": "USD", "units": "209", "nanos": 949999999 } } ] }.
-2026-09-25T02:35:17+00:00  info: Accounting.Consumer[174880625]
-2026-09-25T02:35:17+00:00        Order details: { "orderId": "beaac724-b889-11f1-a862-4659f9156b51", "shippingTrackingId": "6d77e930-32bf-456e-a69d-142477bd44bf", "shippingCost": { "currencyCode": "USD", "units": "125", "nanos": 859999999 }, "shippingAddress": { "streetAddress": "One Apple Park Way", "city": "Cupertino", "state": "CA", "country": "United States", "zipCode": "95014" }, "items": [ { "item": { "productId": "1YMWWN1N4O", "quantity": 10 }, "cost": { "currencyCode": "USD", "units": "129", "nanos": 949999999 } }, { "item": { "productId": "9SIQT8TOJO", "quantity": 3 }, "cost": { "currencyCode": "USD", "units": "3599" } }, { "item": { "productId": "0PUK6V6EV0", "quantity": 1 }, "cost": { "currencyCode": "USD", "units": "175" } } ] }.
-2026-09-25T02:35:21+00:00  info: Accounting.Consumer[174880625]
-2026-09-25T02:35:21+00:00        Order details: { "orderId": "c1191d8f-b889-11f1-a862-4659f9156b51", "shippingTrackingId": "82a861ef-283f-4b20-befc-e638bcb6a8c0", "shippingCost": { "currencyCode": "USD", "units": "44", "nanos": 950000000 }, "shippingAddress": { "streetAddress": "2200 Mission College Blvd", "city": "Santa Clara", "state": "CA", "country": "United States", "zipCode": "95054" }, "items": [ { "item": { "productId": "9SIQT8TOJO", "quantity": 5 }, "cost": { "currencyCode": "USD", "units": "3599" } } ] }.
-2026-09-25T02:35:54+00:00  info: Accounting.Consumer[174880625]
-2026-09-25T02:35:54+00:00        Order details: { "orderId": "d5021619-b889-11f1-a862-4659f9156b51", "shippingTrackingId": "581b320a-49ee-4aa1-861b-e8966f562696", "shippingCost": { "currencyCode": "USD", "units": "17", "nanos": 980000000 }, "shippingAddress": { "streetAddress": "410 Terry Ave N", "city": "Seattle", "state": "WA", "country": "United States", "zipCode": "98109" }, "items": [ { "item": { "productId": "2ZYFJ3GM2N", "quantity": 2 }, "cost": { "currencyCode": "USD", "units": "209", "nanos": 949999999 } } ] }.
-2026-09-25T02:35:55+00:00  info: Accounting.Consumer[174880625]
-2026-09-25T02:35:55+00:00        Order details: { "orderId": "d56d92ce-b889-11f1-a862-4659f9156b51", "shippingTrackingId": "d1b8c43a-6459-463d-aa55-fda7274f6834", "shippingCost": { "currencyCode": "USD", "units": "35", "nanos": 960000000 }, "shippingAddress": { "streetAddress": "One Apple Park Way", "city": "Cupertino", "state": "CA", "country": "United States", "zipCode": "95014" }, "items": [ { "item": { "productId": "2ZYFJ3GM2N", "quantity": 4 }, "cost": { "currencyCode": "USD", "units": "209", "nanos": 949999999 } } ] }.
-2026-09-25T02:36:00+00:00  info: Accounting.Consumer[174880625]
-2026-09-25T02:36:00+00:00        Order details: { "orderId": "d89d58fa-b889-11f1-a862-4659f9156b51", "shippingTrackingId": "3a3ce247-8343-49f1-af65-b72fb1b5abba", "shippingCost": { "currencyCode": "USD", "units": "26", "nanos": 969999999 }, "shippingAddress": { "streetAddress": "1 Hacker Way", "city": "Menlo Park", "state": "CA", "country": "United States", "zipCode": "94025" }, "items": [ { "item": { "productId": "HQTGWGPNH4", "quantity": 3 }, "cost": { "currencyCode": "USD", "nanos": 990000000 } } ] }.
-2026-09-25T02:36:04+00:00  info: Accounting.Consumer[174880625]
-2026-09-25T02:36:04+00:00        Order details: { "orderId": "daa17944-b889-11f1-a862-4659f9156b51", "shippingTrackingId": "5f2cb951-82e2-4317-8f2c-bb8aa4d4e37d", "shippingCost": { "currencyCode": "USD", "units": "44", "nanos": 950000000 }, "shippingAddress": { "streetAddress": "1 Hacker Way", "city": "Menlo Park", "state": "CA", "country": "United States", "zipCode": "94025" }, "items": [ { "item": { "productId": "0PUK6V6EV0", "quantity": 5 }, "cost": { "currencyCode": "USD", "units": "175" } } ] }.
-2026-09-25T02:36:12+00:00  info: Accounting.Consumer[174880625]
-2026-09-25T02:36:12+00:00        Order details: { "orderId": "dfb59b5c-b889-11f1-a862-4659f9156b51", "shippingTrackingId": "0e85975a-f14e-413c-a7ec-29ca33442ff9", "shippingCost": { "currencyCode": "CAD", "units": "36", "nanos": 90416629 }, "shippingAddress": { "streetAddress": "150 Elgin St", "city": "Ottawa", "state": "ON", "country": "Canada", "zipCode": "K2P1L4" }, "items": [ { "item": { "productId": "0PUK6V6EV0", "quantity": 3 }, "cost": { "currencyCode": "CAD", "units": "234", "nanos": 179566563 } } ] }.
-2026-09-25T02:36:13+00:00  info: Accounting.Consumer[174880625]
-2026-09-25T02:36:13+00:00        Order details: { "orderId": "dfe7eef7-b889-11f1-a862-4659f9156b51", "shippingTrackingId": "2e07e8d0-6292-4ecb-9dcd-66f7b70655ef", "shippingCost": { "currencyCode": "USD", "units": "44", "nanos": 950000000 }, "shippingAddress": { "streetAddress": "1 Hacker Way", "city": "Menlo Park", "state": "CA", "country": "United States", "zipCode": "94025" }, "items": [ { "item": { "productId": "9SIQT8TOJO", "quantity": 5 }, "cost": { "currencyCode": "USD", "units": "3599" } } ] }.
-2026-09-25T02:36:16+00:00  info: Accounting.Consumer[174880625]
-2026-09-25T02:36:16+00:00        Order details: { "orderId": "e224d5de-b889-11f1-a862-4659f9156b51", "shippingTrackingId": "d2bd1c20-6554-49ee-b1a9-6f3f1b0a432a", "shippingCost": { "currencyCode": "USD", "units": "188", "nanos": 789999999 }, "shippingAddress": { "streetAddress": "1 Hacker Way", "city": "Menlo Park", "state": "CA", "country": "United States", "zipCode": "94025" }, "items": [ { "item": { "productId": "0PUK6V6EV0", "quantity": 4 }, "cost": { "currencyCode": "USD", "units": "175" } }, { "item": { "productId": "9SIQT8TOJO", "quantity": 10 }, "cost": { "currencyCode": "USD", "units": "3599" } }, { "item": { "productId": "HQTGWGPNH4", "quantity": 4 }, "cost": { "currencyCode": "USD", "nanos": 990000000 } }, { "item": { "productId": "1YMWWN1N4O", "quantity": 3 }, "cost": { "currencyCode": "USD", "units": "129", "nanos": 949999999 } } ] }.
-2026-09-25T02:36:28+00:00  info: Accounting.Consumer[174880625]
-2026-09-25T02:36:28+00:00        Order details: { "orderId": "e95402db-b889-11f1-a862-4659f9156b51", "shippingTrackingId": "60fa3856-3e38-4692-b06b-193a2f0da48f", "shippingCost": { "currencyCode": "USD", "units": "62", "nanos": 929999999 }, "shippingAddress": { "streetAddress": "1600 Amphitheatre Parkway", "city": "Mountain View", "state": "CA", "country": "United States", "zipCode": "94043" }, "items": [ { "item": { "productId": "LS4PSXUNUM", "quantity": 5 }, "cost": { "currencyCode": "USD", "units": "57", "nanos": 799999999 } }, { "item": { "productId": "L9ECAV7KIM", "quantity": 1 }, "cost": { "currencyCode": "USD", "units": "21", "nanos": 949999999 } }, { "item": { "productId": "OLJCESPC7Z", "quantity": 1 }, "cost": { "currencyCode": "USD", "units": "101", "nanos": 959999999 } } ] }.
-2026-09-25T02:36:32+00:00  info: Accounting.Consumer[174880625]
-2026-09-25T02:36:32+00:00        Order details: { "orderId": "eb2976de-b889-11f1-a862-4659f9156b51", "shippingTrackingId": "9bbf943e-c55a-454b-b43a-bce45df721b2", "shippingCost": { "currencyCode": "USD", "units": "8", "nanos": 990000000 }, "shippingAddress": { "streetAddress": "1 Hacker Way", "city": "Menlo Park", "state": "CA", "country": "United States", "zipCode": "94025" }, "items": [ { "item": { "productId": "0PUK6V6EV0", "quantity": 1 }, "cost": { "currencyCode": "USD", "units": "175" } } ] }.
-2026-09-25T02:36:33+00:00  info: Accounting.Consumer[174880625]
-2026-09-25T02:36:33+00:00        Order details: { "orderId": "ec2b3213-b889-11f1-a862-4659f9156b51", "shippingTrackingId": "c5a05863-0a29-4489-938d-470adf4e5c6d", "shippingCost": { "currencyCode": "USD", "units": "8", "nanos": 990000000 }, "shippingAddress": { "streetAddress": "1600 Amphitheatre Parkway", "city": "Mountain View", "state": "CA", "country": "United States", "zipCode": "94043" }, "items": [ { "item": { "productId": "OLJCESPC7Z", "quantity": 1 }, "cost": { "currencyCode": "USD", "units": "101", "nanos": 959999999 } } ] }.
-2026-09-25T02:36:39+00:00  info: Accounting.Consumer[174880625]
-2026-09-25T02:36:39+00:00        Order details: { "orderId": "ef9f987c-b889-11f1-a862-4659f9156b51", "shippingTrackingId": "638bea19-f442-4dc0-a8c9-58bfab58b488", "shippingCost": { "currencyCode": "CAD", "units": "48", "nanos": 120555506 }, "shippingAddress": { "streetAddress": "150 Elgin St", "city": "Ottawa", "state": "ON", "country": "Canada", "zipCode": "K2P1L4" }, "items": [ { "item": { "productId": "0PUK6V6EV0", "quantity": 4 }, "cost": { "currencyCode": "CAD", "units": "234", "nanos": 179566563 } } ] }.
-2026-09-25T02:36:42+00:00  info: Accounting.Consumer[174880625]
-2026-09-25T02:36:42+00:00        Order details: { "orderId": "f1963ddc-b889-11f1-a862-4659f9156b51", "shippingTrackingId": "5b53df07-c92f-4a13-91af-e00e655422d3", "shippingCost": { "currencyCode": "USD", "units": "251", "nanos": 719999999 }, "shippingAddress": { "streetAddress": "2200 Mission College Blvd", "city": "Santa Clara", "state": "CA", "country": "United States", "zipCode": "95054" }, "items": [ { "item": { "productId": "0PUK6V6EV0", "quantity": 3 }, "cost": { "currencyCode": "USD", "units": "175" } }, { "item": { "productId": "6E92ZMYYFZ", "quantity": 10 }, "cost": { "currencyCode": "USD", "units": "69", "nanos": 950000000 } }, { "item": { "productId": "L9ECAV7KIM", "quantity": 15 }, "cost": { "currencyCode": "USD", "units": "21", "nanos": 949999999 } } ] }.
-2026-09-25T02:36:45+00:00  info: Accounting.Consumer[174880625]
-2026-09-25T02:36:45+00:00        Order details: { "orderId": "f3074a4d-b889-11f1-a862-4659f9156b51", "shippingTrackingId": "f1696c2e-fc48-4b7f-90b2-78382a1a967c", "shippingCost": { "currencyCode": "USD", "units": "8", "nanos": 990000000 }, "shippingAddress": { "streetAddress": "One Apple Park Way", "city": "Cupertino", "state": "CA", "country": "United States", "zipCode": "95014" }, "items": [ { "item": { "productId": "9SIQT8TOJO", "quantity": 1 }, "cost": { "currencyCode": "USD", "units": "3599" } } ] }.
-2026-09-25T02:37:06+00:00  info: Accounting.Consumer[174880625]
-2026-09-25T02:37:06+00:00        Order details: { "orderId": "ffba7666-b889-11f1-a862-4659f9156b51", "shippingTrackingId": "26aa050a-8464-4fc1-b985-e8b8e7ba1030", "shippingCost": { "currencyCode": "USD", "units": "8", "nanos": 990000000 }, "shippingAddress": { "streetAddress": "1355 Market St", "city": "San Francisco", "state": "CA", "country": "United States", "zipCode": "94103" }, "items": [ { "item": { "productId": "HQTGWGPNH4", "quantity": 1 }, "cost": { "currencyCode": "USD", "nanos": 990000000 } } ] }.
-2026-09-25T02:37:09+00:00  info: Accounting.Consumer[174880625]
-2026-09-25T02:37:09+00:00        Order details: { "orderId": "01bf8963-b88a-11f1-a862-4659f9156b51", "shippingTrackingId": "93b0a7ee-cff0-45b8-8a00-74a98fc9d661", "shippingCost": { "currencyCode": "USD", "units": "44", "nanos": 950000000 }, "shippingAddress": { "streetAddress": "1355 Market St", "city": "San Francisco", "state": "CA", "country": "United States", "zipCode": "94103" }, "items": [ { "item": { "productId": "OLJCESPC7Z", "quantity": 4 }, "cost": { "currencyCode": "USD", "units": "101", "nanos": 959999999 } }, { "item": { "productId": "LS4PSXUNUM", "quantity": 1 }, "cost": { "currencyCode": "USD", "units": "57", "nanos": 799999999 } } ] }.
-2026-09-25T02:37:15+00:00  info: Accounting.Consumer[174880625]
-2026-09-25T02:37:15+00:00        Order details: { "orderId": "0502bfe9-b88a-11f1-a862-4659f9156b51", "shippingTrackingId": "4007b611-515b-4fb9-9e0c-a7ac563c54c3", "shippingCost": { "currencyCode": "USD", "units": "26", "nanos": 969999999 }, "shippingAddress": { "streetAddress": "2200 Mission College Blvd", "city": "Santa Clara", "state": "CA", "country": "United States", "zipCode": "95054" }, "items": [ { "item": { "productId": "2ZYFJ3GM2N", "quantity": 3 }, "cost": { "currencyCode": "USD", "units": "209", "nanos": 949999999 } } ] }.
-2026-09-25T02:37:15+00:00  info: Accounting.Consumer[174880625]
-2026-09-25T02:37:15+00:00        Order details: { "orderId": "051beddb-b88a-11f1-a862-4659f9156b51", "shippingTrackingId": "c9d9e3d4-e3dd-4125-a312-c9ccd8605261", "shippingCost": { "currencyCode": "USD", "units": "17", "nanos": 980000000 }, "shippingAddress": { "streetAddress": "One Microsoft Way", "city": "Redmond", "state": "WA", "country": "United States", "zipCode": "98052" }, "items": [ { "item": { "productId": "LS4PSXUNUM", "quantity": 2 }, "cost": { "currencyCode": "USD", "units": "57", "nanos": 799999999 } } ] }.
-2026-09-25T02:37:19+00:00  info: Accounting.Consumer[174880625]
-2026-09-25T02:37:19+00:00        Order details: { "orderId": "076df8bb-b88a-11f1-a862-4659f9156b51", "shippingTrackingId": "8abf83a8-434e-4154-a431-bf55b371aee2", "shippingCost": { "currencyCode": "USD", "units": "17", "nanos": 980000000 }, "shippingAddress": { "streetAddress": "2200 Mission College Blvd", "city": "Santa Clara", "state": "CA", "country": "United States", "zipCode": "95054" }, "items": [ { "item": { "productId": "9SIQT8TOJO", "quantity": 2 }, "cost": { "currencyCode": "USD", "units": "3599" } } ] }.
-2026-09-25T02:37:25+00:00  info: Accounting.Consumer[174880625]
-2026-09-25T02:37:25+00:00        Order details: { "orderId": "0ad4e6f2-b88a-11f1-a862-4659f9156b51", "shippingTrackingId": "768bc409-5b5f-4348-a118-024820fb0b02", "shippingCost": { "currencyCode": "CAD", "units": "12", "nanos": 30138876 }, "shippingAddress": { "streetAddress": "150 Elgin St", "city": "Ottawa", "state": "ON", "country": "Canada", "zipCode": "K2P1L4" }, "items": [ { "item": { "productId": "OLJCESPC7Z", "quantity": 1 }, "cost": { "currencyCode": "CAD", "units": "136", "nanos": 439706324 } } ] }.
-2026-09-25T02:37:32+00:00  info: Accounting.Consumer[174880625]
-2026-09-25T02:37:32+00:00        Order details: { "orderId": "0f61c699-b88a-11f1-a862-4659f9156b51", "shippingTrackingId": "9124fb4e-0e45-4e70-a7b2-04abcab893cd", "shippingCost": { "currencyCode": "USD", "units": "125", "nanos": 859999999 }, "shippingAddress": { "streetAddress": "410 Terry Ave N", "city": "Seattle", "state": "WA", "country": "United States", "zipCode": "98109" }, "items": [ { "item": { "productId": "66VCHSJNUP", "quantity": 8 }, "cost": { "currencyCode": "USD", "units": "349", "nanos": 949999999 } }, { "item": { "productId": "HQTGWGPNH4", "quantity": 2 }, "cost": { "currencyCode": "USD", "nanos": 990000000 } }, { "item": { "productId": "2ZYFJ3GM2N", "quantity": 4 }, "cost": { "currencyCode": "USD", "units": "209", "nanos": 949999999 } } ] }.
-2026-09-25T02:37:43+00:00  info: Accounting.Consumer[174880625]
-2026-09-25T02:37:43+00:00        Order details: { "orderId": "1594e602-b88a-11f1-a862-4659f9156b51", "shippingTrackingId": "26b73cab-a29a-4d21-804d-e08c35a29cab", "shippingCost": { "currencyCode": "USD", "units": "89", "nanos": 900000000 }, "shippingAddress": { "streetAddress": "One Apple Park Way", "city": "Cupertino", "state": "CA", "country": "United States", "zipCode": "95014" }, "items": [ { "item": { "productId": "HQTGWGPNH4", "quantity": 10 }, "cost": { "currencyCode": "USD", "nanos": 990000000 } } ] }.
-2026-09-25T02:37:44+00:00  info: Accounting.Consumer[174880625]
-2026-09-25T02:37:44+00:00        Order details: { "orderId": "16572e44-b88a-11f1-a862-4659f9156b51", "shippingTrackingId": "5062cc5d-aa3e-4076-b953-9e5c0641f5df", "shippingCost": { "currencyCode": "CAD", "units": "24", "nanos": 60277753 }, "shippingAddress": { "streetAddress": "150 Elgin St", "city": "Ottawa", "state": "ON", "country": "Canada", "zipCode": "K2P1L4" }, "items": [ { "item": { "productId": "LS4PSXUNUM", "quantity": 2 }, "cost": { "currencyCode": "CAD", "units": "77", "nanos": 346165413 } } ] }.
-2026-09-25T02:37:48+00:00  info: Accounting.Consumer[174880625]
-2026-09-25T02:37:48+00:00        Order details: { "orderId": "18c4ffab-b88a-11f1-a862-4659f9156b51", "shippingTrackingId": "62c986cd-4993-422b-9b1d-f2d65db717aa", "shippingCost": { "currencyCode": "USD", "units": "89", "nanos": 900000000 }, "shippingAddress": { "streetAddress": "One Microsoft Way", "city": "Redmond", "state": "WA", "country": "United States", "zipCode": "98052" }, "items": [ { "item": { "productId": "L9ECAV7KIM", "quantity": 10 }, "cost": { "currencyCode": "USD", "units": "21", "nanos": 949999999 } } ] }.
-2026-09-25T02:38:13+00:00  info: Accounting.Consumer[174880625]
-2026-09-25T02:38:13+00:00        Order details: { "orderId": "27d27a9d-b88a-11f1-a862-4659f9156b51", "shippingTrackingId": "8d7c16fb-02ca-4f2d-a0d6-991e5c30c16a", "shippingCost": { "currencyCode": "CAD", "units": "24", "nanos": 60277753 }, "shippingAddress": { "streetAddress": "150 Elgin St", "city": "Ottawa", "state": "ON", "country": "Canada", "zipCode": "K2P1L4" }, "items": [ { "item": { "productId": "6E92ZMYYFZ", "quantity": 2 }, "cost": { "currencyCode": "CAD", "units": "93", "nanos": 604918177 } } ] }.
-2026-09-25T02:38:17+00:00  info: Accounting.Consumer[174880625]
-2026-09-25T02:38:17+00:00        Order details: { "orderId": "2a10749d-b88a-11f1-a862-4659f9156b51", "shippingTrackingId": "1c54bf97-177a-4b36-a28d-fef9dc9e2de9", "shippingCost": { "currencyCode": "USD", "units": "161", "nanos": 819999999 }, "shippingAddress": { "streetAddress": "100 Winchester Circle", "city": "Los Gatos", "state": "CA", "country": "United States", "zipCode": "95032" }, "items": [ { "item": { "productId": "L9ECAV7KIM", "quantity": 10 }, "cost": { "currencyCode": "USD", "units": "21", "nanos": 949999999 } }, { "item": { "productId": "9SIQT8TOJO", "quantity": 4 }, "cost": { "currencyCode": "USD", "units": "3599" } }, { "item": { "productId": "HQTGWGPNH4", "quantity": 4 }, "cost": { "currencyCode": "USD", "nanos": 990000000 } } ] }.
-2026-09-25T02:38:18+00:00  info: Accounting.Consumer[174880625]
-2026-09-25T02:38:18+00:00        Order details: { "orderId": "2a62d260-b88a-11f1-a862-4659f9156b51", "shippingTrackingId": "86ccb244-cc7f-4483-b3f6-155b16ccf1ca", "shippingCost": { "currencyCode": "USD", "units": "62", "nanos": 929999999 }, "shippingAddress": { "streetAddress": "One Microsoft Way", "city": "Redmond", "state": "WA", "country": "United States", "zipCode": "98052" }, "items": [ { "item": { "productId": "OLJCESPC7Z", "quantity": 4 }, "cost": { "currencyCode": "USD", "units": "101", "nanos": 959999999 } }, { "item": { "productId": "66VCHSJNUP", "quantity": 3 }, "cost": { "currencyCode": "USD", "units": "349", "nanos": 949999999 } } ] }.
-2026-09-25T02:38:23+00:00  info: Accounting.Consumer[174880625]
-2026-09-25T02:38:23+00:00        Order details: { "orderId": "2d5ced1e-b88a-11f1-a862-4659f9156b51", "shippingTrackingId": "4bfc85f5-f59f-463c-8b01-ee31c2a088b0", "shippingCost": { "currencyCode": "USD", "units": "107", "nanos": 879999999 }, "shippingAddress": { "streetAddress": "100 Winchester Circle", "city": "Los Gatos", "state": "CA", "country": "United States", "zipCode": "95032" }, "items": [ { "item": { "productId": "9SIQT8TOJO", "quantity": 2 }, "cost": { "currencyCode": "USD", "units": "3599" } }, { "item": { "productId": "L9ECAV7KIM", "quantity": 5 }, "cost": { "currencyCode": "USD", "units": "21", "nanos": 949999999 } }, { "item": { "productId": "6E92ZMYYFZ", "quantity": 5 }, "cost": { "currencyCode": "USD", "units": "69", "nanos": 950000000 } } ] }.
-2026-09-25T02:38:46+00:00  info: Accounting.Consumer[174880625]
-2026-09-25T02:38:46+00:00        Order details: { "orderId": "3b401b26-b88a-11f1-a862-4659f9156b51", "shippingTrackingId": "d29e6e55-3f7d-4a78-9af3-b1eadbd2ca2b", "shippingCost": { "currencyCode": "USD", "units": "44", "nanos": 950000000 }, "shippingAddress": { "streetAddress": "410 Terry Ave N", "city": "Seattle", "state": "WA", "country": "United States", "zipCode": "98109" }, "items": [ { "item": { "productId": "HQTGWGPNH4", "quantity": 4 }, "cost": { "currencyCode": "USD", "nanos": 990000000 } }, { "item": { "productId": "0PUK6V6EV0", "quantity": 1 }, "cost": { "currencyCode": "USD", "units": "175" } } ] }.
-2026-09-25T02:38:51+00:00  info: Accounting.Consumer[174880625]
-2026-09-25T02:38:51+00:00        Order details: { "orderId": "3e0a197a-b88a-11f1-a862-4659f9156b51", "shippingTrackingId": "647ae9dc-83b2-4ae1-b9cc-a278342a0ab0", "shippingCost": { "currencyCode": "USD", "units": "26", "nanos": 969999999 }, "shippingAddress": { "streetAddress": "1 Hacker Way", "city": "Menlo Park", "state": "CA", "country": "United States", "zipCode": "94025" }, "items": [ { "item": { "productId": "0PUK6V6EV0", "quantity": 3 }, "cost": { "currencyCode": "USD", "units": "175" } } ] }.
-2026-09-25T02:38:52+00:00  info: Accounting.Consumer[174880625]
-2026-09-25T02:38:52+00:00        Order details: { "orderId": "3f1dbd1c-b88a-11f1-a862-4659f9156b51", "shippingTrackingId": "82d73154-d539-44db-87ca-80c35074c494", "shippingCost": { "currencyCode": "USD", "units": "8", "nanos": 990000000 }, "shippingAddress": { "streetAddress": "1355 Market St", "city": "San Francisco", "state": "CA", "country": "United States", "zipCode": "94103" }, "items": [ { "item": { "productId": "HQTGWGPNH4", "quantity": 1 }, "cost": { "currencyCode": "USD", "nanos": 990000000 } } ] }.
-# ---- onset 2026-09-25T02:39:20+00:00 ----
-2026-09-25T02:39:21+00:00  Accounting service started
-2026-09-25T02:39:21+00:00  [CORECLR_ENABLE_PROFILING, 1]
-2026-09-25T02:39:21+00:00  [CORECLR_PROFILER, {918728DD-259F-4A6A-AC2B-B85E1B658318}]
-2026-09-25T02:39:21+00:00  [CORECLR_PROFILER_PATH, /app/OpenTelemetry.AutoInstrumentation.Native.so]
-2026-09-25T02:39:21+00:00  [DOTNET_RUNNING_IN_CONTAINER, true]
-2026-09-25T02:39:21+00:00  [DOTNET_STARTUP_HOOKS, /app/OpenTelemetry.AutoInstrumentation.StartupHook.dll]
-2026-09-25T02:39:21+00:00  [DOTNET_VERSION, 10.0.1]
-2026-09-25T02:39:21+00:00  [KAFKA_ADDR, kafka:9092]
-2026-09-25T02:39:21+00:00  [OTEL_DOTNET_AUTO_HOME, /app]
-2026-09-25T02:39:21+00:00  [OTEL_DOTNET_AUTO_RULE_ENGINE_ENABLED, false]
-2026-09-25T02:39:21+00:00  [OTEL_DOTNET_AUTO_TRACES_ADDITIONAL_SOURCES, Accounting.Consumer]
-2026-09-25T02:39:21+00:00  [OTEL_DOTNET_AUTO_TRACES_ENTITYFRAMEWORKCORE_INSTRUMENTATION_ENABLED, false]
-2026-09-25T02:39:21+00:00  [OTEL_EXPORTER_OTLP_ENDPOINT, http://otel-collector:4318]
-2026-09-25T02:39:21+00:00  [OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE, cumulative]
-2026-09-25T02:39:21+00:00  [OTEL_RESOURCE_ATTRIBUTES, service.namespace=opentelemetry-demo,service.version=2.2.0]
-2026-09-25T02:39:21+00:00  [OTEL_SERVICE_NAME, accounting]
-2026-09-25T02:39:21+00:00  info: Accounting.Consumer[0]
-2026-09-25T02:39:21+00:00        Connecting to Kafka: kafka:9092
-2026-09-25T02:40:02+00:00  info: Accounting.Consumer[174880625]
-2026-09-25T02:40:02+00:00        Order details: { "orderId": "4ffedda4-b88a-11f1-a862-4659f9156b51", "shippingTrackingId": "59e5aea6-d042-4ab8-a79d-07367e416099", "shippingCost": { "currencyCode": "USD", "units": "125", "nanos": 859999999 }, "shippingAddress": { "streetAddress": "One Microsoft Way", "city": "Redmond", "state": "WA", "country": "United States", "zipCode": "98052" }, "items": [ { "item": { "productId": "2ZYFJ3GM2N", "quantity": 3 }, "cost": { "currencyCode": "USD", "units": "209", "nanos": 949999999 } }, { "item": { "productId": "HQTGWGPNH4", "quantity": 4 }, "cost": { "currencyCode": "USD", "nanos": 990000000 } }, { "item": { "productId": "0PUK6V6EV0", "quantity": 3 }, "cost": { "currencyCode": "USD", "units": "175" } }, { "item": { "productId": "66VCHSJNUP", "quantity": 4 }, "cost": { "currencyCode": "USD", "units": "349", "nanos": 949999999 } } ] }.
-2026-09-25T02:40:02+00:00  Cannot load library libgssapi_krb5.so.2 
-2026-09-25T02:40:02+00:00  Error: libgssapi_krb5.so.2: cannot open shared object file: No such file or directory
-2026-09-25T02:40:02+00:00  fail: Accounting.Consumer[0]
-2026-09-25T02:40:02+00:00        Order parsing failed:
-2026-09-25T02:40:02+00:00        Npgsql.PostgresException (0x80004005): 28P01: password authentication failed for user "otelu"
-2026-09-25T02:40:02+00:00           at Npgsql.Internal.NpgsqlConnector.ReadMessageLong(Boolean async, DataRowLoadingMode dataRowLoadingMode, Boolean readingNotifications, Boolean isReadingPrependedMessage)
-2026-09-25T02:40:02+00:00           at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
-2026-09-25T02:40:02+00:00           at Npgsql.Internal.NpgsqlConnector.AuthenticateSASL(List`1 mechanisms, String username, Boolean async, CancellationToken cancellationToken)
-2026-09-25T02:40:02+00:00           at Npgsql.Internal.NpgsqlConnector.Authenticate(String username, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
-2026-09-25T02:40:02+00:00           at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
-2026-09-25T02:40:02+00:00           at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
-2026-09-25T02:40:02+00:00           at Npgsql.Internal.NpgsqlConnector.Open(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
-2026-09-25T02:40:02+00:00           at Npgsql.PoolingDataSource.OpenNewConnector(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
-2026-09-25T02:40:02+00:00           at Npgsql.PoolingDataSource.<Get>g__RentAsync|33_0(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
-2026-09-25T02:40:02+00:00           at Npgsql.NpgsqlConnection.<Open>g__OpenAsync|42_0(Boolean async, CancellationToken cancellationToken)
-2026-09-25T02:40:02+00:00           at Npgsql.NpgsqlConnection.Open()
-2026-09-25T02:40:02+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenDbConnection(Boolean errorsExpected)
-2026-09-25T02:40:02+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenInternal(Boolean errorsExpected)
-2026-09-25T02:40:02+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.Open(Boolean errorsExpected)
-2026-09-25T02:40:02+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.BeginTransaction(IsolationLevel isolationLevel)
-2026-09-25T02:40:02+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.BeginTransaction()
-2026-09-25T02:40:02+00:00           at Microsoft.EntityFrameworkCore.Update.Internal.BatchExecutor.Execute(IEnumerable`1 commandBatches, IRelationalConnection connection)
-2026-09-25T02:40:02+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalDatabase.SaveChanges(IList`1 entries)
-2026-09-25T02:40:02+00:00           at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.SaveChanges(IList`1 entriesToSave)
-2026-09-25T02:40:02+00:00           at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.SaveChanges(StateManager stateManager, Boolean acceptAllChangesOnSuccess)
-2026-09-25T02:40:02+00:00           at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.<>c.<SaveChanges>b__114_0(DbContext _, ValueTuple`2 t)
-2026-09-25T02:40:02+00:00           at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.Execute[TState,TResult](TState state, Func`3 operation, Func`3 verifySucceeded)
-2026-09-25T02:40:02+00:00           at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.SaveChanges(Boolean acceptAllChangesOnSuccess)
-2026-09-25T02:40:02+00:00           at Microsoft.EntityFrameworkCore.DbContext.SaveChanges(Boolean acceptAllChangesOnSuccess)
-2026-09-25T02:40:02+00:00           at Microsoft.EntityFrameworkCore.DbContext.SaveChanges()
-2026-09-25T02:40:02+00:00           at Accounting.Consumer.ProcessMessage(Message`2 message) in /src/Accounting/Consumer.cs:line 132
-2026-09-25T02:40:02+00:00          Exception data:
-2026-09-25T02:40:02+00:00            Severity: FATAL
-2026-09-25T02:40:02+00:00            SqlState: 28P01
-2026-09-25T02:40:02+00:00            MessageText: password authentication failed for user "otelu"
-2026-09-25T02:40:02+00:00            File: auth.c
-2026-09-25T02:40:02+00:00            Line: 329
-2026-09-25T02:40:02+00:00            Routine: auth_failed
-2026-09-25T02:40:02+00:00  info: Accounting.Consumer[174880625]
-2026-09-25T02:40:02+00:00        Order details: { "orderId": "532e5ea3-b88a-11f1-a862-4659f9156b51", "shippingTrackingId": "a216d3c6-a63d-4caa-9f17-c440f547fd8d", "shippingCost": { "currencyCode": "USD", "units": "8", "nanos": 990000000 }, "shippingAddress": { "streetAddress": "1600 Amphitheatre Parkway", "city": "Mountain View", "state": "CA", "country": "United States", "zipCode": "94043" }, "items": [ { "item": { "productId": "1YMWWN1N4O", "quantity": 1 }, "cost": { "currencyCode": "USD", "units": "129", "nanos": 949999999 } } ] }.
-2026-09-25T02:40:02+00:00  fail: Accounting.Consumer[0]
-2026-09-25T02:40:02+00:00        Order parsing failed:
-2026-09-25T02:40:02+00:00        Npgsql.PostgresException (0x80004005): 28P01: password authentication failed for user "otelu"
-2026-09-25T02:40:02+00:00           at Npgsql.Internal.NpgsqlConnector.ReadMessageLong(Boolean async, DataRowLoadingMode dataRowLoadingMode, Boolean readingNotifications, Boolean isReadingPrependedMessage)
-2026-09-25T02:40:02+00:00           at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
-2026-09-25T02:40:02+00:00           at Npgsql.Internal.NpgsqlConnector.AuthenticateSASL(List`1 mechanisms, String username, Boolean async, CancellationToken cancellationToken)
-2026-09-25T02:40:02+00:00           at Npgsql.Internal.NpgsqlConnector.Authenticate(String username, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
-2026-09-25T02:40:02+00:00           at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
-2026-09-25T02:40:02+00:00           at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
-2026-09-25T02:40:02+00:00           at Npgsql.Internal.NpgsqlConnector.Open(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
-2026-09-25T02:40:02+00:00           at Npgsql.PoolingDataSource.OpenNewConnector(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
-2026-09-25T02:40:02+00:00           at Npgsql.PoolingDataSource.<Get>g__RentAsync|33_0(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
-2026-09-25T02:40:02+00:00           at Npgsql.NpgsqlConnection.<Open>g__OpenAsync|42_0(Boolean async, CancellationToken cancellationToken)
-2026-09-25T02:40:02+00:00           at Npgsql.NpgsqlConnection.Open()
-2026-09-25T02:40:02+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenDbConnection(Boolean errorsExpected)
-2026-09-25T02:40:02+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenInternal(Boolean errorsExpected)
-2026-09-25T02:40:02+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.Open(Boolean errorsExpected)
-2026-09-25T02:40:02+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.BeginTransaction(IsolationLevel isolationLevel)
-2026-09-25T02:40:02+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.BeginTransaction()
-2026-09-25T02:40:02+00:00           at Microsoft.EntityFrameworkCore.Update.Internal.BatchExecutor.Execute(IEnumerable`1 commandBatches, IRelationalConnection connection)
-2026-09-25T02:40:02+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalDatabase.SaveChanges(IList`1 entries)
-2026-09-25T02:40:02+00:00           at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.SaveChanges(IList`1 entriesToSave)
-2026-09-25T02:40:02+00:00           at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.SaveChanges(StateManager stateManager, Boolean acceptAllChangesOnSuccess)
-2026-09-25T02:40:02+00:00           at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.<>c.<SaveChanges>b__114_0(DbContext _, ValueTuple`2 t)
-2026-09-25T02:40:02+00:00           at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.Execute[TState,TResult](TState state, Func`3 operation, Func`3 verifySucceeded)
-2026-09-25T02:40:02+00:00           at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.SaveChanges(Boolean acceptAllChangesOnSuccess)
-2026-09-25T02:40:02+00:00           at Microsoft.EntityFrameworkCore.DbContext.SaveChanges(Boolean acceptAllChangesOnSuccess)
-2026-09-25T02:40:02+00:00           at Microsoft.EntityFrameworkCore.DbContext.SaveChanges()
-2026-09-25T02:40:02+00:00           at Accounting.Consumer.ProcessMessage(Message`2 message) in /src/Accounting/Consumer.cs:line 132
-2026-09-25T02:40:02+00:00          Exception data:
-2026-09-25T02:40:02+00:00            Severity: FATAL
-2026-09-25T02:40:02+00:00            SqlState: 28P01
-2026-09-25T02:40:02+00:00            MessageText: password authentication failed for user "otelu"
-2026-09-25T02:40:02+00:00            File: auth.c
-2026-09-25T02:40:02+00:00            Line: 329
-2026-09-25T02:40:02+00:00            Routine: auth_failed
-2026-09-25T02:40:02+00:00  info: Accounting.Consumer[174880625]
-2026-09-25T02:40:02+00:00        Order details: { "orderId": "57f97703-b88a-11f1-a862-4659f9156b51", "shippingTrackingId": "d9d6f2e7-38cf-4deb-b915-757ee2c2e37e", "shippingCost": { "currencyCode": "USD", "units": "98", "nanos": 890000000 }, "shippingAddress": { "streetAddress": "One Microsoft Way", "city": "Redmond", "state": "WA", "country": "United States", "zipCode": "98052" }, "items": [ { "item": { "productId": "66VCHSJNUP", "quantity": 4 }, "cost": { "currencyCode": "USD", "units": "349", "nanos": 949999999 } }, { "item": { "productId": "1YMWWN1N4O", "quantity": 5 }, "cost": { "currencyCode": "USD", "units": "129", "nanos": 949999999 } }, { "item": { "productId": "2ZYFJ3GM2N", "quantity": 1 }, "cost": { "currencyCode": "USD", "units": "209", "nanos": 949999999 } }, { "item": { "productId": "HQTGWGPNH4", "quantity": 1 }, "cost": { "currencyCode": "USD", "nanos": 990000000 } } ] }.
-2026-09-25T02:40:02+00:00  fail: Accounting.Consumer[0]
-2026-09-25T02:40:02+00:00        Order parsing failed:
-2026-09-25T02:40:02+00:00        Npgsql.PostgresException (0x80004005): 28P01: password authentication failed for user "otelu"
-2026-09-25T02:40:02+00:00           at Npgsql.Internal.NpgsqlConnector.ReadMessageLong(Boolean async, DataRowLoadingMode dataRowLoadingMode, Boolean readingNotifications, Boolean isReadingPrependedMessage)
-2026-09-25T02:40:02+00:00           at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
-2026-09-25T02:40:02+00:00           at Npgsql.Internal.NpgsqlConnector.AuthenticateSASL(List`1 mechanisms, String username, Boolean async, CancellationToken cancellationToken)
-2026-09-25T02:40:02+00:00           at Npgsql.Internal.NpgsqlConnector.Authenticate(String username, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
-2026-09-25T02:40:02+00:00           at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
-2026-09-25T02:40:02+00:00           at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
-2026-09-25T02:40:02+00:00           at Npgsql.Internal.NpgsqlConnector.Open(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
-2026-09-25T02:40:02+00:00           at Npgsql.PoolingDataSource.OpenNewConnector(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
-2026-09-25T02:40:02+00:00           at Npgsql.PoolingDataSource.<Get>g__RentAsync|33_0(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
-2026-09-25T02:40:02+00:00           at Npgsql.NpgsqlConnection.<Open>g__OpenAsync|42_0(Boolean async, CancellationToken cancellationToken)
-2026-09-25T02:40:02+00:00           at Npgsql.NpgsqlConnection.Open()
-2026-09-25T02:40:02+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenDbConnection(Boolean errorsExpected)
-2026-09-25T02:40:02+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenInternal(Boolean errorsExpected)
-2026-09-25T02:40:02+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.Open(Boolean errorsExpected)
-2026-09-25T02:40:02+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.BeginTransaction(IsolationLevel isolationLevel)
-2026-09-25T02:40:02+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.BeginTransaction()
-2026-09-25T02:40:02+00:00           at Microsoft.EntityFrameworkCore.Update.Internal.BatchExecutor.Execute(IEnumerable`1 commandBatches, IRelationalConnection connection)
-2026-09-25T02:40:02+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalDatabase.SaveChanges(IList`1 entries)
-2026-09-25T02:40:02+00:00           at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.SaveChanges(IList`1 entriesToSave)
-2026-09-25T02:40:02+00:00           at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.SaveChanges(StateManager stateManager, Boolean acceptAllChangesOnSuccess)
-2026-09-25T02:40:02+00:00           at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.<>c.<SaveChanges>b__114_0(DbContext _, ValueTuple`2 t)
-2026-09-25T02:40:02+00:00           at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.Execute[TState,TResult](TState state, Func`3 operation, Func`3 verifySucceeded)
-2026-09-25T02:40:02+00:00           at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.SaveChanges(Boolean acceptAllChangesOnSuccess)
-2026-09-25T02:40:02+00:00           at Microsoft.EntityFrameworkCore.DbContext.SaveChanges(Boolean acceptAllChangesOnSuccess)
-2026-09-25T02:40:02+00:00           at Microsoft.EntityFrameworkCore.DbContext.SaveChanges()
-2026-09-25T02:40:02+00:00           at Accounting.Consumer.ProcessMessage(Message`2 message) in /src/Accounting/Consumer.cs:line 132
-2026-09-25T02:40:02+00:00          Exception data:
-2026-09-25T02:40:02+00:00            Severity: FATAL
-2026-09-25T02:40:02+00:00            SqlState: 28P01
-2026-09-25T02:40:02+00:00            MessageText: password authentication failed for user "otelu"
-2026-09-25T02:40:02+00:00            File: auth.c
-2026-09-25T02:40:02+00:00            Line: 329
-2026-09-25T02:40:02+00:00            Routine: auth_failed
-2026-09-25T02:40:02+00:00  info: Accounting.Consumer[174880625]
-2026-09-25T02:40:02+00:00        Order details: { "orderId": "644cd1d8-b88a-11f1-a862-4659f9156b51", "shippingTrackingId": "143850a5-f154-4d16-9b09-1462f86f0cd9", "shippingCost": { "currencyCode": "USD", "units": "26", "nanos": 969999999 }, "shippingAddress": { "streetAddress": "2200 Mission College Blvd", "city": "Santa Clara", "state": "CA", "country": "United States", "zipCode": "95054" }, "items": [ { "item": { "productId": "1YMWWN1N4O", "quantity": 3 }, "cost": { "currencyCode": "USD", "units": "129", "nanos": 949999999 } } ] }.
-2026-09-25T02:40:02+00:00  fail: Accounting.Consumer[0]
-2026-09-25T02:40:02+00:00        Order parsing failed:
-2026-09-25T02:40:02+00:00        Npgsql.PostgresException (0x80004005): 28P01: password authentication failed for user "otelu"
-2026-09-25T02:40:02+00:00           at Npgsql.Internal.NpgsqlConnector.ReadMessageLong(Boolean async, DataRowLoadingMode dataRowLoadingMode, Boolean readingNotifications, Boolean isReadingPrependedMessage)
-2026-09-25T02:40:02+00:00           at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
-2026-09-25T02:40:02+00:00           at Npgsql.Internal.NpgsqlConnector.AuthenticateSASL(List`1 mechanisms, String username, Boolean async, CancellationToken cancellationToken)
-2026-09-25T02:40:02+00:00           at Npgsql.Internal.NpgsqlConnector.Authenticate(String username, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
-2026-09-25T02:40:02+00:00           at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
-2026-09-25T02:40:02+00:00           at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
-2026-09-25T02:40:02+00:00           at Npgsql.Internal.NpgsqlConnector.Open(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
-2026-09-25T02:40:02+00:00           at Npgsql.PoolingDataSource.OpenNewConnector(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
-2026-09-25T02:40:02+00:00           at Npgsql.PoolingDataSource.<Get>g__RentAsync|33_0(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
-2026-09-25T02:40:02+00:00           at Npgsql.NpgsqlConnection.<Open>g__OpenAsync|42_0(Boolean async, CancellationToken cancellationToken)
-2026-09-25T02:40:02+00:00           at Npgsql.NpgsqlConnection.Open()
-2026-09-25T02:40:02+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenDbConnection(Boolean errorsExpected)
-2026-09-25T02:40:02+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenInternal(Boolean errorsExpected)
-2026-09-25T02:40:02+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.Open(Boolean errorsExpected)
-2026-09-25T02:40:02+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.BeginTransaction(IsolationLevel isolationLevel)
-2026-09-25T02:40:02+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.BeginTransaction()
-2026-09-25T02:40:02+00:00           at Microsoft.EntityFrameworkCore.Update.Internal.BatchExecutor.Execute(IEnumerable`1 commandBatches, IRelationalConnection connection)
-2026-09-25T02:40:02+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalDatabase.SaveChanges(IList`1 entries)
-2026-09-25T02:40:02+00:00           at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.SaveChanges(IList`1 entriesToSave)
-2026-09-25T02:40:02+00:00           at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.SaveChanges(StateManager stateManager, Boolean acceptAllChangesOnSuccess)
-2026-09-25T02:40:02+00:00           at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.<>c.<SaveChanges>b__114_0(DbContext _, ValueTuple`2 t)
-2026-09-25T02:40:02+00:00           at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.Execute[TState,TResult](TState state, Func`3 operation, Func`3 verifySucceeded)
-2026-09-25T02:40:02+00:00           at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.SaveChanges(Boolean acceptAllChangesOnSuccess)
-2026-09-25T02:40:02+00:00           at Microsoft.EntityFrameworkCore.DbContext.SaveChanges(Boolean acceptAllChangesOnSuccess)
-2026-09-25T02:40:02+00:00           at Microsoft.EntityFrameworkCore.DbContext.SaveChanges()
-2026-09-25T02:40:02+00:00           at Accounting.Consumer.ProcessMessage(Message`2 message) in /src/Accounting/Consumer.cs:line 132
-2026-09-25T02:40:02+00:00          Exception data:
-2026-09-25T02:40:02+00:00            Severity: FATAL
-2026-09-25T02:40:02+00:00            SqlState: 28P01
-2026-09-25T02:40:02+00:00            MessageText: password authentication failed for user "otelu"
-2026-09-25T02:40:02+00:00            File: auth.c
-2026-09-25T02:40:02+00:00            Line: 329
-2026-09-25T02:40:02+00:00            Routine: auth_failed
-2026-09-25T02:40:14+00:00  info: Accounting.Consumer[174880625]
-2026-09-25T02:40:14+00:00        Order details: { "orderId": "6f79dc3b-b88a-11f1-a862-4659f9156b51", "shippingTrackingId": "ad1e4be1-f2ba-4b53-9732-aecdf8d201de", "shippingCost": { "currencyCode": "USD", "units": "17", "nanos": 980000000 }, "shippingAddress": { "streetAddress": "1600 Amphitheatre Parkway", "city": "Mountain View", "state": "CA", "country": "United States", "zipCode": "94043" }, "items": [ { "item": { "productId": "66VCHSJNUP", "quantity": 2 }, "cost": { "currencyCode": "USD", "units": "349", "nanos": 949999999 } } ] }.
-2026-09-25T02:40:14+00:00  fail: Accounting.Consumer[0]
-2026-09-25T02:40:14+00:00        Order parsing failed:
-2026-09-25T02:40:14+00:00        Npgsql.PostgresException (0x80004005): 28P01: password authentication failed for user "otelu"
-2026-09-25T02:40:14+00:00           at Npgsql.Internal.NpgsqlConnector.ReadMessageLong(Boolean async, DataRowLoadingMode dataRowLoadingMode, Boolean readingNotifications, Boolean isReadingPrependedMessage)
-2026-09-25T02:40:14+00:00           at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
-2026-09-25T02:40:14+00:00           at Npgsql.Internal.NpgsqlConnector.AuthenticateSASL(List`1 mechanisms, String username, Boolean async, CancellationToken cancellationToken)
-2026-09-25T02:40:14+00:00           at Npgsql.Internal.NpgsqlConnector.Authenticate(String username, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
-2026-09-25T02:40:14+00:00           at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
-2026-09-25T02:40:14+00:00           at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
-2026-09-25T02:40:14+00:00           at Npgsql.Internal.NpgsqlConnector.Open(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
-2026-09-25T02:40:14+00:00           at Npgsql.PoolingDataSource.OpenNewConnector(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
-2026-09-25T02:40:14+00:00           at Npgsql.PoolingDataSource.<Get>g__RentAsync|33_0(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
-2026-09-25T02:40:14+00:00           at Npgsql.NpgsqlConnection.<Open>g__OpenAsync|42_0(Boolean async, CancellationToken cancellationToken)
-2026-09-25T02:40:14+00:00           at Npgsql.NpgsqlConnection.Open()
-2026-09-25T02:40:14+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenDbConnection(Boolean errorsExpected)
-2026-09-25T02:40:14+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenInternal(Boolean errorsExpected)
-2026-09-25T02:40:14+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.Open(Boolean errorsExpected)
-2026-09-25T02:40:14+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.BeginTransaction(IsolationLevel isolationLevel)
-2026-09-25T02:40:14+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.BeginTransaction()
-2026-09-25T02:40:14+00:00           at Microsoft.EntityFrameworkCore.Update.Internal.BatchExecutor.Execute(IEnumerable`1 commandBatches, IRelationalConnection connection)
-2026-09-25T02:40:14+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalDatabase.SaveChanges(IList`1 entries)
-2026-09-25T02:40:14+00:00           at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.SaveChanges(IList`1 entriesToSave)
-2026-09-25T02:40:14+00:00           at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.SaveChanges(StateManager stateManager, Boolean acceptAllChangesOnSuccess)
-2026-09-25T02:40:14+00:00           at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.<>c.<SaveChanges>b__114_0(DbContext _, ValueTuple`2 t)
-2026-09-25T02:40:14+00:00           at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.Execute[TState,TResult](TState state, Func`3 operation, Func`3 verifySucceeded)
-2026-09-25T02:40:14+00:00           at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.SaveChanges(Boolean acceptAllChangesOnSuccess)
-2026-09-25T02:40:14+00:00           at Microsoft.EntityFrameworkCore.DbContext.SaveChanges(Boolean acceptAllChangesOnSuccess)
-2026-09-25T02:40:14+00:00           at Microsoft.EntityFrameworkCore.DbContext.SaveChanges()
-2026-09-25T02:40:14+00:00           at Accounting.Consumer.ProcessMessage(Message`2 message) in /src/Accounting/Consumer.cs:line 132
-2026-09-25T02:40:14+00:00          Exception data:
-2026-09-25T02:40:14+00:00            Severity: FATAL
-2026-09-25T02:40:14+00:00            SqlState: 28P01
-2026-09-25T02:40:14+00:00            MessageText: password authentication failed for user "otelu"
-2026-09-25T02:40:14+00:00            File: auth.c
-2026-09-25T02:40:14+00:00            Line: 329
-2026-09-25T02:40:14+00:00            Routine: auth_failed
-2026-09-25T02:40:26+00:00  info: Accounting.Consumer[174880625]
-2026-09-25T02:40:26+00:00        Order details: { "orderId": "770af067-b88a-11f1-a862-4659f9156b51", "shippingTrackingId": "92b5ef78-4334-4fd4-85b4-6a9e7437bb60", "shippingCost": { "currencyCode": "CAD", "units": "180", "nanos": 452083149 }, "shippingAddress": { "streetAddress": "150 Elgin St", "city": "Ottawa", "state": "ON", "country": "Canada", "zipCode": "K2P1L4" }, "items": [ { "item": { "productId": "2ZYFJ3GM2N", "quantity": 5 }, "cost": { "currencyCode": "CAD", "units": "280", "nanos": 948571428 } }, { "item": { "productId": "1YMWWN1N4O", "quantity": 10 }, "cost": { "currencyCode": "CAD", "units": "173", "nanos": 895055285 } } ] }.
-2026-09-25T02:40:26+00:00  fail: Accounting.Consumer[0]
-2026-09-25T02:40:26+00:00        Order parsing failed:
-2026-09-25T02:40:26+00:00        Npgsql.PostgresException (0x80004005): 28P01: password authentication failed for user "otelu"
-2026-09-25T02:40:26+00:00           at Npgsql.Internal.NpgsqlConnector.ReadMessageLong(Boolean async, DataRowLoadingMode dataRowLoadingMode, Boolean readingNotifications, Boolean isReadingPrependedMessage)
-2026-09-25T02:40:26+00:00           at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
-2026-09-25T02:40:26+00:00           at Npgsql.Internal.NpgsqlConnector.AuthenticateSASL(List`1 mechanisms, String username, Boolean async, CancellationToken cancellationToken)
-2026-09-25T02:40:26+00:00           at Npgsql.Internal.NpgsqlConnector.Authenticate(String username, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
-2026-09-25T02:40:26+00:00           at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
-2026-09-25T02:40:26+00:00           at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
-2026-09-25T02:40:26+00:00           at Npgsql.Internal.NpgsqlConnector.Open(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
-2026-09-25T02:40:26+00:00           at Npgsql.PoolingDataSource.OpenNewConnector(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
-2026-09-25T02:40:26+00:00           at Npgsql.PoolingDataSource.<Get>g__RentAsync|33_0(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
-2026-09-25T02:40:26+00:00           at Npgsql.NpgsqlConnection.<Open>g__OpenAsync|42_0(Boolean async, CancellationToken cancellationToken)
-2026-09-25T02:40:26+00:00           at Npgsql.NpgsqlConnection.Open()
-2026-09-25T02:40:26+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenDbConnection(Boolean errorsExpected)
-2026-09-25T02:40:26+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenInternal(Boolean errorsExpected)
-2026-09-25T02:40:26+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.Open(Boolean errorsExpected)
-2026-09-25T02:40:26+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.BeginTransaction(IsolationLevel isolationLevel)
-2026-09-25T02:40:26+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.BeginTransaction()
-2026-09-25T02:40:26+00:00           at Microsoft.EntityFrameworkCore.Update.Internal.BatchExecutor.Execute(IEnumerable`1 commandBatches, IRelationalConnection connection)
-2026-09-25T02:40:26+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalDatabase.SaveChanges(IList`1 entries)
-2026-09-25T02:40:26+00:00           at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.SaveChanges(IList`1 entriesToSave)
-2026-09-25T02:40:26+00:00           at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.SaveChanges(StateManager stateManager, Boolean acceptAllChangesOnSuccess)
-2026-09-25T02:40:26+00:00           at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.<>c.<SaveChanges>b__114_0(DbContext _, ValueTuple`2 t)
-2026-09-25T02:40:26+00:00           at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.Execute[TState,TResult](TState state, Func`3 operation, Func`3 verifySucceeded)
-2026-09-25T02:40:26+00:00           at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.SaveChanges(Boolean acceptAllChangesOnSuccess)
-2026-09-25T02:40:26+00:00           at Microsoft.EntityFrameworkCore.DbContext.SaveChanges(Boolean acceptAllChangesOnSuccess)
-2026-09-25T02:40:26+00:00           at Microsoft.EntityFrameworkCore.DbContext.SaveChanges()
-2026-09-25T02:40:26+00:00           at Accounting.Consumer.ProcessMessage(Message`2 message) in /src/Accounting/Consumer.cs:line 132
-2026-09-25T02:40:26+00:00          Exception data:
-2026-09-25T02:40:26+00:00            Severity: FATAL
-2026-09-25T02:40:26+00:00            SqlState: 28P01
-2026-09-25T02:40:26+00:00            MessageText: password authentication failed for user "otelu"
-2026-09-25T02:40:26+00:00            File: auth.c
-2026-09-25T02:40:26+00:00            Line: 329
-2026-09-25T02:40:26+00:00            Routine: auth_failed
-2026-09-25T02:40:29+00:00  info: Accounting.Consumer[174880625]
-2026-09-25T02:40:29+00:00        Order details: { "orderId": "787e649b-b88a-11f1-a862-4659f9156b51", "shippingTrackingId": "586a50b2-c25d-4323-9d7e-dcca191ccbb1", "shippingCost": { "currencyCode": "USD", "units": "44", "nanos": 950000000 }, "shippingAddress": { "streetAddress": "1600 Amphitheatre Parkway", "city": "Mountain View", "state": "CA", "country": "United States", "zipCode": "94043" }, "items": [ { "item": { "productId": "OLJCESPC7Z", "quantity": 5 }, "cost": { "currencyCode": "USD", "units": "101", "nanos": 959999999 } } ] }.
-2026-09-25T02:40:29+00:00  fail: Accounting.Consumer[0]
-2026-09-25T02:40:29+00:00        Order parsing failed:
-2026-09-25T02:40:29+00:00        Npgsql.PostgresException (0x80004005): 28P01: password authentication failed for user "otelu"
-2026-09-25T02:40:29+00:00           at Npgsql.Internal.NpgsqlConnector.ReadMessageLong(Boolean async, DataRowLoadingMode dataRowLoadingMode, Boolean readingNotifications, Boolean isReadingPrependedMessage)
-2026-09-25T02:40:29+00:00           at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
-2026-09-25T02:40:29+00:00           at Npgsql.Internal.NpgsqlConnector.AuthenticateSASL(List`1 mechanisms, String username, Boolean async, CancellationToken cancellationToken)
-2026-09-25T02:40:29+00:00           at Npgsql.Internal.NpgsqlConnector.Authenticate(String username, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
-2026-09-25T02:40:29+00:00           at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
-2026-09-25T02:40:29+00:00           at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
-2026-09-25T02:40:29+00:00           at Npgsql.Internal.NpgsqlConnector.Open(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
-2026-09-25T02:40:29+00:00           at Npgsql.PoolingDataSource.OpenNewConnector(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
-2026-09-25T02:40:29+00:00           at Npgsql.PoolingDataSource.<Get>g__RentAsync|33_0(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
-2026-09-25T02:40:29+00:00           at Npgsql.NpgsqlConnection.<Open>g__OpenAsync|42_0(Boolean async, CancellationToken cancellationToken)
-2026-09-25T02:40:29+00:00           at Npgsql.NpgsqlConnection.Open()
-2026-09-25T02:40:29+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenDbConnection(Boolean errorsExpected)
-2026-09-25T02:40:29+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenInternal(Boolean errorsExpected)
-2026-09-25T02:40:29+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.Open(Boolean errorsExpected)
-2026-09-25T02:40:29+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.BeginTransaction(IsolationLevel isolationLevel)
-2026-09-25T02:40:29+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.BeginTransaction()
-2026-09-25T02:40:29+00:00           at Microsoft.EntityFrameworkCore.Update.Internal.BatchExecutor.Execute(IEnumerable`1 commandBatches, IRelationalConnection connection)
-2026-09-25T02:40:29+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalDatabase.SaveChanges(IList`1 entries)
-2026-09-25T02:40:29+00:00           at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.SaveChanges(IList`1 entriesToSave)
-2026-09-25T02:40:29+00:00           at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.SaveChanges(StateManager stateManager, Boolean acceptAllChangesOnSuccess)
-2026-09-25T02:40:29+00:00           at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.<>c.<SaveChanges>b__114_0(DbContext _, ValueTuple`2 t)
-2026-09-25T02:40:29+00:00           at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.Execute[TState,TResult](TState state, Func`3 operation, Func`3 verifySucceeded)
-2026-09-25T02:40:29+00:00           at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.SaveChanges(Boolean acceptAllChangesOnSuccess)
-2026-09-25T02:40:29+00:00           at Microsoft.EntityFrameworkCore.DbContext.SaveChanges(Boolean acceptAllChangesOnSuccess)
-2026-09-25T02:40:29+00:00           at Microsoft.EntityFrameworkCore.DbContext.SaveChanges()
-2026-09-25T02:40:29+00:00           at Accounting.Consumer.ProcessMessage(Message`2 message) in /src/Accounting/Consumer.cs:line 132
-2026-09-25T02:40:29+00:00          Exception data:
-2026-09-25T02:40:29+00:00            Severity: FATAL
-2026-09-25T02:40:29+00:00            SqlState: 28P01
-2026-09-25T02:40:29+00:00            MessageText: password authentication failed for user "otelu"
-2026-09-25T02:40:29+00:00            File: auth.c
-2026-09-25T02:40:29+00:00            Line: 329
-2026-09-25T02:40:29+00:00            Routine: auth_failed
-2026-09-25T02:40:37+00:00  info: Accounting.Consumer[174880625]
-2026-09-25T02:40:37+00:00        Order details: { "orderId": "7db94c3d-b88a-11f1-a862-4659f9156b51", "shippingTrackingId": "12e2c2e7-dbf6-4cdd-966f-88d2ebf17035", "shippingCost": { "currencyCode": "USD", "units": "170", "nanos": 810000000 }, "shippingAddress": { "streetAddress": "410 Terry Ave N", "city": "Seattle", "state": "WA", "country": "United States", "zipCode": "98109" }, "items": [ { "item": { "productId": "OLJCESPC7Z", "quantity": 5 }, "cost": { "currencyCode": "USD", "units": "101", "nanos": 959999999 } }, { "item": { "productId": "LS4PSXUNUM", "quantity": 5 }, "cost": { "currencyCode": "USD", "units": "57", "nanos": 799999999 } }, { "item": { "productId": "6E92ZMYYFZ", "quantity": 4 }, "cost": { "currencyCode": "USD", "units": "69", "nanos": 950000000 } }, { "item": { "productId": "1YMWWN1N4O", "quantity": 5 }, "cost": { "currencyCode": "USD", "units": "129", "nanos": 949999999 } } ] }.
-2026-09-25T02:40:38+00:00  fail: Accounting.Consumer[0]
-2026-09-25T02:40:38+00:00        Order parsing failed:
-2026-09-25T02:40:38+00:00        Npgsql.PostgresException (0x80004005): 28P01: password authentication failed for user "otelu"
-2026-09-25T02:40:38+00:00           at Npgsql.Internal.NpgsqlConnector.ReadMessageLong(Boolean async, DataRowLoadingMode dataRowLoadingMode, Boolean readingNotifications, Boolean isReadingPrependedMessage)
-2026-09-25T02:40:38+00:00           at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
-2026-09-25T02:40:38+00:00           at Npgsql.Internal.NpgsqlConnector.AuthenticateSASL(List`1 mechanisms, String username, Boolean async, CancellationToken cancellationToken)
-2026-09-25T02:40:38+00:00           at Npgsql.Internal.NpgsqlConnector.Authenticate(String username, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
-2026-09-25T02:40:38+00:00           at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
-2026-09-25T02:40:38+00:00           at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
-2026-09-25T02:40:38+00:00           at Npgsql.Internal.NpgsqlConnector.Open(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
-2026-09-25T02:40:38+00:00           at Npgsql.PoolingDataSource.OpenNewConnector(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
-2026-09-25T02:40:38+00:00           at Npgsql.PoolingDataSource.<Get>g__RentAsync|33_0(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
-2026-09-25T02:40:38+00:00           at Npgsql.NpgsqlConnection.<Open>g__OpenAsync|42_0(Boolean async, CancellationToken cancellationToken)
-2026-09-25T02:40:38+00:00           at Npgsql.NpgsqlConnection.Open()
-2026-09-25T02:40:38+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenDbConnection(Boolean errorsExpected)
-2026-09-25T02:40:38+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenInternal(Boolean errorsExpected)
-2026-09-25T02:40:38+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.Open(Boolean errorsExpected)
-2026-09-25T02:40:38+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.BeginTransaction(IsolationLevel isolationLevel)
-2026-09-25T02:40:38+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.BeginTransaction()
-2026-09-25T02:40:38+00:00           at Microsoft.EntityFrameworkCore.Update.Internal.BatchExecutor.Execute(IEnumerable`1 commandBatches, IRelationalConnection connection)
-2026-09-25T02:40:38+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalDatabase.SaveChanges(IList`1 entries)
-2026-09-25T02:40:38+00:00           at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.SaveChanges(IList`1 entriesToSave)
-2026-09-25T02:40:38+00:00           at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.SaveChanges(StateManager stateManager, Boolean acceptAllChangesOnSuccess)
-2026-09-25T02:40:38+00:00           at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.<>c.<SaveChanges>b__114_0(DbContext _, ValueTuple`2 t)
-2026-09-25T02:40:38+00:00           at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.Execute[TState,TResult](TState state, Func`3 operation, Func`3 verifySucceeded)
-2026-09-25T02:40:38+00:00           at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.SaveChanges(Boolean acceptAllChangesOnSuccess)
-2026-09-25T02:40:38+00:00           at Microsoft.EntityFrameworkCore.DbContext.SaveChanges(Boolean acceptAllChangesOnSuccess)
-2026-09-25T02:40:38+00:00           at Microsoft.EntityFrameworkCore.DbContext.SaveChanges()
-2026-09-25T02:40:38+00:00           at Accounting.Consumer.ProcessMessage(Message`2 message) in /src/Accounting/Consumer.cs:line 132
-2026-09-25T02:40:38+00:00          Exception data:
-2026-09-25T02:40:38+00:00            Severity: FATAL
-2026-09-25T02:40:38+00:00            SqlState: 28P01
-2026-09-25T02:40:38+00:00            MessageText: password authentication failed for user "otelu"
-2026-09-25T02:40:38+00:00            File: auth.c
-2026-09-25T02:40:38+00:00            Line: 329
-2026-09-25T02:40:38+00:00            Routine: auth_failed
-2026-09-25T02:40:43+00:00  info: Accounting.Consumer[174880625]
-2026-09-25T02:40:43+00:00        Order details: { "orderId": "811d2fb9-b88a-11f1-a862-4659f9156b51", "shippingTrackingId": "53407670-4e5c-4b09-b9ed-cbb90c9cae87", "shippingCost": { "currencyCode": "USD", "units": "35", "nanos": 960000000 }, "shippingAddress": { "streetAddress": "1 Hacker Way", "city": "Menlo Park", "state": "CA", "country": "United States", "zipCode": "94025" }, "items": [ { "item": { "productId": "9SIQT8TOJO", "quantity": 4 }, "cost": { "currencyCode": "USD", "units": "3599" } } ] }.
-2026-09-25T02:40:43+00:00  fail: Accounting.Consumer[0]
-2026-09-25T02:40:43+00:00        Order parsing failed:
-2026-09-25T02:40:43+00:00        Npgsql.PostgresException (0x80004005): 28P01: password authentication failed for user "otelu"
-2026-09-25T02:40:43+00:00           at Npgsql.Internal.NpgsqlConnector.ReadMessageLong(Boolean async, DataRowLoadingMode dataRowLoadingMode, Boolean readingNotifications, Boolean isReadingPrependedMessage)
-2026-09-25T02:40:43+00:00           at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
-2026-09-25T02:40:43+00:00           at Npgsql.Internal.NpgsqlConnector.AuthenticateSASL(List`1 mechanisms, String username, Boolean async, CancellationToken cancellationToken)
-2026-09-25T02:40:43+00:00           at Npgsql.Internal.NpgsqlConnector.Authenticate(String username, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
-2026-09-25T02:40:43+00:00           at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
-2026-09-25T02:40:43+00:00           at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
-2026-09-25T02:40:43+00:00           at Npgsql.Internal.NpgsqlConnector.Open(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
-2026-09-25T02:40:43+00:00           at Npgsql.PoolingDataSource.OpenNewConnector(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
-2026-09-25T02:40:43+00:00           at Npgsql.PoolingDataSource.<Get>g__RentAsync|33_0(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
-2026-09-25T02:40:43+00:00           at Npgsql.NpgsqlConnection.<Open>g__OpenAsync|42_0(Boolean async, CancellationToken cancellationToken)
-2026-09-25T02:40:43+00:00           at Npgsql.NpgsqlConnection.Open()
-2026-09-25T02:40:43+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenDbConnection(Boolean errorsExpected)
-2026-09-25T02:40:43+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenInternal(Boolean errorsExpected)
-2026-09-25T02:40:43+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.Open(Boolean errorsExpected)
-2026-09-25T02:40:43+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.BeginTransaction(IsolationLevel isolationLevel)
-2026-09-25T02:40:43+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.BeginTransaction()
-2026-09-25T02:40:43+00:00           at Microsoft.EntityFrameworkCore.Update.Internal.BatchExecutor.Execute(IEnumerable`1 commandBatches, IRelationalConnection connection)
-2026-09-25T02:40:43+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalDatabase.SaveChanges(IList`1 entries)
-2026-09-25T02:40:43+00:00           at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.SaveChanges(IList`1 entriesToSave)
-2026-09-25T02:40:43+00:00           at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.SaveChanges(StateManager stateManager, Boolean acceptAllChangesOnSuccess)
-2026-09-25T02:40:43+00:00           at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.<>c.<SaveChanges>b__114_0(DbContext _, ValueTuple`2 t)
-2026-09-25T02:40:43+00:00           at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.Execute[TState,TResult](TState state, Func`3 operation, Func`3 verifySucceeded)
-2026-09-25T02:40:43+00:00           at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.SaveChanges(Boolean acceptAllChangesOnSuccess)
-2026-09-25T02:40:43+00:00           at Microsoft.EntityFrameworkCore.DbContext.SaveChanges(Boolean acceptAllChangesOnSuccess)
-2026-09-25T02:40:43+00:00           at Microsoft.EntityFrameworkCore.DbContext.SaveChanges()
-2026-09-25T02:40:43+00:00           at Accounting.Consumer.ProcessMessage(Message`2 message) in /src/Accounting/Consumer.cs:line 132
-2026-09-25T02:40:43+00:00          Exception data:
-2026-09-25T02:40:43+00:00            Severity: FATAL
-2026-09-25T02:40:43+00:00            SqlState: 28P01
-2026-09-25T02:40:43+00:00            MessageText: password authentication failed for user "otelu"
-2026-09-25T02:40:43+00:00            File: auth.c
-2026-09-25T02:40:43+00:00            Line: 329
-2026-09-25T02:40:43+00:00            Routine: auth_failed
-2026-09-25T02:40:59+00:00  info: Accounting.Consumer[174880625]
-2026-09-25T02:40:59+00:00        Order details: { "orderId": "8ab40e4c-b88a-11f1-a862-4659f9156b51", "shippingTrackingId": "183b8de3-2fc2-4563-b086-12fa3ae6ca1f", "shippingCost": { "currencyCode": "USD", "units": "188", "nanos": 789999999 }, "shippingAddress": { "streetAddress": "2200 Mission College Blvd", "city": "Santa Clara", "state": "CA", "country": "United States", "zipCode": "95054" }, "items": [ { "item": { "productId": "LS4PSXUNUM", "quantity": 5 }, "cost": { "currencyCode": "USD", "units": "57", "nanos": 799999999 } }, { "item": { "productId": "HQTGWGPNH4", "quantity": 10 }, "cost": { "currencyCode": "USD", "nanos": 990000000 } }, { "item": { "productId": "66VCHSJNUP", "quantity": 2 }, "cost": { "currencyCode": "USD", "units": "349", "nanos": 949999999 } }, { "item": { "productId": "6E92ZMYYFZ", "quantity": 4 }, "cost": { "currencyCode": "USD", "units": "69", "nanos": 950000000 } } ] }.
-2026-09-25T02:40:59+00:00  fail: Accounting.Consumer[0]
-2026-09-25T02:40:59+00:00        Order parsing failed:
-2026-09-25T02:40:59+00:00        Npgsql.PostgresException (0x80004005): 28P01: password authentication failed for user "otelu"
-2026-09-25T02:40:59+00:00           at Npgsql.Internal.NpgsqlConnector.ReadMessageLong(Boolean async, DataRowLoadingMode dataRowLoadingMode, Boolean readingNotifications, Boolean isReadingPrependedMessage)
-2026-09-25T02:40:59+00:00           at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
-2026-09-25T02:40:59+00:00           at Npgsql.Internal.NpgsqlConnector.AuthenticateSASL(List`1 mechanisms, String username, Boolean async, CancellationToken cancellationToken)
-2026-09-25T02:40:59+00:00           at Npgsql.Internal.NpgsqlConnector.Authenticate(String username, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
-2026-09-25T02:40:59+00:00           at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
-2026-09-25T02:40:59+00:00           at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
-2026-09-25T02:40:59+00:00           at Npgsql.Internal.NpgsqlConnector.Open(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
-2026-09-25T02:40:59+00:00           at Npgsql.PoolingDataSource.OpenNewConnector(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
-2026-09-25T02:40:59+00:00           at Npgsql.PoolingDataSource.<Get>g__RentAsync|33_0(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
-2026-09-25T02:40:59+00:00           at Npgsql.NpgsqlConnection.<Open>g__OpenAsync|42_0(Boolean async, CancellationToken cancellationToken)
-2026-09-25T02:40:59+00:00           at Npgsql.NpgsqlConnection.Open()
-2026-09-25T02:40:59+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenDbConnection(Boolean errorsExpected)
-2026-09-25T02:40:59+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenInternal(Boolean errorsExpected)
-2026-09-25T02:40:59+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.Open(Boolean errorsExpected)
-2026-09-25T02:40:59+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.BeginTransaction(IsolationLevel isolationLevel)
-2026-09-25T02:40:59+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.BeginTransaction()
-2026-09-25T02:40:59+00:00           at Microsoft.EntityFrameworkCore.Update.Internal.BatchExecutor.Execute(IEnumerable`1 commandBatches, IRelationalConnection connection)
-2026-09-25T02:40:59+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalDatabase.SaveChanges(IList`1 entries)
-2026-09-25T02:40:59+00:00           at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.SaveChanges(IList`1 entriesToSave)
-2026-09-25T02:40:59+00:00           at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.SaveChanges(StateManager stateManager, Boolean acceptAllChangesOnSuccess)
-2026-09-25T02:40:59+00:00           at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.<>c.<SaveChanges>b__114_0(DbContext _, ValueTuple`2 t)
-2026-09-25T02:40:59+00:00           at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.Execute[TState,TResult](TState state, Func`3 operation, Func`3 verifySucceeded)
-2026-09-25T02:40:59+00:00           at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.SaveChanges(Boolean acceptAllChangesOnSuccess)
-2026-09-25T02:40:59+00:00           at Microsoft.EntityFrameworkCore.DbContext.SaveChanges(Boolean acceptAllChangesOnSuccess)
-2026-09-25T02:40:59+00:00           at Microsoft.EntityFrameworkCore.DbContext.SaveChanges()
-2026-09-25T02:40:59+00:00           at Accounting.Consumer.ProcessMessage(Message`2 message) in /src/Accounting/Consumer.cs:line 132
-2026-09-25T02:40:59+00:00          Exception data:
-2026-09-25T02:40:59+00:00            Severity: FATAL
-2026-09-25T02:40:59+00:00            SqlState: 28P01
-2026-09-25T02:40:59+00:00            MessageText: password authentication failed for user "otelu"
-2026-09-25T02:40:59+00:00            File: auth.c
-2026-09-25T02:40:59+00:00            Line: 329
-2026-09-25T02:40:59+00:00            Routine: auth_failed
+2026-09-26T04:41:35+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T04:41:35+00:00        Order details: { "orderId": "8e30ba0a-b964-11f1-a862-4659f9156b51", "shippingTrackingId": "6e83a222-8e0d-44f7-a206-d598f84cc792", "shippingCost": { "currencyCode": "USD", "units": "8", "nanos": 990000000 }, "shippingAddress": { "streetAddress": "One Microsoft Way", "city": "Redmond", "state": "WA", "country": "United States", "zipCode": "98052" }, "items": [ { "item": { "productId": "OLJCESPC7Z", "quantity": 1 }, "cost": { "currencyCode": "USD", "units": "101", "nanos": 959999999 } } ] }.
+2026-09-26T04:41:36+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T04:41:36+00:00        Order details: { "orderId": "8e69779a-b964-11f1-a862-4659f9156b51", "shippingTrackingId": "d341e8f2-7399-42fd-80ff-41107732f1a5", "shippingCost": { "currencyCode": "USD", "units": "35", "nanos": 960000000 }, "shippingAddress": { "streetAddress": "410 Terry Ave N", "city": "Seattle", "state": "WA", "country": "United States", "zipCode": "98109" }, "items": [ { "item": { "productId": "L9ECAV7KIM", "quantity": 4 }, "cost": { "currencyCode": "USD", "units": "21", "nanos": 949999999 } } ] }.
+2026-09-26T04:41:39+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T04:41:39+00:00        Order details: { "orderId": "908fabbd-b964-11f1-a862-4659f9156b51", "shippingTrackingId": "ee53a699-955e-4d6a-939b-45d96177c8db", "shippingCost": { "currencyCode": "USD", "units": "188", "nanos": 789999999 }, "shippingAddress": { "streetAddress": "1600 Amphitheatre Parkway", "city": "Mountain View", "state": "CA", "country": "United States", "zipCode": "94043" }, "items": [ { "item": { "productId": "LS4PSXUNUM", "quantity": 10 }, "cost": { "currencyCode": "USD", "units": "57", "nanos": 799999999 } }, { "item": { "productId": "HQTGWGPNH4", "quantity": 11 }, "cost": { "currencyCode": "USD", "nanos": 990000000 } } ] }.
+2026-09-26T04:41:44+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T04:41:44+00:00        Order details: { "orderId": "934542ec-b964-11f1-a862-4659f9156b51", "shippingTrackingId": "fc628fde-7034-49ca-8104-7c27dbab503a", "shippingCost": { "currencyCode": "USD", "units": "8", "nanos": 990000000 }, "shippingAddress": { "streetAddress": "2200 Mission College Blvd", "city": "Santa Clara", "state": "CA", "country": "United States", "zipCode": "95054" }, "items": [ { "item": { "productId": "L9ECAV7KIM", "quantity": 1 }, "cost": { "currencyCode": "USD", "units": "21", "nanos": 949999999 } } ] }.
+2026-09-26T04:41:57+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T04:41:57+00:00        Order details: { "orderId": "9b0a3b1e-b964-11f1-a862-4659f9156b51", "shippingTrackingId": "d38a3cfe-1fe7-48b7-81e2-a6ef4abdd845", "shippingCost": { "currencyCode": "CAD", "units": "252", "nanos": 632916408 }, "shippingAddress": { "streetAddress": "150 Elgin St", "city": "Ottawa", "state": "ON", "country": "Canada", "zipCode": "K2P1L4" }, "items": [ { "item": { "productId": "1YMWWN1N4O", "quantity": 5 }, "cost": { "currencyCode": "CAD", "units": "173", "nanos": 895055285 } }, { "item": { "productId": "9SIQT8TOJO", "quantity": 6 }, "cost": { "currencyCode": "CAD", "units": "4816", "nanos": 70057496 } }, { "item": { "productId": "L9ECAV7KIM", "quantity": 10 }, "cost": { "currencyCode": "CAD", "units": "29", "nanos": 372808491 } } ] }.
+2026-09-26T04:42:03+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T04:42:03+00:00        Order details: { "orderId": "9ede89d3-b964-11f1-a862-4659f9156b51", "shippingTrackingId": "4d8512df-7f35-4bce-a562-7277ff5266eb", "shippingCost": { "currencyCode": "USD", "units": "8", "nanos": 990000000 }, "shippingAddress": { "streetAddress": "One Apple Park Way", "city": "Cupertino", "state": "CA", "country": "United States", "zipCode": "95014" }, "items": [ { "item": { "productId": "0PUK6V6EV0", "quantity": 1 }, "cost": { "currencyCode": "USD", "units": "175" } } ] }.
+2026-09-26T04:42:13+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T04:42:13+00:00        Order details: { "orderId": "a45a8024-b964-11f1-a862-4659f9156b51", "shippingTrackingId": "1f83591d-24ce-4994-8ec7-78d933004530", "shippingCost": { "currencyCode": "USD", "units": "179", "nanos": 800000000 }, "shippingAddress": { "streetAddress": "1355 Market St", "city": "San Francisco", "state": "CA", "country": "United States", "zipCode": "94103" }, "items": [ { "item": { "productId": "66VCHSJNUP", "quantity": 3 }, "cost": { "currencyCode": "USD", "units": "349", "nanos": 949999999 } }, { "item": { "productId": "9SIQT8TOJO", "quantity": 4 }, "cost": { "currencyCode": "USD", "units": "3599" } }, { "item": { "productId": "2ZYFJ3GM2N", "quantity": 3 }, "cost": { "currencyCode": "USD", "units": "209", "nanos": 949999999 } }, { "item": { "productId": "LS4PSXUNUM", "quantity": 10 }, "cost": { "currencyCode": "USD", "units": "57", "nanos": 799999999 } } ] }.
+2026-09-26T04:42:14+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T04:42:14+00:00        Order details: { "orderId": "a546b917-b964-11f1-a862-4659f9156b51", "shippingTrackingId": "f7c75cf0-8e19-4197-9e1a-8d96cb2d0ced", "shippingCost": { "currencyCode": "USD", "units": "134", "nanos": 849999999 }, "shippingAddress": { "streetAddress": "1355 Market St", "city": "San Francisco", "state": "CA", "country": "United States", "zipCode": "94103" }, "items": [ { "item": { "productId": "OLJCESPC7Z", "quantity": 5 }, "cost": { "currencyCode": "USD", "units": "101", "nanos": 959999999 } }, { "item": { "productId": "L9ECAV7KIM", "quantity": 10 }, "cost": { "currencyCode": "USD", "units": "21", "nanos": 949999999 } } ] }.
+2026-09-26T04:42:18+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T04:42:18+00:00        Order details: { "orderId": "a7584e15-b964-11f1-a862-4659f9156b51", "shippingTrackingId": "05f7bdb7-89a9-4fbb-a0f0-703eef86ea18", "shippingCost": { "currencyCode": "USD", "units": "197", "nanos": 780000000 }, "shippingAddress": { "streetAddress": "1355 Market St", "city": "San Francisco", "state": "CA", "country": "United States", "zipCode": "94103" }, "items": [ { "item": { "productId": "OLJCESPC7Z", "quantity": 10 }, "cost": { "currencyCode": "USD", "units": "101", "nanos": 959999999 } }, { "item": { "productId": "LS4PSXUNUM", "quantity": 8 }, "cost": { "currencyCode": "USD", "units": "57", "nanos": 799999999 } }, { "item": { "productId": "L9ECAV7KIM", "quantity": 4 }, "cost": { "currencyCode": "USD", "units": "21", "nanos": 949999999 } } ] }.
+2026-09-26T04:42:31+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T04:42:31+00:00        Order details: { "orderId": "af553285-b964-11f1-a862-4659f9156b51", "shippingTrackingId": "89cf3652-36ba-4608-94ae-63fe54a99733", "shippingCost": { "currencyCode": "USD", "units": "44", "nanos": 950000000 }, "shippingAddress": { "streetAddress": "1600 Amphitheatre Parkway", "city": "Mountain View", "state": "CA", "country": "United States", "zipCode": "94043" }, "items": [ { "item": { "productId": "6E92ZMYYFZ", "quantity": 5 }, "cost": { "currencyCode": "USD", "units": "69", "nanos": 950000000 } } ] }.
+2026-09-26T04:42:38+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T04:42:38+00:00        Order details: { "orderId": "b394e152-b964-11f1-a862-4659f9156b51", "shippingTrackingId": "9756d076-af73-41f7-8c39-5ff6400a9f6c", "shippingCost": { "currencyCode": "USD", "units": "53", "nanos": 939999999 }, "shippingAddress": { "streetAddress": "100 Winchester Circle", "city": "Los Gatos", "state": "CA", "country": "United States", "zipCode": "95032" }, "items": [ { "item": { "productId": "OLJCESPC7Z", "quantity": 3 }, "cost": { "currencyCode": "USD", "units": "101", "nanos": 959999999 } }, { "item": { "productId": "6E92ZMYYFZ", "quantity": 3 }, "cost": { "currencyCode": "USD", "units": "69", "nanos": 950000000 } } ] }.
+2026-09-26T04:42:40+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T04:42:40+00:00        Order details: { "orderId": "b4c92637-b964-11f1-a862-4659f9156b51", "shippingTrackingId": "568f77ba-9bc2-4b51-adcf-de9cf7f10f3b", "shippingCost": { "currencyCode": "USD", "units": "44", "nanos": 950000000 }, "shippingAddress": { "streetAddress": "1 Hacker Way", "city": "Menlo Park", "state": "CA", "country": "United States", "zipCode": "94025" }, "items": [ { "item": { "productId": "OLJCESPC7Z", "quantity": 5 }, "cost": { "currencyCode": "USD", "units": "101", "nanos": 959999999 } } ] }.
+2026-09-26T04:42:46+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T04:42:46+00:00        Order details: { "orderId": "b810f5a3-b964-11f1-a862-4659f9156b51", "shippingTrackingId": "23b47c6c-440f-4bb0-a871-0a90cf933992", "shippingCost": { "currencyCode": "USD", "units": "17", "nanos": 980000000 }, "shippingAddress": { "streetAddress": "2200 Mission College Blvd", "city": "Santa Clara", "state": "CA", "country": "United States", "zipCode": "95054" }, "items": [ { "item": { "productId": "0PUK6V6EV0", "quantity": 2 }, "cost": { "currencyCode": "USD", "units": "175" } } ] }.
+2026-09-26T04:42:50+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T04:42:50+00:00        Order details: { "orderId": "ba8d0790-b964-11f1-a862-4659f9156b51", "shippingTrackingId": "13fdfd2d-7be3-4aa1-84bc-deac97a38580", "shippingCost": { "currencyCode": "CAD", "units": "24", "nanos": 60277753 }, "shippingAddress": { "streetAddress": "150 Elgin St", "city": "Ottawa", "state": "ON", "country": "Canada", "zipCode": "K2P1L4" }, "items": [ { "item": { "productId": "OLJCESPC7Z", "quantity": 2 }, "cost": { "currencyCode": "CAD", "units": "136", "nanos": 439706324 } } ] }.
+2026-09-26T04:43:01+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T04:43:01+00:00        Order details: { "orderId": "c139c889-b964-11f1-a862-4659f9156b51", "shippingTrackingId": "38590a2e-f6b0-42fd-baad-a4218ac963bd", "shippingCost": { "currencyCode": "USD", "units": "62", "nanos": 929999999 }, "shippingAddress": { "streetAddress": "1600 Amphitheatre Parkway", "city": "Mountain View", "state": "CA", "country": "United States", "zipCode": "94043" }, "items": [ { "item": { "productId": "9SIQT8TOJO", "quantity": 2 }, "cost": { "currencyCode": "USD", "units": "3599" } }, { "item": { "productId": "0PUK6V6EV0", "quantity": 5 }, "cost": { "currencyCode": "USD", "units": "175" } } ] }.
+2026-09-26T04:43:07+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T04:43:07+00:00        Order details: { "orderId": "c4ff5f91-b964-11f1-a862-4659f9156b51", "shippingTrackingId": "1c0dd347-7320-4160-8109-3e4182b9f734", "shippingCost": { "currencyCode": "USD", "units": "71", "nanos": 920000000 }, "shippingAddress": { "streetAddress": "410 Terry Ave N", "city": "Seattle", "state": "WA", "country": "United States", "zipCode": "98109" }, "items": [ { "item": { "productId": "6E92ZMYYFZ", "quantity": 4 }, "cost": { "currencyCode": "USD", "units": "69", "nanos": 950000000 } }, { "item": { "productId": "2ZYFJ3GM2N", "quantity": 4 }, "cost": { "currencyCode": "USD", "units": "209", "nanos": 949999999 } } ] }.
+2026-09-26T04:43:17+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T04:43:17+00:00        Order details: { "orderId": "ca8ce78e-b964-11f1-a862-4659f9156b51", "shippingTrackingId": "42d51f87-6a04-424e-8fca-f67b3db76eca", "shippingCost": { "currencyCode": "CAD", "units": "60", "nanos": 150694383 }, "shippingAddress": { "streetAddress": "150 Elgin St", "city": "Ottawa", "state": "ON", "country": "Canada", "zipCode": "K2P1L4" }, "items": [ { "item": { "productId": "L9ECAV7KIM", "quantity": 1 }, "cost": { "currencyCode": "CAD", "units": "29", "nanos": 372808491 } }, { "item": { "productId": "9SIQT8TOJO", "quantity": 4 }, "cost": { "currencyCode": "CAD", "units": "4816", "nanos": 70057496 } } ] }.
+2026-09-26T04:43:24+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T04:43:24+00:00        Order details: { "orderId": "cf1f5fbe-b964-11f1-a862-4659f9156b51", "shippingTrackingId": "6497e072-8187-44d1-868a-f30f46b8dae6", "shippingCost": { "currencyCode": "CAD", "units": "72", "nanos": 180833259 }, "shippingAddress": { "streetAddress": "150 Elgin St", "city": "Ottawa", "state": "ON", "country": "Canada", "zipCode": "K2P1L4" }, "items": [ { "item": { "productId": "OLJCESPC7Z", "quantity": 5 }, "cost": { "currencyCode": "CAD", "units": "136", "nanos": 439706324 } }, { "item": { "productId": "HQTGWGPNH4", "quantity": 1 }, "cost": { "currencyCode": "CAD", "units": "1", "nanos": 324787262 } } ] }.
+2026-09-26T04:43:42+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T04:43:42+00:00        Order details: { "orderId": "d9bf371f-b964-11f1-a862-4659f9156b51", "shippingTrackingId": "f566fcd1-665c-4f11-86bc-87c1a9933b49", "shippingCost": { "currencyCode": "USD", "units": "8", "nanos": 990000000 }, "shippingAddress": { "streetAddress": "1355 Market St", "city": "San Francisco", "state": "CA", "country": "United States", "zipCode": "94103" }, "items": [ { "item": { "productId": "0PUK6V6EV0", "quantity": 1 }, "cost": { "currencyCode": "USD", "units": "175" } } ] }.
+2026-09-26T04:43:53+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T04:43:53+00:00        Order details: { "orderId": "e0126109-b964-11f1-a862-4659f9156b51", "shippingTrackingId": "e0ea8e52-7037-4a9b-ae83-883c590cbbfc", "shippingCost": { "currencyCode": "USD", "units": "8", "nanos": 990000000 }, "shippingAddress": { "streetAddress": "410 Terry Ave N", "city": "Seattle", "state": "WA", "country": "United States", "zipCode": "98109" }, "items": [ { "item": { "productId": "L9ECAV7KIM", "quantity": 1 }, "cost": { "currencyCode": "USD", "units": "21", "nanos": 949999999 } } ] }.
+2026-09-26T04:43:56+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T04:43:56+00:00        Order details: { "orderId": "e24190b7-b964-11f1-a862-4659f9156b51", "shippingTrackingId": "40f894ca-b7c1-4e49-b91f-fa367dd67ba7", "shippingCost": { "currencyCode": "USD", "units": "287", "nanos": 680000000 }, "shippingAddress": { "streetAddress": "1 Hacker Way", "city": "Menlo Park", "state": "CA", "country": "United States", "zipCode": "94025" }, "items": [ { "item": { "productId": "2ZYFJ3GM2N", "quantity": 30 }, "cost": { "currencyCode": "USD", "units": "209", "nanos": 949999999 } }, { "item": { "productId": "0PUK6V6EV0", "quantity": 2 }, "cost": { "currencyCode": "USD", "units": "175" } } ] }.
+2026-09-26T04:44:03+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T04:44:03+00:00        Order details: { "orderId": "e672216f-b964-11f1-a862-4659f9156b51", "shippingTrackingId": "2c234e78-07e2-45d5-8736-6fca84e97ed3", "shippingCost": { "currencyCode": "USD", "units": "143", "nanos": 840000000 }, "shippingAddress": { "streetAddress": "1600 Amphitheatre Parkway", "city": "Mountain View", "state": "CA", "country": "United States", "zipCode": "94043" }, "items": [ { "item": { "productId": "L9ECAV7KIM", "quantity": 10 }, "cost": { "currencyCode": "USD", "units": "21", "nanos": 949999999 } }, { "item": { "productId": "0PUK6V6EV0", "quantity": 5 }, "cost": { "currencyCode": "USD", "units": "175" } }, { "item": { "productId": "HQTGWGPNH4", "quantity": 1 }, "cost": { "currencyCode": "USD", "nanos": 990000000 } } ] }.
+2026-09-26T04:44:09+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T04:44:09+00:00        Order details: { "orderId": "e9c7c1d3-b964-11f1-a862-4659f9156b51", "shippingTrackingId": "66c67259-5ba4-4899-9aa9-e08db39c0604", "shippingCost": { "currencyCode": "CAD", "units": "12", "nanos": 30138876 }, "shippingAddress": { "streetAddress": "150 Elgin St", "city": "Ottawa", "state": "ON", "country": "Canada", "zipCode": "K2P1L4" }, "items": [ { "item": { "productId": "2ZYFJ3GM2N", "quantity": 1 }, "cost": { "currencyCode": "CAD", "units": "280", "nanos": 948571428 } } ] }.
+2026-09-26T04:44:23+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T04:44:23+00:00        Order details: { "orderId": "f23f1b58-b964-11f1-a862-4659f9156b51", "shippingTrackingId": "af26b0fb-219f-4791-bf44-651d7ee76f0c", "shippingCost": { "currencyCode": "USD", "units": "44", "nanos": 950000000 }, "shippingAddress": { "streetAddress": "1355 Market St", "city": "San Francisco", "state": "CA", "country": "United States", "zipCode": "94103" }, "items": [ { "item": { "productId": "66VCHSJNUP", "quantity": 5 }, "cost": { "currencyCode": "USD", "units": "349", "nanos": 949999999 } } ] }.
+2026-09-26T04:44:28+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T04:44:28+00:00        Order details: { "orderId": "f5024cb1-b964-11f1-a862-4659f9156b51", "shippingTrackingId": "24e0be1a-de6d-4599-96a6-d20fd8676ce9", "shippingCost": { "currencyCode": "USD", "units": "89", "nanos": 900000000 }, "shippingAddress": { "streetAddress": "410 Terry Ave N", "city": "Seattle", "state": "WA", "country": "United States", "zipCode": "98109" }, "items": [ { "item": { "productId": "1YMWWN1N4O", "quantity": 10 }, "cost": { "currencyCode": "USD", "units": "129", "nanos": 949999999 } } ] }.
+2026-09-26T04:44:28+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T04:44:28+00:00        Order details: { "orderId": "f503487c-b964-11f1-a862-4659f9156b51", "shippingTrackingId": "be52349c-8f51-4e3f-b15a-636d627f9d74", "shippingCost": { "currencyCode": "USD", "units": "44", "nanos": 950000000 }, "shippingAddress": { "streetAddress": "2200 Mission College Blvd", "city": "Santa Clara", "state": "CA", "country": "United States", "zipCode": "95054" }, "items": [ { "item": { "productId": "2ZYFJ3GM2N", "quantity": 2 }, "cost": { "currencyCode": "USD", "units": "209", "nanos": 949999999 } }, { "item": { "productId": "L9ECAV7KIM", "quantity": 3 }, "cost": { "currencyCode": "USD", "units": "21", "nanos": 949999999 } } ] }.
+2026-09-26T04:44:31+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T04:44:31+00:00        Order details: { "orderId": "f70d5af6-b964-11f1-a862-4659f9156b51", "shippingTrackingId": "b03d561c-b58f-43a6-8569-935aae52982a", "shippingCost": { "currencyCode": "USD", "units": "125", "nanos": 859999999 }, "shippingAddress": { "streetAddress": "1355 Market St", "city": "San Francisco", "state": "CA", "country": "United States", "zipCode": "94103" }, "items": [ { "item": { "productId": "OLJCESPC7Z", "quantity": 10 }, "cost": { "currencyCode": "USD", "units": "101", "nanos": 959999999 } }, { "item": { "productId": "1YMWWN1N4O", "quantity": 4 }, "cost": { "currencyCode": "USD", "units": "129", "nanos": 949999999 } } ] }.
+2026-09-26T04:44:40+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T04:44:40+00:00        Order details: { "orderId": "fc2415f6-b964-11f1-a862-4659f9156b51", "shippingTrackingId": "d94051ed-e865-46ee-b98f-2fd149331d82", "shippingCost": { "currencyCode": "USD", "units": "26", "nanos": 969999999 }, "shippingAddress": { "streetAddress": "410 Terry Ave N", "city": "Seattle", "state": "WA", "country": "United States", "zipCode": "98109" }, "items": [ { "item": { "productId": "OLJCESPC7Z", "quantity": 3 }, "cost": { "currencyCode": "USD", "units": "101", "nanos": 959999999 } } ] }.
+2026-09-26T04:44:46+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T04:44:46+00:00        Order details: { "orderId": "fff81082-b964-11f1-a862-4659f9156b51", "shippingTrackingId": "79830ed2-438d-485e-b060-3165e300d0b2", "shippingCost": { "currencyCode": "USD", "units": "26", "nanos": 969999999 }, "shippingAddress": { "streetAddress": "One Apple Park Way", "city": "Cupertino", "state": "CA", "country": "United States", "zipCode": "95014" }, "items": [ { "item": { "productId": "L9ECAV7KIM", "quantity": 1 }, "cost": { "currencyCode": "USD", "units": "21", "nanos": 949999999 } }, { "item": { "productId": "2ZYFJ3GM2N", "quantity": 2 }, "cost": { "currencyCode": "USD", "units": "209", "nanos": 949999999 } } ] }.
+2026-09-26T04:44:50+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T04:44:50+00:00        Order details: { "orderId": "0223bda3-b965-11f1-a862-4659f9156b51", "shippingTrackingId": "59e5e692-6589-49fb-b567-56d92c8f5e47", "shippingCost": { "currencyCode": "USD", "units": "26", "nanos": 969999999 }, "shippingAddress": { "streetAddress": "1355 Market St", "city": "San Francisco", "state": "CA", "country": "United States", "zipCode": "94103" }, "items": [ { "item": { "productId": "HQTGWGPNH4", "quantity": 3 }, "cost": { "currencyCode": "USD", "nanos": 990000000 } } ] }.
+2026-09-26T04:45:04+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T04:45:04+00:00        Order details: { "orderId": "0ab08f0a-b965-11f1-a862-4659f9156b51", "shippingTrackingId": "c0b14055-2575-4bf2-8571-90bfb8be3f2f", "shippingCost": { "currencyCode": "CAD", "units": "216", "nanos": 542499778 }, "shippingAddress": { "streetAddress": "150 Elgin St", "city": "Ottawa", "state": "ON", "country": "Canada", "zipCode": "K2P1L4" }, "items": [ { "item": { "productId": "HQTGWGPNH4", "quantity": 10 }, "cost": { "currencyCode": "CAD", "units": "1", "nanos": 324787262 } }, { "item": { "productId": "LS4PSXUNUM", "quantity": 3 }, "cost": { "currencyCode": "CAD", "units": "77", "nanos": 346165413 } }, { "item": { "productId": "L9ECAV7KIM", "quantity": 5 }, "cost": { "currencyCode": "CAD", "units": "29", "nanos": 372808491 } } ] }.
+2026-09-26T04:45:07+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T04:45:07+00:00        Order details: { "orderId": "0c1a6345-b965-11f1-a862-4659f9156b51", "shippingTrackingId": "530fdcb0-4205-4a1f-a966-ad81e799beb9", "shippingCost": { "currencyCode": "USD", "units": "188", "nanos": 789999999 }, "shippingAddress": { "streetAddress": "410 Terry Ave N", "city": "Seattle", "state": "WA", "country": "United States", "zipCode": "98109" }, "items": [ { "item": { "productId": "66VCHSJNUP", "quantity": 12 }, "cost": { "currencyCode": "USD", "units": "349", "nanos": 949999999 } }, { "item": { "productId": "OLJCESPC7Z", "quantity": 4 }, "cost": { "currencyCode": "USD", "units": "101", "nanos": 959999999 } }, { "item": { "productId": "LS4PSXUNUM", "quantity": 5 }, "cost": { "currencyCode": "USD", "units": "57", "nanos": 799999999 } } ] }.
+2026-09-26T04:45:24+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T04:45:24+00:00        Order details: { "orderId": "16acc42a-b965-11f1-a862-4659f9156b51", "shippingTrackingId": "cf938e06-e304-4124-b0ca-cb9000ed9558", "shippingCost": { "currencyCode": "USD", "units": "89", "nanos": 900000000 }, "shippingAddress": { "streetAddress": "410 Terry Ave N", "city": "Seattle", "state": "WA", "country": "United States", "zipCode": "98109" }, "items": [ { "item": { "productId": "0PUK6V6EV0", "quantity": 10 }, "cost": { "currencyCode": "USD", "units": "175" } } ] }.
+2026-09-26T04:45:25+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T04:45:25+00:00        Order details: { "orderId": "170070bc-b965-11f1-a862-4659f9156b51", "shippingTrackingId": "47a519fc-3a64-4aee-b203-8d61d20c4772", "shippingCost": { "currencyCode": "USD", "units": "17", "nanos": 980000000 }, "shippingAddress": { "streetAddress": "One Microsoft Way", "city": "Redmond", "state": "WA", "country": "United States", "zipCode": "98052" }, "items": [ { "item": { "productId": "2ZYFJ3GM2N", "quantity": 2 }, "cost": { "currencyCode": "USD", "units": "209", "nanos": 949999999 } } ] }.
+2026-09-26T04:45:36+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T04:45:36+00:00        Order details: { "orderId": "1dac9de8-b965-11f1-a862-4659f9156b51", "shippingTrackingId": "d6f89af5-62bd-4911-a45f-c6af5f673c6b", "shippingCost": { "currencyCode": "USD", "units": "107", "nanos": 879999999 }, "shippingAddress": { "streetAddress": "100 Winchester Circle", "city": "Los Gatos", "state": "CA", "country": "United States", "zipCode": "95032" }, "items": [ { "item": { "productId": "1YMWWN1N4O", "quantity": 4 }, "cost": { "currencyCode": "USD", "units": "129", "nanos": 949999999 } }, { "item": { "productId": "LS4PSXUNUM", "quantity": 4 }, "cost": { "currencyCode": "USD", "units": "57", "nanos": 799999999 } }, { "item": { "productId": "HQTGWGPNH4", "quantity": 4 }, "cost": { "currencyCode": "USD", "nanos": 990000000 } } ] }.
+2026-09-26T04:45:42+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T04:45:42+00:00        Order details: { "orderId": "211711b4-b965-11f1-a862-4659f9156b51", "shippingTrackingId": "f9c5e116-b2e2-4d76-b3bc-4033b40c32a8", "shippingCost": { "currencyCode": "USD", "units": "179", "nanos": 800000000 }, "shippingAddress": { "streetAddress": "One Microsoft Way", "city": "Redmond", "state": "WA", "country": "United States", "zipCode": "98052" }, "items": [ { "item": { "productId": "1YMWWN1N4O", "quantity": 2 }, "cost": { "currencyCode": "USD", "units": "129", "nanos": 949999999 } }, { "item": { "productId": "6E92ZMYYFZ", "quantity": 10 }, "cost": { "currencyCode": "USD", "units": "69", "nanos": 950000000 } }, { "item": { "productId": "OLJCESPC7Z", "quantity": 5 }, "cost": { "currencyCode": "USD", "units": "101", "nanos": 959999999 } }, { "item": { "productId": "9SIQT8TOJO", "quantity": 3 }, "cost": { "currencyCode": "USD", "units": "3599" } } ] }.
+2026-09-26T04:46:02+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T04:46:02+00:00        Order details: { "orderId": "2ccbfd83-b965-11f1-a862-4659f9156b51", "shippingTrackingId": "c45af3e4-bc27-4391-b593-4d900e608e4a", "shippingCost": { "currencyCode": "USD", "units": "116", "nanos": 870000000 }, "shippingAddress": { "streetAddress": "1355 Market St", "city": "San Francisco", "state": "CA", "country": "United States", "zipCode": "94103" }, "items": [ { "item": { "productId": "HQTGWGPNH4", "quantity": 5 }, "cost": { "currencyCode": "USD", "nanos": 990000000 } }, { "item": { "productId": "1YMWWN1N4O", "quantity": 6 }, "cost": { "currencyCode": "USD", "units": "129", "nanos": 949999999 } }, { "item": { "productId": "L9ECAV7KIM", "quantity": 2 }, "cost": { "currencyCode": "USD", "units": "21", "nanos": 949999999 } } ] }.
+2026-09-26T04:46:02+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T04:46:02+00:00        Order details: { "orderId": "2cee0dee-b965-11f1-a862-4659f9156b51", "shippingTrackingId": "d0635bbd-5533-44f4-b21d-fe4b8c89543c", "shippingCost": { "currencyCode": "CAD", "units": "36", "nanos": 90416629 }, "shippingAddress": { "streetAddress": "150 Elgin St", "city": "Ottawa", "state": "ON", "country": "Canada", "zipCode": "K2P1L4" }, "items": [ { "item": { "productId": "2ZYFJ3GM2N", "quantity": 3 }, "cost": { "currencyCode": "CAD", "units": "280", "nanos": 948571428 } } ] }.
+2026-09-26T04:46:04+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T04:46:04+00:00        Order details: { "orderId": "2e76b430-b965-11f1-a862-4659f9156b51", "shippingTrackingId": "4b198fd8-33fb-4ffa-84b5-a59445c06dd8", "shippingCost": { "currencyCode": "USD", "units": "26", "nanos": 969999999 }, "shippingAddress": { "streetAddress": "One Apple Park Way", "city": "Cupertino", "state": "CA", "country": "United States", "zipCode": "95014" }, "items": [ { "item": { "productId": "0PUK6V6EV0", "quantity": 3 }, "cost": { "currencyCode": "USD", "units": "175" } } ] }.
+2026-09-26T04:46:05+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T04:46:05+00:00        Order details: { "orderId": "2f010e0a-b965-11f1-a862-4659f9156b51", "shippingTrackingId": "f6448cf3-6fbc-47ad-b434-725b1efff3c0", "shippingCost": { "currencyCode": "USD", "units": "152", "nanos": 830000000 }, "shippingAddress": { "streetAddress": "2200 Mission College Blvd", "city": "Santa Clara", "state": "CA", "country": "United States", "zipCode": "95054" }, "items": [ { "item": { "productId": "66VCHSJNUP", "quantity": 10 }, "cost": { "currencyCode": "USD", "units": "349", "nanos": 949999999 } }, { "item": { "productId": "LS4PSXUNUM", "quantity": 3 }, "cost": { "currencyCode": "USD", "units": "57", "nanos": 799999999 } }, { "item": { "productId": "1YMWWN1N4O", "quantity": 4 }, "cost": { "currencyCode": "USD", "units": "129", "nanos": 949999999 } } ] }.
+2026-09-26T04:46:09+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T04:46:09+00:00        Order details: { "orderId": "310d4f36-b965-11f1-a862-4659f9156b51", "shippingTrackingId": "91270c6b-3952-4e25-a23e-70a1aa5bf213", "shippingCost": { "currencyCode": "USD", "units": "26", "nanos": 969999999 }, "shippingAddress": { "streetAddress": "2200 Mission College Blvd", "city": "Santa Clara", "state": "CA", "country": "United States", "zipCode": "95054" }, "items": [ { "item": { "productId": "9SIQT8TOJO", "quantity": 3 }, "cost": { "currencyCode": "USD", "units": "3599" } } ] }.
+2026-09-26T04:46:13+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T04:46:13+00:00        Order details: { "orderId": "33e1ea8b-b965-11f1-a862-4659f9156b51", "shippingTrackingId": "942f4c4f-366b-411c-a336-f44e7e51253f", "shippingCost": { "currencyCode": "USD", "units": "8", "nanos": 990000000 }, "shippingAddress": { "streetAddress": "2200 Mission College Blvd", "city": "Santa Clara", "state": "CA", "country": "United States", "zipCode": "95054" }, "items": [ { "item": { "productId": "0PUK6V6EV0", "quantity": 1 }, "cost": { "currencyCode": "USD", "units": "175" } } ] }.
+2026-09-26T04:46:15+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T04:46:15+00:00        Order details: { "orderId": "34fabee1-b965-11f1-a862-4659f9156b51", "shippingTrackingId": "218bef4e-4c27-4cfe-86df-8240cbbe3167", "shippingCost": { "currencyCode": "USD", "units": "17", "nanos": 980000000 }, "shippingAddress": { "streetAddress": "1600 Amphitheatre Parkway", "city": "Mountain View", "state": "CA", "country": "United States", "zipCode": "94043" }, "items": [ { "item": { "productId": "9SIQT8TOJO", "quantity": 2 }, "cost": { "currencyCode": "USD", "units": "3599" } } ] }.
+2026-09-26T04:46:25+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T04:46:25+00:00        Order details: { "orderId": "3afc1d31-b965-11f1-a862-4659f9156b51", "shippingTrackingId": "bce85131-fd81-4cf1-8ed3-81fa0bdc3693", "shippingCost": { "currencyCode": "CAD", "units": "156", "nanos": 391805395 }, "shippingAddress": { "streetAddress": "150 Elgin St", "city": "Ottawa", "state": "ON", "country": "Canada", "zipCode": "K2P1L4" }, "items": [ { "item": { "productId": "LS4PSXUNUM", "quantity": 1 }, "cost": { "currencyCode": "CAD", "units": "77", "nanos": 346165413 } }, { "item": { "productId": "2ZYFJ3GM2N", "quantity": 10 }, "cost": { "currencyCode": "CAD", "units": "280", "nanos": 948571428 } }, { "item": { "productId": "HQTGWGPNH4", "quantity": 2 }, "cost": { "currencyCode": "CAD", "units": "1", "nanos": 324787262 } } ] }.
+2026-09-26T04:46:30+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T04:46:30+00:00        Order details: { "orderId": "3e0d7015-b965-11f1-a862-4659f9156b51", "shippingTrackingId": "865fe97b-e250-4383-acce-9b2769285fa1", "shippingCost": { "currencyCode": "USD", "units": "71", "nanos": 920000000 }, "shippingAddress": { "streetAddress": "One Microsoft Way", "city": "Redmond", "state": "WA", "country": "United States", "zipCode": "98052" }, "items": [ { "item": { "productId": "9SIQT8TOJO", "quantity": 3 }, "cost": { "currencyCode": "USD", "units": "3599" } }, { "item": { "productId": "0PUK6V6EV0", "quantity": 5 }, "cost": { "currencyCode": "USD", "units": "175" } } ] }.
+# ---- onset 2026-09-26T04:46:35+00:00 ----
+2026-09-26T04:46:37+00:00  Accounting service started
+2026-09-26T04:46:37+00:00  [CORECLR_ENABLE_PROFILING, 1]
+2026-09-26T04:46:37+00:00  [CORECLR_PROFILER, {918728DD-259F-4A6A-AC2B-B85E1B658318}]
+2026-09-26T04:46:37+00:00  [CORECLR_PROFILER_PATH, /app/OpenTelemetry.AutoInstrumentation.Native.so]
+2026-09-26T04:46:37+00:00  [DOTNET_RUNNING_IN_CONTAINER, true]
+2026-09-26T04:46:37+00:00  [DOTNET_STARTUP_HOOKS, /app/OpenTelemetry.AutoInstrumentation.StartupHook.dll]
+2026-09-26T04:46:37+00:00  [DOTNET_VERSION, 10.0.1]
+2026-09-26T04:46:37+00:00  [KAFKA_ADDR, kafka:9092]
+2026-09-26T04:46:37+00:00  [OTEL_DOTNET_AUTO_HOME, /app]
+2026-09-26T04:46:37+00:00  [OTEL_DOTNET_AUTO_RULE_ENGINE_ENABLED, false]
+2026-09-26T04:46:37+00:00  [OTEL_DOTNET_AUTO_TRACES_ADDITIONAL_SOURCES, Accounting.Consumer]
+2026-09-26T04:46:37+00:00  [OTEL_DOTNET_AUTO_TRACES_ENTITYFRAMEWORKCORE_INSTRUMENTATION_ENABLED, false]
+2026-09-26T04:46:37+00:00  [OTEL_EXPORTER_OTLP_ENDPOINT, http://otel-collector:4318]
+2026-09-26T04:46:37+00:00  [OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE, cumulative]
+2026-09-26T04:46:37+00:00  [OTEL_RESOURCE_ATTRIBUTES, service.namespace=opentelemetry-demo,service.version=2.2.0]
+2026-09-26T04:46:37+00:00  [OTEL_SERVICE_NAME, accounting]
+2026-09-26T04:46:37+00:00  info: Accounting.Consumer[0]
+2026-09-26T04:46:37+00:00        Connecting to Kafka: kafka:9092
+2026-09-26T04:47:20+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T04:47:20+00:00        Order details: { "orderId": "43c53eb1-b965-11f1-a862-4659f9156b51", "shippingTrackingId": "ef8f6f08-0c87-4273-85ff-a0d605c1a875", "shippingCost": { "currencyCode": "USD", "units": "17", "nanos": 980000000 }, "shippingAddress": { "streetAddress": "1600 Amphitheatre Parkway", "city": "Mountain View", "state": "CA", "country": "United States", "zipCode": "94043" }, "items": [ { "item": { "productId": "0PUK6V6EV0", "quantity": 2 }, "cost": { "currencyCode": "USD", "units": "175" } } ] }.
+2026-09-26T04:47:20+00:00  Cannot load library libgssapi_krb5.so.2 
+2026-09-26T04:47:20+00:00  Error: libgssapi_krb5.so.2: cannot open shared object file: No such file or directory
+2026-09-26T04:47:20+00:00  fail: Accounting.Consumer[0]
+2026-09-26T04:47:20+00:00        Order parsing failed:
+2026-09-26T04:47:20+00:00        Npgsql.PostgresException (0x80004005): 28P01: password authentication failed for user "otelu"
+2026-09-26T04:47:20+00:00           at Npgsql.Internal.NpgsqlConnector.ReadMessageLong(Boolean async, DataRowLoadingMode dataRowLoadingMode, Boolean readingNotifications, Boolean isReadingPrependedMessage)
+2026-09-26T04:47:20+00:00           at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+2026-09-26T04:47:20+00:00           at Npgsql.Internal.NpgsqlConnector.AuthenticateSASL(List`1 mechanisms, String username, Boolean async, CancellationToken cancellationToken)
+2026-09-26T04:47:20+00:00           at Npgsql.Internal.NpgsqlConnector.Authenticate(String username, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+2026-09-26T04:47:20+00:00           at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+2026-09-26T04:47:20+00:00           at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+2026-09-26T04:47:20+00:00           at Npgsql.Internal.NpgsqlConnector.Open(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+2026-09-26T04:47:20+00:00           at Npgsql.PoolingDataSource.OpenNewConnector(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+2026-09-26T04:47:20+00:00           at Npgsql.PoolingDataSource.<Get>g__RentAsync|33_0(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+2026-09-26T04:47:20+00:00           at Npgsql.NpgsqlConnection.<Open>g__OpenAsync|42_0(Boolean async, CancellationToken cancellationToken)
+2026-09-26T04:47:20+00:00           at Npgsql.NpgsqlConnection.Open()
+2026-09-26T04:47:20+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenDbConnection(Boolean errorsExpected)
+2026-09-26T04:47:20+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenInternal(Boolean errorsExpected)
+2026-09-26T04:47:20+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.Open(Boolean errorsExpected)
+2026-09-26T04:47:20+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.BeginTransaction(IsolationLevel isolationLevel)
+2026-09-26T04:47:20+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.BeginTransaction()
+2026-09-26T04:47:20+00:00           at Microsoft.EntityFrameworkCore.Update.Internal.BatchExecutor.Execute(IEnumerable`1 commandBatches, IRelationalConnection connection)
+2026-09-26T04:47:20+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalDatabase.SaveChanges(IList`1 entries)
+2026-09-26T04:47:20+00:00           at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.SaveChanges(IList`1 entriesToSave)
+2026-09-26T04:47:20+00:00           at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.SaveChanges(StateManager stateManager, Boolean acceptAllChangesOnSuccess)
+2026-09-26T04:47:20+00:00           at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.<>c.<SaveChanges>b__114_0(DbContext _, ValueTuple`2 t)
+2026-09-26T04:47:20+00:00           at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.Execute[TState,TResult](TState state, Func`3 operation, Func`3 verifySucceeded)
+2026-09-26T04:47:20+00:00           at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.SaveChanges(Boolean acceptAllChangesOnSuccess)
+2026-09-26T04:47:20+00:00           at Microsoft.EntityFrameworkCore.DbContext.SaveChanges(Boolean acceptAllChangesOnSuccess)
+2026-09-26T04:47:20+00:00           at Microsoft.EntityFrameworkCore.DbContext.SaveChanges()
+2026-09-26T04:47:20+00:00           at Accounting.Consumer.ProcessMessage(Message`2 message) in /src/Accounting/Consumer.cs:line 132
+2026-09-26T04:47:20+00:00          Exception data:
+2026-09-26T04:47:20+00:00            Severity: FATAL
+2026-09-26T04:47:20+00:00            SqlState: 28P01
+2026-09-26T04:47:20+00:00            MessageText: password authentication failed for user "otelu"
+2026-09-26T04:47:20+00:00            File: auth.c
+2026-09-26T04:47:20+00:00            Line: 329
+2026-09-26T04:47:20+00:00            Routine: auth_failed
+2026-09-26T04:47:20+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T04:47:20+00:00        Order details: { "orderId": "57b424d6-b965-11f1-a862-4659f9156b51", "shippingTrackingId": "fad4c89f-b4a4-419e-bebf-0fbbab121ef3", "shippingCost": { "currencyCode": "CAD", "units": "48", "nanos": 120555506 }, "shippingAddress": { "streetAddress": "150 Elgin St", "city": "Ottawa", "state": "ON", "country": "Canada", "zipCode": "K2P1L4" }, "items": [ { "item": { "productId": "66VCHSJNUP", "quantity": 4 }, "cost": { "currencyCode": "CAD", "units": "468", "nanos": 292224679 } } ] }.
+2026-09-26T04:47:20+00:00  fail: Accounting.Consumer[0]
+2026-09-26T04:47:20+00:00        Order parsing failed:
+2026-09-26T04:47:20+00:00        Npgsql.PostgresException (0x80004005): 28P01: password authentication failed for user "otelu"
+2026-09-26T04:47:20+00:00           at Npgsql.Internal.NpgsqlConnector.ReadMessageLong(Boolean async, DataRowLoadingMode dataRowLoadingMode, Boolean readingNotifications, Boolean isReadingPrependedMessage)
+2026-09-26T04:47:20+00:00           at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+2026-09-26T04:47:20+00:00           at Npgsql.Internal.NpgsqlConnector.AuthenticateSASL(List`1 mechanisms, String username, Boolean async, CancellationToken cancellationToken)
+2026-09-26T04:47:20+00:00           at Npgsql.Internal.NpgsqlConnector.Authenticate(String username, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+2026-09-26T04:47:20+00:00           at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+2026-09-26T04:47:20+00:00           at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+2026-09-26T04:47:20+00:00           at Npgsql.Internal.NpgsqlConnector.Open(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+2026-09-26T04:47:20+00:00           at Npgsql.PoolingDataSource.OpenNewConnector(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+2026-09-26T04:47:20+00:00           at Npgsql.PoolingDataSource.<Get>g__RentAsync|33_0(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+2026-09-26T04:47:20+00:00           at Npgsql.NpgsqlConnection.<Open>g__OpenAsync|42_0(Boolean async, CancellationToken cancellationToken)
+2026-09-26T04:47:20+00:00           at Npgsql.NpgsqlConnection.Open()
+2026-09-26T04:47:20+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenDbConnection(Boolean errorsExpected)
+2026-09-26T04:47:20+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenInternal(Boolean errorsExpected)
+2026-09-26T04:47:20+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.Open(Boolean errorsExpected)
+2026-09-26T04:47:20+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.BeginTransaction(IsolationLevel isolationLevel)
+2026-09-26T04:47:20+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.BeginTransaction()
+2026-09-26T04:47:20+00:00           at Microsoft.EntityFrameworkCore.Update.Internal.BatchExecutor.Execute(IEnumerable`1 commandBatches, IRelationalConnection connection)
+2026-09-26T04:47:20+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalDatabase.SaveChanges(IList`1 entries)
+2026-09-26T04:47:20+00:00           at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.SaveChanges(IList`1 entriesToSave)
+2026-09-26T04:47:20+00:00           at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.SaveChanges(StateManager stateManager, Boolean acceptAllChangesOnSuccess)
+2026-09-26T04:47:20+00:00           at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.<>c.<SaveChanges>b__114_0(DbContext _, ValueTuple`2 t)
+2026-09-26T04:47:20+00:00           at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.Execute[TState,TResult](TState state, Func`3 operation, Func`3 verifySucceeded)
+2026-09-26T04:47:20+00:00           at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.SaveChanges(Boolean acceptAllChangesOnSuccess)
+2026-09-26T04:47:20+00:00           at Microsoft.EntityFrameworkCore.DbContext.SaveChanges(Boolean acceptAllChangesOnSuccess)
+2026-09-26T04:47:20+00:00           at Microsoft.EntityFrameworkCore.DbContext.SaveChanges()
+2026-09-26T04:47:20+00:00           at Accounting.Consumer.ProcessMessage(Message`2 message) in /src/Accounting/Consumer.cs:line 132
+2026-09-26T04:47:20+00:00          Exception data:
+2026-09-26T04:47:20+00:00            Severity: FATAL
+2026-09-26T04:47:20+00:00            SqlState: 28P01
+2026-09-26T04:47:20+00:00            MessageText: password authentication failed for user "otelu"
+2026-09-26T04:47:20+00:00            File: auth.c
+2026-09-26T04:47:20+00:00            Line: 329
+2026-09-26T04:47:20+00:00            Routine: auth_failed
+2026-09-26T04:47:20+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T04:47:20+00:00        Order details: { "orderId": "58179b23-b965-11f1-a862-4659f9156b51", "shippingTrackingId": "10252f53-fad0-4113-a3b4-3055ce88a72c", "shippingCost": { "currencyCode": "USD", "units": "26", "nanos": 969999999 }, "shippingAddress": { "streetAddress": "1355 Market St", "city": "San Francisco", "state": "CA", "country": "United States", "zipCode": "94103" }, "items": [ { "item": { "productId": "0PUK6V6EV0", "quantity": 3 }, "cost": { "currencyCode": "USD", "units": "175" } } ] }.
+2026-09-26T04:47:20+00:00  fail: Accounting.Consumer[0]
+2026-09-26T04:47:20+00:00        Order parsing failed:
+2026-09-26T04:47:20+00:00        Npgsql.PostgresException (0x80004005): 28P01: password authentication failed for user "otelu"
+2026-09-26T04:47:20+00:00           at Npgsql.Internal.NpgsqlConnector.ReadMessageLong(Boolean async, DataRowLoadingMode dataRowLoadingMode, Boolean readingNotifications, Boolean isReadingPrependedMessage)
+2026-09-26T04:47:20+00:00           at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+2026-09-26T04:47:20+00:00           at Npgsql.Internal.NpgsqlConnector.AuthenticateSASL(List`1 mechanisms, String username, Boolean async, CancellationToken cancellationToken)
+2026-09-26T04:47:20+00:00           at Npgsql.Internal.NpgsqlConnector.Authenticate(String username, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+2026-09-26T04:47:20+00:00           at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+2026-09-26T04:47:20+00:00           at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+2026-09-26T04:47:20+00:00           at Npgsql.Internal.NpgsqlConnector.Open(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+2026-09-26T04:47:20+00:00           at Npgsql.PoolingDataSource.OpenNewConnector(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+2026-09-26T04:47:20+00:00           at Npgsql.PoolingDataSource.<Get>g__RentAsync|33_0(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+2026-09-26T04:47:20+00:00           at Npgsql.NpgsqlConnection.<Open>g__OpenAsync|42_0(Boolean async, CancellationToken cancellationToken)
+2026-09-26T04:47:20+00:00           at Npgsql.NpgsqlConnection.Open()
+2026-09-26T04:47:20+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenDbConnection(Boolean errorsExpected)
+2026-09-26T04:47:20+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenInternal(Boolean errorsExpected)
+2026-09-26T04:47:20+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.Open(Boolean errorsExpected)
+2026-09-26T04:47:20+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.BeginTransaction(IsolationLevel isolationLevel)
+2026-09-26T04:47:20+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.BeginTransaction()
+2026-09-26T04:47:20+00:00           at Microsoft.EntityFrameworkCore.Update.Internal.BatchExecutor.Execute(IEnumerable`1 commandBatches, IRelationalConnection connection)
+2026-09-26T04:47:20+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalDatabase.SaveChanges(IList`1 entries)
+2026-09-26T04:47:20+00:00           at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.SaveChanges(IList`1 entriesToSave)
+2026-09-26T04:47:20+00:00           at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.SaveChanges(StateManager stateManager, Boolean acceptAllChangesOnSuccess)
+2026-09-26T04:47:20+00:00           at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.<>c.<SaveChanges>b__114_0(DbContext _, ValueTuple`2 t)
+2026-09-26T04:47:20+00:00           at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.Execute[TState,TResult](TState state, Func`3 operation, Func`3 verifySucceeded)
+2026-09-26T04:47:20+00:00           at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.SaveChanges(Boolean acceptAllChangesOnSuccess)
+2026-09-26T04:47:20+00:00           at Microsoft.EntityFrameworkCore.DbContext.SaveChanges(Boolean acceptAllChangesOnSuccess)
+2026-09-26T04:47:20+00:00           at Microsoft.EntityFrameworkCore.DbContext.SaveChanges()
+2026-09-26T04:47:20+00:00           at Accounting.Consumer.ProcessMessage(Message`2 message) in /src/Accounting/Consumer.cs:line 132
+2026-09-26T04:47:20+00:00          Exception data:
+2026-09-26T04:47:20+00:00            Severity: FATAL
+2026-09-26T04:47:20+00:00            SqlState: 28P01
+2026-09-26T04:47:20+00:00            MessageText: password authentication failed for user "otelu"
+2026-09-26T04:47:20+00:00            File: auth.c
+2026-09-26T04:47:20+00:00            Line: 329
+2026-09-26T04:47:20+00:00            Routine: auth_failed
+2026-09-26T04:47:20+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T04:47:20+00:00        Order details: { "orderId": "5870fa5c-b965-11f1-a862-4659f9156b51", "shippingTrackingId": "dfabdad3-b444-42d8-8752-6811ff2c3b91", "shippingCost": { "currencyCode": "USD", "units": "35", "nanos": 960000000 }, "shippingAddress": { "streetAddress": "410 Terry Ave N", "city": "Seattle", "state": "WA", "country": "United States", "zipCode": "98109" }, "items": [ { "item": { "productId": "OLJCESPC7Z", "quantity": 4 }, "cost": { "currencyCode": "USD", "units": "101", "nanos": 959999999 } } ] }.
+2026-09-26T04:47:20+00:00  fail: Accounting.Consumer[0]
+2026-09-26T04:47:20+00:00        Order parsing failed:
+2026-09-26T04:47:20+00:00        Npgsql.PostgresException (0x80004005): 28P01: password authentication failed for user "otelu"
+2026-09-26T04:47:20+00:00           at Npgsql.Internal.NpgsqlConnector.ReadMessageLong(Boolean async, DataRowLoadingMode dataRowLoadingMode, Boolean readingNotifications, Boolean isReadingPrependedMessage)
+2026-09-26T04:47:20+00:00           at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+2026-09-26T04:47:20+00:00           at Npgsql.Internal.NpgsqlConnector.AuthenticateSASL(List`1 mechanisms, String username, Boolean async, CancellationToken cancellationToken)
+2026-09-26T04:47:20+00:00           at Npgsql.Internal.NpgsqlConnector.Authenticate(String username, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+2026-09-26T04:47:20+00:00           at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+2026-09-26T04:47:20+00:00           at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+2026-09-26T04:47:20+00:00           at Npgsql.Internal.NpgsqlConnector.Open(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+2026-09-26T04:47:20+00:00           at Npgsql.PoolingDataSource.OpenNewConnector(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+2026-09-26T04:47:20+00:00           at Npgsql.PoolingDataSource.<Get>g__RentAsync|33_0(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+2026-09-26T04:47:20+00:00           at Npgsql.NpgsqlConnection.<Open>g__OpenAsync|42_0(Boolean async, CancellationToken cancellationToken)
+2026-09-26T04:47:20+00:00           at Npgsql.NpgsqlConnection.Open()
+2026-09-26T04:47:20+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenDbConnection(Boolean errorsExpected)
+2026-09-26T04:47:20+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenInternal(Boolean errorsExpected)
+2026-09-26T04:47:20+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.Open(Boolean errorsExpected)
+2026-09-26T04:47:20+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.BeginTransaction(IsolationLevel isolationLevel)
+2026-09-26T04:47:20+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.BeginTransaction()
+2026-09-26T04:47:20+00:00           at Microsoft.EntityFrameworkCore.Update.Internal.BatchExecutor.Execute(IEnumerable`1 commandBatches, IRelationalConnection connection)
+2026-09-26T04:47:20+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalDatabase.SaveChanges(IList`1 entries)
+2026-09-26T04:47:20+00:00           at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.SaveChanges(IList`1 entriesToSave)
+2026-09-26T04:47:20+00:00           at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.SaveChanges(StateManager stateManager, Boolean acceptAllChangesOnSuccess)
+2026-09-26T04:47:20+00:00           at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.<>c.<SaveChanges>b__114_0(DbContext _, ValueTuple`2 t)
+2026-09-26T04:47:20+00:00           at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.Execute[TState,TResult](TState state, Func`3 operation, Func`3 verifySucceeded)
+2026-09-26T04:47:20+00:00           at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.SaveChanges(Boolean acceptAllChangesOnSuccess)
+2026-09-26T04:47:20+00:00           at Microsoft.EntityFrameworkCore.DbContext.SaveChanges(Boolean acceptAllChangesOnSuccess)
+2026-09-26T04:47:20+00:00           at Microsoft.EntityFrameworkCore.DbContext.SaveChanges()
+2026-09-26T04:47:20+00:00           at Accounting.Consumer.ProcessMessage(Message`2 message) in /src/Accounting/Consumer.cs:line 132
+2026-09-26T04:47:20+00:00          Exception data:
+2026-09-26T04:47:20+00:00            Severity: FATAL
+2026-09-26T04:47:20+00:00            SqlState: 28P01
+2026-09-26T04:47:20+00:00            MessageText: password authentication failed for user "otelu"
+2026-09-26T04:47:20+00:00            File: auth.c
+2026-09-26T04:47:20+00:00            Line: 329
+2026-09-26T04:47:20+00:00            Routine: auth_failed
+2026-09-26T04:47:25+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T04:47:25+00:00        Order details: { "orderId": "5e6e4b97-b965-11f1-a862-4659f9156b51", "shippingTrackingId": "810110bc-07e3-4f23-8e63-edcbe4f5f480", "shippingCost": { "currencyCode": "USD", "units": "62", "nanos": 929999999 }, "shippingAddress": { "streetAddress": "2200 Mission College Blvd", "city": "Santa Clara", "state": "CA", "country": "United States", "zipCode": "95054" }, "items": [ { "item": { "productId": "0PUK6V6EV0", "quantity": 3 }, "cost": { "currencyCode": "USD", "units": "175" } }, { "item": { "productId": "66VCHSJNUP", "quantity": 4 }, "cost": { "currencyCode": "USD", "units": "349", "nanos": 949999999 } } ] }.
+2026-09-26T04:47:25+00:00  fail: Accounting.Consumer[0]
+2026-09-26T04:47:25+00:00        Order parsing failed:
+2026-09-26T04:47:25+00:00        Npgsql.PostgresException (0x80004005): 28P01: password authentication failed for user "otelu"
+2026-09-26T04:47:25+00:00           at Npgsql.Internal.NpgsqlConnector.ReadMessageLong(Boolean async, DataRowLoadingMode dataRowLoadingMode, Boolean readingNotifications, Boolean isReadingPrependedMessage)
+2026-09-26T04:47:25+00:00           at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+2026-09-26T04:47:25+00:00           at Npgsql.Internal.NpgsqlConnector.AuthenticateSASL(List`1 mechanisms, String username, Boolean async, CancellationToken cancellationToken)
+2026-09-26T04:47:25+00:00           at Npgsql.Internal.NpgsqlConnector.Authenticate(String username, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+2026-09-26T04:47:25+00:00           at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+2026-09-26T04:47:25+00:00           at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+2026-09-26T04:47:25+00:00           at Npgsql.Internal.NpgsqlConnector.Open(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+2026-09-26T04:47:25+00:00           at Npgsql.PoolingDataSource.OpenNewConnector(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+2026-09-26T04:47:25+00:00           at Npgsql.PoolingDataSource.<Get>g__RentAsync|33_0(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+2026-09-26T04:47:25+00:00           at Npgsql.NpgsqlConnection.<Open>g__OpenAsync|42_0(Boolean async, CancellationToken cancellationToken)
+2026-09-26T04:47:25+00:00           at Npgsql.NpgsqlConnection.Open()
+2026-09-26T04:47:25+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenDbConnection(Boolean errorsExpected)
+2026-09-26T04:47:25+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenInternal(Boolean errorsExpected)
+2026-09-26T04:47:25+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.Open(Boolean errorsExpected)
+2026-09-26T04:47:25+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.BeginTransaction(IsolationLevel isolationLevel)
+2026-09-26T04:47:25+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.BeginTransaction()
+2026-09-26T04:47:25+00:00           at Microsoft.EntityFrameworkCore.Update.Internal.BatchExecutor.Execute(IEnumerable`1 commandBatches, IRelationalConnection connection)
+2026-09-26T04:47:25+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalDatabase.SaveChanges(IList`1 entries)
+2026-09-26T04:47:25+00:00           at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.SaveChanges(IList`1 entriesToSave)
+2026-09-26T04:47:25+00:00           at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.SaveChanges(StateManager stateManager, Boolean acceptAllChangesOnSuccess)
+2026-09-26T04:47:25+00:00           at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.<>c.<SaveChanges>b__114_0(DbContext _, ValueTuple`2 t)
+2026-09-26T04:47:25+00:00           at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.Execute[TState,TResult](TState state, Func`3 operation, Func`3 verifySucceeded)
+2026-09-26T04:47:25+00:00           at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.SaveChanges(Boolean acceptAllChangesOnSuccess)
+2026-09-26T04:47:25+00:00           at Microsoft.EntityFrameworkCore.DbContext.SaveChanges(Boolean acceptAllChangesOnSuccess)
+2026-09-26T04:47:25+00:00           at Microsoft.EntityFrameworkCore.DbContext.SaveChanges()
+2026-09-26T04:47:25+00:00           at Accounting.Consumer.ProcessMessage(Message`2 message) in /src/Accounting/Consumer.cs:line 132
+2026-09-26T04:47:25+00:00          Exception data:
+2026-09-26T04:47:25+00:00            Severity: FATAL
+2026-09-26T04:47:25+00:00            SqlState: 28P01
+2026-09-26T04:47:25+00:00            MessageText: password authentication failed for user "otelu"
+2026-09-26T04:47:25+00:00            File: auth.c
+2026-09-26T04:47:25+00:00            Line: 329
+2026-09-26T04:47:25+00:00            Routine: auth_failed
+2026-09-26T04:47:26+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T04:47:26+00:00        Order details: { "orderId": "5ef16835-b965-11f1-a862-4659f9156b51", "shippingTrackingId": "35b5572f-2854-4738-958f-7a54e68ada53", "shippingCost": { "currencyCode": "USD", "units": "179", "nanos": 800000000 }, "shippingAddress": { "streetAddress": "1355 Market St", "city": "San Francisco", "state": "CA", "country": "United States", "zipCode": "94103" }, "items": [ { "item": { "productId": "HQTGWGPNH4", "quantity": 10 }, "cost": { "currencyCode": "USD", "nanos": 990000000 } }, { "item": { "productId": "6E92ZMYYFZ", "quantity": 6 }, "cost": { "currencyCode": "USD", "units": "69", "nanos": 950000000 } }, { "item": { "productId": "0PUK6V6EV0", "quantity": 4 }, "cost": { "currencyCode": "USD", "units": "175" } } ] }.
+2026-09-26T04:47:26+00:00  fail: Accounting.Consumer[0]
+2026-09-26T04:47:26+00:00        Order parsing failed:
+2026-09-26T04:47:26+00:00        Npgsql.PostgresException (0x80004005): 28P01: password authentication failed for user "otelu"
+2026-09-26T04:47:26+00:00           at Npgsql.Internal.NpgsqlConnector.ReadMessageLong(Boolean async, DataRowLoadingMode dataRowLoadingMode, Boolean readingNotifications, Boolean isReadingPrependedMessage)
+2026-09-26T04:47:26+00:00           at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+2026-09-26T04:47:26+00:00           at Npgsql.Internal.NpgsqlConnector.AuthenticateSASL(List`1 mechanisms, String username, Boolean async, CancellationToken cancellationToken)
+2026-09-26T04:47:26+00:00           at Npgsql.Internal.NpgsqlConnector.Authenticate(String username, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+2026-09-26T04:47:26+00:00           at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+2026-09-26T04:47:26+00:00           at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+2026-09-26T04:47:26+00:00           at Npgsql.Internal.NpgsqlConnector.Open(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+2026-09-26T04:47:26+00:00           at Npgsql.PoolingDataSource.OpenNewConnector(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+2026-09-26T04:47:26+00:00           at Npgsql.PoolingDataSource.<Get>g__RentAsync|33_0(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+2026-09-26T04:47:26+00:00           at Npgsql.NpgsqlConnection.<Open>g__OpenAsync|42_0(Boolean async, CancellationToken cancellationToken)
+2026-09-26T04:47:26+00:00           at Npgsql.NpgsqlConnection.Open()
+2026-09-26T04:47:26+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenDbConnection(Boolean errorsExpected)
+2026-09-26T04:47:26+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenInternal(Boolean errorsExpected)
+2026-09-26T04:47:26+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.Open(Boolean errorsExpected)
+2026-09-26T04:47:26+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.BeginTransaction(IsolationLevel isolationLevel)
+2026-09-26T04:47:26+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.BeginTransaction()
+2026-09-26T04:47:26+00:00           at Microsoft.EntityFrameworkCore.Update.Internal.BatchExecutor.Execute(IEnumerable`1 commandBatches, IRelationalConnection connection)
+2026-09-26T04:47:26+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalDatabase.SaveChanges(IList`1 entries)
+2026-09-26T04:47:26+00:00           at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.SaveChanges(IList`1 entriesToSave)
+2026-09-26T04:47:26+00:00           at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.SaveChanges(StateManager stateManager, Boolean acceptAllChangesOnSuccess)
+2026-09-26T04:47:26+00:00           at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.<>c.<SaveChanges>b__114_0(DbContext _, ValueTuple`2 t)
+2026-09-26T04:47:26+00:00           at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.Execute[TState,TResult](TState state, Func`3 operation, Func`3 verifySucceeded)
+2026-09-26T04:47:26+00:00           at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.SaveChanges(Boolean acceptAllChangesOnSuccess)
+2026-09-26T04:47:26+00:00           at Microsoft.EntityFrameworkCore.DbContext.SaveChanges(Boolean acceptAllChangesOnSuccess)
+2026-09-26T04:47:26+00:00           at Microsoft.EntityFrameworkCore.DbContext.SaveChanges()
+2026-09-26T04:47:26+00:00           at Accounting.Consumer.ProcessMessage(Message`2 message) in /src/Accounting/Consumer.cs:line 132
+2026-09-26T04:47:26+00:00          Exception data:
+2026-09-26T04:47:26+00:00            Severity: FATAL
+2026-09-26T04:47:26+00:00            SqlState: 28P01
+2026-09-26T04:47:26+00:00            MessageText: password authentication failed for user "otelu"
+2026-09-26T04:47:26+00:00            File: auth.c
+2026-09-26T04:47:26+00:00            Line: 329
+2026-09-26T04:47:26+00:00            Routine: auth_failed
+2026-09-26T04:47:31+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T04:47:31+00:00        Order details: { "orderId": "6204618e-b965-11f1-a862-4659f9156b51", "shippingTrackingId": "add6a7a4-8067-4304-9bbb-ad3d147b28b3", "shippingCost": { "currencyCode": "CAD", "units": "12", "nanos": 30138876 }, "shippingAddress": { "streetAddress": "150 Elgin St", "city": "Ottawa", "state": "ON", "country": "Canada", "zipCode": "K2P1L4" }, "items": [ { "item": { "productId": "LS4PSXUNUM", "quantity": 1 }, "cost": { "currencyCode": "CAD", "units": "77", "nanos": 346165413 } } ] }.
+2026-09-26T04:47:31+00:00  fail: Accounting.Consumer[0]
+2026-09-26T04:47:31+00:00        Order parsing failed:
+2026-09-26T04:47:31+00:00        Npgsql.PostgresException (0x80004005): 28P01: password authentication failed for user "otelu"
+2026-09-26T04:47:31+00:00           at Npgsql.Internal.NpgsqlConnector.ReadMessageLong(Boolean async, DataRowLoadingMode dataRowLoadingMode, Boolean readingNotifications, Boolean isReadingPrependedMessage)
+2026-09-26T04:47:31+00:00           at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+2026-09-26T04:47:31+00:00           at Npgsql.Internal.NpgsqlConnector.AuthenticateSASL(List`1 mechanisms, String username, Boolean async, CancellationToken cancellationToken)
+2026-09-26T04:47:31+00:00           at Npgsql.Internal.NpgsqlConnector.Authenticate(String username, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+2026-09-26T04:47:31+00:00           at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+2026-09-26T04:47:31+00:00           at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+2026-09-26T04:47:31+00:00           at Npgsql.Internal.NpgsqlConnector.Open(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+2026-09-26T04:47:31+00:00           at Npgsql.PoolingDataSource.OpenNewConnector(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+2026-09-26T04:47:31+00:00           at Npgsql.PoolingDataSource.<Get>g__RentAsync|33_0(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+2026-09-26T04:47:31+00:00           at Npgsql.NpgsqlConnection.<Open>g__OpenAsync|42_0(Boolean async, CancellationToken cancellationToken)
+2026-09-26T04:47:31+00:00           at Npgsql.NpgsqlConnection.Open()
+2026-09-26T04:47:31+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenDbConnection(Boolean errorsExpected)
+2026-09-26T04:47:31+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenInternal(Boolean errorsExpected)
+2026-09-26T04:47:31+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.Open(Boolean errorsExpected)
+2026-09-26T04:47:31+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.BeginTransaction(IsolationLevel isolationLevel)
+2026-09-26T04:47:31+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.BeginTransaction()
+2026-09-26T04:47:31+00:00           at Microsoft.EntityFrameworkCore.Update.Internal.BatchExecutor.Execute(IEnumerable`1 commandBatches, IRelationalConnection connection)
+2026-09-26T04:47:31+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalDatabase.SaveChanges(IList`1 entries)
+2026-09-26T04:47:31+00:00           at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.SaveChanges(IList`1 entriesToSave)
+2026-09-26T04:47:31+00:00           at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.SaveChanges(StateManager stateManager, Boolean acceptAllChangesOnSuccess)
+2026-09-26T04:47:31+00:00           at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.<>c.<SaveChanges>b__114_0(DbContext _, ValueTuple`2 t)
+2026-09-26T04:47:31+00:00           at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.Execute[TState,TResult](TState state, Func`3 operation, Func`3 verifySucceeded)
+2026-09-26T04:47:31+00:00           at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.SaveChanges(Boolean acceptAllChangesOnSuccess)
+2026-09-26T04:47:31+00:00           at Microsoft.EntityFrameworkCore.DbContext.SaveChanges(Boolean acceptAllChangesOnSuccess)
+2026-09-26T04:47:31+00:00           at Microsoft.EntityFrameworkCore.DbContext.SaveChanges()
+2026-09-26T04:47:31+00:00           at Accounting.Consumer.ProcessMessage(Message`2 message) in /src/Accounting/Consumer.cs:line 132
+2026-09-26T04:47:31+00:00          Exception data:
+2026-09-26T04:47:31+00:00            Severity: FATAL
+2026-09-26T04:47:31+00:00            SqlState: 28P01
+2026-09-26T04:47:31+00:00            MessageText: password authentication failed for user "otelu"
+2026-09-26T04:47:31+00:00            File: auth.c
+2026-09-26T04:47:31+00:00            Line: 329
+2026-09-26T04:47:31+00:00            Routine: auth_failed
+2026-09-26T04:47:51+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T04:47:51+00:00        Order details: { "orderId": "6e2a01df-b965-11f1-a862-4659f9156b51", "shippingTrackingId": "8ff81788-ad56-4cfc-8b06-4768b3c6de2d", "shippingCost": { "currencyCode": "USD", "units": "80", "nanos": 909999999 }, "shippingAddress": { "streetAddress": "1 Hacker Way", "city": "Menlo Park", "state": "CA", "country": "United States", "zipCode": "94025" }, "items": [ { "item": { "productId": "9SIQT8TOJO", "quantity": 5 }, "cost": { "currencyCode": "USD", "units": "3599" } }, { "item": { "productId": "0PUK6V6EV0", "quantity": 4 }, "cost": { "currencyCode": "USD", "units": "175" } } ] }.
+2026-09-26T04:47:51+00:00  fail: Accounting.Consumer[0]
+2026-09-26T04:47:51+00:00        Order parsing failed:
+2026-09-26T04:47:51+00:00        Npgsql.PostgresException (0x80004005): 28P01: password authentication failed for user "otelu"
+2026-09-26T04:47:51+00:00           at Npgsql.Internal.NpgsqlConnector.ReadMessageLong(Boolean async, DataRowLoadingMode dataRowLoadingMode, Boolean readingNotifications, Boolean isReadingPrependedMessage)
+2026-09-26T04:47:51+00:00           at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+2026-09-26T04:47:51+00:00           at Npgsql.Internal.NpgsqlConnector.AuthenticateSASL(List`1 mechanisms, String username, Boolean async, CancellationToken cancellationToken)
+2026-09-26T04:47:51+00:00           at Npgsql.Internal.NpgsqlConnector.Authenticate(String username, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+2026-09-26T04:47:51+00:00           at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+2026-09-26T04:47:51+00:00           at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+2026-09-26T04:47:51+00:00           at Npgsql.Internal.NpgsqlConnector.Open(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+2026-09-26T04:47:51+00:00           at Npgsql.PoolingDataSource.OpenNewConnector(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+2026-09-26T04:47:51+00:00           at Npgsql.PoolingDataSource.<Get>g__RentAsync|33_0(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+2026-09-26T04:47:51+00:00           at Npgsql.NpgsqlConnection.<Open>g__OpenAsync|42_0(Boolean async, CancellationToken cancellationToken)
+2026-09-26T04:47:51+00:00           at Npgsql.NpgsqlConnection.Open()
+2026-09-26T04:47:51+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenDbConnection(Boolean errorsExpected)
+2026-09-26T04:47:51+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenInternal(Boolean errorsExpected)
+2026-09-26T04:47:51+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.Open(Boolean errorsExpected)
+2026-09-26T04:47:51+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.BeginTransaction(IsolationLevel isolationLevel)
+2026-09-26T04:47:51+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.BeginTransaction()
+2026-09-26T04:47:51+00:00           at Microsoft.EntityFrameworkCore.Update.Internal.BatchExecutor.Execute(IEnumerable`1 commandBatches, IRelationalConnection connection)
+2026-09-26T04:47:51+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalDatabase.SaveChanges(IList`1 entries)
+2026-09-26T04:47:51+00:00           at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.SaveChanges(IList`1 entriesToSave)
+2026-09-26T04:47:51+00:00           at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.SaveChanges(StateManager stateManager, Boolean acceptAllChangesOnSuccess)
+2026-09-26T04:47:51+00:00           at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.<>c.<SaveChanges>b__114_0(DbContext _, ValueTuple`2 t)
+2026-09-26T04:47:51+00:00           at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.Execute[TState,TResult](TState state, Func`3 operation, Func`3 verifySucceeded)
+2026-09-26T04:47:51+00:00           at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.SaveChanges(Boolean acceptAllChangesOnSuccess)
+2026-09-26T04:47:51+00:00           at Microsoft.EntityFrameworkCore.DbContext.SaveChanges(Boolean acceptAllChangesOnSuccess)
+2026-09-26T04:47:51+00:00           at Microsoft.EntityFrameworkCore.DbContext.SaveChanges()
+2026-09-26T04:47:51+00:00           at Accounting.Consumer.ProcessMessage(Message`2 message) in /src/Accounting/Consumer.cs:line 132
+2026-09-26T04:47:51+00:00          Exception data:
+2026-09-26T04:47:51+00:00            Severity: FATAL
+2026-09-26T04:47:51+00:00            SqlState: 28P01
+2026-09-26T04:47:51+00:00            MessageText: password authentication failed for user "otelu"
+2026-09-26T04:47:51+00:00            File: auth.c
+2026-09-26T04:47:51+00:00            Line: 329
+2026-09-26T04:47:51+00:00            Routine: auth_failed
+2026-09-26T04:47:55+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T04:47:55+00:00        Order details: { "orderId": "708a99c0-b965-11f1-a862-4659f9156b51", "shippingTrackingId": "a1ea2f8a-138b-47fc-8038-d7d81b3505eb", "shippingCost": { "currencyCode": "USD", "units": "80", "nanos": 909999999 }, "shippingAddress": { "streetAddress": "2200 Mission College Blvd", "city": "Santa Clara", "state": "CA", "country": "United States", "zipCode": "95054" }, "items": [ { "item": { "productId": "L9ECAV7KIM", "quantity": 1 }, "cost": { "currencyCode": "USD", "units": "21", "nanos": 949999999 } }, { "item": { "productId": "LS4PSXUNUM", "quantity": 7 }, "cost": { "currencyCode": "USD", "units": "57", "nanos": 799999999 } }, { "item": { "productId": "HQTGWGPNH4", "quantity": 1 }, "cost": { "currencyCode": "USD", "nanos": 990000000 } } ] }.
+2026-09-26T04:47:55+00:00  fail: Accounting.Consumer[0]
+2026-09-26T04:47:55+00:00        Order parsing failed:
+2026-09-26T04:47:55+00:00        Npgsql.PostgresException (0x80004005): 28P01: password authentication failed for user "otelu"
+2026-09-26T04:47:55+00:00           at Npgsql.Internal.NpgsqlConnector.ReadMessageLong(Boolean async, DataRowLoadingMode dataRowLoadingMode, Boolean readingNotifications, Boolean isReadingPrependedMessage)
+2026-09-26T04:47:55+00:00           at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+2026-09-26T04:47:55+00:00           at Npgsql.Internal.NpgsqlConnector.AuthenticateSASL(List`1 mechanisms, String username, Boolean async, CancellationToken cancellationToken)
+2026-09-26T04:47:55+00:00           at Npgsql.Internal.NpgsqlConnector.Authenticate(String username, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+2026-09-26T04:47:55+00:00           at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+2026-09-26T04:47:55+00:00           at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+2026-09-26T04:47:55+00:00           at Npgsql.Internal.NpgsqlConnector.Open(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+2026-09-26T04:47:55+00:00           at Npgsql.PoolingDataSource.OpenNewConnector(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+2026-09-26T04:47:55+00:00           at Npgsql.PoolingDataSource.<Get>g__RentAsync|33_0(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+2026-09-26T04:47:55+00:00           at Npgsql.NpgsqlConnection.<Open>g__OpenAsync|42_0(Boolean async, CancellationToken cancellationToken)
+2026-09-26T04:47:55+00:00           at Npgsql.NpgsqlConnection.Open()
+2026-09-26T04:47:55+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenDbConnection(Boolean errorsExpected)
+2026-09-26T04:47:55+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenInternal(Boolean errorsExpected)
+2026-09-26T04:47:55+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.Open(Boolean errorsExpected)
+2026-09-26T04:47:55+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.BeginTransaction(IsolationLevel isolationLevel)
+2026-09-26T04:47:55+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.BeginTransaction()
+2026-09-26T04:47:55+00:00           at Microsoft.EntityFrameworkCore.Update.Internal.BatchExecutor.Execute(IEnumerable`1 commandBatches, IRelationalConnection connection)
+2026-09-26T04:47:55+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalDatabase.SaveChanges(IList`1 entries)
+2026-09-26T04:47:55+00:00           at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.SaveChanges(IList`1 entriesToSave)
+2026-09-26T04:47:55+00:00           at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.SaveChanges(StateManager stateManager, Boolean acceptAllChangesOnSuccess)
+2026-09-26T04:47:55+00:00           at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.<>c.<SaveChanges>b__114_0(DbContext _, ValueTuple`2 t)
+2026-09-26T04:47:55+00:00           at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.Execute[TState,TResult](TState state, Func`3 operation, Func`3 verifySucceeded)
+2026-09-26T04:47:55+00:00           at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.SaveChanges(Boolean acceptAllChangesOnSuccess)
+2026-09-26T04:47:55+00:00           at Microsoft.EntityFrameworkCore.DbContext.SaveChanges(Boolean acceptAllChangesOnSuccess)
+2026-09-26T04:47:55+00:00           at Microsoft.EntityFrameworkCore.DbContext.SaveChanges()
+2026-09-26T04:47:55+00:00           at Accounting.Consumer.ProcessMessage(Message`2 message) in /src/Accounting/Consumer.cs:line 132
+2026-09-26T04:47:55+00:00          Exception data:
+2026-09-26T04:47:55+00:00            Severity: FATAL
+2026-09-26T04:47:55+00:00            SqlState: 28P01
+2026-09-26T04:47:55+00:00            MessageText: password authentication failed for user "otelu"
+2026-09-26T04:47:55+00:00            File: auth.c
+2026-09-26T04:47:55+00:00            Line: 329
+2026-09-26T04:47:55+00:00            Routine: auth_failed
+2026-09-26T04:47:58+00:00  info: Accounting.Consumer[174880625]
+2026-09-26T04:47:58+00:00        Order details: { "orderId": "71fe0015-b965-11f1-a862-4659f9156b51", "shippingTrackingId": "197c1657-f50f-45e5-9cbf-c6767970356b", "shippingCost": { "currencyCode": "USD", "units": "8", "nanos": 990000000 }, "shippingAddress": { "streetAddress": "1355 Market St", "city": "San Francisco", "state": "CA", "country": "United States", "zipCode": "94103" }, "items": [ { "item": { "productId": "66VCHSJNUP", "quantity": 1 }, "cost": { "currencyCode": "USD", "units": "349", "nanos": 949999999 } } ] }.
+2026-09-26T04:47:58+00:00  fail: Accounting.Consumer[0]
+2026-09-26T04:47:58+00:00        Order parsing failed:
+2026-09-26T04:47:58+00:00        Npgsql.PostgresException (0x80004005): 28P01: password authentication failed for user "otelu"
+2026-09-26T04:47:58+00:00           at Npgsql.Internal.NpgsqlConnector.ReadMessageLong(Boolean async, DataRowLoadingMode dataRowLoadingMode, Boolean readingNotifications, Boolean isReadingPrependedMessage)
+2026-09-26T04:47:58+00:00           at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+2026-09-26T04:47:58+00:00           at Npgsql.Internal.NpgsqlConnector.AuthenticateSASL(List`1 mechanisms, String username, Boolean async, CancellationToken cancellationToken)
+2026-09-26T04:47:58+00:00           at Npgsql.Internal.NpgsqlConnector.Authenticate(String username, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+2026-09-26T04:47:58+00:00           at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+2026-09-26T04:47:58+00:00           at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+2026-09-26T04:47:58+00:00           at Npgsql.Internal.NpgsqlConnector.Open(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+2026-09-26T04:47:58+00:00           at Npgsql.PoolingDataSource.OpenNewConnector(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+2026-09-26T04:47:58+00:00           at Npgsql.PoolingDataSource.<Get>g__RentAsync|33_0(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+2026-09-26T04:47:58+00:00           at Npgsql.NpgsqlConnection.<Open>g__OpenAsync|42_0(Boolean async, CancellationToken cancellationToken)
+2026-09-26T04:47:58+00:00           at Npgsql.NpgsqlConnection.Open()
+2026-09-26T04:47:58+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenDbConnection(Boolean errorsExpected)
+2026-09-26T04:47:58+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.OpenInternal(Boolean errorsExpected)
+2026-09-26T04:47:58+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.Open(Boolean errorsExpected)
+2026-09-26T04:47:58+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.BeginTransaction(IsolationLevel isolationLevel)
+2026-09-26T04:47:58+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalConnection.BeginTransaction()
+2026-09-26T04:47:58+00:00           at Microsoft.EntityFrameworkCore.Update.Internal.BatchExecutor.Execute(IEnumerable`1 commandBatches, IRelationalConnection connection)
+2026-09-26T04:47:58+00:00           at Microsoft.EntityFrameworkCore.Storage.RelationalDatabase.SaveChanges(IList`1 entries)
+2026-09-26T04:47:58+00:00           at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.SaveChanges(IList`1 entriesToSave)
+2026-09-26T04:47:58+00:00           at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.SaveChanges(StateManager stateManager, Boolean acceptAllChangesOnSuccess)
+2026-09-26T04:47:58+00:00           at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.<>c.<SaveChanges>b__114_0(DbContext _, ValueTuple`2 t)
+2026-09-26T04:47:58+00:00           at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.Execute[TState,TResult](TState state, Func`3 operation, Func`3 verifySucceeded)
+2026-09-26T04:47:58+00:00           at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.SaveChanges(Boolean acceptAllChangesOnSuccess)
+2026-09-26T04:47:58+00:00           at Microsoft.EntityFrameworkCore.DbContext.SaveChanges(Boolean acceptAllChangesOnSuccess)
+2026-09-26T04:47:58+00:00           at Microsoft.EntityFrameworkCore.DbContext.SaveChanges()
+2026-09-26T04:47:58+00:00           at Accounting.Consumer.ProcessMessage(Message`2 message) in /src/Accounting/Consumer.cs:line 132
+2026-09-26T04:47:58+00:00          Exception data:
+2026-09-26T04:47:58+00:00            Severity: FATAL
+2026-09-26T04:47:58+00:00            SqlState: 28P01
+2026-09-26T04:47:58+00:00            MessageText: password authentication failed for user "otelu"
+2026-09-26T04:47:58+00:00            File: auth.c
+2026-09-26T04:47:58+00:00            Line: 329
+2026-09-26T04:47:58+00:00            Routine: auth_failed
