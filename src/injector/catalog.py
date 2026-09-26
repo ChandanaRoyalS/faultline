@@ -549,6 +549,23 @@ CATALOG: tuple[FaultDefinition, ...] = _validated(
             params={"flag": "paymentUnreachable", "variant": "on"},
         ),
         FaultDefinition(
+            id="v2-email-flag-memory-leak",
+            fault_class=FaultClass.FEATURE_FLAG,
+            target="email",
+            world="v2",
+            description=(
+                "Set flagd's emailMemoryLeak to 10000x. Email stops clearing the confirmations it "
+                "has sent and pads each body to ten thousand times its length, about 19MB kept per "
+                "email against a 100M limit. T7.1's feature_flag row 6 (holdout), taken by the "
+                "reserve after row 6 was blocked."
+            ),
+            # Read at source (email/email_server.rb send_email, 2026-09-26): with the multiplier at
+            # 1 or more, Mail::TestMailer.deliveries is never cleared and the body is padded by
+            # (multiplier - 1) times its length. The variant was chosen before authoring and is not
+            # re-tried: measured, one email keeps about 1.9KB times the multiplier.
+            params={"flag": "emailMemoryLeak", "variant": "10000x"},
+        ),
+        FaultDefinition(
             id="v2-product-catalog-freeze",
             fault_class=FaultClass.PROCESS_FREEZE,
             target="product-catalog",

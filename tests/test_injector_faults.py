@@ -452,7 +452,8 @@ def test_the_v2_flag_definitions_name_the_demo_flag_and_the_service_that_reads_i
     service whose code reads that flag - the culprit a scenario is scored against, not flagd.
     Pinned per definition, read at source (product-catalog `checkProductFailure`, cart
     `CartService.EmptyCart`, fraud-detection's consumer loop, ad `getAds`, checkout
-    `chargeCard`)."""
+    `chargeCard`, email `send_email`). A flag's variant need not be `on`: `emailMemoryLeak` is a
+    multiplier, and its variant is the one chosen before authoring."""
     flags = {
         f.id: (f.target, dict(f.params))
         for f in CATALOG
@@ -473,6 +474,7 @@ def test_the_v2_flag_definitions_name_the_demo_flag_and_the_service_that_reads_i
             "checkout",
             {"flag": "paymentUnreachable", "variant": "on"},
         ),
+        "v2-email-flag-memory-leak": ("email", {"flag": "emailMemoryLeak", "variant": "10000x"}),
     }
 
 
