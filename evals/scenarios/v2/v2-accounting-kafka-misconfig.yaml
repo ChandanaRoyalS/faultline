@@ -1,0 +1,60 @@
+# v2/bad_config-5 (HOLDOUT) - see SPLIT-V2.md. Slot allocated before authoring; do not move.
+# Nothing may be tuned against this scenario (ADR-0008): its bundle lands under artifacts/holdout/
+# and never reaches a corpus.
+#
+# Candidate order and eligibility: docs/design/t7.1-candidates.md, bad_config row 5 - a new design
+# (v1's attempt produced no artifact). The candidate list's value was `kafka:9093`, carried from
+# v1; on v2 9093 is Kafka's controller listener, so the value is `kafka:9094`, where nothing
+# listens, to keep the row's mechanism (decided 2026-09-26, written in the candidate list before
+# recording). Accounting is also dev row 1's target (v2-accounting-bad-credential): the split
+# quarantines faults and artifacts, not services (ADR-0008), and that narrative shares nothing of
+# this mechanism - its consumer kept reading the topic throughout.
+id: v2-accounting-kafka-misconfig
+title: Accounting pointed at a Kafka port where nothing listens
+fault_class: bad_config
+split: holdout
+slot: v2/bad_config-5
+world: v2
+injection:
+  target: accounting
+  method: v2-accounting-kafka-misconfig
+  params:
+    env_var: "KAFKA_ADDR"
+    value: "kafka:9094"
+ground_truth:
+  root_cause: >
+    The accounting service's KAFKA_ADDR was changed to a port on the Kafka host where nothing
+    listens. Kafka is healthy: checkout keeps publishing orders and fraud-detection keeps consuming
+    the same topic. Accounting stays up, cannot reach its broker, and consumes nothing, so orders
+    stop being recorded while nothing that calls a service fails. No service's code is wrong and
+    Kafka is not at fault; the fault is the broker address accounting holds.
+  category: bad_config
+expected_evidence:
+  # A new design: nothing here is measured yet. Written before the first recording and checked
+  # against the bundle, as every v2 scenario's list has been, and corrected there.
+  - alerts: ServiceNoTraffic on accounting alone, once its request rate has drained and the
+      alert's hold has passed; no error-rate or latency alert anywhere, because nothing calls
+      accounting and nothing upstream waits on it
+  - metrics: accounting's request rate falls to zero and its error ratio and latency have no
+      values; checkout's rate and fraud-detection's rate hold
+  - logs: accounting's per-order lines stop; its Kafka client logs refused connections to
+      kafka:9094 (at rest it logs 4 to 26 lines a minute, 2026-09-26)
+  - traces: accounting has no spans in the fault window; checkout's orders publish to Kafka
+      without error and fraud-detection's consume spans continue
+  - metrics: accounting's .NET runtime series (42, by service_name) report through the fault -
+      the process is up
+  - change: KAFKA_ADDR on accounting changed to a port with nothing listening, coinciding with
+      onset; change history asked of kafka returns nothing
+  - discriminator: a silent service that is alive and has no caller to fail; the broker is healthy,
+      because the other consumer of the same topic keeps reading it, so the fault is the address
+      accounting holds for it - unlike a telemetry blackout, its own log shows it doing no work
+expected_remediation_class: config_revert
+rehearsed: false
+alert_timeout_seconds: 900
+# Declared before recording, checked against the bundle after (T7.5). Measured on the running
+# world 2026-09-26, as the candidate list asks: Prometheus holds 42 .NET runtime series for
+# accounting (24 families, dotnet_*), and its Loki stream logged 4 to 26 lines a minute at rest
+# over 15 minutes. The fault should leave the process running and logging its failed broker
+# connections. If the bundle's capture says otherwise, the declaration is corrected against it,
+# not argued with.
+answers_idle_or_absent: [runtime, logs]

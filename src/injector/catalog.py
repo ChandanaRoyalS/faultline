@@ -619,6 +619,27 @@ CATALOG: tuple[FaultDefinition, ...] = _validated(
             params={"env_var": "CART_ADDR", "value": "cart:7071"},
         ),
         FaultDefinition(
+            id="v2-accounting-kafka-misconfig",
+            fault_class=FaultClass.BAD_CONFIG,
+            target="accounting",
+            world="v2",
+            description=(
+                "Point accounting's Kafka bootstrap address at a port on the Kafka host where "
+                "nothing listens. A consumer cut from its broker: nobody calls accounting, so it "
+                "cannot error or slow down; it can only go quiet while the broker, and the other "
+                "consumer of the same topic, carry on. A new design (T7.1's holdout row 5)."
+            ),
+            # Live value `KAFKA_ADDR=kafka:9092` (docker inspect accounting, 2026-09-26). Not the
+            # candidate list's `kafka:9093`: that was v1's value, where nothing listened on 9093,
+            # and on v2 9093 is Kafka's KRaft controller listener (nc -z: open). 9094 is closed
+            # (nc -z: exit 1), so the connection is refused, which is the row's mechanism
+            # (decided 2026-09-26, written in the candidate list). v1's accounting logged fatal and
+            # crashlooped on an unreachable broker (T7.56); v2's is .NET, subscribes without
+            # connecting and blocks in Consume() while the client retries, so it should stay up.
+            # Checked at rehearsal: a crashloop is bad_deploy's page and would block it.
+            params={"env_var": "KAFKA_ADDR", "value": "kafka:9094"},
+        ),
+        FaultDefinition(
             id="v2-cart-valkey-misconfig",
             fault_class=FaultClass.BAD_CONFIG,
             target="cart",

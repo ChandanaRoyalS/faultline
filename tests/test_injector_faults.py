@@ -402,6 +402,7 @@ def test_the_v2_old_mechanism_definitions_carry_v2_values_not_v1s() -> None:
         "v2-payment-telemetry-blackout",
         "v2-shipping-quote-misconfig",
         "v2-frontend-cart-misconfig",
+        "v2-accounting-kafka-misconfig",
         "v2-cart-valkey-misconfig",
         "v2-cart-bad-image-tag",
         "v2-ad-memory-squeeze",
@@ -429,6 +430,11 @@ def test_the_v2_old_mechanism_definitions_carry_v2_values_not_v1s() -> None:
     assert cart == {"env_var": "CART_ADDR", "value": "cart:7071"}, (
         "only the port moves from the live cart:7070: the host resolves and refuses, so the "
         "error differs from shipping's unresolvable quote-gone"
+    )
+    kafka = v2_old["v2-accounting-kafka-misconfig"].params
+    assert kafka == {"env_var": "KAFKA_ADDR", "value": "kafka:9094"}, (
+        "only the port moves from the live kafka:9092, and not to 9093, which is v2 Kafka's "
+        "controller listener: 9094 has nothing on it, so the broker connection is refused"
     )
     image = str(v2_old["v2-cart-bad-image-tag"].params["image"])
     assert image.startswith("ghcr.io/open-telemetry/demo:2.2.0-cart")
