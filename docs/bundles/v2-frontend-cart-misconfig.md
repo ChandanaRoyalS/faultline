@@ -170,11 +170,13 @@ wrong, and cart was not at fault. The fault was the address the frontend held fo
 calls stopped, carts filled again, orders completed, and the quiet services came back. The error
 ratios drained with their five-minute windows, and everything was quiet 4m02s after the fix.
 
-One alert started after the fix, and it belongs to the fault rather than the recovery.
-Fraud-detection's error alert began 44 seconds after the fix. The span behind it came before:
-while fraud-detection had no orders to read, it recorded a single span, which errored and lasted
-fifteen seconds. With nothing else in its five-minute window, that one span was a 100% error ratio
-and a fifteen-second p95. The error search from the fix onwards found no errors for it.
+One alert started after the fix, and it belongs to neither the fault nor the fix. Fraud-detection's
+error alert began 44 seconds after the fix. The span behind it ended before the fix, while
+fraud-detection had no orders to read. It is fraud-detection's subscription to its feature-flag
+service, `flagd.evaluation.v1.Service/EventStream`, which the flag service closes every ten minutes
+(`stream closed due to server-side timeout`), and which is recorded as an error lasting ten
+minutes. With nothing else in its five-minute window, that one span was a 100% error ratio and a
+p95 at the latency histogram's ceiling. On a normal minute its orders drown it out.
 
 Class of fix: **config_revert**. One setting was wrong and it was set back.
 
@@ -183,7 +185,7 @@ Class of fix: **config_revert**. One setting was wrong and it was set back.
 - Onset to first page: **3m31s**. Services on the page: **three**, and one of them was the service
   that changed. By the fix: **nine alerts across nine services**.
 - Alerts that fired only during recovery: **one** by its start time, fraud-detection's, and it was
-  caused by a span recorded during the fault.
+  its flag subscription's routine ten-minute reconnect, exposed by the quiet.
 - Did the loudest service turn out to be the culprit? **Partly.** The frontend paged, and it is the
   service whose setting was wrong. Checkout paged beside it and was only reporting what it had been
   handed.
