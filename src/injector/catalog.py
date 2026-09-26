@@ -500,6 +500,23 @@ CATALOG: tuple[FaultDefinition, ...] = _validated(
             params={"flag": "cartFailure", "variant": "on"},
         ),
         FaultDefinition(
+            id="v2-fraud-detection-flag-queue-lag",
+            fault_class=FaultClass.FEATURE_FLAG,
+            target="fraud-detection",
+            world="v2",
+            description=(
+                "Flip flagd's kafkaQueueProblems to on (value 100). Fraud-detection sleeps a "
+                "second before each record it reads, and checkout publishes every order 101 "
+                "times, so the consumer falls further behind every second. A new design (T7.1's "
+                "feature_flag row 3)."
+            ),
+            # Read at source (2026-09-26): fraud-detection/main.kt:60 sleeps 1 s per record when
+            # the flag is above 0; checkout/main.go:664 re-publishes each order `value` times in
+            # goroutines. Accounting reads the same topic without the sleep and gets the
+            # duplicates. The earlier mechanism assessment recorded only the consumer side.
+            params={"flag": "kafkaQueueProblems", "variant": "on"},
+        ),
+        FaultDefinition(
             id="v2-product-catalog-freeze",
             fault_class=FaultClass.PROCESS_FREEZE,
             target="product-catalog",
