@@ -1,0 +1,96 @@
+{
+  "alerts_at_fire": [
+    "ServiceHighErrorRate/frontend-proxy",
+    "ServiceHighErrorRate/frontend"
+  ],
+  "alerts_over_window": [
+    {
+      "alert": "ServiceHighErrorRate",
+      "began_after_revert": false,
+      "first_seen": "2026-09-26T19:47:43+00:00",
+      "last_seen": "2026-09-26T19:55:28+00:00",
+      "minutes_firing": 8.0,
+      "service": "frontend"
+    },
+    {
+      "alert": "ServiceHighErrorRate",
+      "began_after_revert": false,
+      "first_seen": "2026-09-26T19:47:43+00:00",
+      "last_seen": "2026-09-26T19:55:28+00:00",
+      "minutes_firing": 8.0,
+      "service": "frontend-proxy"
+    }
+  ],
+  "baseline_clear_at": "2026-09-26T19:41:58+00:00",
+  "bundle_schema_version": 2,
+  "capture_set": 2,
+  "expected_remediation_class": "config_revert",
+  "fault_class": "feature_flag",
+  "injection": {
+    "method": "v2-product-catalog-flag-failure",
+    "params": {
+      "flag": "productCatalogFailure",
+      "variant": "on"
+    },
+    "target": "product-catalog"
+  },
+  "origin": "scenario:v2-product-catalog-flag-failure",
+  "reachability": {
+    "answers_idle_or_absent": [
+      "runtime"
+    ],
+    "derived_from": "the bundle's own captures (T7.5)",
+    "none_can_answer": false,
+    "runtime_series": 9,
+    "target_log_lines": 0
+  },
+  "recorded_by": "evalharness.rehearse",
+  "recorder": {
+    "git_dirty": true,
+    "git_sha": "19b98844d628384ffe7888ada4438a6dfead1d90",
+    "tool": "evalharness.rehearse"
+  },
+  "scenario_fingerprint": "4514f4105ecec4e3a0577afd956f03f2945b5728f636f688afc43887fc2c6d94",
+  "scenario_id": "v2-product-catalog-flag-failure",
+  "seconds_of_steady_state": 300,
+  "seconds_to_alert": 360,
+  "seconds_to_settle": 181,
+  "split": "dev",
+  "t_alert_firing": "2026-09-26T19:47:58+00:00",
+  "t_clear": "2026-09-26T19:55:59+00:00",
+  "t_inject": "2026-09-26T19:41:58+00:00",
+  "t_revert": "2026-09-26T19:52:58+00:00",
+  "title": "A feature flag makes the product catalog fail one product",
+  "window": {
+    "end": "2026-09-26T19:57:59+00:00",
+    "start": "2026-09-26T19:36:58+00:00"
+  },
+  "world": {
+    "compose_digest": "ae2fd2a20b5112e42d9606e123157365ce496effa1eb974e357f0430588222ff",
+    "docker_arch": "arm64",
+    "ffs_stub_image_id": "sha256:90f2fc6f5806a8914ef2740ff7c6348a1ddd4225bccc8f3398e58d03b3c1a512",
+    "ffs_stub_source_digest": null,
+    "host_platform": "Darwin/arm64",
+    "observability_digest": "7d6097ab0f00132d57993804ee4f4d9eff1abedfb71a273bdd7e553ef887637b",
+    "observability_files": {
+      "compose/otelcol-extras-v2.yml": "48cd277022d94eb34a9cedd743fab54efb1d78ce59258349b06360917495b443",
+      "compose/prometheus/alert-rules-v2.yml": "7f006a034167ffd3c1eacc17f9d952f73eeb22d1936aa17669626c442fa8f20b",
+      "compose/prometheus/alertmanager.yml": "cec8f9f623152c001d14a53c8c3a6930ad35665d5ee093117ff17cf0d09d61f1",
+      "compose/prometheus/prometheus-config-v2.yaml": "b2e8c9c59bcbfa5d7235748871db1852de74d59c43d89723a2d260c0aaf45867",
+      "compose/promtail-config.yml": "2d43bc91f78cf65504a1091e406a7e97bcece0a194dc5f27cf1fd4c49edb72ec",
+      "compose/tempo-v2.yaml": "8b0e0300b81ca9cd83a252ab0f6743c04fbb3adf3eb4c75a290d17978bb3c4fb",
+      "world-v2/src/otel-collector/otelcol-config.yml": "0a472a67088ca6fa1d5a222ce8c633aa26bbb75cd8d11558c2feaabdfc70141e"
+    },
+    "otel_demo_image": "ghcr.io/open-telemetry/demo:2.2.0-cart",
+    "otel_demo_image_digest": "ghcr.io/open-telemetry/demo@sha256:1adaf3b33fbf4d42e5a1fa68fec1ea1b645d50471881179bd7be0a0ce2656706",
+    "world_name": "v2"
+  },
+  "world_lock": {
+    "acquired": true,
+    "host": "chandanas-MacBook-Air.local",
+    "pid": 82215,
+    "reason": "rehearse v2-product-catalog-flag-failure",
+    "since": "2026-09-26T19:41:53.859025+00:00",
+    "token": "82215-1790451713.858712"
+  }
+}
