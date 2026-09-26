@@ -517,6 +517,21 @@ CATALOG: tuple[FaultDefinition, ...] = _validated(
             params={"flag": "kafkaQueueProblems", "variant": "on"},
         ),
         FaultDefinition(
+            id="v2-ad-flag-failure",
+            fault_class=FaultClass.FEATURE_FLAG,
+            target="ad",
+            world="v2",
+            description=(
+                "Flip flagd's adFailure to on. The ad service fails one GetAds call in ten with "
+                "UNAVAILABLE, after choosing the ads; the frontend's ad requests fail with it. "
+                "T7.1's feature_flag row 4, taken by the reserve after row 4 was blocked."
+            ),
+            # Read at source (ad/src/main/java/oteldemo/AdService.java, 2026-09-26): when the flag
+            # is on, `random.nextInt(10) == 0` throws; getAds catches it, sets the span's status to
+            # ERROR (no description), adds an `Error` event and logs `GetAds Failed with status`.
+            params={"flag": "adFailure", "variant": "on"},
+        ),
+        FaultDefinition(
             id="v2-product-catalog-freeze",
             fault_class=FaultClass.PROCESS_FREEZE,
             target="product-catalog",
