@@ -600,6 +600,25 @@ CATALOG: tuple[FaultDefinition, ...] = _validated(
             params={"env_var": "QUOTE_ADDR", "value": "http://quote-gone:8090"},
         ),
         FaultDefinition(
+            id="v2-frontend-cart-misconfig",
+            fault_class=FaultClass.BAD_CONFIG,
+            target="frontend",
+            world="v2",
+            description=(
+                "Point the frontend at a port on the cart host where nothing listens. Cart stays "
+                "healthy and keeps serving checkout; the storefront's own cart calls fail. A new "
+                "design (T7.1's second bad_config reserve)."
+            ),
+            # Live value `CART_ADDR=cart:7070` (docker inspect frontend, 2026-09-26). Only the port
+            # moves: the host resolves and refuses, where shipping's quote-gone did not resolve, so
+            # the two scenarios' error text differs. The frontend builds its cart gRPC client
+            # lazily and reads CART_ADDR by destructuring process.env at runtime
+            # (gateways/rpc/Cart.gateway.ts), which Next's build-time `env` inlining does not
+            # replace - so the change should take effect on a recreate, and a startup exit (the
+            # cart row's lesson) is not expected. Both are checked at rehearsal.
+            params={"env_var": "CART_ADDR", "value": "cart:7071"},
+        ),
+        FaultDefinition(
             id="v2-cart-valkey-misconfig",
             fault_class=FaultClass.BAD_CONFIG,
             target="cart",
