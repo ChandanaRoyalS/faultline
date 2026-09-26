@@ -4645,8 +4645,12 @@ rehearsed and labeled - slot `v2/bad_config-6` (holdout), first recording. `bad_
   (`stream closed due to server-side timeout`) and which is recorded as a ten-minute error span.
   Landing in a window with no orders, that one span is a 100% error ratio and a p95 at the
   histogram's ceiling. `v2-frontend-cart-misconfig` recorded the same alert, and its narrative
-  describes the span as lasting fifteen seconds. That is checked next, and the narrative corrected
-  if it is the same span.
+  described the span as "an error lasting fifteen seconds", read off a p95 that was the
+  histogram's ceiling. **Checked the same day and corrected**: the read-back of that window finds
+  the same EventStream, on the same ten-minute cadence (streams opening at 06:19:26 there and
+  07:59:26 here, exactly 100 minutes apart), and the stream that closed at 06:19:26 is the span in
+  its window. The narrative's Resolution paragraph and detection note now say so; the bundle is
+  unchanged.
 - **Grafana blocked this recording twice (Q105, opened).** It refills its 175M limit within about
   40 minutes of a restart. The run went ahead after a restart and the recorder's 300 s settle, with
   a watcher on grafana (one container, no restart, 83% falling to 54%). A raise moves
