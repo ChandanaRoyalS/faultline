@@ -128,3 +128,4 @@ scenarios are authored, one line per slot, and never rewritten.
 | `v2/feature_flag-1` | dev | `v2-product-catalog-flag-failure` | 2026-09-26, first recording; reproduced A1's page (the culprit under the line) |
 | `v2/feature_flag-2` | dev | `v2-cart-flag-failure` | 2026-09-26, first recording; checkout pages while its orders complete |
 | `v2/feature_flag-3` | dev | `v2-fraud-detection-flag-queue-lag` | 2026-09-26, second recording, after the ground truth was corrected against the first (under its `superseded/`): the flag also breaks accounting until a restart |
+| `v2/feature_flag-4` | dev | `v2-ad-flag-failure` | 2026-09-26, first recording. The row's reserve: row 4, `v2-image-provider-flag-slow-load`, was blocked on its verification without a recording (its flag has no trigger on this world), and `paymentFailure` was passed over for holdout row 5 (`t7.1-candidates.md`) |
