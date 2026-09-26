@@ -26,31 +26,31 @@ ground_truth:
     it.
   category: feature_flag
 expected_evidence:
-  # A new design: nothing here is measured yet. Written before the first recording and checked
-  # against the bundle, as every v2 scenario's list has been, and corrected there. Measured at rest
-  # (2026-09-26): ad 0.472 spans a second, 0.220 of them GetAds; frontend 11.6 spans a second.
-  - alerts: not predicted as a shape. Ad's error ratio should sit near 4.7%, just under the 5%
-      line, so ServiceHighErrorRate on ad is possible and not certain; the frontend's ratio should
-      stay near 0.6%. No page at all blocks the scenario
-  - metrics: ad's error ratio rises to a flat few percent while its latency and rate hold; the
-      frontend's ad calls fail at the same one in ten
-  - logs: ad logs `GetAds Failed with status` for each failed request (it logs 24 to 30 lines a
-      minute at rest); the frontend's log may carry the UNAVAILABLE its ad call receives
-  - traces: ad's GetAds server span is in error with an `Error` event carrying UNAVAILABLE, under
-      the frontend's /api/data; the ads were chosen before it failed (getAdsByCategory beneath it
-      succeeds)
-  - metrics: ad's JVM runtime series (50, by service_name) report through the fault - the process
-      is up
+  # Written before the first recording and checked against it (2026-09-26, t_inject 22:03:16,
+  # revert at +15:31). The page was predicted to be marginal (about 4.7% against the 5% line); it
+  # paged, late, so by the row's rule it is a scenario.
+  - alerts: ServiceHighErrorRate on ad alone (page 10m31s), and nothing else during the fault or
+      after the fix; the ratio touched the line at ~+6, fell under at ~+7 and restarted the hold,
+      then stayed over from between +8 and +9
+  - metrics: ad's error ratio rises to 2-3% and then hovers at 5-9% while its rate and latency
+      hold; frontend and frontend-proxy rise to ~1%; no latency changes anywhere
+  - logs: ad logs `GetAds Failed with status Status{code=UNAVAILABLE, description=null, cause=null}`
+      for 22 of about 200 requests, 0 to 4 a minute, across targeted and random requests alike;
+      the frontend logs `Error - 14 UNAVAILABLE` with empty details, once per failure
+  - traces: failing requests end at ad's own GetAds span, in error, with no status message, under
+      the frontend's /api/data; the ads were chosen before it failed
+  - metrics: ad's JVM runtime series (51) report through the fault - the process is up
   - change: nothing recorded - no deploy, no configuration change, no restart; flagd reloads its
       own file and leaves no change record
-  - discriminator: a steady one-in-ten failure with nothing strained and nothing changed in change
-      history is a deliberate branch, not a broken or overloaded service - the flag's value is the
-      change
+  - discriminator: a steady random tenth of requests failing with UNAVAILABLE and no description,
+      from a service that is up, fast and unstrained, with nothing in change history, is a
+      deliberate branch - the flag's value is the change
 expected_remediation_class: config_revert
-rehearsed: false
+rehearsed: true
 alert_timeout_seconds: 900
 # Declared before recording, checked against the bundle after (T7.5). Measured on the running
-# world 2026-09-26, as the candidate list asks: Prometheus holds 50 JVM runtime series for ad (14
-# families), and its Loki stream logged 24 to 30 lines a minute at rest. If the bundle's capture
-# says otherwise, the declaration is corrected against it, not argued with.
+# world 2026-09-26, as the candidate list asks: Prometheus held 50 JVM runtime series for ad (14
+# families), and its Loki stream logged 24 to 30 lines a minute at rest. The first recording
+# confirmed both classes: 51 runtime series and 500 target log lines, and the recorder derived
+# [runtime, logs].
 answers_idle_or_absent: [runtime, logs]

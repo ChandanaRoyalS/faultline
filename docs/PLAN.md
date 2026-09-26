@@ -4617,6 +4617,33 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-09-26: the eleventh v2 scenario, `v2-ad-flag-failure`, rehearsed and labeled - slot
+`v2/feature_flag-4` (dev), first recording. The `feature_flag` row's dev slots are full.***
+
+- **Row 4 blocked on its verification (decided).** `v2-image-provider-flag-slow-load`'s flag,
+  `imageSlowLoad`, is read in the storefront's browser code and applied by frontend-proxy's fault
+  filter to image fetches a browser makes. On the running world the load generator's browser users
+  produced nothing (no browser spans, no browser log lines in 10 minutes) and no image route passed
+  through the proxy, so the flag has no trigger. Blocked without a recording, as A5 was excluded.
+- **The reserve (decided): `adFailure`, passing over `paymentFailure`** for section 1's reason - a
+  flag on the charge step beside holdout row 5's.
+- **The page was predicted marginal before recording, and was.** `adFailure` fails one `GetAds` in
+  ten; at rest that is about 4.7% of ad's spans against the 5% line. It paged
+  `ServiceHighErrorRate` on ad alone at 10m31s: the ratio touched 5.0% at ~+6, fell under and
+  restarted the hold, then stayed over at 5-9%. Nothing else fired; the frontend and proxy reached
+  ~1%. All clear 1m00s after the fix.
+- **The evidence.** Ad's log shows 22 failures in about 200 requests, `UNAVAILABLE` with no
+  description, spread over every kind of request; the failing span is ad's own, with no status
+  message; the frontend logs one empty `UNAVAILABLE` per failure. Ad never restarted (its count
+  stayed at 2, from before) and its runtime series had no gap.
+- **Distinct in the row on (a).** The catalog flag paged the edge with the culprit under the line;
+  the cart flag paged checkout alone; the queue flag paged latency on a consumer; this one pages
+  the culprit itself.
+- **How it was recorded.** On AC power, grafana restarted and settled first, under `caffeinate`
+  with the pre-state guard. The host did not sleep.
+- **Next: the row's holdout slots**, `v2-payment-flag-unreachable` (`v2/feature_flag-5`) and
+  `v2-recommendation-flag-cache-leak` (`v2/feature_flag-6`).
+
 ***2026-09-26: the tenth v2 scenario, `v2-fraud-detection-flag-queue-lag`, rehearsed and labeled -
 slot `v2/feature_flag-3` (dev), second recording. Its first recording found damage no gate saw.***
 

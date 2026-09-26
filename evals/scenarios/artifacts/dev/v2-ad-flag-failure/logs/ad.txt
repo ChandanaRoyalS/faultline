@@ -1,0 +1,508 @@
+# target container: ad
+# loki labels: service, stream
+# selector: {service="ad"}
+# 500 lines
+# before onset (2026-09-26T22:03:16+00:00): 100 lines, the newest kept (limit reached: earlier lines were not captured)
+# from onset: 400 lines, the oldest kept (limit reached: later lines were not captured)
+
+2026-09-26T21:59:51+00:00  2026-09-26 21:59:51 - oteldemo.AdService - no baggage found in context trace_id=5a3a28080d77fd74cfe9151169a51d08 span_id=2ff4ee7899a1ca79 trace_flags=01 
+2026-09-26T21:59:51+00:00  2026-09-26 21:59:51 - oteldemo.AdService - Targeted ad request received for [travel] trace_id=5a3a28080d77fd74cfe9151169a51d08 span_id=2ff4ee7899a1ca79 trace_flags=01 
+2026-09-26T21:59:52+00:00  2026-09-26 21:59:52 - oteldemo.AdService - no baggage found in context trace_id=72ec4d289cd4d99c42af4e6d6da99371 span_id=5840254e32259c7e trace_flags=01 
+2026-09-26T21:59:52+00:00  2026-09-26 21:59:52 - oteldemo.AdService - Targeted ad request received for [binoculars] trace_id=72ec4d289cd4d99c42af4e6d6da99371 span_id=5840254e32259c7e trace_flags=01 
+2026-09-26T21:59:52+00:00  2026-09-26 21:59:52 - oteldemo.AdService - no baggage found in context trace_id=a0a72e6378c38f56a24e446c43e4c154 span_id=c1b44be0f1aeb260 trace_flags=01 
+2026-09-26T21:59:52+00:00  2026-09-26 21:59:52 - oteldemo.AdService - Targeted ad request received for [assembly] trace_id=a0a72e6378c38f56a24e446c43e4c154 span_id=c1b44be0f1aeb260 trace_flags=01 
+2026-09-26T21:59:53+00:00  2026-09-26 21:59:53 - oteldemo.AdService - no baggage found in context trace_id=1ec53b69ce2d32e635be2adb3eeb3e3c span_id=aef530b1ded806f3 trace_flags=01 
+2026-09-26T21:59:53+00:00  2026-09-26 21:59:53 - oteldemo.AdService - Non-targeted ad request received, preparing random response. trace_id=1ec53b69ce2d32e635be2adb3eeb3e3c span_id=aef530b1ded806f3 trace_flags=01 
+2026-09-26T22:00:07+00:00  2026-09-26 22:00:07 - oteldemo.AdService - no baggage found in context trace_id=25752fadf153ca38533f30769868d76d span_id=f3bfbc4089ee8fde trace_flags=01 
+2026-09-26T22:00:07+00:00  2026-09-26 22:00:07 - oteldemo.AdService - Targeted ad request received for [telescopes] trace_id=25752fadf153ca38533f30769868d76d span_id=f3bfbc4089ee8fde trace_flags=01 
+2026-09-26T22:00:09+00:00  2026-09-26 22:00:09 - oteldemo.AdService - no baggage found in context trace_id=a9f8aa091cbebc24811cca66821eff93 span_id=6d530def20d9c76b trace_flags=01 
+2026-09-26T22:00:09+00:00  2026-09-26 22:00:09 - oteldemo.AdService - Targeted ad request received for [books] trace_id=a9f8aa091cbebc24811cca66821eff93 span_id=6d530def20d9c76b trace_flags=01 
+2026-09-26T22:00:19+00:00  2026-09-26 22:00:19 - oteldemo.AdService - no baggage found in context trace_id=1fe6a0d19f9fb4a9b22efdcd0eab475c span_id=7481e7da2d738f74 trace_flags=01 
+2026-09-26T22:00:19+00:00  2026-09-26 22:00:19 - oteldemo.AdService - Targeted ad request received for [accessories] trace_id=1fe6a0d19f9fb4a9b22efdcd0eab475c span_id=7481e7da2d738f74 trace_flags=01 
+2026-09-26T22:00:19+00:00  2026-09-26 22:00:19 - oteldemo.AdService - no baggage found in context trace_id=584051b24fc6c6bbcb1b0abc6dc11d0c span_id=68c499fe4e3b2c65 trace_flags=01 
+2026-09-26T22:00:19+00:00  2026-09-26 22:00:19 - oteldemo.AdService - Targeted ad request received for [binoculars] trace_id=584051b24fc6c6bbcb1b0abc6dc11d0c span_id=68c499fe4e3b2c65 trace_flags=01 
+2026-09-26T22:00:20+00:00  2026-09-26 22:00:20 - oteldemo.AdService - no baggage found in context trace_id=3ad873e4352bd7eb138a230857dced18 span_id=5580a23455ed9ab1 trace_flags=01 
+2026-09-26T22:00:20+00:00  2026-09-26 22:00:20 - oteldemo.AdService - Targeted ad request received for [travel] trace_id=3ad873e4352bd7eb138a230857dced18 span_id=5580a23455ed9ab1 trace_flags=01 
+2026-09-26T22:00:24+00:00  2026-09-26 22:00:24 - oteldemo.AdService - no baggage found in context trace_id=9a9cc1ba8b50e64ca1ef1e0eea466b46 span_id=ef5d2b8c591d9f42 trace_flags=01 
+2026-09-26T22:00:24+00:00  2026-09-26 22:00:24 - oteldemo.AdService - Targeted ad request received for [telescopes] trace_id=9a9cc1ba8b50e64ca1ef1e0eea466b46 span_id=ef5d2b8c591d9f42 trace_flags=01 
+2026-09-26T22:00:27+00:00  2026-09-26 22:00:27 - oteldemo.AdService - no baggage found in context trace_id=b29e016f1b22909dcfb521b3f96971cc span_id=8b285ddad6a79824 trace_flags=01 
+2026-09-26T22:00:27+00:00  2026-09-26 22:00:27 - oteldemo.AdService - Targeted ad request received for [travel] trace_id=b29e016f1b22909dcfb521b3f96971cc span_id=8b285ddad6a79824 trace_flags=01 
+2026-09-26T22:00:34+00:00  2026-09-26 22:00:34 - oteldemo.AdService - no baggage found in context trace_id=1bd7ca7bcb6d008bf5551004bf2cdce6 span_id=f1f0d7f4bdfea11b trace_flags=01 
+2026-09-26T22:00:34+00:00  2026-09-26 22:00:34 - oteldemo.AdService - Non-targeted ad request received, preparing random response. trace_id=1bd7ca7bcb6d008bf5551004bf2cdce6 span_id=f1f0d7f4bdfea11b trace_flags=01 
+2026-09-26T22:00:38+00:00  2026-09-26 22:00:38 - oteldemo.AdService - no baggage found in context trace_id=b26949f8fb58b1ac8aa51a8e94d0e0c3 span_id=cf97d9a3f392ca82 trace_flags=01 
+2026-09-26T22:00:38+00:00  2026-09-26 22:00:38 - oteldemo.AdService - Targeted ad request received for [telescopes] trace_id=b26949f8fb58b1ac8aa51a8e94d0e0c3 span_id=cf97d9a3f392ca82 trace_flags=01 
+2026-09-26T22:00:39+00:00  2026-09-26 22:00:39 - oteldemo.AdService - no baggage found in context trace_id=83595d5e5cb300d6e157fba0f472e39d span_id=309c1e8a5722a6be trace_flags=01 
+2026-09-26T22:00:39+00:00  2026-09-26 22:00:39 - oteldemo.AdService - Targeted ad request received for [binoculars] trace_id=83595d5e5cb300d6e157fba0f472e39d span_id=309c1e8a5722a6be trace_flags=01 
+2026-09-26T22:00:40+00:00  2026-09-26 22:00:40 - oteldemo.AdService - no baggage found in context trace_id=dbcab1ff64468a7aace11838ff8e8d6e span_id=3dfc2f314222f58d trace_flags=01 
+2026-09-26T22:00:40+00:00  2026-09-26 22:00:40 - oteldemo.AdService - Non-targeted ad request received, preparing random response. trace_id=dbcab1ff64468a7aace11838ff8e8d6e span_id=3dfc2f314222f58d trace_flags=01 
+2026-09-26T22:00:40+00:00  2026-09-26 22:00:40 - oteldemo.AdService - no baggage found in context trace_id=01930b692f28bc7e06bbf887aaf1063b span_id=7a2b1ca4a296db56 trace_flags=01 
+2026-09-26T22:00:40+00:00  2026-09-26 22:00:40 - oteldemo.AdService - Targeted ad request received for [assembly] trace_id=01930b692f28bc7e06bbf887aaf1063b span_id=7a2b1ca4a296db56 trace_flags=01 
+2026-09-26T22:00:41+00:00  2026-09-26 22:00:41 - oteldemo.AdService - no baggage found in context trace_id=4da473290bd8ac25f0e45fe3f46a6eb2 span_id=ae3e4d7aaf770399 trace_flags=01 
+2026-09-26T22:00:41+00:00  2026-09-26 22:00:41 - oteldemo.AdService - Targeted ad request received for [binoculars] trace_id=4da473290bd8ac25f0e45fe3f46a6eb2 span_id=ae3e4d7aaf770399 trace_flags=01 
+2026-09-26T22:00:46+00:00  2026-09-26 22:00:46 - oteldemo.AdService - no baggage found in context trace_id=8b5cb39608421170e1cb536fd72c1688 span_id=fd1d6dd6451e2b12 trace_flags=01 
+2026-09-26T22:00:46+00:00  2026-09-26 22:00:46 - oteldemo.AdService - Non-targeted ad request received, preparing random response. trace_id=8b5cb39608421170e1cb536fd72c1688 span_id=fd1d6dd6451e2b12 trace_flags=01 
+2026-09-26T22:00:50+00:00  2026-09-26 22:00:50 - oteldemo.AdService - no baggage found in context trace_id=56da10608627c050396e4d6f78558163 span_id=4a63e034727a8fb1 trace_flags=01 
+2026-09-26T22:00:50+00:00  2026-09-26 22:00:50 - oteldemo.AdService - Targeted ad request received for [accessories] trace_id=56da10608627c050396e4d6f78558163 span_id=4a63e034727a8fb1 trace_flags=01 
+2026-09-26T22:00:53+00:00  2026-09-26 22:00:53 - oteldemo.AdService - no baggage found in context trace_id=83e397afe5e50c39f97c077ae3108cab span_id=1434e334b0b53abc trace_flags=01 
+2026-09-26T22:00:53+00:00  2026-09-26 22:00:53 - oteldemo.AdService - Targeted ad request received for [books] trace_id=83e397afe5e50c39f97c077ae3108cab span_id=1434e334b0b53abc trace_flags=01 
+2026-09-26T22:01:09+00:00  2026-09-26 22:01:09 - oteldemo.AdService - no baggage found in context trace_id=02a53b505082991f96a7f4f731b98105 span_id=6efb27f8c2af6bb1 trace_flags=01 
+2026-09-26T22:01:09+00:00  2026-09-26 22:01:09 - oteldemo.AdService - Targeted ad request received for [accessories] trace_id=02a53b505082991f96a7f4f731b98105 span_id=6efb27f8c2af6bb1 trace_flags=01 
+2026-09-26T22:01:14+00:00  2026-09-26 22:01:14 - oteldemo.AdService - no baggage found in context trace_id=6c696412ec1f67e114c5eed67384d001 span_id=b694e6679053df13 trace_flags=01 
+2026-09-26T22:01:14+00:00  2026-09-26 22:01:14 - oteldemo.AdService - Targeted ad request received for [accessories] trace_id=6c696412ec1f67e114c5eed67384d001 span_id=b694e6679053df13 trace_flags=01 
+2026-09-26T22:01:20+00:00  2026-09-26 22:01:20 - oteldemo.AdService - no baggage found in context trace_id=f2c75d4da17ec3ec1a92fc202dd34f31 span_id=4c7650b58235e4f6 trace_flags=01 
+2026-09-26T22:01:20+00:00  2026-09-26 22:01:20 - oteldemo.AdService - Targeted ad request received for [binoculars] trace_id=f2c75d4da17ec3ec1a92fc202dd34f31 span_id=4c7650b58235e4f6 trace_flags=01 
+2026-09-26T22:01:23+00:00  2026-09-26 22:01:23 - oteldemo.AdService - no baggage found in context trace_id=32f163fd53695464ee14a2ddf127c534 span_id=d8e5ff89e19481b1 trace_flags=01 
+2026-09-26T22:01:23+00:00  2026-09-26 22:01:23 - oteldemo.AdService - Targeted ad request received for [assembly] trace_id=32f163fd53695464ee14a2ddf127c534 span_id=d8e5ff89e19481b1 trace_flags=01 
+2026-09-26T22:01:24+00:00  2026-09-26 22:01:24 - oteldemo.AdService - no baggage found in context trace_id=44660bd92623a3fd4a6b0503a69f75b5 span_id=08c0917a9944781d trace_flags=01 
+2026-09-26T22:01:24+00:00  2026-09-26 22:01:24 - oteldemo.AdService - Targeted ad request received for [assembly] trace_id=44660bd92623a3fd4a6b0503a69f75b5 span_id=08c0917a9944781d trace_flags=01 
+2026-09-26T22:01:25+00:00  2026-09-26 22:01:25 - oteldemo.AdService - no baggage found in context trace_id=641c658549cb9d9074294453f3b5a81e span_id=5aa0eadf3550b8d8 trace_flags=01 
+2026-09-26T22:01:25+00:00  2026-09-26 22:01:25 - oteldemo.AdService - Targeted ad request received for [accessories] trace_id=641c658549cb9d9074294453f3b5a81e span_id=5aa0eadf3550b8d8 trace_flags=01 
+2026-09-26T22:01:33+00:00  2026-09-26 22:01:33 - oteldemo.AdService - no baggage found in context trace_id=8c0d4d6917691a4d21e5a0be694e2227 span_id=608c757da3a80daa trace_flags=01 
+2026-09-26T22:01:33+00:00  2026-09-26 22:01:33 - oteldemo.AdService - Targeted ad request received for [travel] trace_id=8c0d4d6917691a4d21e5a0be694e2227 span_id=608c757da3a80daa trace_flags=01 
+2026-09-26T22:01:39+00:00  2026-09-26 22:01:39 - oteldemo.AdService - no baggage found in context trace_id=e234815d57ce2fc5eb63102c495637ee span_id=8d6cc5a92b95d52e trace_flags=01 
+2026-09-26T22:01:39+00:00  2026-09-26 22:01:39 - oteldemo.AdService - Targeted ad request received for [telescopes] trace_id=e234815d57ce2fc5eb63102c495637ee span_id=8d6cc5a92b95d52e trace_flags=01 
+2026-09-26T22:01:42+00:00  2026-09-26 22:01:42 - oteldemo.AdService - no baggage found in context trace_id=c1fa54bbb50de70a1150ed3d4f7c9f4c span_id=cd9db39f376ef409 trace_flags=01 
+2026-09-26T22:01:42+00:00  2026-09-26 22:01:42 - oteldemo.AdService - Targeted ad request received for [travel] trace_id=c1fa54bbb50de70a1150ed3d4f7c9f4c span_id=cd9db39f376ef409 trace_flags=01 
+2026-09-26T22:01:49+00:00  2026-09-26 22:01:49 - oteldemo.AdService - no baggage found in context trace_id=476eb3b1fce48664e13c76c41da5200b span_id=310cd21186d76531 trace_flags=01 
+2026-09-26T22:01:49+00:00  2026-09-26 22:01:49 - oteldemo.AdService - Targeted ad request received for [telescopes] trace_id=476eb3b1fce48664e13c76c41da5200b span_id=310cd21186d76531 trace_flags=01 
+2026-09-26T22:01:51+00:00  2026-09-26 22:01:51 - oteldemo.AdService - no baggage found in context trace_id=0c7cb9efa6cd8facfefe9c79cfc1ab85 span_id=4f4e4ce9de282da4 trace_flags=01 
+2026-09-26T22:01:51+00:00  2026-09-26 22:01:51 - oteldemo.AdService - Targeted ad request received for [assembly] trace_id=0c7cb9efa6cd8facfefe9c79cfc1ab85 span_id=4f4e4ce9de282da4 trace_flags=01 
+2026-09-26T22:01:53+00:00  2026-09-26 22:01:53 - oteldemo.AdService - no baggage found in context trace_id=772cac88cd00516fdb0a34e1677913a5 span_id=877546fe19cd6d76 trace_flags=01 
+2026-09-26T22:01:53+00:00  2026-09-26 22:01:53 - oteldemo.AdService - Targeted ad request received for [travel] trace_id=772cac88cd00516fdb0a34e1677913a5 span_id=877546fe19cd6d76 trace_flags=01 
+2026-09-26T22:01:54+00:00  2026-09-26 22:01:54 - oteldemo.AdService - no baggage found in context trace_id=34744140474a37b60f54083f7d8176fe span_id=e2d74f37d4d6fc07 trace_flags=01 
+2026-09-26T22:01:54+00:00  2026-09-26 22:01:54 - oteldemo.AdService - Targeted ad request received for [accessories] trace_id=34744140474a37b60f54083f7d8176fe span_id=e2d74f37d4d6fc07 trace_flags=01 
+2026-09-26T22:02:05+00:00  2026-09-26 22:02:05 - oteldemo.AdService - no baggage found in context trace_id=7afaa91389f2dc2cb4ebf7f7734396c7 span_id=252c88ff1bb892bb trace_flags=01 
+2026-09-26T22:02:05+00:00  2026-09-26 22:02:05 - oteldemo.AdService - Targeted ad request received for [telescopes] trace_id=7afaa91389f2dc2cb4ebf7f7734396c7 span_id=252c88ff1bb892bb trace_flags=01 
+2026-09-26T22:02:07+00:00  2026-09-26 22:02:07 - oteldemo.AdService - no baggage found in context trace_id=8d7ca4f3a395f9f2be50ecf261b044ff span_id=8ece1a2cb1ab7a64 trace_flags=01 
+2026-09-26T22:02:07+00:00  2026-09-26 22:02:07 - oteldemo.AdService - Targeted ad request received for [accessories] trace_id=8d7ca4f3a395f9f2be50ecf261b044ff span_id=8ece1a2cb1ab7a64 trace_flags=01 
+2026-09-26T22:02:09+00:00  2026-09-26 22:02:09 - oteldemo.AdService - no baggage found in context trace_id=13fb9563c0fe4c1d2e2f46690af0aa04 span_id=92c7876fbb100a57 trace_flags=01 
+2026-09-26T22:02:09+00:00  2026-09-26 22:02:09 - oteldemo.AdService - Non-targeted ad request received, preparing random response. trace_id=13fb9563c0fe4c1d2e2f46690af0aa04 span_id=92c7876fbb100a57 trace_flags=01 
+2026-09-26T22:02:09+00:00  2026-09-26 22:02:09 - oteldemo.AdService - no baggage found in context trace_id=0901a8f0f7b0cf686445fbc3a28b08b0 span_id=dbd19c33aabafc86 trace_flags=01 
+2026-09-26T22:02:09+00:00  2026-09-26 22:02:09 - oteldemo.AdService - Targeted ad request received for [telescopes] trace_id=0901a8f0f7b0cf686445fbc3a28b08b0 span_id=dbd19c33aabafc86 trace_flags=01 
+2026-09-26T22:02:13+00:00  2026-09-26 22:02:13 - oteldemo.AdService - no baggage found in context trace_id=d2d9fb390dfdaefba4bf970c4e7aab7e span_id=f59df33c96985fd9 trace_flags=01 
+2026-09-26T22:02:13+00:00  2026-09-26 22:02:13 - oteldemo.AdService - Targeted ad request received for [assembly] trace_id=d2d9fb390dfdaefba4bf970c4e7aab7e span_id=f59df33c96985fd9 trace_flags=01 
+2026-09-26T22:02:19+00:00  2026-09-26 22:02:19 - oteldemo.AdService - no baggage found in context trace_id=ba232a5cc6cf3333224fc8ed088a4119 span_id=d3876f25c2a17bb8 trace_flags=01 
+2026-09-26T22:02:19+00:00  2026-09-26 22:02:19 - oteldemo.AdService - Targeted ad request received for [binoculars] trace_id=ba232a5cc6cf3333224fc8ed088a4119 span_id=d3876f25c2a17bb8 trace_flags=01 
+2026-09-26T22:02:19+00:00  2026-09-26 22:02:19 - oteldemo.AdService - no baggage found in context trace_id=c9bf9970b2f3822fef615ca569aec1c1 span_id=64a9db9e57a84f6c trace_flags=01 
+2026-09-26T22:02:19+00:00  2026-09-26 22:02:19 - oteldemo.AdService - Targeted ad request received for [travel] trace_id=c9bf9970b2f3822fef615ca569aec1c1 span_id=64a9db9e57a84f6c trace_flags=01 
+2026-09-26T22:02:26+00:00  2026-09-26 22:02:26 - oteldemo.AdService - no baggage found in context trace_id=3bdbff7916e2c686a93d67f295bf40ba span_id=c3b4bb3f06e1e9a1 trace_flags=01 
+2026-09-26T22:02:26+00:00  2026-09-26 22:02:26 - oteldemo.AdService - Non-targeted ad request received, preparing random response. trace_id=3bdbff7916e2c686a93d67f295bf40ba span_id=c3b4bb3f06e1e9a1 trace_flags=01 
+2026-09-26T22:02:35+00:00  2026-09-26 22:02:35 - oteldemo.AdService - no baggage found in context trace_id=1709806d4b5d597e8ace25d8b47a9a67 span_id=779996ee3ed9988c trace_flags=01 
+2026-09-26T22:02:35+00:00  2026-09-26 22:02:35 - oteldemo.AdService - Targeted ad request received for [accessories] trace_id=1709806d4b5d597e8ace25d8b47a9a67 span_id=779996ee3ed9988c trace_flags=01 
+2026-09-26T22:02:36+00:00  2026-09-26 22:02:36 - oteldemo.AdService - no baggage found in context trace_id=0b91be4661e83487fa6ac071d0fbfea1 span_id=98578dd5fba5f690 trace_flags=01 
+2026-09-26T22:02:36+00:00  2026-09-26 22:02:36 - oteldemo.AdService - Non-targeted ad request received, preparing random response. trace_id=0b91be4661e83487fa6ac071d0fbfea1 span_id=98578dd5fba5f690 trace_flags=01 
+2026-09-26T22:02:40+00:00  2026-09-26 22:02:40 - oteldemo.AdService - no baggage found in context trace_id=0d4c5262f809a797d5b15cc1c072927b span_id=e955cdc3452d3077 trace_flags=01 
+2026-09-26T22:02:40+00:00  2026-09-26 22:02:40 - oteldemo.AdService - Targeted ad request received for [binoculars] trace_id=0d4c5262f809a797d5b15cc1c072927b span_id=e955cdc3452d3077 trace_flags=01 
+2026-09-26T22:02:44+00:00  2026-09-26 22:02:44 - oteldemo.AdService - no baggage found in context trace_id=ec2a4fb809debeb494fe51b652d39464 span_id=c633a98a9d370c99 trace_flags=01 
+2026-09-26T22:02:44+00:00  2026-09-26 22:02:44 - oteldemo.AdService - Targeted ad request received for [telescopes] trace_id=ec2a4fb809debeb494fe51b652d39464 span_id=c633a98a9d370c99 trace_flags=01 
+2026-09-26T22:03:00+00:00  2026-09-26 22:03:00 - oteldemo.AdService - no baggage found in context trace_id=45ec7d23ca950605cb1492cec1a73d8d span_id=a08d61d5ccb748d4 trace_flags=01 
+2026-09-26T22:03:00+00:00  2026-09-26 22:03:00 - oteldemo.AdService - Targeted ad request received for [accessories] trace_id=45ec7d23ca950605cb1492cec1a73d8d span_id=a08d61d5ccb748d4 trace_flags=01 
+2026-09-26T22:03:02+00:00  2026-09-26 22:03:02 - oteldemo.AdService - no baggage found in context trace_id=e427335333850e262bfd00bd2e1111b8 span_id=9d1027981b411698 trace_flags=01 
+2026-09-26T22:03:02+00:00  2026-09-26 22:03:02 - oteldemo.AdService - Targeted ad request received for [books] trace_id=e427335333850e262bfd00bd2e1111b8 span_id=9d1027981b411698 trace_flags=01 
+2026-09-26T22:03:04+00:00  2026-09-26 22:03:04 - oteldemo.AdService - no baggage found in context trace_id=6955d1c1cc9d3eb2f447e72fee86d523 span_id=e35de37117634e9e trace_flags=01 
+2026-09-26T22:03:04+00:00  2026-09-26 22:03:04 - oteldemo.AdService - Targeted ad request received for [accessories] trace_id=6955d1c1cc9d3eb2f447e72fee86d523 span_id=e35de37117634e9e trace_flags=01 
+2026-09-26T22:03:08+00:00  2026-09-26 22:03:08 - oteldemo.AdService - no baggage found in context trace_id=0720f70ba2df1fc35f98e8db89b3c448 span_id=5e7544b9c4b2f986 trace_flags=01 
+2026-09-26T22:03:08+00:00  2026-09-26 22:03:08 - oteldemo.AdService - Targeted ad request received for [telescopes] trace_id=0720f70ba2df1fc35f98e8db89b3c448 span_id=5e7544b9c4b2f986 trace_flags=01 
+2026-09-26T22:03:15+00:00  2026-09-26 22:03:15 - oteldemo.AdService - no baggage found in context trace_id=a18a215433cc80ba03b8aa5614c03227 span_id=73055e67e34321a9 trace_flags=01 
+2026-09-26T22:03:15+00:00  2026-09-26 22:03:15 - oteldemo.AdService - Targeted ad request received for [assembly] trace_id=a18a215433cc80ba03b8aa5614c03227 span_id=73055e67e34321a9 trace_flags=01 
+# ---- onset 2026-09-26T22:03:16+00:00 ----
+2026-09-26T22:03:17+00:00  2026-09-26 22:03:17 - oteldemo.AdService - no baggage found in context trace_id=70401eef8592d07b908a316a6976d8aa span_id=c250096b5343bef0 trace_flags=01 
+2026-09-26T22:03:17+00:00  2026-09-26 22:03:17 - oteldemo.AdService - Targeted ad request received for [books] trace_id=70401eef8592d07b908a316a6976d8aa span_id=c250096b5343bef0 trace_flags=01 
+2026-09-26T22:03:21+00:00  2026-09-26 22:03:21 - oteldemo.AdService - no baggage found in context trace_id=8c4f201cba5998a7a39c3c2d32155964 span_id=b94e7387f4910a12 trace_flags=01 
+2026-09-26T22:03:21+00:00  2026-09-26 22:03:21 - oteldemo.AdService - Targeted ad request received for [books] trace_id=8c4f201cba5998a7a39c3c2d32155964 span_id=b94e7387f4910a12 trace_flags=01 
+2026-09-26T22:03:24+00:00  2026-09-26 22:03:24 - oteldemo.AdService - no baggage found in context trace_id=47ccab7744ab60fe7387902c4a7cb420 span_id=c80c39c6383ec9fb trace_flags=01 
+2026-09-26T22:03:24+00:00  2026-09-26 22:03:24 - oteldemo.AdService - Targeted ad request received for [books] trace_id=47ccab7744ab60fe7387902c4a7cb420 span_id=c80c39c6383ec9fb trace_flags=01 
+2026-09-26T22:03:35+00:00  2026-09-26 22:03:35 - oteldemo.AdService - no baggage found in context trace_id=e1fc2f1d492391581ae8dfc03d6aaec3 span_id=ac426e92d7232955 trace_flags=01 
+2026-09-26T22:03:35+00:00  2026-09-26 22:03:35 - oteldemo.AdService - Targeted ad request received for [assembly] trace_id=e1fc2f1d492391581ae8dfc03d6aaec3 span_id=ac426e92d7232955 trace_flags=01 
+2026-09-26T22:03:37+00:00  2026-09-26 22:03:37 - oteldemo.AdService - no baggage found in context trace_id=3aa5c24eb5fb7d8ae95c37e71cb048ca span_id=20c6fa74a29befb2 trace_flags=01 
+2026-09-26T22:03:37+00:00  2026-09-26 22:03:37 - oteldemo.AdService - Targeted ad request received for [travel] trace_id=3aa5c24eb5fb7d8ae95c37e71cb048ca span_id=20c6fa74a29befb2 trace_flags=01 
+2026-09-26T22:03:41+00:00  2026-09-26 22:03:41 - oteldemo.AdService - no baggage found in context trace_id=ce3c37d22e195d85f1915676ac79ddc7 span_id=8578ff0d3ca3effa trace_flags=01 
+2026-09-26T22:03:41+00:00  2026-09-26 22:03:41 - oteldemo.AdService - Targeted ad request received for [assembly] trace_id=ce3c37d22e195d85f1915676ac79ddc7 span_id=8578ff0d3ca3effa trace_flags=01 
+2026-09-26T22:03:43+00:00  2026-09-26 22:03:43 - oteldemo.AdService - no baggage found in context trace_id=892c57bb777df6979554d823f7fe87ff span_id=196503658e75fccb trace_flags=01 
+2026-09-26T22:03:43+00:00  2026-09-26 22:03:43 - oteldemo.AdService - Targeted ad request received for [travel] trace_id=892c57bb777df6979554d823f7fe87ff span_id=196503658e75fccb trace_flags=01 
+2026-09-26T22:04:00+00:00  2026-09-26 22:04:00 - oteldemo.AdService - no baggage found in context trace_id=582b9757a6b0556d5e756e157fd3a645 span_id=20df7aa95f52710b trace_flags=01 
+2026-09-26T22:04:00+00:00  2026-09-26 22:04:00 - oteldemo.AdService - Targeted ad request received for [telescopes] trace_id=582b9757a6b0556d5e756e157fd3a645 span_id=20df7aa95f52710b trace_flags=01 
+2026-09-26T22:04:02+00:00  2026-09-26 22:04:02 - oteldemo.AdService - no baggage found in context trace_id=0e56e3716df56db774b7359734e44099 span_id=180b85214d100776 trace_flags=01 
+2026-09-26T22:04:02+00:00  2026-09-26 22:04:02 - oteldemo.AdService - Non-targeted ad request received, preparing random response. trace_id=0e56e3716df56db774b7359734e44099 span_id=180b85214d100776 trace_flags=01 
+2026-09-26T22:04:02+00:00  2026-09-26 22:04:02 - oteldemo.AdService - GetAds Failed with status Status{code=UNAVAILABLE, description=null, cause=null} trace_id=0e56e3716df56db774b7359734e44099 span_id=180b85214d100776 trace_flags=01 
+2026-09-26T22:04:02+00:00  2026-09-26 22:04:02 - oteldemo.AdService - no baggage found in context trace_id=3f292125d6a760784d45b41e25355101 span_id=5174e8789b09b1dc trace_flags=01 
+2026-09-26T22:04:02+00:00  2026-09-26 22:04:02 - oteldemo.AdService - Targeted ad request received for [assembly] trace_id=3f292125d6a760784d45b41e25355101 span_id=5174e8789b09b1dc trace_flags=01 
+2026-09-26T22:04:04+00:00  2026-09-26 22:04:04 - oteldemo.AdService - no baggage found in context trace_id=9912ecd2aafe8bc88c9dba96c9054f1e span_id=672d7dbb97b7b0a0 trace_flags=01 
+2026-09-26T22:04:04+00:00  2026-09-26 22:04:04 - oteldemo.AdService - Targeted ad request received for [travel] trace_id=9912ecd2aafe8bc88c9dba96c9054f1e span_id=672d7dbb97b7b0a0 trace_flags=01 
+2026-09-26T22:04:14+00:00  2026-09-26 22:04:14 - oteldemo.AdService - no baggage found in context trace_id=a4e9a28314f58492a9442371febace8d span_id=e22b66227f462e53 trace_flags=01 
+2026-09-26T22:04:14+00:00  2026-09-26 22:04:14 - oteldemo.AdService - Targeted ad request received for [travel] trace_id=a4e9a28314f58492a9442371febace8d span_id=e22b66227f462e53 trace_flags=01 
+2026-09-26T22:04:17+00:00  2026-09-26 22:04:17 - oteldemo.AdService - no baggage found in context trace_id=1abb6efc441c28bfacc77a86696a5c5b span_id=71104c793bb2c2d3 trace_flags=01 
+2026-09-26T22:04:17+00:00  2026-09-26 22:04:17 - oteldemo.AdService - Non-targeted ad request received, preparing random response. trace_id=1abb6efc441c28bfacc77a86696a5c5b span_id=71104c793bb2c2d3 trace_flags=01 
+2026-09-26T22:04:17+00:00  2026-09-26 22:04:17 - oteldemo.AdService - no baggage found in context trace_id=4ea769effa5c52176ac96d2067247ad3 span_id=111959c85b645778 trace_flags=01 
+2026-09-26T22:04:17+00:00  2026-09-26 22:04:17 - oteldemo.AdService - Targeted ad request received for [telescopes] trace_id=4ea769effa5c52176ac96d2067247ad3 span_id=111959c85b645778 trace_flags=01 
+2026-09-26T22:04:17+00:00  2026-09-26 22:04:17 - oteldemo.AdService - no baggage found in context trace_id=497000efb67420b1848fe331e87784e4 span_id=a327bd9749dbd155 trace_flags=01 
+2026-09-26T22:04:17+00:00  2026-09-26 22:04:17 - oteldemo.AdService - Targeted ad request received for [accessories] trace_id=497000efb67420b1848fe331e87784e4 span_id=a327bd9749dbd155 trace_flags=01 
+2026-09-26T22:04:30+00:00  2026-09-26 22:04:30 - oteldemo.AdService - no baggage found in context trace_id=c43d481f2a6dedf6ce9297811bd09388 span_id=d5765905600eaed0 trace_flags=01 
+2026-09-26T22:04:30+00:00  2026-09-26 22:04:30 - oteldemo.AdService - Targeted ad request received for [accessories] trace_id=c43d481f2a6dedf6ce9297811bd09388 span_id=d5765905600eaed0 trace_flags=01 
+2026-09-26T22:04:51+00:00  2026-09-26 22:04:51 - oteldemo.AdService - no baggage found in context trace_id=353b4d3807c6c7b1d550fdc4fcf762f1 span_id=b9e7c88040e1dc42 trace_flags=01 
+2026-09-26T22:04:51+00:00  2026-09-26 22:04:51 - oteldemo.AdService - Targeted ad request received for [assembly] trace_id=353b4d3807c6c7b1d550fdc4fcf762f1 span_id=b9e7c88040e1dc42 trace_flags=01 
+2026-09-26T22:04:58+00:00  2026-09-26 22:04:58 - oteldemo.AdService - no baggage found in context trace_id=4711e69de7da691a18149c57b39c109d span_id=9b301b8244e93b8d trace_flags=01 
+2026-09-26T22:04:58+00:00  2026-09-26 22:04:58 - oteldemo.AdService - Targeted ad request received for [books] trace_id=4711e69de7da691a18149c57b39c109d span_id=9b301b8244e93b8d trace_flags=01 
+2026-09-26T22:05:02+00:00  2026-09-26 22:05:02 - oteldemo.AdService - no baggage found in context trace_id=949ba678ce8eb45efe77d4ee74c2401d span_id=c1b2e29ecb342154 trace_flags=01 
+2026-09-26T22:05:02+00:00  2026-09-26 22:05:02 - oteldemo.AdService - Targeted ad request received for [binoculars] trace_id=949ba678ce8eb45efe77d4ee74c2401d span_id=c1b2e29ecb342154 trace_flags=01 
+2026-09-26T22:05:11+00:00  2026-09-26 22:05:11 - oteldemo.AdService - no baggage found in context trace_id=0dc49f1b091d73ae5370014d8567dfb9 span_id=a4669c06d5b94f6a trace_flags=01 
+2026-09-26T22:05:11+00:00  2026-09-26 22:05:11 - oteldemo.AdService - Targeted ad request received for [assembly] trace_id=0dc49f1b091d73ae5370014d8567dfb9 span_id=a4669c06d5b94f6a trace_flags=01 
+2026-09-26T22:05:16+00:00  2026-09-26 22:05:16 - oteldemo.AdService - no baggage found in context trace_id=b4455ff4b300fbe3f09043f1d2ce94a8 span_id=42235dfc9c81549f trace_flags=01 
+2026-09-26T22:05:16+00:00  2026-09-26 22:05:16 - oteldemo.AdService - Targeted ad request received for [binoculars] trace_id=b4455ff4b300fbe3f09043f1d2ce94a8 span_id=42235dfc9c81549f trace_flags=01 
+2026-09-26T22:05:32+00:00  2026-09-26 22:05:32 - oteldemo.AdService - no baggage found in context trace_id=d124af2c73d3627f6f412fe53dbfc79a span_id=acc1d2e3b857013f trace_flags=01 
+2026-09-26T22:05:32+00:00  2026-09-26 22:05:32 - oteldemo.AdService - Targeted ad request received for [assembly] trace_id=d124af2c73d3627f6f412fe53dbfc79a span_id=acc1d2e3b857013f trace_flags=01 
+2026-09-26T22:05:42+00:00  2026-09-26 22:05:42 - oteldemo.AdService - no baggage found in context trace_id=ca4c7c57044eae9f428257081269c3db span_id=9941ac3ae6c87ab6 trace_flags=01 
+2026-09-26T22:05:42+00:00  2026-09-26 22:05:42 - oteldemo.AdService - Targeted ad request received for [binoculars] trace_id=ca4c7c57044eae9f428257081269c3db span_id=9941ac3ae6c87ab6 trace_flags=01 
+2026-09-26T22:05:46+00:00  2026-09-26 22:05:46 - oteldemo.AdService - no baggage found in context trace_id=5a880b2469b8d2372c29ecc329474943 span_id=72ad06eae3d675c6 trace_flags=01 
+2026-09-26T22:05:46+00:00  2026-09-26 22:05:46 - oteldemo.AdService - Targeted ad request received for [binoculars] trace_id=5a880b2469b8d2372c29ecc329474943 span_id=72ad06eae3d675c6 trace_flags=01 
+2026-09-26T22:05:48+00:00  2026-09-26 22:05:48 - oteldemo.AdService - no baggage found in context trace_id=b2b6c17d8207ac14a505b2557525a49d span_id=fb518a9039c8cdf0 trace_flags=01 
+2026-09-26T22:05:48+00:00  2026-09-26 22:05:48 - oteldemo.AdService - Targeted ad request received for [accessories] trace_id=b2b6c17d8207ac14a505b2557525a49d span_id=fb518a9039c8cdf0 trace_flags=01 
+2026-09-26T22:05:52+00:00  2026-09-26 22:05:52 - oteldemo.AdService - no baggage found in context trace_id=06f9141958fafeba1a74c8945dbf46d8 span_id=e10f0998ccb27c1b trace_flags=01 
+2026-09-26T22:05:52+00:00  2026-09-26 22:05:52 - oteldemo.AdService - Non-targeted ad request received, preparing random response. trace_id=06f9141958fafeba1a74c8945dbf46d8 span_id=e10f0998ccb27c1b trace_flags=01 
+2026-09-26T22:05:56+00:00  2026-09-26 22:05:56 - oteldemo.AdService - no baggage found in context trace_id=973661efb6cff3b718b5e0370be96ed2 span_id=d91cb5a6089043ca trace_flags=01 
+2026-09-26T22:05:56+00:00  2026-09-26 22:05:56 - oteldemo.AdService - Targeted ad request received for [accessories] trace_id=973661efb6cff3b718b5e0370be96ed2 span_id=d91cb5a6089043ca trace_flags=01 
+2026-09-26T22:06:05+00:00  2026-09-26 22:06:05 - oteldemo.AdService - no baggage found in context trace_id=483503f908d3f813aec9ec0b9aae0492 span_id=3131544259f25b4b trace_flags=01 
+2026-09-26T22:06:05+00:00  2026-09-26 22:06:05 - oteldemo.AdService - Targeted ad request received for [travel] trace_id=483503f908d3f813aec9ec0b9aae0492 span_id=3131544259f25b4b trace_flags=01 
+2026-09-26T22:06:05+00:00  2026-09-26 22:06:05 - oteldemo.AdService - GetAds Failed with status Status{code=UNAVAILABLE, description=null, cause=null} trace_id=483503f908d3f813aec9ec0b9aae0492 span_id=3131544259f25b4b trace_flags=01 
+2026-09-26T22:06:05+00:00  2026-09-26 22:06:05 - oteldemo.AdService - no baggage found in context trace_id=14201639e56c14ebcda8599a8c52543f span_id=1f049797463a8f3e trace_flags=01 
+2026-09-26T22:06:05+00:00  2026-09-26 22:06:05 - oteldemo.AdService - Non-targeted ad request received, preparing random response. trace_id=14201639e56c14ebcda8599a8c52543f span_id=1f049797463a8f3e trace_flags=01 
+2026-09-26T22:06:07+00:00  2026-09-26 22:06:07 - oteldemo.AdService - no baggage found in context trace_id=6b88470c063c2aecae6f7614c992a8ae span_id=4db96936594fb3b9 trace_flags=01 
+2026-09-26T22:06:07+00:00  2026-09-26 22:06:07 - oteldemo.AdService - Targeted ad request received for [telescopes] trace_id=6b88470c063c2aecae6f7614c992a8ae span_id=4db96936594fb3b9 trace_flags=01 
+2026-09-26T22:06:10+00:00  2026-09-26 22:06:10 - oteldemo.AdService - no baggage found in context trace_id=7daa6bb30bf1a2ea4e1e7b3295f2db57 span_id=0beca81f2fce187b trace_flags=01 
+2026-09-26T22:06:10+00:00  2026-09-26 22:06:10 - oteldemo.AdService - Targeted ad request received for [telescopes] trace_id=7daa6bb30bf1a2ea4e1e7b3295f2db57 span_id=0beca81f2fce187b trace_flags=01 
+2026-09-26T22:06:11+00:00  2026-09-26 22:06:11 - oteldemo.AdService - no baggage found in context trace_id=c782c93e35035af57ac34ef400525dc3 span_id=da607d0a9fe2ba15 trace_flags=01 
+2026-09-26T22:06:11+00:00  2026-09-26 22:06:11 - oteldemo.AdService - Targeted ad request received for [telescopes] trace_id=c782c93e35035af57ac34ef400525dc3 span_id=da607d0a9fe2ba15 trace_flags=01 
+2026-09-26T22:06:16+00:00  2026-09-26 22:06:16 - oteldemo.AdService - no baggage found in context trace_id=1f1e3db7d2074b70470d3434c7969f22 span_id=bbe3ab06f510b69d trace_flags=01 
+2026-09-26T22:06:16+00:00  2026-09-26 22:06:16 - oteldemo.AdService - Non-targeted ad request received, preparing random response. trace_id=1f1e3db7d2074b70470d3434c7969f22 span_id=bbe3ab06f510b69d trace_flags=01 
+2026-09-26T22:06:16+00:00  2026-09-26 22:06:16 - oteldemo.AdService - no baggage found in context trace_id=9d57a8c32409002b1c49dbd87752a72e span_id=e1207c53c4abbe1e trace_flags=01 
+2026-09-26T22:06:16+00:00  2026-09-26 22:06:16 - oteldemo.AdService - Targeted ad request received for [books] trace_id=9d57a8c32409002b1c49dbd87752a72e span_id=e1207c53c4abbe1e trace_flags=01 
+2026-09-26T22:06:30+00:00  2026-09-26 22:06:30 - oteldemo.AdService - no baggage found in context trace_id=2ff34c346595969dd00a2e8430d61b4e span_id=7737e855be75b384 trace_flags=01 
+2026-09-26T22:06:30+00:00  2026-09-26 22:06:30 - oteldemo.AdService - Targeted ad request received for [accessories] trace_id=2ff34c346595969dd00a2e8430d61b4e span_id=7737e855be75b384 trace_flags=01 
+2026-09-26T22:06:33+00:00  2026-09-26 22:06:33 - oteldemo.AdService - no baggage found in context trace_id=54c9d211b85f0feac19cecab78687b0f span_id=6ab50a9d90ab6cdd trace_flags=01 
+2026-09-26T22:06:33+00:00  2026-09-26 22:06:33 - oteldemo.AdService - Targeted ad request received for [books] trace_id=54c9d211b85f0feac19cecab78687b0f span_id=6ab50a9d90ab6cdd trace_flags=01 
+2026-09-26T22:06:33+00:00  2026-09-26 22:06:33 - oteldemo.AdService - no baggage found in context trace_id=ceec6ea5327121c76681cff7a8e84899 span_id=1a11d20ac9801afe trace_flags=01 
+2026-09-26T22:06:33+00:00  2026-09-26 22:06:33 - oteldemo.AdService - Non-targeted ad request received, preparing random response. trace_id=ceec6ea5327121c76681cff7a8e84899 span_id=1a11d20ac9801afe trace_flags=01 
+2026-09-26T22:06:43+00:00  2026-09-26 22:06:43 - oteldemo.AdService - no baggage found in context trace_id=45a8ad596321b70dac9481e693efc6d6 span_id=1fee67aa718837d9 trace_flags=01 
+2026-09-26T22:06:43+00:00  2026-09-26 22:06:43 - oteldemo.AdService - Targeted ad request received for [binoculars] trace_id=45a8ad596321b70dac9481e693efc6d6 span_id=1fee67aa718837d9 trace_flags=01 
+2026-09-26T22:06:52+00:00  2026-09-26 22:06:52 - oteldemo.AdService - no baggage found in context trace_id=865a7e1671b9371892251ab04c0c0faa span_id=f6d6b0e259e075e6 trace_flags=01 
+2026-09-26T22:06:52+00:00  2026-09-26 22:06:52 - oteldemo.AdService - Non-targeted ad request received, preparing random response. trace_id=865a7e1671b9371892251ab04c0c0faa span_id=f6d6b0e259e075e6 trace_flags=01 
+2026-09-26T22:06:54+00:00  2026-09-26 22:06:54 - oteldemo.AdService - no baggage found in context trace_id=c9b2dc9cd92c0244ee14de5a25cf3fc7 span_id=eeb0e29ce73cf77f trace_flags=01 
+2026-09-26T22:06:54+00:00  2026-09-26 22:06:54 - oteldemo.AdService - Targeted ad request received for [travel] trace_id=c9b2dc9cd92c0244ee14de5a25cf3fc7 span_id=eeb0e29ce73cf77f trace_flags=01 
+2026-09-26T22:06:54+00:00  2026-09-26 22:06:54 - oteldemo.AdService - no baggage found in context trace_id=fe75c197562738355f778108dc330e5b span_id=ba8126e7df7cc485 trace_flags=01 
+2026-09-26T22:06:54+00:00  2026-09-26 22:06:54 - oteldemo.AdService - Targeted ad request received for [binoculars] trace_id=fe75c197562738355f778108dc330e5b span_id=ba8126e7df7cc485 trace_flags=01 
+2026-09-26T22:07:02+00:00  2026-09-26 22:07:02 - oteldemo.AdService - no baggage found in context trace_id=3982ae7321a7b1d12729311752594aa2 span_id=890cc6ed33d150e1 trace_flags=01 
+2026-09-26T22:07:02+00:00  2026-09-26 22:07:02 - oteldemo.AdService - Targeted ad request received for [accessories] trace_id=3982ae7321a7b1d12729311752594aa2 span_id=890cc6ed33d150e1 trace_flags=01 
+2026-09-26T22:07:21+00:00  2026-09-26 22:07:21 - oteldemo.AdService - no baggage found in context trace_id=9380fade839c05f2fe93c17cbaf90437 span_id=d1807085143ee4d5 trace_flags=01 
+2026-09-26T22:07:21+00:00  2026-09-26 22:07:21 - oteldemo.AdService - Non-targeted ad request received, preparing random response. trace_id=9380fade839c05f2fe93c17cbaf90437 span_id=d1807085143ee4d5 trace_flags=01 
+2026-09-26T22:07:29+00:00  2026-09-26 22:07:29 - oteldemo.AdService - no baggage found in context trace_id=5b3c9b11940011718a84449ddd59e1d6 span_id=1afcab40742849c0 trace_flags=01 
+2026-09-26T22:07:29+00:00  2026-09-26 22:07:29 - oteldemo.AdService - Targeted ad request received for [books] trace_id=5b3c9b11940011718a84449ddd59e1d6 span_id=1afcab40742849c0 trace_flags=01 
+2026-09-26T22:07:38+00:00  2026-09-26 22:07:38 - oteldemo.AdService - no baggage found in context trace_id=9d765c21db840ef96c3e778f79c3d80c span_id=79e71b1997b369f4 trace_flags=01 
+2026-09-26T22:07:38+00:00  2026-09-26 22:07:38 - oteldemo.AdService - Targeted ad request received for [binoculars] trace_id=9d765c21db840ef96c3e778f79c3d80c span_id=79e71b1997b369f4 trace_flags=01 
+2026-09-26T22:07:42+00:00  2026-09-26 22:07:42 - oteldemo.AdService - no baggage found in context trace_id=6ae1df73997d45f9af58b40e6b5e3df2 span_id=68c2fe2d7773bf15 trace_flags=01 
+2026-09-26T22:07:42+00:00  2026-09-26 22:07:42 - oteldemo.AdService - Non-targeted ad request received, preparing random response. trace_id=6ae1df73997d45f9af58b40e6b5e3df2 span_id=68c2fe2d7773bf15 trace_flags=01 
+2026-09-26T22:07:44+00:00  2026-09-26 22:07:44 - oteldemo.AdService - no baggage found in context trace_id=372922ad24e784854bf81fbdb4a762f8 span_id=2f997981cdecbffd trace_flags=01 
+2026-09-26T22:07:44+00:00  2026-09-26 22:07:44 - oteldemo.AdService - Targeted ad request received for [travel] trace_id=372922ad24e784854bf81fbdb4a762f8 span_id=2f997981cdecbffd trace_flags=01 
+2026-09-26T22:07:44+00:00  2026-09-26 22:07:44 - oteldemo.AdService - no baggage found in context trace_id=cc16add5c2dff2f1004591672195c409 span_id=4971eb310c419f17 trace_flags=01 
+2026-09-26T22:07:44+00:00  2026-09-26 22:07:44 - oteldemo.AdService - Targeted ad request received for [travel] trace_id=cc16add5c2dff2f1004591672195c409 span_id=4971eb310c419f17 trace_flags=01 
+2026-09-26T22:07:48+00:00  2026-09-26 22:07:48 - oteldemo.AdService - no baggage found in context trace_id=d2b587dab7387285d3371670314b3aca span_id=42e1ddad016381e0 trace_flags=01 
+2026-09-26T22:07:48+00:00  2026-09-26 22:07:48 - oteldemo.AdService - Targeted ad request received for [accessories] trace_id=d2b587dab7387285d3371670314b3aca span_id=42e1ddad016381e0 trace_flags=01 
+2026-09-26T22:07:48+00:00  2026-09-26 22:07:48 - oteldemo.AdService - GetAds Failed with status Status{code=UNAVAILABLE, description=null, cause=null} trace_id=d2b587dab7387285d3371670314b3aca span_id=42e1ddad016381e0 trace_flags=01 
+2026-09-26T22:07:49+00:00  2026-09-26 22:07:49 - oteldemo.AdService - no baggage found in context trace_id=989afd2d462c6eeb23ee89a994aca9b7 span_id=d26ba4e37cb2bfc9 trace_flags=01 
+2026-09-26T22:07:49+00:00  2026-09-26 22:07:49 - oteldemo.AdService - Targeted ad request received for [accessories] trace_id=989afd2d462c6eeb23ee89a994aca9b7 span_id=d26ba4e37cb2bfc9 trace_flags=01 
+2026-09-26T22:07:50+00:00  2026-09-26 22:07:50 - oteldemo.AdService - no baggage found in context trace_id=f421e967ec0c77f8461be6b139c6de3e span_id=6c21b540e9add9e8 trace_flags=01 
+2026-09-26T22:07:50+00:00  2026-09-26 22:07:50 - oteldemo.AdService - Targeted ad request received for [travel] trace_id=f421e967ec0c77f8461be6b139c6de3e span_id=6c21b540e9add9e8 trace_flags=01 
+2026-09-26T22:07:54+00:00  2026-09-26 22:07:54 - oteldemo.AdService - no baggage found in context trace_id=8b82e83f7760c58fae42d5cc2a9d22b0 span_id=1329f328e0bcb730 trace_flags=01 
+2026-09-26T22:07:54+00:00  2026-09-26 22:07:54 - oteldemo.AdService - Targeted ad request received for [books] trace_id=8b82e83f7760c58fae42d5cc2a9d22b0 span_id=1329f328e0bcb730 trace_flags=01 
+2026-09-26T22:07:56+00:00  2026-09-26 22:07:56 - oteldemo.AdService - no baggage found in context trace_id=70332bb16b825098eb02b2b51d8c8db6 span_id=457efaf2bdc215ea trace_flags=01 
+2026-09-26T22:07:56+00:00  2026-09-26 22:07:56 - oteldemo.AdService - Targeted ad request received for [books] trace_id=70332bb16b825098eb02b2b51d8c8db6 span_id=457efaf2bdc215ea trace_flags=01 
+2026-09-26T22:08:01+00:00  2026-09-26 22:08:01 - oteldemo.AdService - no baggage found in context trace_id=3ba5f2ccdc47d315f10e2f110b9aec6a span_id=199cbf00d4502e38 trace_flags=01 
+2026-09-26T22:08:01+00:00  2026-09-26 22:08:01 - oteldemo.AdService - Targeted ad request received for [telescopes] trace_id=3ba5f2ccdc47d315f10e2f110b9aec6a span_id=199cbf00d4502e38 trace_flags=01 
+2026-09-26T22:08:04+00:00  2026-09-26 22:08:04 - oteldemo.AdService - no baggage found in context trace_id=02e8a494addbf9612d6c5178b856ef23 span_id=1905a52ea1af8174 trace_flags=01 
+2026-09-26T22:08:04+00:00  2026-09-26 22:08:04 - oteldemo.AdService - Targeted ad request received for [accessories] trace_id=02e8a494addbf9612d6c5178b856ef23 span_id=1905a52ea1af8174 trace_flags=01 
+2026-09-26T22:08:13+00:00  2026-09-26 22:08:13 - oteldemo.AdService - no baggage found in context trace_id=9730fb78198e3bfd2baf38f6f72ef654 span_id=fb2fa178bf538e2d trace_flags=01 
+2026-09-26T22:08:13+00:00  2026-09-26 22:08:13 - oteldemo.AdService - Targeted ad request received for [travel] trace_id=9730fb78198e3bfd2baf38f6f72ef654 span_id=fb2fa178bf538e2d trace_flags=01 
+2026-09-26T22:08:13+00:00  2026-09-26 22:08:13 - oteldemo.AdService - GetAds Failed with status Status{code=UNAVAILABLE, description=null, cause=null} trace_id=9730fb78198e3bfd2baf38f6f72ef654 span_id=fb2fa178bf538e2d trace_flags=01 
+2026-09-26T22:08:16+00:00  2026-09-26 22:08:16 - oteldemo.AdService - no baggage found in context trace_id=26131f024335a572190b9010d5d53a83 span_id=8d6280de403982e7 trace_flags=01 
+2026-09-26T22:08:16+00:00  2026-09-26 22:08:16 - oteldemo.AdService - Targeted ad request received for [assembly] trace_id=26131f024335a572190b9010d5d53a83 span_id=8d6280de403982e7 trace_flags=01 
+2026-09-26T22:08:19+00:00  2026-09-26 22:08:19 - oteldemo.AdService - no baggage found in context trace_id=3b6e9bde439eb01c328a7fa6610d5477 span_id=bd78248c9162bf25 trace_flags=01 
+2026-09-26T22:08:19+00:00  2026-09-26 22:08:19 - oteldemo.AdService - Targeted ad request received for [accessories] trace_id=3b6e9bde439eb01c328a7fa6610d5477 span_id=bd78248c9162bf25 trace_flags=01 
+2026-09-26T22:08:19+00:00  2026-09-26 22:08:19 - oteldemo.AdService - no baggage found in context trace_id=851cf6d261572d6871e4049997558638 span_id=89c93d6331a1d058 trace_flags=01 
+2026-09-26T22:08:19+00:00  2026-09-26 22:08:19 - oteldemo.AdService - Targeted ad request received for [binoculars] trace_id=851cf6d261572d6871e4049997558638 span_id=89c93d6331a1d058 trace_flags=01 
+2026-09-26T22:08:19+00:00  2026-09-26 22:08:19 - oteldemo.AdService - GetAds Failed with status Status{code=UNAVAILABLE, description=null, cause=null} trace_id=851cf6d261572d6871e4049997558638 span_id=89c93d6331a1d058 trace_flags=01 
+2026-09-26T22:08:27+00:00  2026-09-26 22:08:27 - oteldemo.AdService - no baggage found in context trace_id=fb0949998eb01648aef83310b4a05762 span_id=54e4624d45b86f3f trace_flags=01 
+2026-09-26T22:08:27+00:00  2026-09-26 22:08:27 - oteldemo.AdService - Targeted ad request received for [books] trace_id=fb0949998eb01648aef83310b4a05762 span_id=54e4624d45b86f3f trace_flags=01 
+2026-09-26T22:08:28+00:00  2026-09-26 22:08:28 - oteldemo.AdService - no baggage found in context trace_id=3f242d73ce8faaed6ef09876dc89434d span_id=5e0076d1889af70b trace_flags=01 
+2026-09-26T22:08:28+00:00  2026-09-26 22:08:28 - oteldemo.AdService - Targeted ad request received for [telescopes] trace_id=3f242d73ce8faaed6ef09876dc89434d span_id=5e0076d1889af70b trace_flags=01 
+2026-09-26T22:08:31+00:00  2026-09-26 22:08:31 - oteldemo.AdService - no baggage found in context trace_id=bded210a016ee7e36004d24d7111d7d0 span_id=949dab8c1f1e10b5 trace_flags=01 
+2026-09-26T22:08:31+00:00  2026-09-26 22:08:31 - oteldemo.AdService - Targeted ad request received for [assembly] trace_id=bded210a016ee7e36004d24d7111d7d0 span_id=949dab8c1f1e10b5 trace_flags=01 
+2026-09-26T22:08:34+00:00  2026-09-26 22:08:34 - oteldemo.AdService - no baggage found in context trace_id=2382e12424e77f7da0882d35048a3771 span_id=d64d5b94cfef7f08 trace_flags=01 
+2026-09-26T22:08:34+00:00  2026-09-26 22:08:34 - oteldemo.AdService - Targeted ad request received for [books] trace_id=2382e12424e77f7da0882d35048a3771 span_id=d64d5b94cfef7f08 trace_flags=01 
+2026-09-26T22:08:34+00:00  2026-09-26 22:08:34 - oteldemo.AdService - GetAds Failed with status Status{code=UNAVAILABLE, description=null, cause=null} trace_id=2382e12424e77f7da0882d35048a3771 span_id=d64d5b94cfef7f08 trace_flags=01 
+2026-09-26T22:08:38+00:00  2026-09-26 22:08:38 - oteldemo.AdService - no baggage found in context trace_id=e54c86ea05040954078949bb7679365b span_id=614985727ad88c44 trace_flags=01 
+2026-09-26T22:08:38+00:00  2026-09-26 22:08:38 - oteldemo.AdService - Targeted ad request received for [telescopes] trace_id=e54c86ea05040954078949bb7679365b span_id=614985727ad88c44 trace_flags=01 
+2026-09-26T22:08:46+00:00  2026-09-26 22:08:46 - oteldemo.AdService - no baggage found in context trace_id=402ab14456336452f335262c60a3e6e9 span_id=7b6dfff22f71888e trace_flags=01 
+2026-09-26T22:08:46+00:00  2026-09-26 22:08:46 - oteldemo.AdService - Non-targeted ad request received, preparing random response. trace_id=402ab14456336452f335262c60a3e6e9 span_id=7b6dfff22f71888e trace_flags=01 
+2026-09-26T22:08:47+00:00  2026-09-26 22:08:47 - oteldemo.AdService - no baggage found in context trace_id=8725953fc1ae59696155baf7471ae7c5 span_id=83a170316c495fb8 trace_flags=01 
+2026-09-26T22:08:47+00:00  2026-09-26 22:08:47 - oteldemo.AdService - Targeted ad request received for [accessories] trace_id=8725953fc1ae59696155baf7471ae7c5 span_id=83a170316c495fb8 trace_flags=01 
+2026-09-26T22:08:51+00:00  2026-09-26 22:08:51 - oteldemo.AdService - no baggage found in context trace_id=575598d5f479dae1b9a4bcf538241586 span_id=cb9b61ddaebb3831 trace_flags=01 
+2026-09-26T22:08:51+00:00  2026-09-26 22:08:51 - oteldemo.AdService - Targeted ad request received for [travel] trace_id=575598d5f479dae1b9a4bcf538241586 span_id=cb9b61ddaebb3831 trace_flags=01 
+2026-09-26T22:09:04+00:00  2026-09-26 22:09:04 - oteldemo.AdService - no baggage found in context trace_id=a177f1240fe0d03a27f880935c21f609 span_id=c8498d10409034ae trace_flags=01 
+2026-09-26T22:09:04+00:00  2026-09-26 22:09:04 - oteldemo.AdService - Targeted ad request received for [telescopes] trace_id=a177f1240fe0d03a27f880935c21f609 span_id=c8498d10409034ae trace_flags=01 
+2026-09-26T22:09:12+00:00  2026-09-26 22:09:12 - oteldemo.AdService - no baggage found in context trace_id=ea64ddcd3ee6297771a500702194af6e span_id=032c25e3541dd703 trace_flags=01 
+2026-09-26T22:09:12+00:00  2026-09-26 22:09:12 - oteldemo.AdService - Targeted ad request received for [telescopes] trace_id=ea64ddcd3ee6297771a500702194af6e span_id=032c25e3541dd703 trace_flags=01 
+2026-09-26T22:09:19+00:00  2026-09-26 22:09:19 - oteldemo.AdService - no baggage found in context trace_id=d4cb461ec7b4eb3db205f7b9ceefdb75 span_id=c0cb8ec66dc74e69 trace_flags=01 
+2026-09-26T22:09:19+00:00  2026-09-26 22:09:19 - oteldemo.AdService - Targeted ad request received for [assembly] trace_id=d4cb461ec7b4eb3db205f7b9ceefdb75 span_id=c0cb8ec66dc74e69 trace_flags=01 
+2026-09-26T22:09:20+00:00  2026-09-26 22:09:20 - oteldemo.AdService - no baggage found in context trace_id=bfe2b7086f7d1d78b67ee03919359ef9 span_id=f9c141c9199ba809 trace_flags=01 
+2026-09-26T22:09:20+00:00  2026-09-26 22:09:20 - oteldemo.AdService - Non-targeted ad request received, preparing random response. trace_id=bfe2b7086f7d1d78b67ee03919359ef9 span_id=f9c141c9199ba809 trace_flags=01 
+2026-09-26T22:09:22+00:00  2026-09-26 22:09:22 - oteldemo.AdService - no baggage found in context trace_id=f2c436e7f00065fc9594d87183bbd275 span_id=1e1fa84e085281a0 trace_flags=01 
+2026-09-26T22:09:22+00:00  2026-09-26 22:09:22 - oteldemo.AdService - Targeted ad request received for [assembly] trace_id=f2c436e7f00065fc9594d87183bbd275 span_id=1e1fa84e085281a0 trace_flags=01 
+2026-09-26T22:09:22+00:00  2026-09-26 22:09:22 - oteldemo.AdService - no baggage found in context trace_id=e60d8f332c1082ea195b93dc1d6a220c span_id=13b6e460543c8379 trace_flags=01 
+2026-09-26T22:09:22+00:00  2026-09-26 22:09:22 - oteldemo.AdService - Targeted ad request received for [travel] trace_id=e60d8f332c1082ea195b93dc1d6a220c span_id=13b6e460543c8379 trace_flags=01 
+2026-09-26T22:09:25+00:00  2026-09-26 22:09:25 - oteldemo.AdService - no baggage found in context trace_id=0691dc0ee6af5aee0ed69dc41d2e7895 span_id=1cf0d5887d81baff trace_flags=01 
+2026-09-26T22:09:25+00:00  2026-09-26 22:09:25 - oteldemo.AdService - Targeted ad request received for [books] trace_id=0691dc0ee6af5aee0ed69dc41d2e7895 span_id=1cf0d5887d81baff trace_flags=01 
+2026-09-26T22:09:31+00:00  2026-09-26 22:09:31 - oteldemo.AdService - no baggage found in context trace_id=05b82904dfd183b9b766b4bbb8fc2697 span_id=c80d3aab1e648e48 trace_flags=01 
+2026-09-26T22:09:31+00:00  2026-09-26 22:09:31 - oteldemo.AdService - Targeted ad request received for [travel] trace_id=05b82904dfd183b9b766b4bbb8fc2697 span_id=c80d3aab1e648e48 trace_flags=01 
+2026-09-26T22:09:43+00:00  2026-09-26 22:09:43 - oteldemo.AdService - no baggage found in context trace_id=a63ece6fcb9e0f20d2b75c533683a4ac span_id=b294791da40af07b trace_flags=01 
+2026-09-26T22:09:43+00:00  2026-09-26 22:09:43 - oteldemo.AdService - Targeted ad request received for [binoculars] trace_id=a63ece6fcb9e0f20d2b75c533683a4ac span_id=b294791da40af07b trace_flags=01 
+2026-09-26T22:09:43+00:00  2026-09-26 22:09:43 - oteldemo.AdService - GetAds Failed with status Status{code=UNAVAILABLE, description=null, cause=null} trace_id=a63ece6fcb9e0f20d2b75c533683a4ac span_id=b294791da40af07b trace_flags=01 
+2026-09-26T22:09:52+00:00  2026-09-26 22:09:52 - oteldemo.AdService - no baggage found in context trace_id=875aba5287eec97bfe9a798c0e3611f2 span_id=810a7a7daf0f4fe1 trace_flags=01 
+2026-09-26T22:09:52+00:00  2026-09-26 22:09:52 - oteldemo.AdService - Targeted ad request received for [binoculars] trace_id=875aba5287eec97bfe9a798c0e3611f2 span_id=810a7a7daf0f4fe1 trace_flags=01 
+2026-09-26T22:10:02+00:00  2026-09-26 22:10:02 - oteldemo.AdService - no baggage found in context trace_id=931518383d5eb548e8b9298b000c0528 span_id=ff4989d7e8276496 trace_flags=01 
+2026-09-26T22:10:02+00:00  2026-09-26 22:10:02 - oteldemo.AdService - Targeted ad request received for [binoculars] trace_id=931518383d5eb548e8b9298b000c0528 span_id=ff4989d7e8276496 trace_flags=01 
+2026-09-26T22:10:12+00:00  2026-09-26 22:10:12 - oteldemo.AdService - no baggage found in context trace_id=7dc96f3552973a9fe1e4814c647eaee8 span_id=f3efb907820e7e71 trace_flags=01 
+2026-09-26T22:10:12+00:00  2026-09-26 22:10:12 - oteldemo.AdService - Non-targeted ad request received, preparing random response. trace_id=7dc96f3552973a9fe1e4814c647eaee8 span_id=f3efb907820e7e71 trace_flags=01 
+2026-09-26T22:10:12+00:00  2026-09-26 22:10:12 - oteldemo.AdService - no baggage found in context trace_id=c3ede38ed8922692ead746ec00b1a11d span_id=22f12156ab88e46e trace_flags=01 
+2026-09-26T22:10:12+00:00  2026-09-26 22:10:12 - oteldemo.AdService - Targeted ad request received for [telescopes] trace_id=c3ede38ed8922692ead746ec00b1a11d span_id=22f12156ab88e46e trace_flags=01 
+2026-09-26T22:10:18+00:00  2026-09-26 22:10:18 - oteldemo.AdService - no baggage found in context trace_id=7671f74ec40a02235114976b831b7dfa span_id=0c65719e5dbd5a5d trace_flags=01 
+2026-09-26T22:10:18+00:00  2026-09-26 22:10:18 - oteldemo.AdService - Targeted ad request received for [telescopes] trace_id=7671f74ec40a02235114976b831b7dfa span_id=0c65719e5dbd5a5d trace_flags=01 
+2026-09-26T22:10:32+00:00  2026-09-26 22:10:32 - oteldemo.AdService - no baggage found in context trace_id=06f923d8fe8d54f10a787cf68a002749 span_id=eedfb698de6cc998 trace_flags=01 
+2026-09-26T22:10:32+00:00  2026-09-26 22:10:32 - oteldemo.AdService - Targeted ad request received for [books] trace_id=06f923d8fe8d54f10a787cf68a002749 span_id=eedfb698de6cc998 trace_flags=01 
+2026-09-26T22:10:37+00:00  2026-09-26 22:10:37 - oteldemo.AdService - no baggage found in context trace_id=200eafe898e0d6f5a49768a4fb87be5c span_id=c375ff21cb1cc044 trace_flags=01 
+2026-09-26T22:10:37+00:00  2026-09-26 22:10:37 - oteldemo.AdService - Targeted ad request received for [travel] trace_id=200eafe898e0d6f5a49768a4fb87be5c span_id=c375ff21cb1cc044 trace_flags=01 
+2026-09-26T22:10:45+00:00  2026-09-26 22:10:45 - oteldemo.AdService - no baggage found in context trace_id=d1dc45028daa9d94db83936022daac2a span_id=5574522e9152f5ad trace_flags=01 
+2026-09-26T22:10:45+00:00  2026-09-26 22:10:45 - oteldemo.AdService - Targeted ad request received for [telescopes] trace_id=d1dc45028daa9d94db83936022daac2a span_id=5574522e9152f5ad trace_flags=01 
+2026-09-26T22:10:46+00:00  2026-09-26 22:10:46 - oteldemo.AdService - no baggage found in context trace_id=f2740a1c89b40043af016c4eb60ad909 span_id=e138ca87ff702f84 trace_flags=01 
+2026-09-26T22:10:46+00:00  2026-09-26 22:10:46 - oteldemo.AdService - Targeted ad request received for [travel] trace_id=f2740a1c89b40043af016c4eb60ad909 span_id=e138ca87ff702f84 trace_flags=01 
+2026-09-26T22:10:48+00:00  2026-09-26 22:10:48 - oteldemo.AdService - no baggage found in context trace_id=dc0a2172e4b626f69d4c4678888f89ab span_id=49d63eaf15da8e89 trace_flags=01 
+2026-09-26T22:10:48+00:00  2026-09-26 22:10:48 - oteldemo.AdService - Targeted ad request received for [binoculars] trace_id=dc0a2172e4b626f69d4c4678888f89ab span_id=49d63eaf15da8e89 trace_flags=01 
+2026-09-26T22:10:48+00:00  2026-09-26 22:10:48 - oteldemo.AdService - GetAds Failed with status Status{code=UNAVAILABLE, description=null, cause=null} trace_id=dc0a2172e4b626f69d4c4678888f89ab span_id=49d63eaf15da8e89 trace_flags=01 
+2026-09-26T22:10:50+00:00  2026-09-26 22:10:50 - oteldemo.AdService - no baggage found in context trace_id=f1905fe6fc26c696f26ce271ac5d8ae3 span_id=1cb4ce45462e6a38 trace_flags=01 
+2026-09-26T22:10:50+00:00  2026-09-26 22:10:50 - oteldemo.AdService - Targeted ad request received for [books] trace_id=f1905fe6fc26c696f26ce271ac5d8ae3 span_id=1cb4ce45462e6a38 trace_flags=01 
+2026-09-26T22:10:50+00:00  2026-09-26 22:10:50 - oteldemo.AdService - GetAds Failed with status Status{code=UNAVAILABLE, description=null, cause=null} trace_id=f1905fe6fc26c696f26ce271ac5d8ae3 span_id=1cb4ce45462e6a38 trace_flags=01 
+2026-09-26T22:10:52+00:00  2026-09-26 22:10:52 - oteldemo.AdService - no baggage found in context trace_id=933b3443e5f6c504346a0fc3dc7e6ca8 span_id=82ea72fd07fe63aa trace_flags=01 
+2026-09-26T22:10:52+00:00  2026-09-26 22:10:52 - oteldemo.AdService - Targeted ad request received for [telescopes] trace_id=933b3443e5f6c504346a0fc3dc7e6ca8 span_id=82ea72fd07fe63aa trace_flags=01 
+2026-09-26T22:10:56+00:00  2026-09-26 22:10:56 - oteldemo.AdService - no baggage found in context trace_id=2ec24e19afce5597dde2e086867d15b9 span_id=ba38debf8d9104d9 trace_flags=01 
+2026-09-26T22:10:56+00:00  2026-09-26 22:10:56 - oteldemo.AdService - Targeted ad request received for [assembly] trace_id=2ec24e19afce5597dde2e086867d15b9 span_id=ba38debf8d9104d9 trace_flags=01 
+2026-09-26T22:11:04+00:00  2026-09-26 22:11:04 - oteldemo.AdService - no baggage found in context trace_id=6b6740f35e61c342b0182c7b9667d721 span_id=e8e767222dabb0ae trace_flags=01 
+2026-09-26T22:11:04+00:00  2026-09-26 22:11:04 - oteldemo.AdService - Targeted ad request received for [accessories] trace_id=6b6740f35e61c342b0182c7b9667d721 span_id=e8e767222dabb0ae trace_flags=01 
+2026-09-26T22:11:08+00:00  2026-09-26 22:11:08 - oteldemo.AdService - no baggage found in context trace_id=48db770c282ee7d61aa7a2a0e1abf46b span_id=faf78212da212651 trace_flags=01 
+2026-09-26T22:11:08+00:00  2026-09-26 22:11:08 - oteldemo.AdService - Non-targeted ad request received, preparing random response. trace_id=48db770c282ee7d61aa7a2a0e1abf46b span_id=faf78212da212651 trace_flags=01 
+2026-09-26T22:11:09+00:00  2026-09-26 22:11:09 - oteldemo.AdService - no baggage found in context trace_id=030436a9e2c04f0070ccca349ef62859 span_id=e66a21f052245c82 trace_flags=01 
+2026-09-26T22:11:09+00:00  2026-09-26 22:11:09 - oteldemo.AdService - Targeted ad request received for [accessories] trace_id=030436a9e2c04f0070ccca349ef62859 span_id=e66a21f052245c82 trace_flags=01 
+2026-09-26T22:11:16+00:00  2026-09-26 22:11:16 - oteldemo.AdService - no baggage found in context trace_id=d9d75b7acaccace49d76f24a4e49ed49 span_id=17f04c7de49dc9b7 trace_flags=01 
+2026-09-26T22:11:16+00:00  2026-09-26 22:11:16 - oteldemo.AdService - Targeted ad request received for [binoculars] trace_id=d9d75b7acaccace49d76f24a4e49ed49 span_id=17f04c7de49dc9b7 trace_flags=01 
+2026-09-26T22:11:26+00:00  2026-09-26 22:11:26 - oteldemo.AdService - no baggage found in context trace_id=b29b844e7a4146fcd462c9997fb508e6 span_id=c98f65ae6d212981 trace_flags=01 
+2026-09-26T22:11:26+00:00  2026-09-26 22:11:26 - oteldemo.AdService - Targeted ad request received for [telescopes] trace_id=b29b844e7a4146fcd462c9997fb508e6 span_id=c98f65ae6d212981 trace_flags=01 
+2026-09-26T22:11:31+00:00  2026-09-26 22:11:31 - oteldemo.AdService - no baggage found in context trace_id=d03707e2fc6cec3ae7bfcc426b398987 span_id=2b6179118b7385ae trace_flags=01 
+2026-09-26T22:11:31+00:00  2026-09-26 22:11:31 - oteldemo.AdService - Targeted ad request received for [books] trace_id=d03707e2fc6cec3ae7bfcc426b398987 span_id=2b6179118b7385ae trace_flags=01 
+2026-09-26T22:11:31+00:00  2026-09-26 22:11:31 - oteldemo.AdService - GetAds Failed with status Status{code=UNAVAILABLE, description=null, cause=null} trace_id=d03707e2fc6cec3ae7bfcc426b398987 span_id=2b6179118b7385ae trace_flags=01 
+2026-09-26T22:11:34+00:00  2026-09-26 22:11:34 - oteldemo.AdService - no baggage found in context trace_id=a7894e4dd4a8e37eedd360e202da3b5e span_id=08429f7bbb4dc7e1 trace_flags=01 
+2026-09-26T22:11:34+00:00  2026-09-26 22:11:34 - oteldemo.AdService - Targeted ad request received for [accessories] trace_id=a7894e4dd4a8e37eedd360e202da3b5e span_id=08429f7bbb4dc7e1 trace_flags=01 
+2026-09-26T22:11:39+00:00  2026-09-26 22:11:39 - oteldemo.AdService - no baggage found in context trace_id=61b9a2d54aedf017665e795539301de4 span_id=9831d8f56053231e trace_flags=01 
+2026-09-26T22:11:39+00:00  2026-09-26 22:11:39 - oteldemo.AdService - Targeted ad request received for [books] trace_id=61b9a2d54aedf017665e795539301de4 span_id=9831d8f56053231e trace_flags=01 
+2026-09-26T22:11:44+00:00  2026-09-26 22:11:44 - oteldemo.AdService - no baggage found in context trace_id=ea622437970c223807bb0d47118c3c9d span_id=d0b2724e09e0fb1c trace_flags=01 
+2026-09-26T22:11:44+00:00  2026-09-26 22:11:44 - oteldemo.AdService - Targeted ad request received for [books] trace_id=ea622437970c223807bb0d47118c3c9d span_id=d0b2724e09e0fb1c trace_flags=01 
+2026-09-26T22:11:44+00:00  2026-09-26 22:11:44 - oteldemo.AdService - GetAds Failed with status Status{code=UNAVAILABLE, description=null, cause=null} trace_id=ea622437970c223807bb0d47118c3c9d span_id=d0b2724e09e0fb1c trace_flags=01 
+2026-09-26T22:12:00+00:00  2026-09-26 22:12:00 - oteldemo.AdService - no baggage found in context trace_id=d6aa5379fdbc13003eb28fb5de6d88c3 span_id=d324b42db95dfe6a trace_flags=01 
+2026-09-26T22:12:00+00:00  2026-09-26 22:12:00 - oteldemo.AdService - Targeted ad request received for [accessories] trace_id=d6aa5379fdbc13003eb28fb5de6d88c3 span_id=d324b42db95dfe6a trace_flags=01 
+2026-09-26T22:12:02+00:00  2026-09-26 22:12:02 - oteldemo.AdService - no baggage found in context trace_id=3f585adec909a69957280ed4711f15f5 span_id=84dc84266568ea1b trace_flags=01 
+2026-09-26T22:12:02+00:00  2026-09-26 22:12:02 - oteldemo.AdService - Targeted ad request received for [travel] trace_id=3f585adec909a69957280ed4711f15f5 span_id=84dc84266568ea1b trace_flags=01 
+2026-09-26T22:12:07+00:00  2026-09-26 22:12:07 - oteldemo.AdService - no baggage found in context trace_id=34b14542333b4056328e5e5b7be163f8 span_id=d37c6fb6ae910149 trace_flags=01 
+2026-09-26T22:12:07+00:00  2026-09-26 22:12:07 - oteldemo.AdService - Targeted ad request received for [binoculars] trace_id=34b14542333b4056328e5e5b7be163f8 span_id=d37c6fb6ae910149 trace_flags=01 
+2026-09-26T22:12:12+00:00  2026-09-26 22:12:12 - oteldemo.AdService - no baggage found in context trace_id=0f6799af59b86d59b1ce97b7304833a4 span_id=f0127b9a0c58dff8 trace_flags=01 
+2026-09-26T22:12:12+00:00  2026-09-26 22:12:12 - oteldemo.AdService - Targeted ad request received for [telescopes] trace_id=0f6799af59b86d59b1ce97b7304833a4 span_id=f0127b9a0c58dff8 trace_flags=01 
+2026-09-26T22:12:14+00:00  2026-09-26 22:12:14 - oteldemo.AdService - no baggage found in context trace_id=d3a8fa99f09a3eb4a7c85e80a6b2be24 span_id=16b0130394e1943b trace_flags=01 
+2026-09-26T22:12:14+00:00  2026-09-26 22:12:14 - oteldemo.AdService - Targeted ad request received for [telescopes] trace_id=d3a8fa99f09a3eb4a7c85e80a6b2be24 span_id=16b0130394e1943b trace_flags=01 
+2026-09-26T22:12:22+00:00  2026-09-26 22:12:22 - oteldemo.AdService - no baggage found in context trace_id=33716fab4ef7823d9c879fb4bac2f08c span_id=4cbe6214db7abc90 trace_flags=01 
+2026-09-26T22:12:22+00:00  2026-09-26 22:12:22 - oteldemo.AdService - Targeted ad request received for [accessories] trace_id=33716fab4ef7823d9c879fb4bac2f08c span_id=4cbe6214db7abc90 trace_flags=01 
+2026-09-26T22:12:25+00:00  2026-09-26 22:12:25 - oteldemo.AdService - no baggage found in context trace_id=7079dc5a3243d4b155d89fa7ce709cfd span_id=72e88c2bfd431cf6 trace_flags=01 
+2026-09-26T22:12:25+00:00  2026-09-26 22:12:25 - oteldemo.AdService - Targeted ad request received for [travel] trace_id=7079dc5a3243d4b155d89fa7ce709cfd span_id=72e88c2bfd431cf6 trace_flags=01 
+2026-09-26T22:12:25+00:00  2026-09-26 22:12:25 - oteldemo.AdService - GetAds Failed with status Status{code=UNAVAILABLE, description=null, cause=null} trace_id=7079dc5a3243d4b155d89fa7ce709cfd span_id=72e88c2bfd431cf6 trace_flags=01 
+2026-09-26T22:12:27+00:00  2026-09-26 22:12:27 - oteldemo.AdService - no baggage found in context trace_id=9259b08c1c3011a5b0ca1a4d055fe8f6 span_id=b5a8c050592ed8c5 trace_flags=01 
+2026-09-26T22:12:27+00:00  2026-09-26 22:12:27 - oteldemo.AdService - Targeted ad request received for [books] trace_id=9259b08c1c3011a5b0ca1a4d055fe8f6 span_id=b5a8c050592ed8c5 trace_flags=01 
+2026-09-26T22:12:28+00:00  2026-09-26 22:12:28 - oteldemo.AdService - no baggage found in context trace_id=bd6c84bc1c844e2066c7960eb07ba76f span_id=640d25f3adab97f5 trace_flags=01 
+2026-09-26T22:12:28+00:00  2026-09-26 22:12:28 - oteldemo.AdService - Targeted ad request received for [telescopes] trace_id=bd6c84bc1c844e2066c7960eb07ba76f span_id=640d25f3adab97f5 trace_flags=01 
+2026-09-26T22:12:34+00:00  2026-09-26 22:12:34 - oteldemo.AdService - no baggage found in context trace_id=be55df3ef645d53d34130e05a47869eb span_id=3aece7fbd94dfff1 trace_flags=01 
+2026-09-26T22:12:34+00:00  2026-09-26 22:12:34 - oteldemo.AdService - Non-targeted ad request received, preparing random response. trace_id=be55df3ef645d53d34130e05a47869eb span_id=3aece7fbd94dfff1 trace_flags=01 
+2026-09-26T22:12:37+00:00  2026-09-26 22:12:37 - oteldemo.AdService - no baggage found in context trace_id=026a272e67ec007b14fd5e635fa121e4 span_id=dbe13b33e0358504 trace_flags=01 
+2026-09-26T22:12:37+00:00  2026-09-26 22:12:37 - oteldemo.AdService - Targeted ad request received for [travel] trace_id=026a272e67ec007b14fd5e635fa121e4 span_id=dbe13b33e0358504 trace_flags=01 
+2026-09-26T22:12:38+00:00  2026-09-26 22:12:38 - oteldemo.AdService - no baggage found in context trace_id=3e7889ba3d9e44f305eae37cc03766d7 span_id=86abc87b1d1ea8a7 trace_flags=01 
+2026-09-26T22:12:38+00:00  2026-09-26 22:12:38 - oteldemo.AdService - Targeted ad request received for [accessories] trace_id=3e7889ba3d9e44f305eae37cc03766d7 span_id=86abc87b1d1ea8a7 trace_flags=01 
+2026-09-26T22:12:44+00:00  2026-09-26 22:12:44 - oteldemo.AdService - no baggage found in context trace_id=ce5e1b5c288db67ae8a832fbf6ef2029 span_id=a6ef5bb36ddac73a trace_flags=01 
+2026-09-26T22:12:44+00:00  2026-09-26 22:12:44 - oteldemo.AdService - Targeted ad request received for [accessories] trace_id=ce5e1b5c288db67ae8a832fbf6ef2029 span_id=a6ef5bb36ddac73a trace_flags=01 
+2026-09-26T22:12:55+00:00  2026-09-26 22:12:55 - oteldemo.AdService - no baggage found in context trace_id=b74f847e66b56b37822ed6b102a2f9f8 span_id=20f2b1ccb685cb6a trace_flags=01 
+2026-09-26T22:12:55+00:00  2026-09-26 22:12:55 - oteldemo.AdService - Targeted ad request received for [books] trace_id=b74f847e66b56b37822ed6b102a2f9f8 span_id=20f2b1ccb685cb6a trace_flags=01 
+2026-09-26T22:12:59+00:00  2026-09-26 22:12:59 - oteldemo.AdService - no baggage found in context trace_id=521e0a8aa7de04760a17019b5a0171da span_id=9eb0426936579e14 trace_flags=01 
+2026-09-26T22:12:59+00:00  2026-09-26 22:12:59 - oteldemo.AdService - Targeted ad request received for [travel] trace_id=521e0a8aa7de04760a17019b5a0171da span_id=9eb0426936579e14 trace_flags=01 
+2026-09-26T22:13:03+00:00  2026-09-26 22:13:03 - oteldemo.AdService - no baggage found in context trace_id=4d3f970c9c02d8f635fd0e9dddd79203 span_id=fcaf3be930fe4454 trace_flags=01 
+2026-09-26T22:13:03+00:00  2026-09-26 22:13:03 - oteldemo.AdService - Targeted ad request received for [binoculars] trace_id=4d3f970c9c02d8f635fd0e9dddd79203 span_id=fcaf3be930fe4454 trace_flags=01 
+2026-09-26T22:13:12+00:00  2026-09-26 22:13:12 - oteldemo.AdService - no baggage found in context trace_id=afcd77ca7c71a6f9927aa5720ed9b130 span_id=bf7c146c56b8f104 trace_flags=01 
+2026-09-26T22:13:12+00:00  2026-09-26 22:13:12 - oteldemo.AdService - Targeted ad request received for [books] trace_id=afcd77ca7c71a6f9927aa5720ed9b130 span_id=bf7c146c56b8f104 trace_flags=01 
+2026-09-26T22:13:18+00:00  2026-09-26 22:13:18 - oteldemo.AdService - no baggage found in context trace_id=28279f472474ace1d5deb7d2b15c72bf span_id=ff31685d2808707e trace_flags=01 
+2026-09-26T22:13:18+00:00  2026-09-26 22:13:18 - oteldemo.AdService - Targeted ad request received for [telescopes] trace_id=28279f472474ace1d5deb7d2b15c72bf span_id=ff31685d2808707e trace_flags=01 
+2026-09-26T22:13:18+00:00  2026-09-26 22:13:18 - oteldemo.AdService - GetAds Failed with status Status{code=UNAVAILABLE, description=null, cause=null} trace_id=28279f472474ace1d5deb7d2b15c72bf span_id=ff31685d2808707e trace_flags=01 
+2026-09-26T22:13:20+00:00  2026-09-26 22:13:20 - oteldemo.AdService - no baggage found in context trace_id=fb6cd45d0e956423f3e28b3ae81dd40c span_id=8cd53e2dda908a99 trace_flags=01 
+2026-09-26T22:13:20+00:00  2026-09-26 22:13:20 - oteldemo.AdService - Non-targeted ad request received, preparing random response. trace_id=fb6cd45d0e956423f3e28b3ae81dd40c span_id=8cd53e2dda908a99 trace_flags=01 
+2026-09-26T22:13:20+00:00  2026-09-26 22:13:20 - oteldemo.AdService - GetAds Failed with status Status{code=UNAVAILABLE, description=null, cause=null} trace_id=fb6cd45d0e956423f3e28b3ae81dd40c span_id=8cd53e2dda908a99 trace_flags=01 
+2026-09-26T22:13:21+00:00  2026-09-26 22:13:21 - oteldemo.AdService - no baggage found in context trace_id=a09e2435cb29c5ed1acf0d61e08f6faa span_id=7ff5dee491f6dca1 trace_flags=01 
+2026-09-26T22:13:21+00:00  2026-09-26 22:13:21 - oteldemo.AdService - Targeted ad request received for [accessories] trace_id=a09e2435cb29c5ed1acf0d61e08f6faa span_id=7ff5dee491f6dca1 trace_flags=01 
+2026-09-26T22:13:23+00:00  2026-09-26 22:13:23 - oteldemo.AdService - no baggage found in context trace_id=399cdfde1fe313a56d17eca37ca90d03 span_id=a5c41afc3c186731 trace_flags=01 
+2026-09-26T22:13:23+00:00  2026-09-26 22:13:23 - oteldemo.AdService - Targeted ad request received for [telescopes] trace_id=399cdfde1fe313a56d17eca37ca90d03 span_id=a5c41afc3c186731 trace_flags=01 
+2026-09-26T22:13:25+00:00  2026-09-26 22:13:25 - oteldemo.AdService - no baggage found in context trace_id=bd2235f9a1977274116a08c2dbfcc5d4 span_id=5a448cd6cc5dd860 trace_flags=01 
+2026-09-26T22:13:25+00:00  2026-09-26 22:13:25 - oteldemo.AdService - Non-targeted ad request received, preparing random response. trace_id=bd2235f9a1977274116a08c2dbfcc5d4 span_id=5a448cd6cc5dd860 trace_flags=01 
+2026-09-26T22:13:30+00:00  2026-09-26 22:13:30 - oteldemo.AdService - no baggage found in context trace_id=78c09fbcc1195f219bfacc2d5365f09e span_id=eb31acd60d2ce308 trace_flags=01 
+2026-09-26T22:13:30+00:00  2026-09-26 22:13:30 - oteldemo.AdService - Targeted ad request received for [telescopes] trace_id=78c09fbcc1195f219bfacc2d5365f09e span_id=eb31acd60d2ce308 trace_flags=01 
+2026-09-26T22:13:30+00:00  2026-09-26 22:13:30 - oteldemo.AdService - no baggage found in context trace_id=6017b3987f5c2f29a5e04e92fd1a3fe5 span_id=880d219f1ee8ff67 trace_flags=01 
+2026-09-26T22:13:30+00:00  2026-09-26 22:13:30 - oteldemo.AdService - Targeted ad request received for [books] trace_id=6017b3987f5c2f29a5e04e92fd1a3fe5 span_id=880d219f1ee8ff67 trace_flags=01 
+2026-09-26T22:13:32+00:00  2026-09-26 22:13:32 - oteldemo.AdService - no baggage found in context trace_id=ff0af9f5c5c33126c8b2f1f5dff7300c span_id=a18fca6909ddddef trace_flags=01 
+2026-09-26T22:13:32+00:00  2026-09-26 22:13:32 - oteldemo.AdService - Targeted ad request received for [travel] trace_id=ff0af9f5c5c33126c8b2f1f5dff7300c span_id=a18fca6909ddddef trace_flags=01 
+2026-09-26T22:13:33+00:00  2026-09-26 22:13:33 - oteldemo.AdService - no baggage found in context trace_id=e7f831e1f197fe90e9987a79c4181bbd span_id=be688b3a7a53e741 trace_flags=01 
+2026-09-26T22:13:33+00:00  2026-09-26 22:13:33 - oteldemo.AdService - Targeted ad request received for [accessories] trace_id=e7f831e1f197fe90e9987a79c4181bbd span_id=be688b3a7a53e741 trace_flags=01 
+2026-09-26T22:13:35+00:00  2026-09-26 22:13:35 - oteldemo.AdService - no baggage found in context trace_id=7bc3102b2da91329d693ec8d450b2e2f span_id=1182bf538fb230d1 trace_flags=01 
+2026-09-26T22:13:35+00:00  2026-09-26 22:13:35 - oteldemo.AdService - Targeted ad request received for [travel] trace_id=7bc3102b2da91329d693ec8d450b2e2f span_id=1182bf538fb230d1 trace_flags=01 
+2026-09-26T22:13:40+00:00  2026-09-26 22:13:40 - oteldemo.AdService - no baggage found in context trace_id=3e2c33f185197d7159312bde8f022f0c span_id=8da50e1ac3e2933f trace_flags=01 
+2026-09-26T22:13:40+00:00  2026-09-26 22:13:40 - oteldemo.AdService - Targeted ad request received for [accessories] trace_id=3e2c33f185197d7159312bde8f022f0c span_id=8da50e1ac3e2933f trace_flags=01 
+2026-09-26T22:13:49+00:00  2026-09-26 22:13:49 - oteldemo.AdService - no baggage found in context trace_id=314b9804f7fb4474e41d238cb75196b7 span_id=5453575024939bce trace_flags=01 
+2026-09-26T22:13:49+00:00  2026-09-26 22:13:49 - oteldemo.AdService - Targeted ad request received for [travel] trace_id=314b9804f7fb4474e41d238cb75196b7 span_id=5453575024939bce trace_flags=01 
+2026-09-26T22:13:49+00:00  2026-09-26 22:13:49 - oteldemo.AdService - no baggage found in context trace_id=c54b4c38a93e21137430551644ff6d3c span_id=e7d921d776ce49d7 trace_flags=01 
+2026-09-26T22:13:49+00:00  2026-09-26 22:13:49 - oteldemo.AdService - Targeted ad request received for [binoculars] trace_id=c54b4c38a93e21137430551644ff6d3c span_id=e7d921d776ce49d7 trace_flags=01 
+2026-09-26T22:13:49+00:00  2026-09-26 22:13:49 - oteldemo.AdService - GetAds Failed with status Status{code=UNAVAILABLE, description=null, cause=null} trace_id=c54b4c38a93e21137430551644ff6d3c span_id=e7d921d776ce49d7 trace_flags=01 
+2026-09-26T22:13:52+00:00  2026-09-26 22:13:52 - oteldemo.AdService - no baggage found in context trace_id=3cdf4f9916479a63fd2c85310581ee03 span_id=9d8ba1a078442b38 trace_flags=01 
+2026-09-26T22:13:52+00:00  2026-09-26 22:13:52 - oteldemo.AdService - Non-targeted ad request received, preparing random response. trace_id=3cdf4f9916479a63fd2c85310581ee03 span_id=9d8ba1a078442b38 trace_flags=01 
+2026-09-26T22:13:53+00:00  2026-09-26 22:13:53 - oteldemo.AdService - no baggage found in context trace_id=9fca3814e6392d7cdc340122072eb470 span_id=4b4043f2a5af9b14 trace_flags=01 
+2026-09-26T22:13:53+00:00  2026-09-26 22:13:53 - oteldemo.AdService - Targeted ad request received for [accessories] trace_id=9fca3814e6392d7cdc340122072eb470 span_id=4b4043f2a5af9b14 trace_flags=01 
+2026-09-26T22:13:57+00:00  2026-09-26 22:13:57 - oteldemo.AdService - no baggage found in context trace_id=62b635bdd370c462d7b4ffc16c9808be span_id=e4190329289288cf trace_flags=01 
+2026-09-26T22:13:57+00:00  2026-09-26 22:13:57 - oteldemo.AdService - Non-targeted ad request received, preparing random response. trace_id=62b635bdd370c462d7b4ffc16c9808be span_id=e4190329289288cf trace_flags=01 
+2026-09-26T22:14:04+00:00  2026-09-26 22:14:04 - oteldemo.AdService - no baggage found in context trace_id=bcc6705e56765fe25cb31cada051df80 span_id=faf9bc299fd78548 trace_flags=01 
+2026-09-26T22:14:04+00:00  2026-09-26 22:14:04 - oteldemo.AdService - Targeted ad request received for [binoculars] trace_id=bcc6705e56765fe25cb31cada051df80 span_id=faf9bc299fd78548 trace_flags=01 
+2026-09-26T22:14:10+00:00  2026-09-26 22:14:10 - oteldemo.AdService - no baggage found in context trace_id=894b4087bef66b18a1d1217d214e453a span_id=78c9765bb8e57fad trace_flags=01 
+2026-09-26T22:14:10+00:00  2026-09-26 22:14:10 - oteldemo.AdService - Targeted ad request received for [accessories] trace_id=894b4087bef66b18a1d1217d214e453a span_id=78c9765bb8e57fad trace_flags=01 
+2026-09-26T22:14:11+00:00  2026-09-26 22:14:11 - oteldemo.AdService - no baggage found in context trace_id=686f72b3cd6da3008e1b37436b1fcdb9 span_id=d472c0c87c4dc8aa trace_flags=01 
+2026-09-26T22:14:11+00:00  2026-09-26 22:14:11 - oteldemo.AdService - Targeted ad request received for [books] trace_id=686f72b3cd6da3008e1b37436b1fcdb9 span_id=d472c0c87c4dc8aa trace_flags=01 
+2026-09-26T22:14:15+00:00  2026-09-26 22:14:15 - oteldemo.AdService - no baggage found in context trace_id=04a81f4f85a39a7849c2914a409bc374 span_id=1f4fc093fb641991 trace_flags=01 
+2026-09-26T22:14:15+00:00  2026-09-26 22:14:15 - oteldemo.AdService - Non-targeted ad request received, preparing random response. trace_id=04a81f4f85a39a7849c2914a409bc374 span_id=1f4fc093fb641991 trace_flags=01 
+2026-09-26T22:14:16+00:00  2026-09-26 22:14:16 - oteldemo.AdService - no baggage found in context trace_id=8a73bc8e41547a8af1dc09e17bb926a5 span_id=98c2a6baecbab646 trace_flags=01 
+2026-09-26T22:14:16+00:00  2026-09-26 22:14:16 - oteldemo.AdService - Non-targeted ad request received, preparing random response. trace_id=8a73bc8e41547a8af1dc09e17bb926a5 span_id=98c2a6baecbab646 trace_flags=01 
+2026-09-26T22:14:16+00:00  2026-09-26 22:14:16 - oteldemo.AdService - no baggage found in context trace_id=065368aef2af21a65c2b65a264f02aaa span_id=0d6a556273435226 trace_flags=01 
+2026-09-26T22:14:16+00:00  2026-09-26 22:14:16 - oteldemo.AdService - Targeted ad request received for [assembly] trace_id=065368aef2af21a65c2b65a264f02aaa span_id=0d6a556273435226 trace_flags=01 
+2026-09-26T22:14:17+00:00  2026-09-26 22:14:17 - oteldemo.AdService - no baggage found in context trace_id=59c039e002aa86a20d2db73d22e0959b span_id=be0127e9300add34 trace_flags=01 
+2026-09-26T22:14:17+00:00  2026-09-26 22:14:17 - oteldemo.AdService - Targeted ad request received for [books] trace_id=59c039e002aa86a20d2db73d22e0959b span_id=be0127e9300add34 trace_flags=01 
+2026-09-26T22:14:27+00:00  2026-09-26 22:14:27 - oteldemo.AdService - no baggage found in context trace_id=ecb290761c949f63ea52569878b1810b span_id=2cbd41cb17c488a4 trace_flags=01 
+2026-09-26T22:14:27+00:00  2026-09-26 22:14:27 - oteldemo.AdService - Targeted ad request received for [assembly] trace_id=ecb290761c949f63ea52569878b1810b span_id=2cbd41cb17c488a4 trace_flags=01 
+2026-09-26T22:14:27+00:00  2026-09-26 22:14:27 - oteldemo.AdService - GetAds Failed with status Status{code=UNAVAILABLE, description=null, cause=null} trace_id=ecb290761c949f63ea52569878b1810b span_id=2cbd41cb17c488a4 trace_flags=01 
+2026-09-26T22:14:32+00:00  2026-09-26 22:14:32 - oteldemo.AdService - no baggage found in context trace_id=11ab53bf428a537fb22d299090b7f324 span_id=e9f41bea797aa7bc trace_flags=01 
+2026-09-26T22:14:32+00:00  2026-09-26 22:14:32 - oteldemo.AdService - Targeted ad request received for [binoculars] trace_id=11ab53bf428a537fb22d299090b7f324 span_id=e9f41bea797aa7bc trace_flags=01 
+2026-09-26T22:14:41+00:00  2026-09-26 22:14:41 - oteldemo.AdService - no baggage found in context trace_id=a1b5cb1aa332af536637b4286337d4ae span_id=2c3f5a6baec281d8 trace_flags=01 
+2026-09-26T22:14:41+00:00  2026-09-26 22:14:41 - oteldemo.AdService - Non-targeted ad request received, preparing random response. trace_id=a1b5cb1aa332af536637b4286337d4ae span_id=2c3f5a6baec281d8 trace_flags=01 
+2026-09-26T22:14:44+00:00  2026-09-26 22:14:44 - oteldemo.AdService - no baggage found in context trace_id=57a4b25f764335db25b4844d23e1a877 span_id=75012d3ec3bc09eb trace_flags=01 
+2026-09-26T22:14:44+00:00  2026-09-26 22:14:44 - oteldemo.AdService - Targeted ad request received for [books] trace_id=57a4b25f764335db25b4844d23e1a877 span_id=75012d3ec3bc09eb trace_flags=01 
+2026-09-26T22:14:47+00:00  2026-09-26 22:14:47 - oteldemo.AdService - no baggage found in context trace_id=8132fc9da2e96ff5fdd34997c3e5affe span_id=7ba21c2f6466f215 trace_flags=01 
+2026-09-26T22:14:47+00:00  2026-09-26 22:14:47 - oteldemo.AdService - Targeted ad request received for [accessories] trace_id=8132fc9da2e96ff5fdd34997c3e5affe span_id=7ba21c2f6466f215 trace_flags=01 
+2026-09-26T22:14:54+00:00  2026-09-26 22:14:54 - oteldemo.AdService - no baggage found in context trace_id=e7d81698751270d182c137c3a1b6cae3 span_id=9f12abf436f0fe48 trace_flags=01 
+2026-09-26T22:14:54+00:00  2026-09-26 22:14:54 - oteldemo.AdService - Targeted ad request received for [assembly] trace_id=e7d81698751270d182c137c3a1b6cae3 span_id=9f12abf436f0fe48 trace_flags=01 
+2026-09-26T22:14:54+00:00  2026-09-26 22:14:54 - oteldemo.AdService - GetAds Failed with status Status{code=UNAVAILABLE, description=null, cause=null} trace_id=e7d81698751270d182c137c3a1b6cae3 span_id=9f12abf436f0fe48 trace_flags=01 
+2026-09-26T22:14:56+00:00  2026-09-26 22:14:56 - oteldemo.AdService - no baggage found in context trace_id=46c3541bd3a18a46703df87c7265534a span_id=6e0174e5eee6e960 trace_flags=01 
+2026-09-26T22:14:56+00:00  2026-09-26 22:14:56 - oteldemo.AdService - Non-targeted ad request received, preparing random response. trace_id=46c3541bd3a18a46703df87c7265534a span_id=6e0174e5eee6e960 trace_flags=01 
+2026-09-26T22:14:56+00:00  2026-09-26 22:14:56 - oteldemo.AdService - GetAds Failed with status Status{code=UNAVAILABLE, description=null, cause=null} trace_id=46c3541bd3a18a46703df87c7265534a span_id=6e0174e5eee6e960 trace_flags=01 
+2026-09-26T22:14:58+00:00  2026-09-26 22:14:58 - oteldemo.AdService - no baggage found in context trace_id=5e5e0206e9324cbb54ba2e443498b7b4 span_id=9a9b70e649d47f1b trace_flags=01 
+2026-09-26T22:14:58+00:00  2026-09-26 22:14:58 - oteldemo.AdService - Targeted ad request received for [binoculars] trace_id=5e5e0206e9324cbb54ba2e443498b7b4 span_id=9a9b70e649d47f1b trace_flags=01 
+2026-09-26T22:14:58+00:00  2026-09-26 22:14:58 - oteldemo.AdService - GetAds Failed with status Status{code=UNAVAILABLE, description=null, cause=null} trace_id=5e5e0206e9324cbb54ba2e443498b7b4 span_id=9a9b70e649d47f1b trace_flags=01 
+2026-09-26T22:15:16+00:00  2026-09-26 22:15:16 - oteldemo.AdService - no baggage found in context trace_id=94f59c958595f0ac714fa44e53a32188 span_id=8ca62072cee507b5 trace_flags=01 
+2026-09-26T22:15:16+00:00  2026-09-26 22:15:16 - oteldemo.AdService - Targeted ad request received for [books] trace_id=94f59c958595f0ac714fa44e53a32188 span_id=8ca62072cee507b5 trace_flags=01 
+2026-09-26T22:15:19+00:00  2026-09-26 22:15:19 - oteldemo.AdService - no baggage found in context trace_id=a7e26bf568adaca9beaf28798d41bd0b span_id=4bfb932a4dbc4c0a trace_flags=01 
+2026-09-26T22:15:19+00:00  2026-09-26 22:15:19 - oteldemo.AdService - Targeted ad request received for [binoculars] trace_id=a7e26bf568adaca9beaf28798d41bd0b span_id=4bfb932a4dbc4c0a trace_flags=01 
+2026-09-26T22:15:28+00:00  2026-09-26 22:15:28 - oteldemo.AdService - no baggage found in context trace_id=51cc0382e1fc6de72853b330c78286c8 span_id=fa8fe834949d7efd trace_flags=01 
+2026-09-26T22:15:28+00:00  2026-09-26 22:15:28 - oteldemo.AdService - Targeted ad request received for [telescopes] trace_id=51cc0382e1fc6de72853b330c78286c8 span_id=fa8fe834949d7efd trace_flags=01 
+2026-09-26T22:15:33+00:00  2026-09-26 22:15:33 - oteldemo.AdService - no baggage found in context trace_id=2d45336a16f4f13704582135dcce872b span_id=5e100096a7c6ff8f trace_flags=01 
+2026-09-26T22:15:33+00:00  2026-09-26 22:15:33 - oteldemo.AdService - Targeted ad request received for [telescopes] trace_id=2d45336a16f4f13704582135dcce872b span_id=5e100096a7c6ff8f trace_flags=01 
+2026-09-26T22:15:41+00:00  2026-09-26 22:15:41 - oteldemo.AdService - no baggage found in context trace_id=f32e7e9ab8efddd7ce86103d908002d0 span_id=4ae9e8f2079bc75a trace_flags=01 
+2026-09-26T22:15:41+00:00  2026-09-26 22:15:41 - oteldemo.AdService - Targeted ad request received for [travel] trace_id=f32e7e9ab8efddd7ce86103d908002d0 span_id=4ae9e8f2079bc75a trace_flags=01 
+2026-09-26T22:15:42+00:00  2026-09-26 22:15:42 - oteldemo.AdService - no baggage found in context trace_id=c3e9517a90e4822f1872858538712bb6 span_id=908d4c3bb5ce0a21 trace_flags=01 
+2026-09-26T22:15:42+00:00  2026-09-26 22:15:42 - oteldemo.AdService - Targeted ad request received for [travel] trace_id=c3e9517a90e4822f1872858538712bb6 span_id=908d4c3bb5ce0a21 trace_flags=01 
+2026-09-26T22:15:48+00:00  2026-09-26 22:15:48 - oteldemo.AdService - no baggage found in context trace_id=f1026ed2b9565ea1a38ef6d66d546dce span_id=accd8da04eb93473 trace_flags=01 
+2026-09-26T22:15:48+00:00  2026-09-26 22:15:48 - oteldemo.AdService - Targeted ad request received for [assembly] trace_id=f1026ed2b9565ea1a38ef6d66d546dce span_id=accd8da04eb93473 trace_flags=01 
+2026-09-26T22:15:53+00:00  2026-09-26 22:15:53 - oteldemo.AdService - no baggage found in context trace_id=91efe5651a2ca55ddf11891afd49eb64 span_id=dadeef41c80b2d4f trace_flags=01 
+2026-09-26T22:15:53+00:00  2026-09-26 22:15:53 - oteldemo.AdService - Targeted ad request received for [binoculars] trace_id=91efe5651a2ca55ddf11891afd49eb64 span_id=dadeef41c80b2d4f trace_flags=01 
+2026-09-26T22:16:03+00:00  2026-09-26 22:16:03 - oteldemo.AdService - no baggage found in context trace_id=6ebef702d4d34ed0386273ed66ab10a3 span_id=401e6dbfa3b9854f trace_flags=01 
+2026-09-26T22:16:03+00:00  2026-09-26 22:16:03 - oteldemo.AdService - Targeted ad request received for [accessories] trace_id=6ebef702d4d34ed0386273ed66ab10a3 span_id=401e6dbfa3b9854f trace_flags=01 
+2026-09-26T22:16:04+00:00  2026-09-26 22:16:04 - oteldemo.AdService - no baggage found in context trace_id=d4113cac49829f6f555e7ef96494823b span_id=ec3a35a6c80efe11 trace_flags=01 
+2026-09-26T22:16:04+00:00  2026-09-26 22:16:04 - oteldemo.AdService - Targeted ad request received for [assembly] trace_id=d4113cac49829f6f555e7ef96494823b span_id=ec3a35a6c80efe11 trace_flags=01 
+2026-09-26T22:16:06+00:00  2026-09-26 22:16:06 - oteldemo.AdService - no baggage found in context trace_id=c095c3548ef44229c7be86df0bdd8827 span_id=3b86bee1f51fb041 trace_flags=01 
+2026-09-26T22:16:06+00:00  2026-09-26 22:16:06 - oteldemo.AdService - Non-targeted ad request received, preparing random response. trace_id=c095c3548ef44229c7be86df0bdd8827 span_id=3b86bee1f51fb041 trace_flags=01 
+2026-09-26T22:16:08+00:00  2026-09-26 22:16:08 - oteldemo.AdService - no baggage found in context trace_id=2f9b81228fe3d3e9f53667f913d95257 span_id=7b4451bf1ee464f8 trace_flags=01 
+2026-09-26T22:16:08+00:00  2026-09-26 22:16:08 - oteldemo.AdService - Targeted ad request received for [books] trace_id=2f9b81228fe3d3e9f53667f913d95257 span_id=7b4451bf1ee464f8 trace_flags=01 
+2026-09-26T22:16:12+00:00  2026-09-26 22:16:12 - oteldemo.AdService - no baggage found in context trace_id=c57f168c4a21d05f9a962c256a2bea61 span_id=6bec07b08d250a9b trace_flags=01 
+2026-09-26T22:16:12+00:00  2026-09-26 22:16:12 - oteldemo.AdService - Non-targeted ad request received, preparing random response. trace_id=c57f168c4a21d05f9a962c256a2bea61 span_id=6bec07b08d250a9b trace_flags=01 
+2026-09-26T22:16:13+00:00  2026-09-26 22:16:13 - oteldemo.AdService - no baggage found in context trace_id=6c2d259fcbda5be4246578bbab82f46e span_id=84fbe2ccef9270f3 trace_flags=01 
+2026-09-26T22:16:13+00:00  2026-09-26 22:16:13 - oteldemo.AdService - Targeted ad request received for [binoculars] trace_id=6c2d259fcbda5be4246578bbab82f46e span_id=84fbe2ccef9270f3 trace_flags=01 
+2026-09-26T22:16:13+00:00  2026-09-26 22:16:13 - oteldemo.AdService - no baggage found in context trace_id=e244312ff66788ffa7b0e5d8da7a1298 span_id=8a99a25635d46190 trace_flags=01 
+2026-09-26T22:16:13+00:00  2026-09-26 22:16:13 - oteldemo.AdService - Targeted ad request received for [assembly] trace_id=e244312ff66788ffa7b0e5d8da7a1298 span_id=8a99a25635d46190 trace_flags=01 
+2026-09-26T22:16:14+00:00  2026-09-26 22:16:14 - oteldemo.AdService - no baggage found in context trace_id=89ebde49011da658ba193c01fc214380 span_id=5ff374fde1ffb854 trace_flags=01 
+2026-09-26T22:16:14+00:00  2026-09-26 22:16:14 - oteldemo.AdService - Targeted ad request received for [telescopes] trace_id=89ebde49011da658ba193c01fc214380 span_id=5ff374fde1ffb854 trace_flags=01 
+2026-09-26T22:16:17+00:00  2026-09-26 22:16:17 - oteldemo.AdService - no baggage found in context trace_id=bfb932fa80d3adb8b87fef8a44ce69e5 span_id=400bddad71875ac8 trace_flags=01 
+2026-09-26T22:16:17+00:00  2026-09-26 22:16:17 - oteldemo.AdService - Targeted ad request received for [binoculars] trace_id=bfb932fa80d3adb8b87fef8a44ce69e5 span_id=400bddad71875ac8 trace_flags=01 
+2026-09-26T22:16:27+00:00  2026-09-26 22:16:27 - oteldemo.AdService - no baggage found in context trace_id=0d22d521bba9bb3bf57d3a9ea03d635b span_id=0fb836c8d5fe3dab trace_flags=01 
+2026-09-26T22:16:27+00:00  2026-09-26 22:16:27 - oteldemo.AdService - Non-targeted ad request received, preparing random response. trace_id=0d22d521bba9bb3bf57d3a9ea03d635b span_id=0fb836c8d5fe3dab trace_flags=01 
+2026-09-26T22:16:32+00:00  2026-09-26 22:16:32 - oteldemo.AdService - no baggage found in context trace_id=4dfad099b15c236b943b9cf793c88da3 span_id=ec2804545ae4d7f2 trace_flags=01 
+2026-09-26T22:16:32+00:00  2026-09-26 22:16:32 - oteldemo.AdService - Targeted ad request received for [binoculars] trace_id=4dfad099b15c236b943b9cf793c88da3 span_id=ec2804545ae4d7f2 trace_flags=01 
+2026-09-26T22:16:33+00:00  2026-09-26 22:16:33 - oteldemo.AdService - no baggage found in context trace_id=b1cd8cc3de914123e92a59c4a114de0a span_id=d9089da87f21de71 trace_flags=01 
+2026-09-26T22:16:33+00:00  2026-09-26 22:16:33 - oteldemo.AdService - Non-targeted ad request received, preparing random response. trace_id=b1cd8cc3de914123e92a59c4a114de0a span_id=d9089da87f21de71 trace_flags=01 
+2026-09-26T22:16:33+00:00  2026-09-26 22:16:33 - oteldemo.AdService - no baggage found in context trace_id=c799e16b9dcb0dfec6afb1c3f57361d2 span_id=6cb71701b8a88535 trace_flags=01 
+2026-09-26T22:16:33+00:00  2026-09-26 22:16:33 - oteldemo.AdService - Targeted ad request received for [travel] trace_id=c799e16b9dcb0dfec6afb1c3f57361d2 span_id=6cb71701b8a88535 trace_flags=01 
+2026-09-26T22:16:33+00:00  2026-09-26 22:16:33 - oteldemo.AdService - GetAds Failed with status Status{code=UNAVAILABLE, description=null, cause=null} trace_id=c799e16b9dcb0dfec6afb1c3f57361d2 span_id=6cb71701b8a88535 trace_flags=01 
+2026-09-26T22:16:35+00:00  2026-09-26 22:16:35 - oteldemo.AdService - no baggage found in context trace_id=ef8ca00e54ec3b85b09677e214a6f65c span_id=45f6c52b7f03cdf2 trace_flags=01 
+2026-09-26T22:16:35+00:00  2026-09-26 22:16:35 - oteldemo.AdService - Targeted ad request received for [travel] trace_id=ef8ca00e54ec3b85b09677e214a6f65c span_id=45f6c52b7f03cdf2 trace_flags=01 
+2026-09-26T22:16:36+00:00  2026-09-26 22:16:36 - oteldemo.AdService - no baggage found in context trace_id=c12fa1528afb62fcc4364c5f4c2397de span_id=8c72a62170294faf trace_flags=01 
+2026-09-26T22:16:36+00:00  2026-09-26 22:16:36 - oteldemo.AdService - Non-targeted ad request received, preparing random response. trace_id=c12fa1528afb62fcc4364c5f4c2397de span_id=8c72a62170294faf trace_flags=01 
+2026-09-26T22:16:45+00:00  2026-09-26 22:16:45 - oteldemo.AdService - no baggage found in context trace_id=f94f1509728efc92917af18db43fbe5a span_id=caa19c7a7a9f0c9c trace_flags=01 
+2026-09-26T22:16:45+00:00  2026-09-26 22:16:45 - oteldemo.AdService - Targeted ad request received for [telescopes] trace_id=f94f1509728efc92917af18db43fbe5a span_id=caa19c7a7a9f0c9c trace_flags=01 
+2026-09-26T22:16:45+00:00  2026-09-26 22:16:45 - oteldemo.AdService - no baggage found in context trace_id=a606692e5427256d74c7f77223566963 span_id=0747f0ab7fd164e4 trace_flags=01 
+2026-09-26T22:16:45+00:00  2026-09-26 22:16:45 - oteldemo.AdService - Targeted ad request received for [binoculars] trace_id=a606692e5427256d74c7f77223566963 span_id=0747f0ab7fd164e4 trace_flags=01 
+2026-09-26T22:16:51+00:00  2026-09-26 22:16:51 - oteldemo.AdService - no baggage found in context trace_id=95878010f9fb733153380a8aa9753e60 span_id=6a0a01312e0b2c5b trace_flags=01 
+2026-09-26T22:16:51+00:00  2026-09-26 22:16:51 - oteldemo.AdService - Targeted ad request received for [binoculars] trace_id=95878010f9fb733153380a8aa9753e60 span_id=6a0a01312e0b2c5b trace_flags=01 
+2026-09-26T22:17:13+00:00  2026-09-26 22:17:13 - oteldemo.AdService - no baggage found in context trace_id=2d8e09f6d157fa632b5d956c8da404a1 span_id=3be622bf8b686bf6 trace_flags=01 
+2026-09-26T22:17:13+00:00  2026-09-26 22:17:13 - oteldemo.AdService - Targeted ad request received for [telescopes] trace_id=2d8e09f6d157fa632b5d956c8da404a1 span_id=3be622bf8b686bf6 trace_flags=01 
+2026-09-26T22:17:14+00:00  2026-09-26 22:17:14 - oteldemo.AdService - no baggage found in context trace_id=c5b3fa7c0bd112a1361033e59a6420a0 span_id=dfed29c3a9b44933 trace_flags=01 
+2026-09-26T22:17:14+00:00  2026-09-26 22:17:14 - oteldemo.AdService - Targeted ad request received for [books] trace_id=c5b3fa7c0bd112a1361033e59a6420a0 span_id=dfed29c3a9b44933 trace_flags=01 
+2026-09-26T22:17:17+00:00  2026-09-26 22:17:17 - oteldemo.AdService - no baggage found in context trace_id=8224af32a582574ece7f08943d5095c6 span_id=5876c147cf9c6f98 trace_flags=01 
+2026-09-26T22:17:17+00:00  2026-09-26 22:17:17 - oteldemo.AdService - Targeted ad request received for [telescopes] trace_id=8224af32a582574ece7f08943d5095c6 span_id=5876c147cf9c6f98 trace_flags=01 
+2026-09-26T22:17:17+00:00  2026-09-26 22:17:17 - oteldemo.AdService - GetAds Failed with status Status{code=UNAVAILABLE, description=null, cause=null} trace_id=8224af32a582574ece7f08943d5095c6 span_id=5876c147cf9c6f98 trace_flags=01 
+2026-09-26T22:17:19+00:00  2026-09-26 22:17:19 - oteldemo.AdService - no baggage found in context trace_id=6b088593728266f0100abbf4af6c4674 span_id=6bcc6761f695c675 trace_flags=01 
+2026-09-26T22:17:19+00:00  2026-09-26 22:17:19 - oteldemo.AdService - Targeted ad request received for [travel] trace_id=6b088593728266f0100abbf4af6c4674 span_id=6bcc6761f695c675 trace_flags=01 
+2026-09-26T22:17:34+00:00  2026-09-26 22:17:34 - oteldemo.AdService - no baggage found in context trace_id=4160fa9970e81054000b8b5b658365b8 span_id=016f1fae683d8d01 trace_flags=01 
+2026-09-26T22:17:34+00:00  2026-09-26 22:17:34 - oteldemo.AdService - Targeted ad request received for [telescopes] trace_id=4160fa9970e81054000b8b5b658365b8 span_id=016f1fae683d8d01 trace_flags=01 
+2026-09-26T22:17:39+00:00  2026-09-26 22:17:39 - oteldemo.AdService - no baggage found in context trace_id=8790a6e75dfa97c123cc2f59b8aec66a span_id=a9b7e57731bc6831 trace_flags=01 
+2026-09-26T22:17:39+00:00  2026-09-26 22:17:39 - oteldemo.AdService - Targeted ad request received for [telescopes] trace_id=8790a6e75dfa97c123cc2f59b8aec66a span_id=a9b7e57731bc6831 trace_flags=01 
+2026-09-26T22:17:46+00:00  2026-09-26 22:17:46 - oteldemo.AdService - no baggage found in context trace_id=aca6bbf05cf2fd1d5681131650e2b43d span_id=daa822b091ba9b8d trace_flags=01 
+2026-09-26T22:17:46+00:00  2026-09-26 22:17:46 - oteldemo.AdService - Targeted ad request received for [assembly] trace_id=aca6bbf05cf2fd1d5681131650e2b43d span_id=daa822b091ba9b8d trace_flags=01 
+2026-09-26T22:17:47+00:00  2026-09-26 22:17:47 - oteldemo.AdService - no baggage found in context trace_id=1a079e658ed2db6b75de0dfa2e858a68 span_id=e04c246113a14ad3 trace_flags=01 
+2026-09-26T22:17:47+00:00  2026-09-26 22:17:47 - oteldemo.AdService - Targeted ad request received for [travel] trace_id=1a079e658ed2db6b75de0dfa2e858a68 span_id=e04c246113a14ad3 trace_flags=01 
+2026-09-26T22:17:47+00:00  2026-09-26 22:17:47 - oteldemo.AdService - no baggage found in context trace_id=670c250176b72f2d75e9ba9c0a760eec span_id=56377311639bdcdb trace_flags=01 
+2026-09-26T22:17:47+00:00  2026-09-26 22:17:47 - oteldemo.AdService - Targeted ad request received for [books] trace_id=670c250176b72f2d75e9ba9c0a760eec span_id=56377311639bdcdb trace_flags=01 
+2026-09-26T22:17:50+00:00  2026-09-26 22:17:50 - oteldemo.AdService - no baggage found in context trace_id=ce50d741811c1b77c09a077591525d34 span_id=e569f5553afed193 trace_flags=01 
+2026-09-26T22:17:50+00:00  2026-09-26 22:17:50 - oteldemo.AdService - Targeted ad request received for [binoculars] trace_id=ce50d741811c1b77c09a077591525d34 span_id=e569f5553afed193 trace_flags=01 
+2026-09-26T22:18:00+00:00  2026-09-26 22:18:00 - oteldemo.AdService - no baggage found in context trace_id=ac7cfca51292d840ee0698ce7b2823c9 span_id=69d5722b654b000d trace_flags=01 
+2026-09-26T22:18:00+00:00  2026-09-26 22:18:00 - oteldemo.AdService - Targeted ad request received for [assembly] trace_id=ac7cfca51292d840ee0698ce7b2823c9 span_id=69d5722b654b000d trace_flags=01 
+2026-09-26T22:18:03+00:00  2026-09-26 22:18:03 - oteldemo.AdService - no baggage found in context trace_id=5cffa7e07b17260aeb0f47a18f5783f8 span_id=3ab1e10367d2df99 trace_flags=01 
+2026-09-26T22:18:03+00:00  2026-09-26 22:18:03 - oteldemo.AdService - Targeted ad request received for [travel] trace_id=5cffa7e07b17260aeb0f47a18f5783f8 span_id=3ab1e10367d2df99 trace_flags=01 
+2026-09-26T22:18:06+00:00  2026-09-26 22:18:06 - oteldemo.AdService - no baggage found in context trace_id=0576c188fa63606b2c4de0dd7a4e6703 span_id=2158850dd3145886 trace_flags=01 
+2026-09-26T22:18:06+00:00  2026-09-26 22:18:06 - oteldemo.AdService - Targeted ad request received for [assembly] trace_id=0576c188fa63606b2c4de0dd7a4e6703 span_id=2158850dd3145886 trace_flags=01 
+2026-09-26T22:18:06+00:00  2026-09-26 22:18:06 - oteldemo.AdService - no baggage found in context trace_id=3fc9735f89715d51456275d623f3b192 span_id=57e05de774c100b0 trace_flags=01 
+2026-09-26T22:18:06+00:00  2026-09-26 22:18:06 - oteldemo.AdService - Targeted ad request received for [binoculars] trace_id=3fc9735f89715d51456275d623f3b192 span_id=57e05de774c100b0 trace_flags=01 
+2026-09-26T22:18:06+00:00  2026-09-26 22:18:06 - oteldemo.AdService - GetAds Failed with status Status{code=UNAVAILABLE, description=null, cause=null} trace_id=3fc9735f89715d51456275d623f3b192 span_id=57e05de774c100b0 trace_flags=01 
+2026-09-26T22:18:07+00:00  2026-09-26 22:18:07 - oteldemo.AdService - no baggage found in context trace_id=7b380657c671f47f3626bca2a7daa7f6 span_id=f400cff158cd2cb0 trace_flags=01 
+2026-09-26T22:18:07+00:00  2026-09-26 22:18:07 - oteldemo.AdService - Targeted ad request received for [binoculars] trace_id=7b380657c671f47f3626bca2a7daa7f6 span_id=f400cff158cd2cb0 trace_flags=01 
+2026-09-26T22:18:09+00:00  2026-09-26 22:18:09 - oteldemo.AdService - no baggage found in context trace_id=fbb5015fa5ddcf94d96b4237be11317a span_id=27e2dccab20d0490 trace_flags=01 
+2026-09-26T22:18:09+00:00  2026-09-26 22:18:09 - oteldemo.AdService - Targeted ad request received for [travel] trace_id=fbb5015fa5ddcf94d96b4237be11317a span_id=27e2dccab20d0490 trace_flags=01 
+2026-09-26T22:18:12+00:00  2026-09-26 22:18:12 - oteldemo.AdService - no baggage found in context trace_id=20e4b775374fb562233b4500aeab6dca span_id=f71fd39f322d4083 trace_flags=01 
+2026-09-26T22:18:12+00:00  2026-09-26 22:18:12 - oteldemo.AdService - Targeted ad request received for [books] trace_id=20e4b775374fb562233b4500aeab6dca span_id=f71fd39f322d4083 trace_flags=01 

@@ -737,6 +737,10 @@ NARRATIVE_EVIDENCE_V2: dict[str, set[str]] = {
         "traces",
         "changes",
     },
+    # The culprit pages alone, late, near the line. Metrics carry the hovering ratio and the
+    # unchanged rate and latency; ad's log counts the failures against the requests; the trace ends
+    # at ad's own span with no message; runtime shows it up; change history answers "nothing".
+    "v2-ad-flag-failure": {"metrics", "runtime_metrics", "logs", "traces", "changes"},
     # Holdout. The page names the culprit and reads as down. Metrics carry its rate going to zero
     # and everyone else's holding; runtime shows it alive; its log names the address and the
     # refused connection, and fraud-detection's shows the topic still read; traces show none of
