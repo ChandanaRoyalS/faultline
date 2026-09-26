@@ -27,30 +27,40 @@ ground_truth:
     fault is the flag's value, and turning it off fixes it.
   category: feature_flag
 expected_evidence:
-  # A new design: nothing here is measured yet. Written before the first recording and checked
-  # against the bundle, as every v2 scenario's list has been, and corrected there.
-  - alerts: ServiceHighErrorRate on checkout, the storefront's callers following as their
-      thresholds allow; later ServiceNoTraffic on the services only a charged order reaches
-      (payment, email, accounting, fraud-detection), while shipping, quote and currency keep their
-      traffic
-  - metrics: checkout's error ratio rises and holds while its latency falls; payment's request
-      rate falls to zero with no errors of its own
-  - logs: checkout has no Loki stream; payment's log stops recording charges; the frontend's log
-      carries checkout's `failed to charge card` error
+  # Written before the first recording and checked against it (2026-09-26, t_inject 22:41:46,
+  # revert at +9:00). Checkout and payment never restarted (probe every 20 s).
+  - alerts: ServiceHighErrorRate on checkout alone (page 4m00s); at +8:00, a minute before the fix,
+      ServiceNoTraffic on payment, email, accounting and fraud-detection together - five alerts by
+      the fix and none after it; frontend (4.7%), frontend-proxy (4.9%) and load-generator (2.7%)
+      rise and stay under the line
+  - metrics: checkout's error ratio reaches 18% at +4 and holds at 20-22%, while its p95 holds at
+      32-41ms - failed orders end at the charge, in 14 to 70ms; payment's, email's, accounting's
+      and fraud-detection's rates fall to zero with no errors of their own; cart, product-catalog,
+      currency and quote keep their rates, and shipping falls from ~0.45 to ~0.25 spans a second
+      as its ship-order calls stop
+  - logs: checkout has no Loki stream; the frontend logs checkout's `failed to charge card - could
+      not charge the card - rpc error - code = Unavailable desc = name resolver error - produced
+      zero addresses` from seconds after onset, 1 to 10 a minute, 77 in all, none before or after;
+      payment's `Charge request received.` and `Transaction complete.` (5 to 12 a minute at rest)
+      stop from the first minute and resume within seconds of the fix
   - traces: checkout's PlaceOrder errors with that text; beneath it the cart read, the product
       lookups, the currency conversions and the shipping quote succeed, and the PaymentService
-      Charge client span errors with no payment span beneath it
-  - metrics: checkout's Go runtime series (9) report through the fault - the process is up
+      Charge client span errors in 0.0ms with `name resolver error - produced zero addresses` and
+      no payment span beneath it; nothing after the charge runs
+  - metrics: checkout's Go runtime series (9) report through the fault without a gap; its goroutine
+      count climbs from ~80 by about 30 a minute to 322 at the fix and stays at 354 nine minutes
+      after it, stack memory 1.7 to 2.6MB - a client built per charge and never closed
   - change: nothing recorded - no deploy, no configuration change, no restart; flagd reloads its
       own file and leaves no change record
-  - discriminator: checkout cannot reach payment, and payment is healthy and idle; nothing changed
-      in change history - not checkout's configuration, not payment - so the address checkout used
-      came from somewhere else, and on this world that is a feature flag
+  - discriminator: checkout cannot resolve the name it charges at while resolving its other
+      dependencies in the same request, and payment is healthy and idle; nothing changed in change
+      history - not checkout's configuration, not payment - so the address checkout used came from
+      somewhere else, and on this world that is a feature flag
 expected_remediation_class: config_revert
-rehearsed: false
+rehearsed: true
 alert_timeout_seconds: 900
 # Declared before recording, checked against the bundle after (T7.5). Checkout's reachability was
 # measured on the running world the same day for v2-checkout-currency-misconfig and confirmed by its
-# bundle: 9 Go runtime series, no Loki stream (checkout logs only over OTLP). If this bundle's
-# capture says otherwise, the declaration is corrected against it, not argued with.
+# bundle: 9 Go runtime series, no Loki stream (checkout logs only over OTLP). The first recording
+# confirmed it: 9 runtime series and 0 target log lines, and the recorder derived [runtime].
 answers_idle_or_absent: [runtime]

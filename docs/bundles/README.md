@@ -1,6 +1,6 @@
 # The bundles, rendered
 
-Every recorded rehearsal in this repository as a readable page — 27 in all: **24 runnable** (19 dev, 5 holdout) and **3 that could not fire** (3 dev).
+Every recorded rehearsal in this repository as a readable page — 28 in all: **25 runnable** (19 dev, 6 holdout) and **3 that could not fire** (3 dev).
 
 A bundle is what one rehearsal left behind — the manifest, the Prometheus captures,
 a slice of one service's logs, the exact queries, and the narrative a responder wrote
@@ -58,6 +58,7 @@ pre-registered entry.
 | [`recommendation-memory-squeeze`](recommendation-memory-squeeze.md) | `resource_exhaustion` | Recommendation service memory limit cut below what its runtime needs to start — 3 alerts over the window |
 | [`v2-accounting-kafka-misconfig`](v2-accounting-kafka-misconfig.md) | `bad_config` | Accounting pointed at a Kafka port where nothing listens — 1 alerts over the window |
 | [`v2-checkout-currency-misconfig`](v2-checkout-currency-misconfig.md) | `bad_config` | Checkout pointed at a currency host that does not exist — 11 alerts over the window |
+| [`v2-payment-flag-unreachable`](v2-payment-flag-unreachable.md) | `feature_flag` | A feature flag makes checkout charge cards at an address that does not exist — 5 alerts over the window |
 
 ---
 

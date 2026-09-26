@@ -4617,6 +4617,34 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-09-26: the twelfth v2 scenario, `v2-payment-flag-unreachable`, rehearsed and labeled -
+slot `v2/feature_flag-5` (holdout), first recording. Its fix leaves a residue no gate saw.***
+
+- **The page, as predicted in shape.** `ServiceHighErrorRate` on checkout alone at 4m00s, the
+  ratio holding at 20-22%; a minute before the fix, `ServiceNoTraffic` on payment, email,
+  accounting and fraud-detection together. Cart, product-catalog, currency and quote kept their
+  traffic. All clear 4m01s after the fix; nothing fired during recovery.
+- **Two predictions were wrong and are corrected.** The storefront did not page: frontend reached
+  4.7%, frontend-proxy 4.9%. And checkout's latency did not fall: its p95 held at 32-41ms, since
+  its orders fail after the shipping quote, not before it as the currency misconfig's did.
+- **The evidence.** The Charge client span fails in 0.0ms with `name resolver error: produced zero
+  addresses` and no payment span beneath it; the frontend logs checkout's error 77 times, 1 to 10
+  a minute; payment's charges stop from the first minute and resume within seconds of the fix.
+  Checkout never restarted and its runtime series had no gap.
+- **The residue (Q106, second instance).** The flag's charge clients are never closed: checkout's
+  goroutines went from about 80 to 322 by the fix and were still 354 nine minutes after it, stack
+  memory 1.7 to 2.6MB. Orders were normal and no alert could see it; checkout has no log stream, so
+  Q106's proposed log check would miss it too. **Checkout is restarted by hand before the next
+  recording (decided).** The ground truth's "turning it off fixes it" stands: the fault ends with
+  the flag, unlike the queue flag's accounting, and the residue is recorded in the narrative.
+- **Distinct in the row on (a)**, and from `v2-checkout-currency-misconfig` on (a) and (b).
+- **Holdout.** The bundle is under `artifacts/holdout/`, pinned in `tests/test_freeze.py`'s holdout
+  origins, and in no corpus.
+- **How it was recorded.** On AC power, grafana restarted and settled first, under `caffeinate`
+  with the pre-state guard. The host did not sleep.
+- **Next: the row's last slot**, `v2-recommendation-flag-cache-leak` (`v2/feature_flag-6`,
+  holdout), after checkout's restart.
+
 ***2026-09-26: the eleventh v2 scenario, `v2-ad-flag-failure`, rehearsed and labeled - slot
 `v2/feature_flag-4` (dev), first recording. The `feature_flag` row's dev slots are full.***
 

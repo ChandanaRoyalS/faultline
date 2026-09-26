@@ -1,17 +1,63 @@
----
-origin: scenario:v2-payment-flag-unreachable
-split: holdout
-fault_class: feature_flag
-recorded_from: 2026-09-26T22:41:46+00:00
-capability: cap:d2b243e0
-onset_to_page: 4m00s
-page_to_fix: 5m00s
-fix_to_all_clear: 4m01s
----
-
 # A feature flag makes checkout charge cards at an address that does not exist
 
-## What was observed
+## The scenario
+
+| | |
+|---|---|
+| scenario | `v2-payment-flag-unreachable` |
+| fault class | **`feature_flag`** |
+| expected remediation | `config_revert` |
+| split | `holdout` |
+| injected at | `checkout` via `v2-payment-flag-unreachable` |
+| time to page | 4m00s |
+| steady state captured | 300s |
+| capture window | 2026-09-26T22:36:46+00:00 → 2026-09-26T22:56:47+00:00 |
+
+The clock below runs from the moment the fault went in.
+
+| | |
+|---|---|
+| `t_inject` | T+0m00s |
+| first alert firing | T+4m00s |
+| `t_revert` | T+9m00s |
+| all clear | T+13m01s |
+
+## What fired, and when
+
+| when | service | alert | firing for | |
+|---|---|---|---:|---|
+| T+4m00s | `checkout` | ServiceHighErrorRate | 9.0 min | **paged** |
+| T+8m00s | `accounting` | ServiceNoTraffic | 2.0 min | joined later |
+| T+8m00s | `email` | ServiceNoTraffic | 2.0 min | joined later |
+| T+8m00s | `fraud-detection` | ServiceNoTraffic | 1.0 min | joined later |
+| T+8m00s | `payment` | ServiceNoTraffic | 2.0 min | joined later |
+
+## What the bundle contains
+
+| capture | query |
+|---|---|
+| `metrics/alerts-firing.json` | `ALERTS{alertstate="firing"}` |
+| `metrics/call-rate.json` | `sum by(service_name) (rate(traces_span_metrics_calls_total[5m]))` |
+| `metrics/error-ratio.json` | `sum by(service_name) (rate(traces_span_metrics_calls_total{status_code="STATUS_CODE_ERROR"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total[5m]))` |
+| `metrics/latency-p95.json` | `histogram_quantile(0.95, sum by(service_name, le) (rate(traces_span_metrics_duration_milliseconds_bucket{span_kind!="SPAN_KIND_INTERNAL"}[5m])))` |
+| `metrics/runtime.json` | `{__name__=~"go_.*|dotnet_.*|jvm_.*|process_.*|v8js_.*|nodejs_.*",service_name="checkout"}` |
+
+`logs/checkout.txt` — 9 lines.
+
+## The incident record
+
+Written from the responder's chair, by someone who did not know the fault class
+or that anything had been injected. This text is also corpus material, which is
+why it never names the injector.
+
+**It keeps its own clock.** The table above is measured from the injection, which
+is the only origin the manifest records; a narrative's `T+` offsets are the
+responder's own and start wherever that responder started counting — usually the
+page, sometimes the injection, sometimes an event in the logs. The same moment can
+therefore carry two different offsets on this page. The absolute timestamps in the
+bundle are the tiebreak.
+
+### What was observed
 
 The page was one alert, `ServiceHighErrorRate` on **checkout**, 4m00s after the trouble started.
 
@@ -29,7 +75,7 @@ quotes and lost its other work, falling from about 0.45 spans a second to about 
 
 Five alerts on five services by the fix. Nothing fired after it.
 
-## What was checked
+### What was checked
 
 **Checkout's own log, the service on the page.** It has none the tools can read. Its errors
 reach a log only through the storefront, which receives them.
@@ -78,7 +124,7 @@ restart, on checkout, on payment or anywhere else. Checkout's configured address
 not changed, and payment was where it had always been. The address checkout used for the charge
 came from somewhere that changes without a record, and on this world that is a feature flag.
 
-## Root cause
+### Root cause
 
 The `paymentUnreachable` feature flag was turned on in the flag service. With it on, checkout
 builds a new payment client for each charge on an address that does not exist, instead of using
@@ -88,7 +134,7 @@ and was never called. Each of those clients stayed open and kept its goroutines,
 accumulated them for as long as the flag was on. Nothing was deployed or reconfigured, and
 checkout behaved exactly as written. The fault was the flag's value.
 
-## Resolution
+### Resolution
 
 The flag was turned back off. The flag service picks up the change on its own, so nothing was
 restarted or redeployed. Charges resumed within the minute: payment logged its first charge seconds
@@ -103,7 +149,7 @@ was restarted before the world was used again.
 
 Class of fix: **config_revert**. One setting was wrong and it was set back.
 
-## Detection notes
+### Detection notes
 
 - Onset to first page: **4m00s**. Services on the page: **one**, checkout, the service whose code
   reads the flag. By the fix: **five**.
@@ -124,3 +170,7 @@ Class of fix: **config_revert**. One setting was wrong and it was set back.
 - **An empty change history is not "nothing changed".** When a caller reaches a healthy service at
   a different address than it is configured with, and nothing is recorded, look for the switch
   that can change its behaviour without a deploy.
+
+---
+
+Rendered from [`evals/scenarios/artifacts/holdout/v2-payment-flag-unreachable/`](../../evals/scenarios/artifacts/holdout/v2-payment-flag-unreachable/) by `faultline-render`. [All bundles](README.md).
