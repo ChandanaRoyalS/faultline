@@ -18,35 +18,45 @@ injection:
     variant: "on"
 ground_truth:
   root_cause: >
-    The kafkaQueueProblems feature flag was switched on in the flag service. With it on,
-    fraud-detection sleeps a second before processing each order it reads from Kafka, and checkout
-    publishes every placed order a hundred extra times to the same topic. The consumer falls
-    further behind every second while orders keep being placed successfully. Kafka is healthy and
-    nothing was deployed or reconfigured; no change record exists. The fault is the flag's value,
-    and turning it off fixes it.
+    The kafkaQueueProblems feature flag was switched on in the flag service, and it acts on both
+    sides of the orders topic. Fraud-detection sleeps a second before each order it reads, so it
+    consumes one record a second, and checkout publishes every placed order a hundred extra times,
+    so the consumer falls further behind every second while orders keep being placed. Accounting,
+    the topic's other consumer, receives every duplicate; the duplicates leave its long-lived
+    database session in a state where every save fails, and from seconds after onset it refuses
+    every order it reads, originals included, with no error span and no alert. Turning the flag off
+    ends the lag, but accounting keeps refusing orders until it is restarted, and the orders it
+    refused are never recorded. Kafka is healthy and nothing was deployed or reconfigured; no
+    change record exists. The fault is the flag's value; the fix is to turn it off and restart
+    accounting.
   category: feature_flag
 expected_evidence:
-  # A new design: nothing here is measured yet. Written before the first recording and checked
-  # against the bundle, as every v2 scenario's list has been, and corrected there. Measured at
-  # rest (2026-09-26): fraud-detection's `orders receive` p95 98ms and `orders process` p95 1.9ms
-  # at 0.15/s each; the latency rule's line is 250ms.
-  - alerts: not predicted as a shape. If fraud-detection's per-record `orders process` span covers
-      the sleep, ServiceHighLatency on fraud-detection; no page at all blocks the scenario
-  - metrics: fraud-detection's consume rate is capped near one record a second while the topic
-      receives far more; accounting's consumer traffic multiplies with the duplicates; checkout's
-      orders keep completing
+  # Written before the first recording and corrected against it (2026-09-26, t_inject 20:59:40,
+  # revert at +9:16; superseded when this was re-recorded). The first recording paged, so by the
+  # candidate list's rule it is a scenario. It also showed what the source reading had not: the
+  # flag breaks accounting until a restart, so the ground truth was corrected and the scenario is
+  # re-recorded. The injector's revert stays flag-only (what an operator does); accounting is
+  # restarted by the recording routine afterwards, outside the recorded window.
+  - alerts: ServiceHighLatency on fraud-detection alone (first recording 4m16s); nothing else during
+      the fault or after the fix - accounting's failures raise no alert at all
+  - metrics: fraud-detection's p95 goes from ~88ms to ~1,380ms and its consume rate pins at exactly
+      one record a second; after the fix it drains the backlog at 34-45 a second; accounting's
+      traffic multiplies (~0.45 to ~31 spans a second) with zero errors and its p95 falls; the
+      checkout path is unchanged
   - logs: fraud-detection logs `FeatureFlag 'kafkaQueueProblems' is enabled, sleeping 1 second`
-      before each record, and its `Consumed record` counter climbs by one a second; accounting logs
-      each duplicate it refuses
-  - traces: fraud-detection's `orders process` spans last about a second each; checkout's publish
-      is followed by the overload it logs
-  - metrics: fraud-detection's JVM runtime series (51, by service_name) report through the fault -
-      the process is up
+      once a second and `Consumed record with orderId` for the same order id over and over;
+      accounting logs `Order parsing failed` for every order it reads - an identity conflict on
+      OrderEntity for the duplicates, then `Unexpected entry.EntityState - Detached` from SaveChanges -
+      and keeps doing so after the fix, one per order, until it is restarted
+  - traces: fraud-detection's `orders process` spans last ~1,003ms each; accounting's
+      order-consumed spans carry no error and no database call; checkout's orders complete
+  - metrics: fraud-detection's JVM runtime series (51) report through the fault - the process is up
   - change: nothing recorded - no deploy, no configuration change, no restart; flagd reloads its
       own file and leaves no change record
-  - discriminator: nothing is failing and nothing changed in change history; a consumer that has
-      slowed to exactly one record a second and a topic receiving each order many times are the two
-      halves of one flag, named in both services' logs
+  - discriminator: the page is latency on one consumer, and its log names the flag; the same order
+      id consumed again and again says the topic is flooded; accounting's log says it is refusing
+      every order, silently, and it still is after the flag is off - the fix is the flag and a
+      restart of accounting, and the orders refused in between are lost
 expected_remediation_class: config_revert
 rehearsed: false
 alert_timeout_seconds: 900
