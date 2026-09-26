@@ -532,6 +532,23 @@ CATALOG: tuple[FaultDefinition, ...] = _validated(
             params={"flag": "adFailure", "variant": "on"},
         ),
         FaultDefinition(
+            id="v2-payment-flag-unreachable",
+            fault_class=FaultClass.FEATURE_FLAG,
+            target="checkout",
+            world="v2",
+            description=(
+                "Flip flagd's paymentUnreachable to on. Checkout charges the card through a client "
+                "built on badAddress:50051 instead of payment's address, so every order fails at "
+                "the charge while payment stays healthy and idle. T7.1's feature_flag row 5 "
+                "(holdout)."
+            ),
+            # Read at source (checkout/main.go chargeCard, 2026-09-26). The target is checkout, not
+            # payment: checkout's code reads the flag and swaps the address, and payment is never
+            # called. The id is the candidate list's. Each flagged charge builds a new client that
+            # is never closed, so checkout's memory is probed at rehearsal.
+            params={"flag": "paymentUnreachable", "variant": "on"},
+        ),
+        FaultDefinition(
             id="v2-product-catalog-freeze",
             fault_class=FaultClass.PROCESS_FREEZE,
             target="product-catalog",

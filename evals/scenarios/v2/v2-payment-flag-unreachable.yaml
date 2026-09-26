@@ -1,0 +1,56 @@
+# v2/feature_flag-5 (HOLDOUT) - see SPLIT-V2.md. Slot allocated before authoring; do not move.
+# Nothing may be tuned against this scenario (ADR-0008): its bundle lands under artifacts/holdout/
+# and never reaches a corpus.
+#
+# Candidate order and eligibility: docs/design/t7.1-candidates.md, feature_flag row 5 - a new
+# design. The flag acts in checkout's code, so the target is checkout; payment is never called.
+# The id is the candidate list's.
+id: v2-payment-flag-unreachable
+title: A feature flag makes checkout charge cards at an address that does not exist
+fault_class: feature_flag
+split: holdout
+slot: v2/feature_flag-5
+world: v2
+injection:
+  target: checkout
+  method: v2-payment-flag-unreachable
+  params:
+    flag: "paymentUnreachable"
+    variant: "on"
+ground_truth:
+  root_cause: >
+    The paymentUnreachable feature flag was switched on in the flag service. With it on, checkout
+    charges the card through a client built on an address that does not exist instead of the
+    payment service's, so every order fails at the charge, after the cart, the product lookups,
+    the currency conversions and the shipping quote have succeeded. The payment service is healthy
+    and is never called. Nothing was deployed or reconfigured and no change record exists; the
+    fault is the flag's value, and turning it off fixes it.
+  category: feature_flag
+expected_evidence:
+  # A new design: nothing here is measured yet. Written before the first recording and checked
+  # against the bundle, as every v2 scenario's list has been, and corrected there.
+  - alerts: ServiceHighErrorRate on checkout, the storefront's callers following as their
+      thresholds allow; later ServiceNoTraffic on the services only a charged order reaches
+      (payment, email, accounting, fraud-detection), while shipping, quote and currency keep their
+      traffic
+  - metrics: checkout's error ratio rises and holds while its latency falls; payment's request
+      rate falls to zero with no errors of its own
+  - logs: checkout has no Loki stream; payment's log stops recording charges; the frontend's log
+      carries checkout's `failed to charge card` error
+  - traces: checkout's PlaceOrder errors with that text; beneath it the cart read, the product
+      lookups, the currency conversions and the shipping quote succeed, and the PaymentService
+      Charge client span errors with no payment span beneath it
+  - metrics: checkout's Go runtime series (9) report through the fault - the process is up
+  - change: nothing recorded - no deploy, no configuration change, no restart; flagd reloads its
+      own file and leaves no change record
+  - discriminator: checkout cannot reach payment, and payment is healthy and idle; nothing changed
+      in change history - not checkout's configuration, not payment - so the address checkout used
+      came from somewhere else, and on this world that is a feature flag
+expected_remediation_class: config_revert
+rehearsed: false
+alert_timeout_seconds: 900
+# Declared before recording, checked against the bundle after (T7.5). Checkout's reachability was
+# measured on the running world the same day for v2-checkout-currency-misconfig and confirmed by its
+# bundle: 9 Go runtime series, no Loki stream (checkout logs only over OTLP). If this bundle's
+# capture says otherwise, the declaration is corrected against it, not argued with.
+answers_idle_or_absent: [runtime]
