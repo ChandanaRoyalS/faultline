@@ -27,6 +27,7 @@ import gzip
 import io
 import json
 import shutil
+import signal
 import subprocess
 import sys
 import time
@@ -187,6 +188,31 @@ def injector(*args: str) -> str:
             f"faultline-inject {' '.join(args)} failed:\n{result.stdout}{result.stderr}"
         )
     return result.stdout
+
+
+def _raise_keyboard_interrupt(signum: int, frame: object) -> None:
+    """SIGTERM takes the same path as Ctrl-C, so the revert below runs for both."""
+    raise KeyboardInterrupt(f"signal {signum}")
+
+
+def revert_after_interruption(fault_id: str) -> None:
+    """Take a fault back off after a recording died with it live, and say so loudly (Q103).
+
+    Runs from an `except BaseException` in the recorder, so it must not raise over the original
+    error: a failed revert is printed with the command that finishes the job, and the original
+    interruption propagates.
+    """
+    print(f"\n!! the recording stopped with {fault_id} live - reverting it now", flush=True)
+    try:
+        print(injector("stop", fault_id).rstrip(), flush=True)
+        print(f"!! {fault_id} reverted; nothing was recorded", flush=True)
+    except BaseException as exc:
+        print(
+            f"!! REVERT FAILED: {exc}\n"
+            "   the fault is still live. Run, with the same world set:\n"
+            "   FAULTLINE_TOOLS_WORLD=<world> uv run faultline-inject stop --all",
+            flush=True,
+        )
 
 
 def wait_until(
@@ -1321,28 +1347,40 @@ def _rehearse_locked(
     t_inject = now()
     print(injector("start", fault_id).rstrip())
 
-    # Explicit flag beats the scenario's hint beats the global default.
-    wait_for_alert = (
-        alert_timeout
-        if alert_timeout is not None
-        else (scenario.alert_timeout_seconds or DEFAULT_ALERT_TIMEOUT)
-    )
-    if wait_for_alert != DEFAULT_ALERT_TIMEOUT:
-        print(
-            f"  waiting up to {wait_for_alert}s for an alert (default is {DEFAULT_ALERT_TIMEOUT}s)"
+    # **Everything between start and stop reverts on the way out** (Q103, 2026-09-25). An
+    # interrupted recording - Ctrl-C, SIGTERM, an exception in the alert wait or the dwell - left a
+    # payment fault live for 11m52s with no process and no lock. The recording is lost either way;
+    # the world must not be.
+    previous_sigterm = signal.signal(signal.SIGTERM, _raise_keyboard_interrupt)
+    try:
+        # Explicit flag beats the scenario's hint beats the global default.
+        wait_for_alert = (
+            alert_timeout
+            if alert_timeout is not None
+            else (scenario.alert_timeout_seconds or DEFAULT_ALERT_TIMEOUT)
         )
-    t_fire, alerts_at_fire = wait_until(True, wait_for_alert, "an alert to fire")
+        if wait_for_alert != DEFAULT_ALERT_TIMEOUT:
+            print(
+                f"  waiting up to {wait_for_alert}s for an alert "
+                f"(default is {DEFAULT_ALERT_TIMEOUT}s)"
+            )
+        t_fire, alerts_at_fire = wait_until(True, wait_for_alert, "an alert to fire")
 
-    # Dwell starts at the alert, not at the injection. Counting from injection lets slow
-    # detection eat the steady-state window - a fault that took three minutes to alert
-    # would leave two minutes of dwell out of five, and the bundle would be thin exactly
-    # where the incident was most interesting. If nothing alerted, this is the moment the
-    # alert timeout expired, which is the same rule applied to a fault that never fired.
-    steady_from = t_fire or now()  # nothing fired in the wait window; dwell from here
-    remaining = dwell - int((now() - steady_from).total_seconds())
-    if remaining > 0:
-        print(f"  holding the fault for {remaining}s of steady state after the alert")
-        time.sleep(remaining)
+        # Dwell starts at the alert, not at the injection. Counting from injection lets slow
+        # detection eat the steady-state window - a fault that took three minutes to alert
+        # would leave two minutes of dwell out of five, and the bundle would be thin exactly
+        # where the incident was most interesting. If nothing alerted, this is the moment the
+        # alert timeout expired, which is the same rule applied to a fault that never fired.
+        steady_from = t_fire or now()  # nothing fired in the wait window; dwell from here
+        remaining = dwell - int((now() - steady_from).total_seconds())
+        if remaining > 0:
+            print(f"  holding the fault for {remaining}s of steady state after the alert")
+            time.sleep(remaining)
+    except BaseException:
+        revert_after_interruption(fault_id)
+        raise
+    finally:
+        signal.signal(signal.SIGTERM, previous_sigterm)
 
     t_revert = now()
     print(injector("stop", fault_id).rstrip())
