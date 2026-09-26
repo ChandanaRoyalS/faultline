@@ -604,6 +604,66 @@ def test_the_v2_tempo_has_its_own_config_with_compaction_bounded() -> None:
     assert "block" not in v1["storage"]["trace"], "v1's tempo.yaml is untouched by Q91"
 
 
+def _duration_seconds(value: str) -> int:
+    units = {"s": 1, "m": 60, "h": 3600}
+    total, number = 0, ""
+    for char in value:
+        if char.isdigit():
+            number += char
+        else:
+            total += int(number) * units[char]
+            number = ""
+    return total
+
+
+def test_the_v2_tempo_search_paths_overlap() -> None:
+    """**Search was blind to data 3-15 minutes old** (Q102, measured 2026-09-25).
+
+    A search reads the ingesters for recent data and the backend only for data older than
+    `query_backend_after`. The ingester keeps a flushed block for `complete_block_timeout`, and a
+    flushed block is searchable on the backend only once the poller has listed it
+    (`blocklist_poll`). With 2m / 15m / 5m, everything between about three and fifteen minutes
+    back was on neither path, and live agent runs ask about onset 3-6 minutes back. The three
+    must overlap: the backend path starts after the poll has had time to list a block, and the
+    ingester keeps the block past the point where the backend path starts.
+    """
+    import yaml
+
+    config = yaml.safe_load((COMPOSE / "tempo-v2.yaml").read_text())
+    backend_after = _duration_seconds(config["query_frontend"]["search"]["query_backend_after"])
+    ingesters_until = _duration_seconds(config["query_frontend"]["search"]["query_ingesters_until"])
+    held = _duration_seconds(config["ingester"]["complete_block_timeout"])
+    poll = _duration_seconds(config["storage"]["trace"]["blocklist_poll"])
+    assert poll < backend_after, (
+        f"blocklist_poll {poll}s must be shorter than query_backend_after {backend_after}s, or a "
+        "flushed block is sent to the backend path before the poller has listed it"
+    )
+    assert backend_after < held, (
+        f"query_backend_after {backend_after}s must be shorter than complete_block_timeout "
+        f"{held}s, or data between the two is on neither search path (Q102)"
+    )
+    assert held <= ingesters_until, "the ingesters must be searched for as long as they hold data"
+
+
+def test_the_v2_tempo_poll_survives_a_block_deleted_under_it() -> None:
+    """**A failed blocklist poll emptied Tempo's search** (Q104, measured 2026-09-25).
+
+    From an hour after boot, compacted blocks are deleted, and a poll that walks a block while it
+    is deleted fails. On 2.4.2 the tenant is then dropped from the searchable blocklist until the
+    next poll: a fixed two-minute window read 20 traces or none in alternate minutes. 2.6.0 keeps
+    the tenant's previous blocklist on a failed poll (grafana/tempo#3860). Config on 2.4.2 could
+    not fix it - `blocklist_poll_tolerate_consecutive_errors` counts failing tenants there, not
+    retries - and the candidate that tried was measured worse, so it must not come back.
+    """
+    import yaml
+
+    image = telemetry_v2()["services"]["tempo"]["image"]
+    version = tuple(int(part) for part in image.rsplit(":", 1)[1].split("."))
+    assert version >= (2, 6, 0), f"{image}: before 2.6.0 a failed poll empties the blocklist"
+    trace = yaml.safe_load((COMPOSE / "tempo-v2.yaml").read_text())["storage"]["trace"]
+    assert "blocklist_poll_jitter_ms" not in trace, "Q104's failed candidate, measured worse"
+
+
 def test_the_v2_tempo_exporter_does_not_back_pressure_the_pipeline() -> None:
     """**A Tempo outage must cost traces, not alerts** (Q93, 2026-09-24).
 

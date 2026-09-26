@@ -258,3 +258,14 @@ services:
   # `telemetry-v2.yml`, beside the rest of those two services' definitions.
   opensearch:
     deploy: { resources: { limits: { memory: 1600M } } }
+
+  # **product-catalog: 20M -> 100M by the same rule** (Q101, landed with Q102's Tempo change,
+  # which moves `observability_digest` and re-records every v2 bundle anyway). The recorder refused
+  # `v2-shipping-quote-misconfig` on 2026-09-25 at 18.79 MiB (94.0%). Eight hours of one-minute
+  # `container_memory_usage_total_bytes`: 14.6-16.1 MiB for most hours, 17.6-18.6 in the last
+  # half hour, 10 samples at >=85%; `memory.events` max 19, oom 0, oom_kill 0; anon 13.6 MiB.
+  # 18.6 / 0.6 rounds up to 100M. A restart did not buy much: 330 s after one it read 84.3%.
+  # `GOMEMLIMIT=16MiB` is the demo's and stays: the Go heap target is unchanged, and the cgroup
+  # stops being the thing that decides.
+  product-catalog:
+    deploy: { resources: { limits: { memory: 100M } } }
