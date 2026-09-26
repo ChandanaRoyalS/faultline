@@ -1,17 +1,69 @@
----
-origin: scenario:v2-checkout-currency-misconfig
-split: holdout
-fault_class: bad_config
-recorded_from: 2026-09-26T08:00:53+00:00
-capability: cap:d2b243e0
-onset_to_page: 4m31s
-page_to_fix: 5m00s
-fix_to_all_clear: 4m02s
----
-
 # Checkout pointed at a currency host that does not exist
 
-## What was observed
+## The scenario
+
+| | |
+|---|---|
+| scenario | `v2-checkout-currency-misconfig` |
+| fault class | **`bad_config`** |
+| expected remediation | `config_revert` |
+| split | `holdout` |
+| injected at | `checkout` via `v2-checkout-currency-misconfig` |
+| time to page | 4m31s |
+| steady state captured | 300s |
+| capture window | 2026-09-26T07:55:53+00:00 → 2026-09-26T08:16:26+00:00 |
+
+The clock below runs from the moment the fault went in.
+
+| | |
+|---|---|
+| `t_inject` | T+0m00s |
+| first alert firing | T+4m31s |
+| `t_revert` | T+9m31s |
+| all clear | T+13m33s |
+
+## What fired, and when
+
+| when | service | alert | firing for | |
+|---|---|---|---:|---|
+| T+4m15s | `checkout` | ServiceHighErrorRate | 9.0 min | **paged** |
+| T+6m15s | `frontend` | ServiceHighErrorRate | 4.0 min | joined later |
+| T+6m15s | `frontend-proxy` | ServiceHighErrorRate | 4.0 min | joined later |
+| T+7m15s | `accounting` | ServiceNoTraffic | 3.0 min | joined later |
+| T+7m15s | `currency` | ServiceNoTraffic | 3.0 min | joined later |
+| T+7m15s | `email` | ServiceNoTraffic | 3.0 min | joined later |
+| T+7m15s | `fraud-detection` | ServiceNoTraffic | 2.0 min | joined later |
+| T+7m15s | `payment` | ServiceNoTraffic | 3.0 min | joined later |
+| T+7m15s | `quote` | ServiceNoTraffic | 3.0 min | joined later |
+| T+7m15s | `shipping` | ServiceNoTraffic | 3.0 min | joined later |
+| T+11m15s | `fraud-detection` | ServiceHighErrorRate | 1.0 min | began after the revert |
+
+## What the bundle contains
+
+| capture | query |
+|---|---|
+| `metrics/alerts-firing.json` | `ALERTS{alertstate="firing"}` |
+| `metrics/call-rate.json` | `sum by(service_name) (rate(traces_span_metrics_calls_total[5m]))` |
+| `metrics/error-ratio.json` | `sum by(service_name) (rate(traces_span_metrics_calls_total{status_code="STATUS_CODE_ERROR"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total[5m]))` |
+| `metrics/latency-p95.json` | `histogram_quantile(0.95, sum by(service_name, le) (rate(traces_span_metrics_duration_milliseconds_bucket{span_kind!="SPAN_KIND_INTERNAL"}[5m])))` |
+| `metrics/runtime.json` | `{__name__=~"go_.*|dotnet_.*|jvm_.*|process_.*|v8js_.*|nodejs_.*",service_name="checkout"}` |
+
+`logs/checkout.txt` — 9 lines.
+
+## The incident record
+
+Written from the responder's chair, by someone who did not know the fault class
+or that anything had been injected. This text is also corpus material, which is
+why it never names the injector.
+
+**It keeps its own clock.** The table above is measured from the injection, which
+is the only origin the manifest records; a narrative's `T+` offsets are the
+responder's own and start wherever that responder started counting — usually the
+page, sometimes the injection, sometimes an event in the logs. The same moment can
+therefore carry two different offsets on this page. The absolute timestamps in the
+bundle are the tiebreak.
+
+### What was observed
 
 The page was one alert, `ServiceHighErrorRate` on **checkout**, 4m31s after the trouble started.
 Checkout's error ratio had been zero. It rose from about a minute in and settled at **exactly
@@ -27,7 +79,7 @@ About three minutes after the page, seven services went quiet in the same minute
 fraud-detection. Nine alerts across nine services by the fix. None of the quiet services had
 recorded an error.
 
-## What was checked
+### What was checked
 
 **The error text, because it was the first thing a responder would read.** Checkout's error spans,
 and the frontend's log, which carries checkout's errors up to the storefront, said `failed to
@@ -76,7 +128,7 @@ was never asked.
 `currencyservice:7001`. That is the address the failing call was built from, and the name that did
 not resolve. Nothing had changed on currency or on any other service.
 
-## Root cause
+### Root cause
 
 Checkout's `CURRENCY_ADDR` was changed to a host name that does not resolve. Checkout came up
 normally and kept answering, and every order failed at its first price conversion, because the call
@@ -85,7 +137,7 @@ healthy and went idle, because the one service that calls it could no longer rea
 an order touches after pricing went quiet with it. No service's code was wrong, and currency was not
 at fault. The fault was the address checkout held for currency.
 
-## Resolution
+### Resolution
 
 `CURRENCY_ADDR` was set back to currency's address and checkout was recreated with it. Orders
 completed again, the quiet services came back within a few minutes, and the error ratios drained
@@ -101,7 +153,7 @@ latency histogram's ceiling. On a normal minute its orders drown it out.
 
 Class of fix: **config_revert**. One setting was wrong and it was set back.
 
-## Detection notes
+### Detection notes
 
 - Onset to first page: **4m31s**. Services on the page: **one**, the service that changed. By the
   fix: **nine alerts across nine services**.
@@ -122,3 +174,7 @@ Class of fix: **config_revert**. One setting was wrong and it was set back.
   error names means the calls are not arriving.
 - **An error ratio of exactly 0.4 is a count.** Two of the five spans in every order failed. Read
   as "40% of orders fail", it undersells a total failure.
+
+---
+
+Rendered from [`evals/scenarios/artifacts/holdout/v2-checkout-currency-misconfig/`](../../evals/scenarios/artifacts/holdout/v2-checkout-currency-misconfig/) by `faultline-render`. [All bundles](README.md).
