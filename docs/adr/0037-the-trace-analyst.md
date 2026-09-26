@@ -262,3 +262,10 @@ on reading a setting's meaning from Tempo's current source rather than the runni
 dropped from the blocklist. 2.6.0 is the first release that keeps the previous blocklist when a
 tenant's poll fails. v2's Tempo moves to 2.6.1 under the same acceptance. **Second lesson, beside the
 first: read the behaviour of the version that is running, at its tag, before configuring it.**
+
+**Accepted, 2026-09-26.** On Tempo 2.6.1, from a fresh store, and with the host held awake on AC,
+probes taken past the deletion onset found the fixed window empty in 0 of 120 probes and no empty
+minute in either 120-minute coverage run. Memory stayed at 45-55% of the limit, and the 3 failed
+polls the race still produces were tolerated. An earlier run of the same test was void: the host
+had slept for 85 minutes. **Third lesson: on a laptop host, a long measurement must prove the host
+stayed awake, or it measures the host.**

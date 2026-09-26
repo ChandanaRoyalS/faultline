@@ -68,8 +68,9 @@ services:
   # and on the local backend the poll fails whenever it walks a compacted block the compactor is
   # deleting. From an hour after boot, search saw no stored blocks about half the time. 2.6.0 is
   # the first release that keeps the tenant's previous blocklist when its poll fails (grafana/tempo
-  # #3860) and retries the tenant poll within the cycle. v1 keeps 2.4.2: its bundles carry its
-  # digest, and its half of Q104 stays open.
+  # #3860) and retries the tenant poll within the cycle. Accepted 2026-09-26: 0 of 120 probes of an
+  # hour-old window empty, no empty minute in two 120-minute coverage runs, memory 45-55%. v1 keeps
+  # 2.4.2: its bundles carry its digest, and its half of Q104 stays open.
   tempo:
     image: grafana/tempo:2.6.1
     container_name: tempo
