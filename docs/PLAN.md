@@ -4617,6 +4617,38 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-09-26: the fourth v2 scenario, `v2-shipping-quote-misconfig`, rehearsed and labeled -
+slot `v2/bad_config-3` (dev), third recording.***
+
+- **The design.** v1's, carried to v2: shipping's `QUOTE_ADDR` points at a host that does not
+  resolve. Shipping reads it per request, so unlike the cart it does not crash.
+- **What the first recording corrected, before anything was labeled.**
+  - The ground truth said the misconfigured service is not the one that pages. On v2 it is:
+    Rust shipping's own client span to quote errors, and shipping pages beside checkout.
+    Corrected, which moved the fingerprint, and re-recorded (decided).
+  - The reachability declaration `[logs]` was wrong: shipping logs only over OTLP, to OpenSearch.
+    Corrected to `[]` against the recorder, kept as a zero-class scenario deliberately.
+  - Reading that recording back is also what found Q102, and through it Q104.
+- **What the recording showed (the third, on the final world).**
+  - The page is `ServiceHighErrorRate` on checkout and shipping together, at 4m46s.
+    Checkout's error ratio holds at about a quarter and its latency falls, from ~28ms to under
+    10ms. Shipping's error ratio is 100%.
+  - Quote, payment, email and accounting go quiet about three minutes later. Frontend and
+    frontend-proxy cross their thresholds about five minutes after the page. There are ten alerts
+    on nine services, and none during recovery.
+  - Quote's log goes from 4-10 requests a minute to none, for the length of the fault.
+- **The finding worth keeping: the error text names the wrong service.** Checkout wraps shipping's
+  non-200 answer as `failed POST to email service` (the demo's own mislabel, `checkout/main.go`).
+  The deepest span, `shipping/POST quote-gone`, carries `Name or service not known`, and the trace
+  tool's degrading hop names it.
+- **Reachability for the rest of the list.** Loki has no stream for shipping or for checkout. v2
+  targets that log only over OTLP have no reachable logs. The candidate list now says to check a
+  target's Loki stream and source before declaring, instead of carrying v1's evidence over.
+- **How it was recorded.** Under `caffeinate` with the pre-state guard. The host did not sleep,
+  but it was on battery, against Q104's operating rule. The sleep check is what makes the run
+  void or not, so it stands, and the rule stays: plug in for long runs.
+- **Four v2 dev slots are now filled.** `bad_config-4` goes to the first reserve that rehearses.
+
 ***2026-09-26: the three v2 bundles re-recorded on a world whose trace search works, and their
 narratives rewritten from the new captures - Q101, Q102 and Q104 landed together.***
 

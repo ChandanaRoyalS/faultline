@@ -1,0 +1,158 @@
+{
+  "alerts_at_fire": [
+    "ServiceHighErrorRate/checkout",
+    "ServiceHighErrorRate/shipping"
+  ],
+  "alerts_over_window": [
+    {
+      "alert": "ServiceHighErrorRate",
+      "began_after_revert": false,
+      "first_seen": "2026-09-25T01:14:38+00:00",
+      "last_seen": "2026-09-25T01:22:23+00:00",
+      "minutes_firing": 8.0,
+      "service": "checkout"
+    },
+    {
+      "alert": "ServiceHighErrorRate",
+      "began_after_revert": false,
+      "first_seen": "2026-09-25T01:14:38+00:00",
+      "last_seen": "2026-09-25T01:24:23+00:00",
+      "minutes_firing": 10.0,
+      "service": "shipping"
+    },
+    {
+      "alert": "ServiceHighErrorRate",
+      "began_after_revert": false,
+      "first_seen": "2026-09-25T01:17:38+00:00",
+      "last_seen": "2026-09-25T01:19:23+00:00",
+      "minutes_firing": 2.0,
+      "service": "fraud-detection"
+    },
+    {
+      "alert": "ServiceHighErrorRate",
+      "began_after_revert": false,
+      "first_seen": "2026-09-25T01:17:38+00:00",
+      "last_seen": "2026-09-25T01:20:23+00:00",
+      "minutes_firing": 3.0,
+      "service": "frontend-proxy"
+    },
+    {
+      "alert": "ServiceHighErrorRate",
+      "began_after_revert": false,
+      "first_seen": "2026-09-25T01:18:38+00:00",
+      "last_seen": "2026-09-25T01:20:23+00:00",
+      "minutes_firing": 2.0,
+      "service": "frontend"
+    },
+    {
+      "alert": "ServiceHighLatency",
+      "began_after_revert": false,
+      "first_seen": "2026-09-25T01:18:38+00:00",
+      "last_seen": "2026-09-25T01:19:23+00:00",
+      "minutes_firing": 1.0,
+      "service": "fraud-detection"
+    },
+    {
+      "alert": "ServiceNoTraffic",
+      "began_after_revert": false,
+      "first_seen": "2026-09-25T01:18:38+00:00",
+      "last_seen": "2026-09-25T01:20:23+00:00",
+      "minutes_firing": 2.0,
+      "service": "accounting"
+    },
+    {
+      "alert": "ServiceNoTraffic",
+      "began_after_revert": false,
+      "first_seen": "2026-09-25T01:18:38+00:00",
+      "last_seen": "2026-09-25T01:20:23+00:00",
+      "minutes_firing": 2.0,
+      "service": "email"
+    },
+    {
+      "alert": "ServiceNoTraffic",
+      "began_after_revert": false,
+      "first_seen": "2026-09-25T01:18:38+00:00",
+      "last_seen": "2026-09-25T01:20:23+00:00",
+      "minutes_firing": 2.0,
+      "service": "payment"
+    },
+    {
+      "alert": "ServiceNoTraffic",
+      "began_after_revert": false,
+      "first_seen": "2026-09-25T01:18:38+00:00",
+      "last_seen": "2026-09-25T01:20:23+00:00",
+      "minutes_firing": 2.0,
+      "service": "quote"
+    }
+  ],
+  "baseline_clear_at": "2026-09-25T01:10:53+00:00",
+  "bundle_schema_version": 2,
+  "capture_set": 2,
+  "expected_remediation_class": "config_revert",
+  "fault_class": "bad_config",
+  "injection": {
+    "method": "v2-shipping-quote-misconfig",
+    "params": {
+      "env_var": "QUOTE_ADDR",
+      "value": "http://quote-gone:8090"
+    },
+    "target": "shipping"
+  },
+  "origin": "scenario:v2-shipping-quote-misconfig",
+  "reachability": {
+    "answers_idle_or_absent": [],
+    "derived_from": "the bundle's own captures (T7.5)",
+    "none_can_answer": true,
+    "runtime_series": 0,
+    "target_log_lines": 0
+  },
+  "recorded_by": "evalharness.rehearse",
+  "recorder": {
+    "git_dirty": true,
+    "git_sha": "e12637225bd681797e3a622035e1604d9bd25570",
+    "tool": "evalharness.rehearse"
+  },
+  "scenario_fingerprint": "5b67c4e61bc9cbfe89cb81699e7286ee066d674812928311740ffc54d46c7b1d",
+  "scenario_id": "v2-shipping-quote-misconfig",
+  "seconds_of_steady_state": 300,
+  "seconds_to_alert": 226,
+  "seconds_to_settle": 302,
+  "split": "dev",
+  "t_alert_firing": "2026-09-25T01:14:39+00:00",
+  "t_clear": "2026-09-25T01:24:41+00:00",
+  "t_inject": "2026-09-25T01:10:53+00:00",
+  "t_revert": "2026-09-25T01:19:39+00:00",
+  "title": "Shipping service pointed at a quote service that does not resolve",
+  "window": {
+    "end": "2026-09-25T01:26:41+00:00",
+    "start": "2026-09-25T01:05:53+00:00"
+  },
+  "world": {
+    "compose_digest": "2341702ed4df5e96cf2b559e3b07bb8bfd3b3a2abff88c575e62ed3adb708bc9",
+    "docker_arch": "arm64",
+    "ffs_stub_image_id": "sha256:90f2fc6f5806a8914ef2740ff7c6348a1ddd4225bccc8f3398e58d03b3c1a512",
+    "ffs_stub_source_digest": null,
+    "host_platform": "Darwin/arm64",
+    "observability_digest": "c2250d4fe7bd8523ac401ae2263ddb8cf3c30b45caf3ac1990bde6c7dd30ad57",
+    "observability_files": {
+      "compose/otelcol-extras-v2.yml": "48cd277022d94eb34a9cedd743fab54efb1d78ce59258349b06360917495b443",
+      "compose/prometheus/alert-rules-v2.yml": "7f006a034167ffd3c1eacc17f9d952f73eeb22d1936aa17669626c442fa8f20b",
+      "compose/prometheus/alertmanager.yml": "cec8f9f623152c001d14a53c8c3a6930ad35665d5ee093117ff17cf0d09d61f1",
+      "compose/prometheus/prometheus-config-v2.yaml": "b2e8c9c59bcbfa5d7235748871db1852de74d59c43d89723a2d260c0aaf45867",
+      "compose/promtail-config.yml": "2d43bc91f78cf65504a1091e406a7e97bcece0a194dc5f27cf1fd4c49edb72ec",
+      "compose/tempo-v2.yaml": "f1aab321ba20aabc01d899e0579c79b67d50367713e4407873be1803df560a08",
+      "world-v2/src/otel-collector/otelcol-config.yml": "0a472a67088ca6fa1d5a222ce8c633aa26bbb75cd8d11558c2feaabdfc70141e"
+    },
+    "otel_demo_image": "ghcr.io/open-telemetry/demo:2.2.0-cart",
+    "otel_demo_image_digest": "ghcr.io/open-telemetry/demo@sha256:1adaf3b33fbf4d42e5a1fa68fec1ea1b645d50471881179bd7be0a0ce2656706",
+    "world_name": "v2"
+  },
+  "world_lock": {
+    "acquired": true,
+    "host": "chandanas-MacBook-Air.local",
+    "pid": 59815,
+    "reason": "rehearse v2-shipping-quote-misconfig",
+    "since": "2026-09-25T01:10:48.111841+00:00",
+    "token": "59815-1790298648.111679"
+  }
+}

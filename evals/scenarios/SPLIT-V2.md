@@ -121,3 +121,4 @@ scenarios are authored, one line per slot, and never rewritten.
 | `v2/bad_config-1` | dev | `v2-accounting-bad-credential` | 2026-09-24, first recording |
 | ~~`v2/bad_config-2`~~ | dev | ~~`v2-cart-valkey-misconfig`~~ | 2026-09-24, recorded once and **blocked**: on v2 the design crashloops (`bad_deploy`'s page). The slot is released to the next candidate |
 | `v2/bad_config-2` | dev | `v2-payment-telemetry-blackout` | 2026-09-25, first recording, into the slot the cart scenario released |
+| `v2/bad_config-3` | dev | `v2-shipping-quote-misconfig` | 2026-09-26, third recording, on the world Q101, Q102 and Q104 left (the first two, on older worlds, are under its `superseded/`) |

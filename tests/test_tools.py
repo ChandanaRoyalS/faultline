@@ -695,15 +695,20 @@ NARRATIVE_EVIDENCE_V2: dict[str, set[str]] = {
     # Alive and invisible: runtime and logs show the process working, the callers' Charge spans
     # show it answering with nothing beneath them, and the change record names the endpoint.
     "v2-payment-telemetry-blackout": {"metrics", "runtime_metrics", "logs", "traces", "changes"},
-    # The page names the culprit. Its logs carry the cause inside a misleading label, and the
-    # whole-window log read shows only healthy lines (Q100). The connect span's status carries
-    # 28P01. Runtime shows it alive and throwing, and the change record names the variable.
+    # The page names the culprit. Its logs carry the cause inside a misleading label, and a
+    # whole-window log read returns only the ends (Q100). The connect span's status carries 28P01.
+    # Runtime shows it alive and throwing, and the change record names the variable.
     "v2-accounting-bad-credential": {"metrics", "runtime_metrics", "logs", "traces", "changes"},
     # The freeze's page names only the callers. Metrics carry the hang and the target's request
     # rate going to zero; runtime metrics show the target stopped reporting about itself; its
     # log's silence is what the partition does not share (R3); traces put the time in the
     # callers' self-time; change history answers "nothing".
     "v2-product-catalog-freeze": {"metrics", "runtime_metrics", "logs", "traces", "changes"},
+    # Two services page and the target is one of them. Metrics carry the errors and quote's rate
+    # going to zero; quote's log stops and frontend's carries the mislabelled error; the deepest
+    # span names the unresolvable host; the change record names the variable. The target itself
+    # has no logs and no runtime series (reachability []), and the narrative does not need them.
+    "v2-shipping-quote-misconfig": {"metrics", "logs", "traces", "changes"},
 }
 """**v2's narratives, apart from v1's (T7.1).** `NARRATIVE_EVIDENCE` and the counts pinned on it
 are ADR-0019's claims about v1's investigations - *change history consulted in 11 of 11* - and

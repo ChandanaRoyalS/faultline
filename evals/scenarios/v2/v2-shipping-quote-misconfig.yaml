@@ -17,30 +17,45 @@ injection:
 ground_truth:
   root_cause: >
     The shipping service's QUOTE_ADDR was changed to a host that does not resolve. Shipping cannot
-    price a delivery, so every checkout that reaches the quote step fails. The service that was
-    misconfigured is not the service that alerts: checkout carries the error rate and the page,
-    and quote, which only shipping calls, goes quiet.
+    price a delivery, so every checkout that reaches the quote step fails. Both shipping and
+    checkout page on errors, shipping on its own failed calls to quote and checkout on its failed
+    calls to shipping. Quote, which only shipping calls, goes quiet while healthy. No service's
+    code is wrong and quote is not at fault; the fault is the address shipping holds for quote.
   category: bad_config
 expected_evidence:
-  # From v1's shipping-quote-misconfig (dev-only, T7.20/T7.22), adapted to v2's names. To be
-  # checked against the bundle at rehearsal and corrected there. Two things v1 measured may not
-  # carry: v2's shipping is Rust with its own client span to quote, so its error ratio may not
-  # stay at zero; and whether a startup read of the address makes it exit (the cart row's lesson).
-  - alerts: ServiceHighErrorRate on checkout and its callers on the checkout path; shipping itself
-      does not page (v1 fired checkout at +4:00)
-  - metrics: checkout's error ratio rises and holds, while shipping stays up and serving; quote's
+  # From v1's shipping-quote-misconfig (dev-only, T7.20/T7.22), adapted to v2's names, and checked
+  # against this scenario's bundle as recorded 2026-09-26 on the final world (Tempo 2.6.1, the
+  # 100M catalog; revert at +9:46). Two earlier recordings on older worlds are in superseded/: the
+  # first corrected the ground truth and the declaration, the second was recorded before Q102/Q104.
+  # The cart row's lesson was checked: shipping reads QUOTE_ADDR per request, and it stayed up
+  # (restarts 0).
+  - alerts: ServiceHighErrorRate on checkout and on shipping together (page 4m46s); ServiceNoTraffic
+      on quote, payment, email and accounting about three minutes later, with fraud-detection
+      errors; frontend and frontend-proxy errors about five minutes after the page (v1 paged
+      checkout alone). Nothing fires during recovery
+  - metrics: checkout's error ratio rises to about a quarter and holds, and its latency falls
+      (failing orders finish fast); shipping's error ratio is 100% while it keeps serving; quote's
       request rate falls to zero, because the only service that calls it can no longer reach it
-  - logs: shipping keeps logging its quote requests, which shows it alive and being asked; whether
-      its log names the address it cannot reach is checked at rehearsal (on v1 it did not)
-  - traces: checkout's spans fail at the shipping quote step; the error text, now printed on an
-      error span, names what failed
+  - logs: shipping's and checkout's logs are not reachable on v2 (OTLP only, to a store no tool
+      reads); quote's log stops recording `POST /getquote` for the fault's length; frontend's log
+      carries checkout's error text
+  - traces: checkout's PlaceOrder error text calls the shipping quote failure a failed POST to the
+      email service (checkout's own mislabel); below it shipping's `POST quote-gone` client span
+      fails with `Name or service not known`, and the trace tool names it as the degrading hop
   - change: QUOTE_ADDR on shipping changed to an address that does not resolve, coinciding with
-      onset; change history asked of checkout, the service that pages, returns nothing
-  - discriminator: the service that pages is not the service that changed, and the service that
-      went quiet (quote) is healthy - the fault is in the address between them
+      onset; change history asked of checkout returns nothing
+  - discriminator: shipping and checkout both page, but the service that went quiet (quote) is
+      healthy and nothing changed on checkout - the fault is in the address shipping holds for quote
 expected_remediation_class: config_revert
-rehearsed: false
+rehearsed: true
 alert_timeout_seconds: 900
-# Declared before recording, checked against the bundle after (T7.5): shipping logs its requests;
-# v2's shipping is Rust, and no Rust runtime family is known to reach Prometheus on this world.
-answers_idle_or_absent: [logs]
+# Declared before recording, checked against the bundle after (T7.5). **Corrected from [logs] to
+# [] against the first recording, not argued with** (2026-09-25; that recording is in the bundle's
+# superseded/). v2's shipping logs only through OTLP (`telemetry_conf.rs`: the tracing bridge is the
+# sole subscriber layer, nothing on stdout), and the collector sends OTLP logs to OpenSearch, which
+# no tool reads. Loki's `service` label had no `shipping` value, and the bundle held 0 target log
+# lines and 0 runtime series. **Zero classes, deliberately** (CATALOG.md): the narrative must not
+# turn on whether shipping was idle or absent. It does not need to, because shipping pages on its
+# own error spans. The ground truth was corrected in the same change (shipping pages too on v2),
+# which moved the fingerprint, so the bundle is re-recorded.
+answers_idle_or_absent: []
