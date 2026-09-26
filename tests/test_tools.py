@@ -741,6 +741,12 @@ NARRATIVE_EVIDENCE_V2: dict[str, set[str]] = {
     # unchanged rate and latency; ad's log counts the failures against the requests; the trace ends
     # at ad's own span with no message; runtime shows it up; change history answers "nothing".
     "v2-ad-flag-failure": {"metrics", "runtime_metrics", "logs", "traces", "changes"},
+    # Holdout. The target pages and the services after its failing step go quiet. Metrics carry the
+    # plateau and payment's rate falling to zero with no errors; the frontend's log is the only
+    # reachable copy of checkout's error text, and payment's shows its charges stopping; the Charge
+    # client span fails in no time with nothing beneath it; runtime shows checkout up and its
+    # goroutines climbing; change history answers "nothing".
+    "v2-payment-flag-unreachable": {"metrics", "runtime_metrics", "logs", "traces", "changes"},
     # Holdout. The page names the culprit and reads as down. Metrics carry its rate going to zero
     # and everyone else's holding; runtime shows it alive; its log names the address and the
     # refused connection, and fraud-detection's shows the topic still read; traces show none of

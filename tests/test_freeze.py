@@ -161,7 +161,8 @@ def test_holdout_origins_are_read_from_the_committed_bundles() -> None:
     remembering to add it to a list. The list here is pinned so that a new holdout bundle is a
     visible change: v2's first, `v2-accounting-kafka-misconfig` (T7.1, 2026-09-26), joined the
     contamination count by landing on disk, and this list with it; v2's second,
-    `v2-checkout-currency-misconfig`, the same day."""
+    `v2-checkout-currency-misconfig`, the same day, and v2's third, `v2-payment-flag-unreachable`,
+    that evening."""
     origins = freeze.holdout_origins()
     assert origins == [
         "scenario:email-wrong-image",
@@ -169,6 +170,7 @@ def test_holdout_origins_are_read_from_the_committed_bundles() -> None:
         "scenario:recommendation-memory-squeeze",
         "scenario:v2-accounting-kafka-misconfig",
         "scenario:v2-checkout-currency-misconfig",
+        "scenario:v2-payment-flag-unreachable",
     ]
 
 
