@@ -401,6 +401,7 @@ def test_the_v2_old_mechanism_definitions_carry_v2_values_not_v1s() -> None:
         "v2-accounting-bad-credential",
         "v2-payment-telemetry-blackout",
         "v2-shipping-quote-misconfig",
+        "v2-frontend-cart-misconfig",
         "v2-cart-valkey-misconfig",
         "v2-cart-bad-image-tag",
         "v2-ad-memory-squeeze",
@@ -423,6 +424,11 @@ def test_the_v2_old_mechanism_definitions_carry_v2_values_not_v1s() -> None:
     quote = v2_old["v2-shipping-quote-misconfig"].params
     assert quote == {"env_var": "QUOTE_ADDR", "value": "http://quote-gone:8090"}, (
         "v2 names the variable QUOTE_ADDR and the host quote; only the host moves"
+    )
+    cart = v2_old["v2-frontend-cart-misconfig"].params
+    assert cart == {"env_var": "CART_ADDR", "value": "cart:7071"}, (
+        "only the port moves from the live cart:7070: the host resolves and refuses, so the "
+        "error differs from shipping's unresolvable quote-gone"
     )
     image = str(v2_old["v2-cart-bad-image-tag"].params["image"])
     assert image.startswith("ghcr.io/open-telemetry/demo:2.2.0-cart")

@@ -1,0 +1,51 @@
+# v2/bad_config-4 (dev) - see SPLIT-V2.md. Slot allocated before authoring; do not move.
+# Candidate order and eligibility: docs/design/t7.1-candidates.md. A new design, the row's second
+# reserve. The first reserve (v2-fraud-detection-kafka-misconfig) was passed over because it shares
+# holdout row 5's mechanism (decided 2026-09-26, recorded in the candidate list).
+id: v2-frontend-cart-misconfig
+title: Frontend pointed at a cart port where nothing listens
+fault_class: bad_config
+split: dev
+slot: v2/bad_config-4
+world: v2
+injection:
+  target: frontend
+  method: v2-frontend-cart-misconfig
+  params:
+    env_var: "CART_ADDR"
+    value: "cart:7071"
+ground_truth:
+  root_cause: >
+    The frontend's CART_ADDR was changed to a port on the cart host where nothing listens. Cart
+    itself is healthy and keeps serving its other caller, checkout. Every cart call the frontend
+    makes is refused, so the storefront's cart operations fail while the service they name is up.
+    No service's code is wrong and cart is not at fault; the fault is the address the frontend
+    holds for cart.
+  category: bad_config
+expected_evidence:
+  # A new design: nothing here is measured yet. Written before the first recording and checked
+  # against the bundle, as every v2 scenario's list has been, and corrected there.
+  - alerts: ServiceHighErrorRate on frontend and on its callers (frontend-proxy, load-generator);
+      cart itself does not page, because its other caller, checkout, still reaches it
+  - metrics: frontend's error ratio rises on its cart-dependent routes while its latency and its
+      browse path hold; cart's request rate falls by the frontend's share and does not reach zero
+  - logs: the frontend logs the refused cart calls (at rest it logs nothing - fifteen minutes,
+      zero lines, 2026-09-26); cart's own log shows no failure
+  - traces: the frontend's cart client spans fail with the refused connection, and no cart server
+      span sits beneath them; checkout's calls into cart succeed in the same window
+  - metrics: the frontend's Node runtime series (75, by service_name) report through the fault -
+      the process is up and answering
+  - change: CART_ADDR on frontend changed to a port with nothing listening, coinciding with onset;
+      change history asked of cart returns nothing
+  - discriminator: the service that pages is the one that changed, and the service its errors
+      name (cart) is healthy and busy with checkout - the fault is in the address, not in cart
+expected_remediation_class: config_revert
+rehearsed: false
+alert_timeout_seconds: 900
+# Declared before recording, checked against the bundle after (T7.5). Measured on the running
+# world 2026-09-26, as the candidate list now asks: Prometheus holds 75 Node runtime series for
+# frontend (16 families, nodejs_eventloop_* and v8js_*), and the frontend's Loki stream exists but
+# logged 0 lines in 15 minutes at rest. Logs are declared because the fault makes it log (each
+# refused cart call); if the bundle's capture says otherwise, the declaration is corrected against
+# it, not argued with. Runtime is the class that settles idle or absent here.
+answers_idle_or_absent: [runtime, logs]
