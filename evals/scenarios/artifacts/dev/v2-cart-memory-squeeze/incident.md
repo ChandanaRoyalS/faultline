@@ -3,6 +3,7 @@ origin: scenario:v2-cart-memory-squeeze
 split: dev
 fault_class: resource_exhaustion
 recorded_from: 2026-09-27T14:19:59+00:00
+capability: cap:d2b243e0
 onset_to_page: n/a
 page_to_fix: 5m00s
 fix_to_all_clear: 0s

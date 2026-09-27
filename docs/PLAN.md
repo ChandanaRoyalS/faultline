@@ -4617,6 +4617,33 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-09-27: `v2-cart-memory-squeeze` recorded once and blocked; `v2/resource_exhaustion-3` stays
+empty. The first v2 design to record no page.***
+
+- **What the recording showed.** Under 48m, cart was killed within a second and listening again
+  three seconds later, and served 34 to 75 s (median 55) between kills: 23 starts in twenty
+  minutes, every one reaching `Application started`, no shutdown line, no exception. Its callers
+  paid a second or two of `connection refused` per restart - checkout's error ratio 0.4 to 1.4 %,
+  the frontend's 0.9 to 2.2 %, against a 5 % line; cart's own error ratio zero, its rate never
+  nothing, so no `ServiceNoTraffic`; p95s to 50-120 ms against 250. 151 orders completed. Nothing
+  fired in 900 s, and nothing appears in the captured window.
+- **Why it is blocked.** The pre-registration named this outcome and its consequence before
+  recording: no page inside 900 s blocks the design without a second value, and the row has no
+  reserve. A second value now would be a page found by search. The bundle is kept and marked
+  INVALID with the evidence.
+- **What was wrong.** The rule restated for .NET measured what a warm process had accumulated
+  (working set less GC committed, 58.5 MiB) and called it what a cold one needs. A fresh cart
+  listens in 41 MiB, and .NET's container-aware GC sizes its heap to the cgroup limit, so each
+  instance ran inside 48m until it grew into the wall a minute later - T7.20's "back before
+  detection" at a quarter of the limit that produced it on v1. The JVM rows' rule held because a
+  JVM with a fixed heap ceiling and a loaded agent needs more to start than the squeeze allows.
+- **What it teaches.** A container-aware runtime under a memory squeeze fails as a restart a
+  minute, paid by its callers as a one-second refusal each, and no rule on this world sees it.
+  Four of the 23 instances lived long enough to export, so "exports nothing" did not hold either.
+  For the holdout row 4 (Python): measure what a cold process needs, not what a warm one holds.
+- **Where it leaves things.** `resource_exhaustion` has two dev slots filled and one empty; the
+  holdout row 4, `v2-recommendation-memory-squeeze`, is next. 24 of 44 slots filled.
+
 ***2026-09-27: the twenty-third v2 scenario, `v2-fraud-detection-memory-squeeze`, rehearsed and
 labeled - slot `v2/resource_exhaustion-2` (dev), first recording. The smallest page there is.***
 

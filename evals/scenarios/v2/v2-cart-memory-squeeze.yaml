@@ -1,3 +1,25 @@
+# BLOCKED - do not rehearse. Recorded once, 2026-09-27; the bundle is marked INVALID.
+#
+# No alert fired in the 900 s wait, and none appears in the captured window. Under 48m, v2's cart
+# was killed within a second, listening again three seconds later, and served for 34 to 75 s
+# (median 55) before the next kill: twenty-three starts in twenty minutes, every one reaching
+# `Application started`, none logging a shutdown or an exception. Its callers paid a second or
+# two of `connection refused` per restart - checkout's error ratio 0.4 to 1.4 %, the frontend's
+# 0.9 to 2.2 %, against a 5 % line; cart's own error ratio zero, its call rate 2.5 to 4 a second
+# against 5, never nothing, so no ServiceNoTraffic either; p95s rose to 50-120 ms against 250.
+# 151 orders completed under the fault.
+#
+# This is T7.20's first finding on v1's cart (at 200m, "back before detection") at a quarter of
+# the limit, and the pre-registration's rule for this outcome: no page inside 900 s blocks the
+# design without a second value, and the row has no reserve. The rule restated for .NET
+# mis-measured the mechanism: it took the running process's memory outside its heap (working
+# set less GC committed, 58.5 MiB) as what a fresh process needs, but a fresh process starts in
+# 41 MiB and .NET's container-aware GC sizes its heap to the cgroup limit, so each new instance
+# serves inside 48m until it grows into the wall. The slot v2/resource_exhaustion-3 stays empty,
+# and a blocked scenario claims none: the `slot:` line is removed, and the header line below
+# records which it held. The file is kept so the slot's history is visible; the bundle's
+# INVALID.md holds the evidence.
+#
 # v2/resource_exhaustion-3 (dev) - see SPLIT-V2.md. Slot allocated before authoring; do not move.
 # Candidate order and eligibility: docs/design/t7.1-candidates.md, resource_exhaustion row 3 -
 # new: a v1 definition T7.20 probed and never authored, on cart's .NET runtime. The limit is
@@ -7,7 +29,6 @@ id: v2-cart-memory-squeeze
 title: Cart service memory limit cut below what its runtime needs to run
 fault_class: resource_exhaustion
 split: dev
-slot: v2/resource_exhaustion-3
 world: v2
 injection:
   target: cart
@@ -78,3 +99,4 @@ alert_timeout_seconds: 900
 # only; the recorder derives from what it holds, and the declaration is corrected against it, not
 # argued with.
 answers_idle_or_absent: [runtime, logs]
+blocked: true
