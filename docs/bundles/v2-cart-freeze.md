@@ -1,17 +1,95 @@
----
-origin: scenario:v2-cart-freeze
-split: dev
-fault_class: process_freeze
-recorded_from: 2026-09-27T21:35:10+00:00
-capability: cap:d2b243e0
-onset_to_page: 5m31s
-page_to_fix: 5m00s
-fix_to_all_clear: 5m01s
----
-
 # The cart process is frozen - its socket accepts and nothing answers
 
-## What was observed
+## The scenario
+
+| | |
+|---|---|
+| scenario | `v2-cart-freeze` |
+| fault class | **`process_freeze`** |
+| expected remediation | `restart` |
+| split | `dev` |
+| injected at | `cart` via `v2-cart-freeze` |
+| time to page | 5m31s |
+| steady state captured | 300s |
+| capture window | 2026-09-27T21:30:10+00:00 → 2026-09-27T21:52:42+00:00 |
+
+The clock below runs from the moment the fault went in.
+
+| | |
+|---|---|
+| `t_inject` | T+0m00s |
+| first alert firing | T+5m31s |
+| `t_revert` | T+10m31s |
+| all clear | T+15m32s |
+
+## What fired, and when
+
+| when | service | alert | firing for | |
+|---|---|---|---:|---|
+| T+5m30s | `frontend-proxy` | ServiceHighErrorRate | 8.0 min | **paged** |
+| T+5m30s | `frontend-proxy` | ServiceHighLatency | 9.0 min | **paged** |
+| T+5m30s | `load-generator` | ServiceHighErrorRate | 8.0 min | **paged** |
+| T+5m30s | `load-generator` | ServiceHighLatency | 9.0 min | **paged** |
+| T+6m30s | `frontend` | ServiceHighLatency | 9.0 min | joined later |
+| T+7m30s | `accounting` | ServiceNoTraffic | 4.0 min | joined later |
+| T+7m30s | `cart` | ServiceNoTraffic | 4.0 min | joined later |
+| T+7m30s | `checkout` | ServiceNoTraffic | 4.0 min | joined later |
+| T+7m30s | `currency` | ServiceNoTraffic | 4.0 min | joined later |
+| T+7m30s | `email` | ServiceNoTraffic | 4.0 min | joined later |
+| T+7m30s | `fraud-detection` | ServiceNoTraffic | 2.0 min | joined later |
+| T+7m30s | `payment` | ServiceNoTraffic | 4.0 min | joined later |
+| T+7m30s | `quote` | ServiceNoTraffic | 4.0 min | joined later |
+| T+7m30s | `shipping` | ServiceNoTraffic | 4.0 min | joined later |
+| T+13m30s | `checkout` | ServiceHighErrorRate | 2.0 min | began after the revert |
+| T+14m30s | `checkout` | ServiceHighLatency | 1.0 min | began after the revert |
+
+## What the bundle contains
+
+| capture | query |
+|---|---|
+| `metrics/alerts-firing.json` | `ALERTS{alertstate="firing"}` |
+| `metrics/call-rate.json` | `sum by(service_name) (rate(traces_span_metrics_calls_total[5m]))` |
+| `metrics/error-ratio.json` | `sum by(service_name) (rate(traces_span_metrics_calls_total{status_code="STATUS_CODE_ERROR"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total[5m]))` |
+| `metrics/latency-p95.json` | `histogram_quantile(0.95, sum by(service_name, le) (rate(traces_span_metrics_duration_milliseconds_bucket{span_kind!="SPAN_KIND_INTERNAL"}[5m])))` |
+| `metrics/runtime.json` | `{__name__=~"go_.*|dotnet_.*|jvm_.*|process_.*|v8js_.*|nodejs_.*",service_name="cart"}` |
+
+`logs/cart.txt` — 509 lines.
+
+## A look at the logs
+
+From `logs/cart.txt` (---- onset 2026-09-27T21:35:10+00:00 ----):
+
+```
+2026-09-27T21:34:11+00:00  info: cart.cartstore.ValkeyCartStore[0]
+2026-09-27T21:34:11+00:00        GetCartAsync called with userId=2e1195ee-babb-11f1-9375-7e805effaa5d
+2026-09-27T21:34:11+00:00  info: cart.cartstore.ValkeyCartStore[0]
+2026-09-27T21:34:11+00:00        GetCartAsync called with userId=2e1195ee-babb-11f1-9375-7e805effaa5d
+2026-09-27T21:34:12+00:00  info: cart.cartstore.ValkeyCartStore[0]
+2026-09-27T21:34:12+00:00        EmptyCartAsync called with userId=2e1195ee-babb-11f1-9375-7e805effaa5d
+2026-09-27T21:34:16+00:00  info: cart.cartstore.ValkeyCartStore[0]
+2026-09-27T21:34:16+00:00        GetCartAsync called with userId=
+2026-09-27T21:34:18+00:00  info: cart.cartstore.ValkeyCartStore[0]
+2026-09-27T21:34:18+00:00        AddItemAsync called with userId=31dedcc2-babb-11f1-9375-7e805effaa5d, productId=L9ECAV7KIM, quantity=3
+2026-09-27T21:34:18+00:00  info: cart.cartstore.ValkeyCartStore[0]
+2026-09-27T21:34:18+00:00        GetCartAsync called with userId=31dedcc2-babb-11f1-9375-7e805effaa5d
+```
+
+_488 further lines are in the bundle._
+
+## The incident record
+
+Written from the responder's chair, by someone who did not know the fault class
+or that anything had been injected. This text is also corpus material, which is
+why it never names the injector.
+
+**It keeps its own clock.** The table above is measured from the injection, which
+is the only origin the manifest records; a narrative's `T+` offsets are the
+responder's own and start wherever that responder started counting — usually the
+page, sometimes the injection, sometimes an event in the logs. The same moment can
+therefore carry two different offsets on this page. The absolute timestamps in the
+bundle are the tiebreak.
+
+### What was observed
 
 The page came 5m31s after requests started hanging, and it was four alerts at once: error rate
 and latency on **frontend-proxy** and on **load-generator**. Neither is a service anyone would
@@ -37,7 +115,7 @@ nothing in the same minute, and payment, shipping, quote, currency, email, accou
 fraud-detection went to zero with it. From T+4 none of the nine had an error ratio or a latency
 value at all.
 
-## What was checked
+### What was checked
 
 **The proxy, because it was loudest.** Its error traces - 247 of them across the ten minutes -
 were all the same kind: a request cut at its fifteen-second route timeout. And they were all the
@@ -93,7 +171,7 @@ recommendation's error ratios read 1 to 3% on the same thinness. With orders and
 stopped, those few long stream spans were most of what those services reported. None of it was
 a second fault.
 
-## Root cause
+### Root cause
 
 The cart process was suspended. The container existed and kept its port; the kernel went on
 accepting connections into its backlog; but nothing in the process ran, so no request was ever
@@ -104,7 +182,7 @@ its first step, and payment, shipping, email and the order topic's consumers wen
 browsing, ads and recommendations carried on. The cart neither errored nor logged, because it was
 not running. Nothing about it had been changed.
 
-## Resolution
+### Resolution
 
 The cart process was resumed. Its runtime reports came back within fifteen seconds and its log
 within one; it answered two hundred held requests in the first half-minute. Where an operator
@@ -122,7 +200,7 @@ error rate 3 minutes after the resume and on latency 4 minutes after. Cart's rat
 two and a half times its usual for four minutes as the blocked users caught up, its p95 at 29ms
 against 4. Everything was quiet 5m01s after the resume.
 
-## Detection notes
+### Detection notes
 
 - Onset to first page: **5m31s**. The proxy's latency was at the ceiling three and a half
   minutes before that, the frontend's two and a half.
@@ -150,3 +228,7 @@ against 4. Everything was quiet 5m01s after the resume.
 - **The fix has a second wave.** Held requests close together, their durations are the length of
   the fault, and the rate windows carry them for five minutes. Two alerts here belong to the
   resume, not to the freeze.
+
+---
+
+Rendered from [`evals/scenarios/artifacts/dev/v2-cart-freeze/`](../../evals/scenarios/artifacts/dev/v2-cart-freeze/) by `faultline-render`. [All bundles](README.md).
