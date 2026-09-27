@@ -591,6 +591,19 @@ CATALOG: tuple[FaultDefinition, ...] = _validated(
             ),
         ),
         FaultDefinition(
+            id="v2-currency-freeze",
+            fault_class=FaultClass.PROCESS_FREEZE,
+            target="currency",
+            world="v2",
+            description=(
+                "docker pause the currency service. On this world only checkout converts - twice "
+                "an order, after the cart read and the catalog lookup - so every order hangs at "
+                "its conversion and nothing behind it runs, while the storefront browses, adds to "
+                "carts and views them as before: the smallest freeze, one in twenty requests "
+                "(measured 2026-09-27), on a target that has no log and no runtime series."
+            ),
+        ),
+        FaultDefinition(
             id="v2-product-catalog-partition",
             fault_class=FaultClass.NETWORK_PARTITION,
             target="product-catalog",
