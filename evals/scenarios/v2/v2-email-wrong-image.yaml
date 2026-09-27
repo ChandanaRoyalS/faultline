@@ -1,0 +1,65 @@
+# v2/bad_deploy-4 (holdout) - see SPLIT-V2.md. Slot allocated before authoring; do not move.
+# Candidate order and eligibility: docs/design/t7.1-candidates.md, bad_deploy row 4 - v1's holdout
+# email-wrong-image, carried to v2's email. The image was checked present in the registry and on
+# the host, and probed in a throwaway container with email's environment, before authoring
+# (2026-09-27): it exits 255 in 190 ms with a PHP fatal error naming the empty port.
+id: v2-email-wrong-image
+title: Email deployed with another service's image
+fault_class: bad_deploy
+split: holdout
+slot: v2/bad_deploy-4
+world: v2
+injection:
+  target: email
+  method: v2-email-wrong-image
+  params:
+    image: "ghcr.io/open-telemetry/demo:2.2.0-quote"
+    # The image exists, so the deploy succeeds and the container starts; what runs in it is the
+    # quote service's PHP server, which has no QUOTE_PORT to bind to in email's environment.
+    expect_start: "yes"
+ground_truth:
+  root_cause: >
+    A deploy put the quote service's image, ghcr.io/open-telemetry/demo:2.2.0-quote, into the
+    email service's slot. The image exists and the deploy succeeded, but what it runs is the quote
+    service's PHP server, which binds to QUOTE_PORT; email's environment does not set it, so the
+    process dies with a fatal error as it starts and restarts, over and over, and never serves.
+    Order confirmations fail at checkout's call to email, after the order has been charged;
+    checkout completes the orders regardless. Email's memory limit was not changed and was never
+    reached. Rolling back to email's own image fixes it.
+  category: bad_deploy
+expected_evidence:
+  # Carried from v1's design and not recorded on v2 yet. Written before the first recording and
+  # checked against the bundle, as every v2 scenario's list has been, and corrected there. Measured
+  # at rest (2026-09-27): email logs 12 to 18 lines a minute and holds no runtime series; the
+  # order rate is a few a minute. The page is not certain in shape: every confirmation failing
+  # puts checkout's error ratio near the 5% line (the email call is one span of an order's ten or
+  # so), so ServiceHighErrorRate on checkout is likely and may be marginal, and ServiceNoTraffic on
+  # email follows once its window drains. Orders complete, so nothing else should go quiet.
+  - alerts: ServiceHighErrorRate on checkout, possibly marginal; ServiceNoTraffic on email once
+      its window drains; nothing on payment, accounting, fraud-detection or the storefront,
+      because orders complete
+  - metrics: email's call rate falls to zero rather than its error ratio rising, with no latency;
+      checkout's error ratio rises to about the share of its spans the email call is, while its
+      latency does not rise; payment's, accounting's and fraud-detection's rates hold
+  - traces: checkout's HTTP POST to email fails at the connection with nothing beneath it, after
+      the cart read, the product lookups, the currency conversions, the shipping quote and the
+      charge have all succeeded, and PlaceOrder itself succeeds
+  - logs: email's stream stops carrying Sinatra's request lines and carries instead a PHP fatal
+      error, `Invalid URI "tcp://0.0.0.0:"` with its stack trace, repeating with nothing after it
+      as the container restarts; the frontend's log shows nothing new, because the order succeeds
+  - metrics: email has no runtime series before or during the fault
+  - change: a change record at onset - `image reference updated on email`, to
+      ghcr.io/open-telemetry/demo:2.2.0-quote, the quote service's image
+  - discriminator: a service that dies at start over and over, with a log in another language
+      that names a variable it was never given, was given the wrong image - the change record
+      names it; a memory fault would show the limit reached or lowered, and here it is neither,
+      and unlike a flag the deploy leaves a record
+expected_remediation_class: rollback
+rehearsed: false
+alert_timeout_seconds: 900
+# Declared before recording, checked against the bundle after (T7.5). Measured on the running world
+# 2026-09-27: no runtime series for email (Ruby exports none) and a Loki stream of 12 to 18 lines a
+# minute, talkative at rest. A restarting process repeats itself in that stream, so logs can answer
+# and runtime cannot, as for v2-email-flag-memory-leak; the recorder derives the record from the
+# capture, and if it says otherwise the declaration is corrected against it, not argued with.
+answers_idle_or_absent: [logs]

@@ -813,6 +813,29 @@ CATALOG: tuple[FaultDefinition, ...] = _validated(
             },
         ),
         FaultDefinition(
+            id="v2-email-wrong-image",
+            fault_class=FaultClass.BAD_DEPLOY,
+            target="email",
+            world="v2",
+            description=(
+                "Deploy the quote service's image into email's slot (v1's email-wrong-image). "
+                "The image resolves and the deploy succeeds, but the quote service's PHP server "
+                "binds to QUOTE_PORT, which email's environment does not set, so it dies with a "
+                "fatal error as it starts and restarts, over and over, and never serves."
+            ),
+            # Probed 2026-09-27 in a throwaway container with email's environment: the image
+            # exists in the registry and on the host; `php public/index.php` threw
+            # `InvalidArgumentException: Invalid URI "tcp://0.0.0.0:"` and exited 255 in 190 ms,
+            # not killed for memory. v1's shape - the log names the cause outright - and the
+            # opposite of v2-shipping-wrong-image's, whose JVM is killed at 137 in a slot too
+            # small for it. Here the slot (100M) is ample; the program is wrong for its
+            # environment.
+            params={
+                "image": "ghcr.io/open-telemetry/demo:2.2.0-quote",
+                "expect_start": "yes",
+            },
+        ),
+        FaultDefinition(
             id="v2-ad-memory-squeeze",
             fault_class=FaultClass.RESOURCE_EXHAUSTION,
             target="ad",
