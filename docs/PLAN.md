@@ -4617,6 +4617,28 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-09-27: the v2 world revised for headroom - four limits by the rule, in one digest move;
+every v2 bundle is re-recorded on it.***
+
+- **Why.** The recorder refused `v2/bad_deploy-3` (`v2-ad-bad-image-tag`) three times before
+  injecting. Flagd's Go heap peaks at 90-96% of 75M every collection cycle, so a restart does not
+  help and the gate's one reading decides by chance (Q107). Fraud-detection's JVM settles at
+  90-94% of 300M and rose after a restart.
+- **Decided: one world revision, not a gate allowance.** An allowance would have overridden the
+  recorder's documented remedy on a judgment about risk. The remedy is a measured raise, and a
+  raise moves `compose_digest` (ADR-0014), so everything that qualified moves at once.
+- **Measured over eight hours of one-minute memory, every container:** fraud-detection 283.7 MiB
+  (-> 500M), flagd 74.5 (-> 200M), grafana 175.0, clipped (-> 300M, closing Q105 on its own
+  branch: mostly heap), tempo 1024, clipped (-> 1800M, GOMEMLIMIT 1350 MiB). None was
+  OOM-killed; all pressed `memory.max` (302, 176, 28 and 4,465 times). Email's 100% was its own
+  flag recording and is not raised; product-reviews at 84.4% is watched.
+- **Consequence: the fifteen v2 bundles are re-recorded back to back on the revised world** and
+  their narratives rechecked against the new captures, as the three were on 2026-09-26. Row 3 of
+  `bad_deploy` is recorded after the batch.
+- The test pinning the headroom rule gained the four rows. Tempo's eight hours carried many
+  error-level log lines, the three read being blocklist poll failures, which 2.6.1 tolerates by
+  design (Q104); they are counted by kind before the batch.
+
 ***2026-09-27: the fifteenth v2 scenario, `v2-shipping-wrong-image`, rehearsed and labeled - slot
 `v2/bad_deploy-2` (dev), first recording.***
 

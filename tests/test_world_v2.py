@@ -792,13 +792,19 @@ HEADROOM_RULE_HIGHS_MIB = {
     "prometheus": ("telemetry-v2.yml", 195.0),
     "otel-collector": ("telemetry-v2.yml", 192.0),
     "opensearch": ("world-v2.override.yml", 945.0),
+    # the world revision of 2026-09-27, one digest move for all four
+    "fraud-detection": ("world-v2.override.yml", 283.7),
+    "flagd": ("world-v2.override.yml", 74.5),
+    "grafana": ("telemetry-v2.yml", 175.0),
+    "tempo": ("telemetry-v2.yml", 1024.0),
 }
 
 
 @pytest.mark.parametrize("container", sorted(HEADROOM_RULE_HIGHS_MIB))
-def test_the_four_headroom_rows_are_the_rule_applied_to_their_measurement(container: str) -> None:
-    """**One rule, stated before two of the four were measured** (`world-v2.override.yml`, last
-    block): the new limit is the 8-hour one-minute high / 0.6, rounded up to the next 100M.
+def test_the_headroom_rows_are_the_rule_applied_to_their_measurement(container: str) -> None:
+    """**One rule, stated before two of the first four were measured** (`world-v2.override.yml`):
+    the new limit is the 8-hour one-minute high / 0.6, rounded up to the next 100M. The world
+    revision of 2026-09-27 applied it to four more containers in one digest move.
 
     Pinned per container so a later edit to one of these limits is a visible change to the rule's
     output rather than a quiet re-tune. A limit set *below* the rule's figure fails here. One set
