@@ -4617,6 +4617,39 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-09-27: the nineteenth v2 scenario, `v2-valkey-cart-dependency-latency`, rehearsed and
+labeled - slot `v2/dependency_latency-2` (dev), first recording. The culprit is outside the traced
+graph.***
+
+- **A correction first.** Row 1's rehearsal note said the row's later rows are measured against
+  it "on (a)". PREREGISTRATION-T7.0's test is at least one of (a)-(d); the plan's own table gives
+  row 2 its distinction as the culprit being outside the traced graph. Withdrawn in row 2's note
+  as an addendum, not edited out of row 1's.
+- **Pre-registered against row 1, recorded the same day:** not distinct on (a), the same five
+  latency alerts; distinct on (d), the store having no spans and the time sitting only on cart's
+  store commands with its flag read unaffected beside them and the callers' spans ending with
+  cart's; distinct in the change record as the tool exposes it, under a name no service carries.
+  With a stated failure: callers paying 300ms after cart's span would mean the mechanism is not
+  what the design says, and would block the scenario.
+- **The page, and every prediction held.** `ServiceHighLatency` on cart alone at 4m04s and on its
+  four callers together at +4:45 - the order not predicted, the set as predicted; five alerts,
+  none after the fix; every error ratio zero; all clear 5m02s after the fix.
+- **The mechanism, measured to the millisecond.** Every store command beneath cart 300-305ms;
+  cart's flag read to flagd 1.1-2.3ms beside them; checkout's `GetCart` 303 over cart's 301
+  where row 1's was 602 over 301. Cart's p95 ~900ms as in row 1; its callers' 0.87-1.25 s
+  against row 1's 1.6-1.85 s. The store's log kept its five-minute save on schedule; the recorder
+  derived `[logs]` on twenty lines, the threshold's edge, as declared.
+- **The trace tool, one span short.** It named cart's own store commands as the degrading hop on
+  cart's traces - the deepest span it can see, and the culprit has none. The narrative's last step
+  is the inference the tool cannot make, from the store's log and the change record.
+- **Carried from v1:** the remediation class `restart`, on the store container this time. The
+  change record is by construction.
+- **How it was recorded.** On AC power, under `caffeinate`, the world variable per command, cart's
+  p95 back at 3ms and every container under 90% at the pre-check. The host did not sleep; the
+  sidecar was gone after the revert.
+- **Next: row 3**, `v2-payment-dependency-latency` (`v2/dependency_latency-3`), a new design:
+  slow only on checkout.
+
 ***2026-09-27: the eighteenth v2 scenario, `v2-cart-dependency-latency`, rehearsed and labeled -
 slot `v2/dependency_latency-1` (dev), first recording. The `dependency_latency` row opens.***
 

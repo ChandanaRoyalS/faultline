@@ -1,6 +1,6 @@
 # The bundles, rendered
 
-Every recorded rehearsal in this repository as a readable page — 34 in all: **31 runnable** (23 dev, 8 holdout) and **3 that could not fire** (3 dev).
+Every recorded rehearsal in this repository as a readable page — 35 in all: **32 runnable** (24 dev, 8 holdout) and **3 that could not fire** (3 dev).
 
 A bundle is what one rehearsal left behind — the manifest, the Prometheus captures,
 a slice of one service's logs, the exact queries, and the narrative a responder wrote
@@ -49,6 +49,7 @@ benchmark** — see [RESULTS.md](../RESULTS.md).
 | [`v2-product-catalog-freeze`](v2-product-catalog-freeze.md) | `process_freeze` | The product catalog process is frozen - its socket accepts and nothing answers — 20 alerts over the window |
 | [`v2-shipping-quote-misconfig`](v2-shipping-quote-misconfig.md) | `bad_config` | Shipping service pointed at a quote service that does not resolve — 9 alerts over the window |
 | [`v2-shipping-wrong-image`](v2-shipping-wrong-image.md) | `bad_deploy` | Shipping deployed with another service's image — 8 alerts over the window |
+| [`v2-valkey-cart-dependency-latency`](v2-valkey-cart-dependency-latency.md) | `dependency_latency` | Cart is slow because its store is, and the store has no spans — 5 alerts over the window |
 
 ## Holdout split
 

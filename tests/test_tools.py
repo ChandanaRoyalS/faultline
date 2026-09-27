@@ -776,6 +776,12 @@ NARRATIVE_EVIDENCE_V2: dict[str, set[str]] = {
     # zero; cart's log goes on unchanged; the traces put 300ms on every message leaving cart;
     # runtime shows the process unstrained; the change record is a container under cart's name.
     "v2-cart-dependency-latency": {"metrics", "runtime_metrics", "logs", "traces", "changes"},
+    # The slow component has no spans and no metrics. Metrics carry five p95s stepping up with every
+    # error ratio at zero; the traces put 300ms on every store command and nothing on cart's flag
+    # read or its answers; cart's and the store's logs go on unchanged; there are no runtime series
+    # for the store, and cart's health is read from its traces; the change record is under the
+    # store's name and no service's.
+    "v2-valkey-cart-dependency-latency": {"metrics", "logs", "traces", "changes"},
     # Holdout. The page names the culprit and reads as down. Metrics carry its rate going to zero
     # and everyone else's holding; runtime shows it alive; its log names the address and the
     # refused connection, and fraud-detection's shows the topic still read; traces show none of

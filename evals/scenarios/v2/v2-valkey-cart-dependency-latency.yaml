@@ -30,46 +30,55 @@ ground_truth:
     network namespace.
   category: dependency_latency
 expected_evidence:
-  # Carried from v1's design and not recorded on v2 yet. Written before the first recording and
-  # checked against the bundle, as every v2 scenario's list has been, and corrected there. The
-  # comparator is v2-cart-dependency-latency, recorded the same day: there the delay was on cart's
-  # egress, so every store command and every answer to a caller paid 300ms. Here only the store's
-  # replies pay it. Predicted: the same five latency alerts, and the distinction in the traces and
-  # the change record - see the candidate list's note for the prediction in full.
-  - alerts: ServiceHighLatency on cart and on its callers - checkout, frontend, frontend-proxy and
-      load-generator - within about a minute of each other, four to five minutes in, as in
-      v2-cart-dependency-latency; no ServiceHighErrorRate anywhere and nothing goes quiet
-  - metrics: cart's p95 steps from 3ms to about 900 (an AddItem or EmptyCart is three store round
-      trips at ~300 each), as in the comparator; the callers' p95s to about 1.2 s rather than the
-      comparator's 1.8, because cart's answers are not delayed - a cart page or an order touches
-      cart twice and pays only the store's time; every error ratio stays at zero; rates hold or
-      ease as shoppers wait; the store has no series to move
-  - traces: cart's server span holds the time and beneath it every store command (HGET, HMSET,
-      EXPIRE) takes ~300ms - but cart's flag read to flagd, beside them, stays at a few
-      milliseconds, and the caller's client span ends within milliseconds of cart's server span
-      rather than 300ms after it; the store itself has no span anywhere; no span errors
-  - logs: cart's log goes on as before, its request lines at their usual rate, with nothing new in
-      it; the store's log is its five-minute save and nothing else, before, during and after
-  - metrics: cart's 35 runtime series report without a gap, CPU and collections flat, no restart -
-      the process is up and unstrained; the store has no runtime series and never had
+  # Carried from v1's design, predicted before recording against v2-cart-dependency-latency and
+  # checked against the first recording, on the revised world, 2026-09-27 (t_inject 09:16:49,
+  # revert at +9:04). Every prediction held: the same five latency alerts, cart's p95 near 900ms,
+  # the callers' near 1.2 s, the time only on the store commands with cart's flag read at its
+  # milliseconds beside them, the callers' spans ending with cart's, the store without a span. Not
+  # predicted: the page was cart alone, the four callers a minute later, where the comparator
+  # paged four at once. The list below states the recording.
+  - alerts: ServiceHighLatency on cart alone (page 4m04s), then on checkout, frontend,
+      frontend-proxy and load-generator together at +4:45 - five alerts, all latency, none after
+      the fix; no ServiceHighErrorRate anywhere and nothing goes quiet; the store has nothing to
+      alert on
+  - metrics: cart's p95 steps from 3ms to 318 at +1, 837 at +3 and ~900 from +4; checkout's from
+      ~34ms to ~870, the frontend's from ~43ms to ~1.15 s, frontend-proxy's and load-generator's to
+      ~1.25 s (the comparator's callers sat at 1.6-1.85 s, paying 300ms more on every answer);
+      every error ratio zero throughout; rates thin as shoppers wait - cart from ~4.6 to 2.75-3.6 a
+      second, checkout from ~2.3 to 1.0-1.75 - and payment, the catalog, currency and shipping
+      keep their milliseconds; the store has no series to move
+  - traces: in 80 traces drawn under the fault every HGET, HMSET and EXPIRE beneath cart takes
+      300-305ms - GetCart 301ms at cart, EmptyCart 603, AddItem 903 - while cart's flag read to
+      flagd beside them stays at 1.1-2.3ms; each caller's span ends within a millisecond or two of
+      cart's (checkout's GetCart 303 over cart's 301, the frontend's AddItem 904 over 903); the
+      store has no span anywhere; no span errors; the agent's trace tool names cart's own store
+      commands as the degrading hop on cart's traces
+  - logs: cart's log goes on as before - GetCartAsync and AddItemAsync called, 52 to 75 lines a
+      minute, thinning with the traffic - with no error, warning or timeout; the store's log is its
+      five-minute save on schedule, five lines every 5m01s, before, during and after, and nothing
+      else
+  - metrics: the store has no runtime series and never had, and no metric under any name; cart's
+      health is read from its traces here - its own time under a millisecond once its store
+      commands are taken out, its flag reads unchanged, no errors
   - change: a change record at onset under valkey-cart's name - a name that appears in no
       service's metrics or spans - `traffic-shaping container attached to valkey-cart's network
       namespace`, carrying `eth0 delay=300ms jitter=0ms`; nothing recorded on cart or on any
       traced service
   - discriminator: the same ~300ms on every store command and on nothing else - not on cart's
-      flag read, not on cart's answers - places the delay between cart and its store rather than
-      at cart's interface; a service whose every dependency call is slow has a slow interface, a
-      service whose calls to one dependency are slow has a slow dependency, and here the slow
-      dependency is one the traces cannot see, so its name comes from the change record alone
+      flag read over the same interface, not on cart's answers to its callers - places the delay
+      between cart and its store on the store's side; a slow interface would slow both kinds of
+      call, and a store working slowly would be uneven where this one is uniform to a few
+      milliseconds; the slow component has no span, so its name comes from the change record and
+      cart's configuration alone
 # Carried from v1: the rule lives in the store container's network namespace, so recreating the
 # store is what clears it - a restart, not a rollback or a config revert.
 expected_remediation_class: restart
-rehearsed: false
+rehearsed: true
 alert_timeout_seconds: 900
 # Declared before recording, checked against the bundle after (T7.5). Measured on the running world
 # 2026-09-27: valkey-cart has no runtime series (none of the v2 families, nor anything else under
 # its name in Prometheus) and a Loki stream of its own that carries its five-minute save, five
 # lines each time - about twenty lines over a recording's window, just past the recorder's
-# ten-line threshold. So [logs], marginally: if the bundle's capture falls short of the threshold
-# the recorder derives [] and the declaration is corrected against it, not argued with.
+# ten-line threshold. So [logs], marginally. The first recording (2026-09-27) confirmed it exactly:
+# 0 runtime series, 20 target log lines (four saves), and the recorder derived [logs].
 answers_idle_or_absent: [logs]
