@@ -845,11 +845,18 @@ CATALOG: tuple[FaultDefinition, ...] = _validated(
                 "heap was sized for the old ceiling, so the kernel OOM-kills it and the frontend "
                 "loses its ad panel while everything else serves."
             ),
-            # Resting 238.8MiB of a 300MiB limit (docker stats, 2026-09-24). 192m is 80 % of the
-            # working set - v1's 256m sat about as far under v1's - so the kill is prompt without
-            # the container failing to start at all (T7.20's band has two edges). A starting value
-            # for the smoke; the rehearsal measures it and the scenario records what it was.
-            params={"memory": "192m"},
+            # Resting 238.8MiB of a 300MiB limit (docker stats, 2026-09-24); 192m, 80 % of that,
+            # was the starting value for the smoke, with the rehearsal to measure it. Measured
+            # 2026-09-27 before authoring, from ad's own JVM series: it sizes its heap from the
+            # container limit (a 121.8 MiB ceiling against 300M, about 40 %), so a JVM restarted
+            # under 192m would take a 78 MiB heap and could settle in - one kill and a quiet
+            # recovery, the edge of T7.20's band that cart-memory-squeeze fell off. What it cannot
+            # shrink: 91.6 MiB of non-heap and about 80 MiB the container holds outside the JVM
+            # altogether (230 MiB in docker stats against 149 committed). The rule, applied once:
+            # the JVM's own committed memory at its eight-hour high (157.6 MiB), rounded down to
+            # 16 MiB - 62 % of the working set, so the running JVM is killed at once, and nothing
+            # left for the process's own 80 MiB, so a restarted one cannot reach a serving state.
+            params={"memory": "144m"},
         ),
         FaultDefinition(
             id="v2-cart-dependency-latency",

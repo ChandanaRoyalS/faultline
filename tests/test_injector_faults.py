@@ -483,6 +483,12 @@ def test_the_v2_old_mechanism_definitions_carry_v2_values_not_v1s() -> None:
     assert catalog.target == "product-catalog" and catalog.params == leaf.params, (
         "the row's fourth target, the same rule: the catalog is not a leaf, so its own p95 moves"
     )
+    squeeze_v2 = v2_old["v2-ad-memory-squeeze"].params
+    assert squeeze_v2 == {"memory": "144m"}, (
+        "the JVM's own committed memory at its eight-hour high, rounded down to 16 MiB, measured "
+        "2026-09-27: under the working set so the running JVM dies at once, and with nothing "
+        "left for what the process holds outside the JVM, so a restarted one cannot settle in"
+    )
 
 
 def test_the_v2_flag_definitions_name_the_demo_flag_and_the_service_that_reads_it() -> None:

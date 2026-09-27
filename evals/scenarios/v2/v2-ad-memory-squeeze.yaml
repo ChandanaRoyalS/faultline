@@ -1,0 +1,74 @@
+# v2/resource_exhaustion-1 (dev) - see SPLIT-V2.md. Slot allocated before authoring; do not move.
+# Candidate order and eligibility: docs/design/t7.1-candidates.md, resource_exhaustion row 1 -
+# dev-only: v1's ad-memory-squeeze is a published dev design, carried to v2's ad. The limit is
+# re-measured on v2, never copied: chosen once, by a stated rule, from ad's own JVM series
+# (2026-09-27), before recording.
+id: v2-ad-memory-squeeze
+title: Ad service memory limit cut below what its JVM needs to run
+fault_class: resource_exhaustion
+split: dev
+slot: v2/resource_exhaustion-1
+world: v2
+injection:
+  target: ad
+  method: v2-ad-memory-squeeze
+  params:
+    # The JVM's own committed memory at its eight-hour high (157.6 MiB), rounded down to 16 MiB.
+    # 62 % of the 230 MiB working set, so the running JVM is killed at once; and nothing left for
+    # the ~80 MiB the container holds outside the JVM, so a restarted one cannot reach a serving
+    # state. Not tuned after recording: a page of any shape is the scenario, and no page blocks it.
+    memory: "144m"
+ground_truth:
+  root_cause: >
+    The ad service container's memory limit was lowered to 144m, below the working set of a JVM
+    that had sized its heap against the previous 300M ceiling, and below what the process needs
+    outside its heap at all. The kernel kills the container and the restart policy brings it
+    back, and each new JVM is killed again before it can serve steadily, so the storefront's ad
+    requests fail while every other service is healthy. Nothing about ad's image, code or
+    configuration changed; restoring the limit fixes it.
+  category: resource_exhaustion
+expected_evidence:
+  # Carried from v1's design and not recorded on v2 yet. Written before the first recording and
+  # checked against the bundle, as every v2 scenario's list has been, and corrected there.
+  # Measured at rest (2026-09-27): ad at 230 MiB of 300M; heap ceiling 121.8 MiB, heap used 38,
+  # non-heap used 91.6, JVM committed 149, eight-hour high 157.6; ad's calls are 2.2% of the
+  # frontend's non-internal spans, all from the frontend; 50 JVM runtime series; 14 to 38 log
+  # lines a minute. The comparator for the page's shape is v2-ad-bad-image-tag (bad_deploy, dev),
+  # the same absence with a different cause: distinct on (b), a limit lowered against an image
+  # updated, and on (c), a JVM starting over and over against a shutdown and silence.
+  - alerts: ServiceHighErrorRate on frontend and frontend-proxy, and perhaps load-generator, once
+      the storefront's ad requests fail for long enough - within about six minutes if ad never
+      serves, later and less steadily if it serves in bursts between kills; ServiceNoTraffic on ad
+      if it never serves; nothing on the order path
+  - metrics: ad's call rate falls to zero, or to bursts, with no error ratio of its own; the
+      frontend's error ratio rises to about 7-12% (each failed /api/data fails several frontend
+      spans) and frontend-proxy's with it; the order path records no errors; the storefront's p95
+      barely moves
+  - traces: the frontend's storefront ad requests end in frontend/grpc.oteldemo.AdService/GetAds
+      in error with no ad span beneath, or with an ad span from a JVM that was killed moments
+      later; every order completes
+  - logs: ad's log turns into JVM start-up banners - `Picked up JAVA_TOOL_OPTIONS`, the OpenJDK
+      warning, the agent announcing its version, sometimes `Ad service starting` - repeating with
+      nothing after them, as the runtime backs off between restarts; no error, no stack trace, no
+      shutdown message before any of them; the frontend logs UNAVAILABLE errors
+  - metrics: ad's 50 JVM runtime series stop - held for the store's five-minute lookback and then
+      gone - or reappear in short bursts as each JVM starts and dies; a process that is merely
+      idle keeps exporting them
+  - container: exit code 137 with OOMKilled set on each exit, visible between a kill and the next
+      start; the restart count climbing through the fault (not agent-visible, recorded for the
+      narrative's readers)
+  - change: a change record at onset - `memory limit lowered on ad`, carrying `memory=144m` - and
+      no deploy, no image change, no environment change
+  - discriminator: a service killed at start over and over whose image and code are unchanged and
+      whose change record is its memory limit, was starved - a wrong image would show a different
+      program in the log and an image change in the record, and a flag would leave no record and
+      a process that stays up
+expected_remediation_class: config_revert
+rehearsed: false
+alert_timeout_seconds: 900
+# Declared before recording, checked against the bundle after (T7.5). Measured on the running world
+# 2026-09-27: ad holds 50 JVM runtime series and logs 14 to 38 lines a minute. Both are what the
+# fault removes, in bursts or entirely: they answer by going idle or absent. If the JVM never runs
+# long enough to export a series under the fault, the runtime capture is empty from onset and the
+# recorder derives from what it holds; the declaration is corrected against it, not argued with.
+answers_idle_or_absent: [runtime, logs]
