@@ -1,508 +1,88 @@
 # target container: cart
 # loki labels: service, stream
 # selector: {service="cart"}
-# 500 lines
-# before onset (2026-09-26T20:17:03+00:00): 100 lines, the newest kept (limit reached: earlier lines were not captured)
-# from onset: 400 lines, the oldest kept (limit reached: later lines were not captured)
+# 80 lines
+# before onset (2026-09-27T04:59:36+00:00): 0 lines, the newest kept
+# from onset: 80 lines, the oldest kept
 
-2026-09-26T20:16:11+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:16:11+00:00        AddItemAsync called with userId=1ddee8f4-b9e7-11f1-b5af-ea5dfb8fa78a, productId=HQTGWGPNH4, quantity=1
-2026-09-26T20:16:11+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:16:11+00:00        GetCartAsync called with userId=1ddee8f4-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:16:11+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:16:11+00:00        GetCartAsync called with userId=1ddee8f4-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:16:11+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:16:11+00:00        EmptyCartAsync called with userId=1ddee8f4-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:16:12+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:16:12+00:00        AddItemAsync called with userId=1e83423c-b9e7-11f1-b5af-ea5dfb8fa78a, productId=2ZYFJ3GM2N, quantity=1
-2026-09-26T20:16:12+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:16:12+00:00        GetCartAsync called with userId=1e83423c-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:16:12+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:16:12+00:00        GetCartAsync called with userId=1e83423c-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:16:12+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:16:12+00:00        EmptyCartAsync called with userId=1e83423c-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:16:13+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:16:13+00:00        GetCartAsync called with userId=
-2026-09-26T20:16:16+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:16:16+00:00        AddItemAsync called with userId=2095b58c-b9e7-11f1-b5af-ea5dfb8fa78a, productId=6E92ZMYYFZ, quantity=2
-2026-09-26T20:16:16+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:16:16+00:00        GetCartAsync called with userId=2095b58c-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:16:20+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:16:20+00:00        AddItemAsync called with userId=23333832-b9e7-11f1-b5af-ea5dfb8fa78a, productId=HQTGWGPNH4, quantity=3
-2026-09-26T20:16:20+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:16:20+00:00        GetCartAsync called with userId=23333832-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:16:20+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:16:20+00:00        GetCartAsync called with userId=23333832-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:16:20+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:16:20+00:00        EmptyCartAsync called with userId=23333832-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:16:20+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:16:20+00:00        AddItemAsync called with userId=23437ef4-b9e7-11f1-b5af-ea5dfb8fa78a, productId=1YMWWN1N4O, quantity=3
-2026-09-26T20:16:20+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:16:20+00:00        GetCartAsync called with userId=23437ef4-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:16:21+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:16:21+00:00        GetCartAsync called with userId=
-2026-09-26T20:16:22+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:16:22+00:00        GetCartAsync called with userId=
-2026-09-26T20:16:22+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:16:22+00:00        AddItemAsync called with userId=2432575e-b9e7-11f1-b5af-ea5dfb8fa78a, productId=L9ECAV7KIM, quantity=3
-2026-09-26T20:16:22+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:16:22+00:00        GetCartAsync called with userId=2432575e-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:16:23+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:16:23+00:00        GetCartAsync called with userId=
-2026-09-26T20:16:23+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:16:23+00:00        AddItemAsync called with userId=25043b52-b9e7-11f1-b5af-ea5dfb8fa78a, productId=L9ECAV7KIM, quantity=10
-2026-09-26T20:16:23+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:16:23+00:00        GetCartAsync called with userId=25043b52-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:16:23+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:16:23+00:00        AddItemAsync called with userId=25043b52-b9e7-11f1-b5af-ea5dfb8fa78a, productId=L9ECAV7KIM, quantity=4
-2026-09-26T20:16:23+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:16:23+00:00        GetCartAsync called with userId=25043b52-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:16:23+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:16:23+00:00        GetCartAsync called with userId=25043b52-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:16:23+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:16:23+00:00        EmptyCartAsync called with userId=25043b52-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:16:25+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:16:25+00:00        GetCartAsync called with userId=
-2026-09-26T20:16:27+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:16:27+00:00        AddItemAsync called with userId=275d26e8-b9e7-11f1-b5af-ea5dfb8fa78a, productId=0PUK6V6EV0, quantity=4
-2026-09-26T20:16:27+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:16:27+00:00        GetCartAsync called with userId=275d26e8-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:16:30+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:16:30+00:00        AddItemAsync called with userId=28ee325e-b9e7-11f1-b5af-ea5dfb8fa78a, productId=9SIQT8TOJO, quantity=2
-2026-09-26T20:16:30+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:16:30+00:00        GetCartAsync called with userId=28ee325e-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:16:36+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:16:36+00:00        GetCartAsync called with userId=
-2026-09-26T20:16:37+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:16:37+00:00        GetCartAsync called with userId=
-2026-09-26T20:16:43+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:16:43+00:00        GetCartAsync called with userId=
-2026-09-26T20:16:43+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:16:43+00:00        AddItemAsync called with userId=30fc109c-b9e7-11f1-b5af-ea5dfb8fa78a, productId=2ZYFJ3GM2N, quantity=3
-2026-09-26T20:16:43+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:16:43+00:00        GetCartAsync called with userId=30fc109c-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:16:43+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:16:43+00:00        GetCartAsync called with userId=30fc109c-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:16:43+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:16:43+00:00        EmptyCartAsync called with userId=30fc109c-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:16:50+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:16:50+00:00        AddItemAsync called with userId=355d8206-b9e7-11f1-b5af-ea5dfb8fa78a, productId=2ZYFJ3GM2N, quantity=5
-2026-09-26T20:16:50+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:16:50+00:00        GetCartAsync called with userId=355d8206-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:16:52+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:16:52+00:00        AddItemAsync called with userId=36271ce2-b9e7-11f1-b5af-ea5dfb8fa78a, productId=9SIQT8TOJO, quantity=3
-2026-09-26T20:16:52+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:16:52+00:00        GetCartAsync called with userId=36271ce2-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:16:59+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:16:59+00:00        GetCartAsync called with userId=
-2026-09-26T20:17:00+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:00+00:00        AddItemAsync called with userId=3afe39ee-b9e7-11f1-b5af-ea5dfb8fa78a, productId=6E92ZMYYFZ, quantity=3
-2026-09-26T20:17:00+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:00+00:00        GetCartAsync called with userId=3afe39ee-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:17:00+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:00+00:00        GetCartAsync called with userId=3afe39ee-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:17:00+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:00+00:00        EmptyCartAsync called with userId=3afe39ee-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:17:01+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:01+00:00        GetCartAsync called with userId=
-# ---- onset 2026-09-26T20:17:03+00:00 ----
-2026-09-26T20:17:04+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:04+00:00        GetCartAsync called with userId=
-2026-09-26T20:17:04+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:04+00:00        AddItemAsync called with userId=3db89652-b9e7-11f1-b5af-ea5dfb8fa78a, productId=L9ECAV7KIM, quantity=3
-2026-09-26T20:17:04+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:04+00:00        GetCartAsync called with userId=3db89652-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:17:04+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:04+00:00        GetCartAsync called with userId=3db89652-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:17:04+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:04+00:00        EmptyCartAsync called with userId=3db89652-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:17:05+00:00  fail: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:05+00:00        Wasn't able to connect to redis
-2026-09-26T20:17:05+00:00  info: Grpc.AspNetCore.Server.ServerCallHandler[7]
-2026-09-26T20:17:05+00:00        Error status code 'FailedPrecondition' with detail 'Can't access cart storage. System.ApplicationException: Wasn't able to connect to redis
-2026-09-26T20:17:05+00:00           at cart.cartstore.ValkeyCartStore.EnsureRedisConnected() in /usr/src/app/src/cartstore/ValkeyCartStore.cs:line 101
-2026-09-26T20:17:05+00:00           at cart.cartstore.ValkeyCartStore.EmptyCartAsync(String userId) in /usr/src/app/src/cartstore/ValkeyCartStore.cs:line 194' raised.
-2026-09-26T20:17:09+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:09+00:00        GetCartAsync called with userId=
-2026-09-26T20:17:09+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:09+00:00        GetCartAsync called with userId=
-2026-09-26T20:17:10+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:10+00:00        AddItemAsync called with userId=41460bce-b9e7-11f1-b5af-ea5dfb8fa78a, productId=2ZYFJ3GM2N, quantity=1
-2026-09-26T20:17:10+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:10+00:00        GetCartAsync called with userId=41460bce-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:17:12+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:12+00:00        AddItemAsync called with userId=4244f18e-b9e7-11f1-b5af-ea5dfb8fa78a, productId=2ZYFJ3GM2N, quantity=2
-2026-09-26T20:17:12+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:12+00:00        GetCartAsync called with userId=4244f18e-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:17:12+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:12+00:00        GetCartAsync called with userId=4244f18e-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:17:12+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:12+00:00        EmptyCartAsync called with userId=4244f18e-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:17:12+00:00  fail: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:12+00:00        Wasn't able to connect to redis
-2026-09-26T20:17:12+00:00  info: Grpc.AspNetCore.Server.ServerCallHandler[7]
-2026-09-26T20:17:12+00:00        Error status code 'FailedPrecondition' with detail 'Can't access cart storage. System.ApplicationException: Wasn't able to connect to redis
-2026-09-26T20:17:12+00:00           at cart.cartstore.ValkeyCartStore.EnsureRedisConnected() in /usr/src/app/src/cartstore/ValkeyCartStore.cs:line 101
-2026-09-26T20:17:12+00:00           at cart.cartstore.ValkeyCartStore.EmptyCartAsync(String userId) in /usr/src/app/src/cartstore/ValkeyCartStore.cs:line 194' raised.
-2026-09-26T20:17:14+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:14+00:00        GetCartAsync called with userId=
-2026-09-26T20:17:14+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:14+00:00        GetCartAsync called with userId=
-2026-09-26T20:17:17+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:17+00:00        GetCartAsync called with userId=
-2026-09-26T20:17:22+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:22+00:00        AddItemAsync called with userId=47f518a2-b9e7-11f1-b5af-ea5dfb8fa78a, productId=OLJCESPC7Z, quantity=4
-2026-09-26T20:17:22+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:22+00:00        GetCartAsync called with userId=47f518a2-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:17:22+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:22+00:00        AddItemAsync called with userId=47f518a2-b9e7-11f1-b5af-ea5dfb8fa78a, productId=OLJCESPC7Z, quantity=3
-2026-09-26T20:17:22+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:22+00:00        GetCartAsync called with userId=47f518a2-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:17:22+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:22+00:00        AddItemAsync called with userId=47f518a2-b9e7-11f1-b5af-ea5dfb8fa78a, productId=1YMWWN1N4O, quantity=10
-2026-09-26T20:17:22+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:22+00:00        GetCartAsync called with userId=47f518a2-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:17:22+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:22+00:00        AddItemAsync called with userId=47f518a2-b9e7-11f1-b5af-ea5dfb8fa78a, productId=9SIQT8TOJO, quantity=2
-2026-09-26T20:17:22+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:22+00:00        GetCartAsync called with userId=47f518a2-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:17:22+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:22+00:00        GetCartAsync called with userId=47f518a2-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:17:22+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:22+00:00        EmptyCartAsync called with userId=47f518a2-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:17:22+00:00  fail: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:22+00:00        Wasn't able to connect to redis
-2026-09-26T20:17:22+00:00  info: Grpc.AspNetCore.Server.ServerCallHandler[7]
-2026-09-26T20:17:22+00:00        Error status code 'FailedPrecondition' with detail 'Can't access cart storage. System.ApplicationException: Wasn't able to connect to redis
-2026-09-26T20:17:22+00:00           at cart.cartstore.ValkeyCartStore.EnsureRedisConnected() in /usr/src/app/src/cartstore/ValkeyCartStore.cs:line 101
-2026-09-26T20:17:22+00:00           at cart.cartstore.ValkeyCartStore.EmptyCartAsync(String userId) in /usr/src/app/src/cartstore/ValkeyCartStore.cs:line 194' raised.
-2026-09-26T20:17:23+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:23+00:00        AddItemAsync called with userId=48b763da-b9e7-11f1-b5af-ea5dfb8fa78a, productId=6E92ZMYYFZ, quantity=1
-2026-09-26T20:17:23+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:23+00:00        GetCartAsync called with userId=48b763da-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:17:26+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:26+00:00        AddItemAsync called with userId=4a893972-b9e7-11f1-b5af-ea5dfb8fa78a, productId=6E92ZMYYFZ, quantity=5
-2026-09-26T20:17:26+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:26+00:00        GetCartAsync called with userId=4a893972-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:17:30+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:30+00:00        AddItemAsync called with userId=4cf577fc-b9e7-11f1-b5af-ea5dfb8fa78a, productId=HQTGWGPNH4, quantity=10
-2026-09-26T20:17:30+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:30+00:00        GetCartAsync called with userId=4cf577fc-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:17:30+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:30+00:00        AddItemAsync called with userId=4cf577fc-b9e7-11f1-b5af-ea5dfb8fa78a, productId=L9ECAV7KIM, quantity=4
-2026-09-26T20:17:30+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:30+00:00        GetCartAsync called with userId=4cf577fc-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:17:30+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:30+00:00        AddItemAsync called with userId=4cf577fc-b9e7-11f1-b5af-ea5dfb8fa78a, productId=2ZYFJ3GM2N, quantity=5
-2026-09-26T20:17:30+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:30+00:00        GetCartAsync called with userId=4cf577fc-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:17:30+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:30+00:00        GetCartAsync called with userId=4cf577fc-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:17:30+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:30+00:00        EmptyCartAsync called with userId=4cf577fc-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:17:30+00:00  fail: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:30+00:00        Wasn't able to connect to redis
-2026-09-26T20:17:30+00:00  info: Grpc.AspNetCore.Server.ServerCallHandler[7]
-2026-09-26T20:17:30+00:00        Error status code 'FailedPrecondition' with detail 'Can't access cart storage. System.ApplicationException: Wasn't able to connect to redis
-2026-09-26T20:17:30+00:00           at cart.cartstore.ValkeyCartStore.EnsureRedisConnected() in /usr/src/app/src/cartstore/ValkeyCartStore.cs:line 101
-2026-09-26T20:17:30+00:00           at cart.cartstore.ValkeyCartStore.EmptyCartAsync(String userId) in /usr/src/app/src/cartstore/ValkeyCartStore.cs:line 194' raised.
-2026-09-26T20:17:31+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:31+00:00        AddItemAsync called with userId=4d5a83fe-b9e7-11f1-b5af-ea5dfb8fa78a, productId=1YMWWN1N4O, quantity=1
-2026-09-26T20:17:31+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:31+00:00        GetCartAsync called with userId=4d5a83fe-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:17:31+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:31+00:00        GetCartAsync called with userId=4d5a83fe-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:17:31+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:31+00:00        EmptyCartAsync called with userId=4d5a83fe-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:17:31+00:00  fail: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:31+00:00        Wasn't able to connect to redis
-2026-09-26T20:17:31+00:00  info: Grpc.AspNetCore.Server.ServerCallHandler[7]
-2026-09-26T20:17:31+00:00        Error status code 'FailedPrecondition' with detail 'Can't access cart storage. System.ApplicationException: Wasn't able to connect to redis
-2026-09-26T20:17:31+00:00           at cart.cartstore.ValkeyCartStore.EnsureRedisConnected() in /usr/src/app/src/cartstore/ValkeyCartStore.cs:line 101
-2026-09-26T20:17:31+00:00           at cart.cartstore.ValkeyCartStore.EmptyCartAsync(String userId) in /usr/src/app/src/cartstore/ValkeyCartStore.cs:line 194' raised.
-2026-09-26T20:17:31+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:31+00:00        GetCartAsync called with userId=
-2026-09-26T20:17:36+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:36+00:00        AddItemAsync called with userId=50936a86-b9e7-11f1-b5af-ea5dfb8fa78a, productId=HQTGWGPNH4, quantity=2
-2026-09-26T20:17:36+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:36+00:00        GetCartAsync called with userId=50936a86-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:17:36+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:36+00:00        GetCartAsync called with userId=50936a86-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:17:36+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:36+00:00        EmptyCartAsync called with userId=50936a86-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:17:36+00:00  fail: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:36+00:00        Wasn't able to connect to redis
-2026-09-26T20:17:36+00:00  info: Grpc.AspNetCore.Server.ServerCallHandler[7]
-2026-09-26T20:17:36+00:00        Error status code 'FailedPrecondition' with detail 'Can't access cart storage. System.ApplicationException: Wasn't able to connect to redis
-2026-09-26T20:17:36+00:00           at cart.cartstore.ValkeyCartStore.EnsureRedisConnected() in /usr/src/app/src/cartstore/ValkeyCartStore.cs:line 101
-2026-09-26T20:17:36+00:00           at cart.cartstore.ValkeyCartStore.EmptyCartAsync(String userId) in /usr/src/app/src/cartstore/ValkeyCartStore.cs:line 194' raised.
-2026-09-26T20:17:38+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:38+00:00        AddItemAsync called with userId=51c27834-b9e7-11f1-b5af-ea5dfb8fa78a, productId=9SIQT8TOJO, quantity=10
-2026-09-26T20:17:38+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:38+00:00        GetCartAsync called with userId=51c27834-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:17:38+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:38+00:00        AddItemAsync called with userId=51c27834-b9e7-11f1-b5af-ea5dfb8fa78a, productId=1YMWWN1N4O, quantity=4
-2026-09-26T20:17:38+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:38+00:00        GetCartAsync called with userId=51c27834-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:17:38+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:38+00:00        GetCartAsync called with userId=51c27834-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:17:38+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:38+00:00        EmptyCartAsync called with userId=51c27834-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:17:39+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:39+00:00        AddItemAsync called with userId=52557954-b9e7-11f1-b5af-ea5dfb8fa78a, productId=6E92ZMYYFZ, quantity=1
-2026-09-26T20:17:39+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:39+00:00        GetCartAsync called with userId=52557954-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:17:40+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:40+00:00        AddItemAsync called with userId=53198c2c-b9e7-11f1-b5af-ea5dfb8fa78a, productId=0PUK6V6EV0, quantity=2
-2026-09-26T20:17:40+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:40+00:00        GetCartAsync called with userId=53198c2c-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:17:40+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:40+00:00        GetCartAsync called with userId=53198c2c-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:17:40+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:40+00:00        EmptyCartAsync called with userId=53198c2c-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:17:40+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:40+00:00        AddItemAsync called with userId=532363be-b9e7-11f1-b5af-ea5dfb8fa78a, productId=2ZYFJ3GM2N, quantity=3
-2026-09-26T20:17:40+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:40+00:00        GetCartAsync called with userId=532363be-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:17:42+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:42+00:00        GetCartAsync called with userId=
-2026-09-26T20:17:42+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:42+00:00        GetCartAsync called with userId=
-2026-09-26T20:17:43+00:00  fail: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:43+00:00        Wasn't able to connect to redis
-2026-09-26T20:17:43+00:00  info: Grpc.AspNetCore.Server.ServerCallHandler[7]
-2026-09-26T20:17:43+00:00        Error status code 'FailedPrecondition' with detail 'Can't access cart storage. System.ApplicationException: Wasn't able to connect to redis
-2026-09-26T20:17:43+00:00           at cart.cartstore.ValkeyCartStore.EnsureRedisConnected() in /usr/src/app/src/cartstore/ValkeyCartStore.cs:line 101
-2026-09-26T20:17:43+00:00           at cart.cartstore.ValkeyCartStore.EmptyCartAsync(String userId) in /usr/src/app/src/cartstore/ValkeyCartStore.cs:line 194' raised.
-2026-09-26T20:17:43+00:00  fail: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:43+00:00        Wasn't able to connect to redis
-2026-09-26T20:17:43+00:00  info: Grpc.AspNetCore.Server.ServerCallHandler[7]
-2026-09-26T20:17:43+00:00        Error status code 'FailedPrecondition' with detail 'Can't access cart storage. System.ApplicationException: Wasn't able to connect to redis
-2026-09-26T20:17:43+00:00           at cart.cartstore.ValkeyCartStore.EnsureRedisConnected() in /usr/src/app/src/cartstore/ValkeyCartStore.cs:line 101
-2026-09-26T20:17:43+00:00           at cart.cartstore.ValkeyCartStore.EmptyCartAsync(String userId) in /usr/src/app/src/cartstore/ValkeyCartStore.cs:line 194' raised.
-2026-09-26T20:17:46+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:46+00:00        GetCartAsync called with userId=
-2026-09-26T20:17:52+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:52+00:00        GetCartAsync called with userId=
-2026-09-26T20:17:56+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:56+00:00        AddItemAsync called with userId=5caff438-b9e7-11f1-b5af-ea5dfb8fa78a, productId=1YMWWN1N4O, quantity=5
-2026-09-26T20:17:56+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:56+00:00        GetCartAsync called with userId=5caff438-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:17:56+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:56+00:00        AddItemAsync called with userId=5caff438-b9e7-11f1-b5af-ea5dfb8fa78a, productId=0PUK6V6EV0, quantity=5
-2026-09-26T20:17:56+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:56+00:00        GetCartAsync called with userId=5caff438-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:17:56+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:56+00:00        AddItemAsync called with userId=5caff438-b9e7-11f1-b5af-ea5dfb8fa78a, productId=9SIQT8TOJO, quantity=4
-2026-09-26T20:17:56+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:56+00:00        GetCartAsync called with userId=5caff438-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:17:56+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:56+00:00        GetCartAsync called with userId=5caff438-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:17:56+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:56+00:00        EmptyCartAsync called with userId=5caff438-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:17:56+00:00  fail: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:56+00:00        Wasn't able to connect to redis
-2026-09-26T20:17:56+00:00  info: Grpc.AspNetCore.Server.ServerCallHandler[7]
-2026-09-26T20:17:56+00:00        Error status code 'FailedPrecondition' with detail 'Can't access cart storage. System.ApplicationException: Wasn't able to connect to redis
-2026-09-26T20:17:56+00:00           at cart.cartstore.ValkeyCartStore.EnsureRedisConnected() in /usr/src/app/src/cartstore/ValkeyCartStore.cs:line 101
-2026-09-26T20:17:56+00:00           at cart.cartstore.ValkeyCartStore.EmptyCartAsync(String userId) in /usr/src/app/src/cartstore/ValkeyCartStore.cs:line 194' raised.
-2026-09-26T20:17:58+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:58+00:00        AddItemAsync called with userId=5db97638-b9e7-11f1-b5af-ea5dfb8fa78a, productId=9SIQT8TOJO, quantity=2
-2026-09-26T20:17:58+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:58+00:00        GetCartAsync called with userId=5db97638-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:17:58+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:58+00:00        GetCartAsync called with userId=5db97638-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:17:58+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:58+00:00        EmptyCartAsync called with userId=5db97638-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:17:58+00:00  fail: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:58+00:00        Wasn't able to connect to redis
-2026-09-26T20:17:58+00:00  info: Grpc.AspNetCore.Server.ServerCallHandler[7]
-2026-09-26T20:17:58+00:00        Error status code 'FailedPrecondition' with detail 'Can't access cart storage. System.ApplicationException: Wasn't able to connect to redis
-2026-09-26T20:17:58+00:00           at cart.cartstore.ValkeyCartStore.EnsureRedisConnected() in /usr/src/app/src/cartstore/ValkeyCartStore.cs:line 101
-2026-09-26T20:17:58+00:00           at cart.cartstore.ValkeyCartStore.EmptyCartAsync(String userId) in /usr/src/app/src/cartstore/ValkeyCartStore.cs:line 194' raised.
-2026-09-26T20:17:58+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:58+00:00        AddItemAsync called with userId=5dd05420-b9e7-11f1-b5af-ea5dfb8fa78a, productId=66VCHSJNUP, quantity=10
-2026-09-26T20:17:58+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:58+00:00        GetCartAsync called with userId=5dd05420-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:17:58+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:58+00:00        AddItemAsync called with userId=5dd05420-b9e7-11f1-b5af-ea5dfb8fa78a, productId=HQTGWGPNH4, quantity=1
-2026-09-26T20:17:58+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:58+00:00        GetCartAsync called with userId=5dd05420-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:17:58+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:58+00:00        AddItemAsync called with userId=5dd05420-b9e7-11f1-b5af-ea5dfb8fa78a, productId=9SIQT8TOJO, quantity=1
-2026-09-26T20:17:58+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:58+00:00        GetCartAsync called with userId=5dd05420-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:17:58+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:58+00:00        GetCartAsync called with userId=5dd05420-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:17:58+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:58+00:00        EmptyCartAsync called with userId=5dd05420-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:17:58+00:00  fail: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:17:58+00:00        Wasn't able to connect to redis
-2026-09-26T20:17:58+00:00  info: Grpc.AspNetCore.Server.ServerCallHandler[7]
-2026-09-26T20:17:58+00:00        Error status code 'FailedPrecondition' with detail 'Can't access cart storage. System.ApplicationException: Wasn't able to connect to redis
-2026-09-26T20:17:58+00:00           at cart.cartstore.ValkeyCartStore.EnsureRedisConnected() in /usr/src/app/src/cartstore/ValkeyCartStore.cs:line 101
-2026-09-26T20:17:58+00:00           at cart.cartstore.ValkeyCartStore.EmptyCartAsync(String userId) in /usr/src/app/src/cartstore/ValkeyCartStore.cs:line 194' raised.
-2026-09-26T20:18:01+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:18:01+00:00        GetCartAsync called with userId=
-2026-09-26T20:18:03+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:18:03+00:00        AddItemAsync called with userId=60d8c2f6-b9e7-11f1-b5af-ea5dfb8fa78a, productId=6E92ZMYYFZ, quantity=2
-2026-09-26T20:18:03+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:18:03+00:00        GetCartAsync called with userId=60d8c2f6-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:18:04+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:18:04+00:00        GetCartAsync called with userId=
-2026-09-26T20:18:08+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:18:08+00:00        GetCartAsync called with userId=
-2026-09-26T20:18:10+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:18:10+00:00        AddItemAsync called with userId=649cc446-b9e7-11f1-b5af-ea5dfb8fa78a, productId=L9ECAV7KIM, quantity=1
-2026-09-26T20:18:10+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:18:10+00:00        GetCartAsync called with userId=649cc446-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:18:11+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:18:11+00:00        AddItemAsync called with userId=6532b924-b9e7-11f1-b5af-ea5dfb8fa78a, productId=6E92ZMYYFZ, quantity=5
-2026-09-26T20:18:11+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:18:11+00:00        GetCartAsync called with userId=6532b924-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:18:11+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:18:11+00:00        GetCartAsync called with userId=
-2026-09-26T20:18:16+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:18:16+00:00        AddItemAsync called with userId=686be0a2-b9e7-11f1-b5af-ea5dfb8fa78a, productId=9SIQT8TOJO, quantity=5
-2026-09-26T20:18:16+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:18:16+00:00        GetCartAsync called with userId=686be0a2-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:18:18+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:18:18+00:00        AddItemAsync called with userId=698d0f4c-b9e7-11f1-b5af-ea5dfb8fa78a, productId=0PUK6V6EV0, quantity=10
-2026-09-26T20:18:18+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:18:18+00:00        GetCartAsync called with userId=698d0f4c-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:18:19+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:18:19+00:00        AddItemAsync called with userId=6a412dce-b9e7-11f1-b5af-ea5dfb8fa78a, productId=HQTGWGPNH4, quantity=1
-2026-09-26T20:18:19+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:18:19+00:00        GetCartAsync called with userId=6a412dce-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:18:19+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:18:19+00:00        AddItemAsync called with userId=6a412dce-b9e7-11f1-b5af-ea5dfb8fa78a, productId=2ZYFJ3GM2N, quantity=10
-2026-09-26T20:18:19+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:18:19+00:00        GetCartAsync called with userId=6a412dce-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:18:19+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:18:19+00:00        AddItemAsync called with userId=6a412dce-b9e7-11f1-b5af-ea5dfb8fa78a, productId=66VCHSJNUP, quantity=2
-2026-09-26T20:18:19+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:18:19+00:00        GetCartAsync called with userId=6a412dce-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:18:19+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:18:19+00:00        GetCartAsync called with userId=6a412dce-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:18:19+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:18:19+00:00        AddItemAsync called with userId=6a477fb2-b9e7-11f1-b5af-ea5dfb8fa78a, productId=0PUK6V6EV0, quantity=3
-2026-09-26T20:18:19+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:18:19+00:00        GetCartAsync called with userId=6a477fb2-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:18:19+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:18:19+00:00        EmptyCartAsync called with userId=6a412dce-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:18:19+00:00  fail: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:18:19+00:00        Wasn't able to connect to redis
-2026-09-26T20:18:19+00:00  info: Grpc.AspNetCore.Server.ServerCallHandler[7]
-2026-09-26T20:18:19+00:00        Error status code 'FailedPrecondition' with detail 'Can't access cart storage. System.ApplicationException: Wasn't able to connect to redis
-2026-09-26T20:18:19+00:00           at cart.cartstore.ValkeyCartStore.EnsureRedisConnected() in /usr/src/app/src/cartstore/ValkeyCartStore.cs:line 101
-2026-09-26T20:18:19+00:00           at cart.cartstore.ValkeyCartStore.EmptyCartAsync(String userId) in /usr/src/app/src/cartstore/ValkeyCartStore.cs:line 194' raised.
-2026-09-26T20:18:21+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:18:21+00:00        AddItemAsync called with userId=6b948acc-b9e7-11f1-b5af-ea5dfb8fa78a, productId=1YMWWN1N4O, quantity=3
-2026-09-26T20:18:21+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:18:21+00:00        GetCartAsync called with userId=6b948acc-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:18:21+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:18:21+00:00        AddItemAsync called with userId=6b948acc-b9e7-11f1-b5af-ea5dfb8fa78a, productId=9SIQT8TOJO, quantity=2
-2026-09-26T20:18:21+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:18:21+00:00        GetCartAsync called with userId=6b948acc-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:18:21+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:18:21+00:00        AddItemAsync called with userId=6b948acc-b9e7-11f1-b5af-ea5dfb8fa78a, productId=0PUK6V6EV0, quantity=5
-2026-09-26T20:18:21+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:18:21+00:00        GetCartAsync called with userId=6b948acc-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:18:21+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:18:21+00:00        GetCartAsync called with userId=6b948acc-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:18:21+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:18:21+00:00        EmptyCartAsync called with userId=6b948acc-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:18:21+00:00  fail: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:18:21+00:00        Wasn't able to connect to redis
-2026-09-26T20:18:21+00:00  info: Grpc.AspNetCore.Server.ServerCallHandler[7]
-2026-09-26T20:18:21+00:00        Error status code 'FailedPrecondition' with detail 'Can't access cart storage. System.ApplicationException: Wasn't able to connect to redis
-2026-09-26T20:18:21+00:00           at cart.cartstore.ValkeyCartStore.EnsureRedisConnected() in /usr/src/app/src/cartstore/ValkeyCartStore.cs:line 101
-2026-09-26T20:18:21+00:00           at cart.cartstore.ValkeyCartStore.EmptyCartAsync(String userId) in /usr/src/app/src/cartstore/ValkeyCartStore.cs:line 194' raised.
-2026-09-26T20:18:23+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:18:23+00:00        AddItemAsync called with userId=6cce4cf2-b9e7-11f1-b5af-ea5dfb8fa78a, productId=2ZYFJ3GM2N, quantity=1
-2026-09-26T20:18:23+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:18:23+00:00        GetCartAsync called with userId=6cce4cf2-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:18:23+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:18:23+00:00        AddItemAsync called with userId=6cce4cf2-b9e7-11f1-b5af-ea5dfb8fa78a, productId=9SIQT8TOJO, quantity=4
-2026-09-26T20:18:23+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:18:23+00:00        GetCartAsync called with userId=6cce4cf2-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:18:23+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:18:23+00:00        AddItemAsync called with userId=6cce4cf2-b9e7-11f1-b5af-ea5dfb8fa78a, productId=6E92ZMYYFZ, quantity=10
-2026-09-26T20:18:23+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:18:23+00:00        GetCartAsync called with userId=6cce4cf2-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:18:23+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:18:23+00:00        AddItemAsync called with userId=6cce4cf2-b9e7-11f1-b5af-ea5dfb8fa78a, productId=66VCHSJNUP, quantity=10
-2026-09-26T20:18:23+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:18:23+00:00        GetCartAsync called with userId=6cce4cf2-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:18:23+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:18:23+00:00        GetCartAsync called with userId=6cce4cf2-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:18:23+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:18:23+00:00        EmptyCartAsync called with userId=6cce4cf2-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:18:24+00:00  fail: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:18:24+00:00        Wasn't able to connect to redis
-2026-09-26T20:18:24+00:00  info: Grpc.AspNetCore.Server.ServerCallHandler[7]
-2026-09-26T20:18:24+00:00        Error status code 'FailedPrecondition' with detail 'Can't access cart storage. System.ApplicationException: Wasn't able to connect to redis
-2026-09-26T20:18:24+00:00           at cart.cartstore.ValkeyCartStore.EnsureRedisConnected() in /usr/src/app/src/cartstore/ValkeyCartStore.cs:line 101
-2026-09-26T20:18:24+00:00           at cart.cartstore.ValkeyCartStore.EmptyCartAsync(String userId) in /usr/src/app/src/cartstore/ValkeyCartStore.cs:line 194' raised.
-2026-09-26T20:18:24+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:18:24+00:00        AddItemAsync called with userId=6d3ed526-b9e7-11f1-b5af-ea5dfb8fa78a, productId=0PUK6V6EV0, quantity=3
-2026-09-26T20:18:24+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:18:24+00:00        GetCartAsync called with userId=6d3ed526-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:18:24+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:18:24+00:00        AddItemAsync called with userId=6d3ed526-b9e7-11f1-b5af-ea5dfb8fa78a, productId=1YMWWN1N4O, quantity=1
-2026-09-26T20:18:24+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:18:24+00:00        GetCartAsync called with userId=6d3ed526-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:18:24+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:18:24+00:00        GetCartAsync called with userId=6d3ed526-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:18:24+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:18:24+00:00        EmptyCartAsync called with userId=6d3ed526-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:18:24+00:00  fail: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:18:24+00:00        Wasn't able to connect to redis
-2026-09-26T20:18:24+00:00  info: Grpc.AspNetCore.Server.ServerCallHandler[7]
-2026-09-26T20:18:24+00:00        Error status code 'FailedPrecondition' with detail 'Can't access cart storage. System.ApplicationException: Wasn't able to connect to redis
-2026-09-26T20:18:24+00:00           at cart.cartstore.ValkeyCartStore.EnsureRedisConnected() in /usr/src/app/src/cartstore/ValkeyCartStore.cs:line 101
-2026-09-26T20:18:24+00:00           at cart.cartstore.ValkeyCartStore.EmptyCartAsync(String userId) in /usr/src/app/src/cartstore/ValkeyCartStore.cs:line 194' raised.
-2026-09-26T20:18:24+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:18:24+00:00        GetCartAsync called with userId=
-2026-09-26T20:18:25+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:18:25+00:00        AddItemAsync called with userId=6d7ca018-b9e7-11f1-b5af-ea5dfb8fa78a, productId=0PUK6V6EV0, quantity=3
-2026-09-26T20:18:25+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:18:25+00:00        GetCartAsync called with userId=6d7ca018-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:18:25+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:18:25+00:00        AddItemAsync called with userId=6d7ca018-b9e7-11f1-b5af-ea5dfb8fa78a, productId=2ZYFJ3GM2N, quantity=5
-2026-09-26T20:18:25+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:18:25+00:00        GetCartAsync called with userId=6d7ca018-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:18:25+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:18:25+00:00        AddItemAsync called with userId=6d7ca018-b9e7-11f1-b5af-ea5dfb8fa78a, productId=L9ECAV7KIM, quantity=4
-2026-09-26T20:18:25+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:18:25+00:00        GetCartAsync called with userId=6d7ca018-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:18:25+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:18:25+00:00        GetCartAsync called with userId=6d7ca018-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:18:25+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:18:25+00:00        EmptyCartAsync called with userId=6d7ca018-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:18:25+00:00  fail: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:18:25+00:00        Wasn't able to connect to redis
-2026-09-26T20:18:25+00:00  info: Grpc.AspNetCore.Server.ServerCallHandler[7]
-2026-09-26T20:18:25+00:00        Error status code 'FailedPrecondition' with detail 'Can't access cart storage. System.ApplicationException: Wasn't able to connect to redis
-2026-09-26T20:18:25+00:00           at cart.cartstore.ValkeyCartStore.EnsureRedisConnected() in /usr/src/app/src/cartstore/ValkeyCartStore.cs:line 101
-2026-09-26T20:18:25+00:00           at cart.cartstore.ValkeyCartStore.EmptyCartAsync(String userId) in /usr/src/app/src/cartstore/ValkeyCartStore.cs:line 194' raised.
-2026-09-26T20:18:29+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:18:29+00:00        GetCartAsync called with userId=
-2026-09-26T20:18:30+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:18:30+00:00        AddItemAsync called with userId=70ced614-b9e7-11f1-b5af-ea5dfb8fa78a, productId=HQTGWGPNH4, quantity=5
-2026-09-26T20:18:30+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:18:30+00:00        GetCartAsync called with userId=70ced614-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:18:30+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:18:30+00:00        GetCartAsync called with userId=70ced614-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:18:30+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:18:30+00:00        EmptyCartAsync called with userId=70ced614-b9e7-11f1-b5af-ea5dfb8fa78a
-2026-09-26T20:18:30+00:00  fail: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:18:30+00:00        Wasn't able to connect to redis
-2026-09-26T20:18:30+00:00  info: Grpc.AspNetCore.Server.ServerCallHandler[7]
-2026-09-26T20:18:30+00:00        Error status code 'FailedPrecondition' with detail 'Can't access cart storage. System.ApplicationException: Wasn't able to connect to redis
-2026-09-26T20:18:30+00:00           at cart.cartstore.ValkeyCartStore.EnsureRedisConnected() in /usr/src/app/src/cartstore/ValkeyCartStore.cs:line 101
-2026-09-26T20:18:30+00:00           at cart.cartstore.ValkeyCartStore.EmptyCartAsync(String userId) in /usr/src/app/src/cartstore/ValkeyCartStore.cs:line 194' raised.
-2026-09-26T20:18:34+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:18:34+00:00        AddItemAsync called with userId=72d51cca-b9e7-11f1-b5af-ea5dfb8fa78a, productId=9SIQT8TOJO, quantity=1
-2026-09-26T20:18:34+00:00  info: cart.cartstore.ValkeyCartStore[0]
-2026-09-26T20:18:34+00:00        GetCartAsync called with userId=72d51cca-b9e7-11f1-b5af-ea5dfb8fa78a
+# ---- onset 2026-09-27T04:59:36+00:00 ----
+2026-09-27T05:11:25+00:00  info: cart.cartstore.ValkeyCartStore[0]
+2026-09-27T05:11:25+00:00        GetCartAsync called with userId=
+2026-09-27T05:11:27+00:00  info: cart.cartstore.ValkeyCartStore[0]
+2026-09-27T05:11:27+00:00        GetCartAsync called with userId=
+2026-09-27T05:11:27+00:00  info: cart.cartstore.ValkeyCartStore[0]
+2026-09-27T05:11:27+00:00        GetCartAsync called with userId=
+2026-09-27T05:11:31+00:00  info: cart.cartstore.ValkeyCartStore[0]
+2026-09-27T05:11:31+00:00        GetCartAsync called with userId=
+2026-09-27T05:11:33+00:00  info: cart.cartstore.ValkeyCartStore[0]
+2026-09-27T05:11:33+00:00        GetCartAsync called with userId=
+2026-09-27T05:11:33+00:00  info: cart.cartstore.ValkeyCartStore[0]
+2026-09-27T05:11:33+00:00        GetCartAsync called with userId=
+2026-09-27T05:11:35+00:00  info: cart.cartstore.ValkeyCartStore[0]
+2026-09-27T05:11:35+00:00        GetCartAsync called with userId=
+2026-09-27T05:11:37+00:00  info: cart.cartstore.ValkeyCartStore[0]
+2026-09-27T05:11:37+00:00        GetCartAsync called with userId=
+2026-09-27T05:11:40+00:00  info: cart.cartstore.ValkeyCartStore[0]
+2026-09-27T05:11:40+00:00        AddItemAsync called with userId=ec0e46e4-ba31-11f1-9375-7e805effaa5d, productId=6E92ZMYYFZ, quantity=3
+2026-09-27T05:11:40+00:00  info: cart.cartstore.ValkeyCartStore[0]
+2026-09-27T05:11:40+00:00        GetCartAsync called with userId=ec0e46e4-ba31-11f1-9375-7e805effaa5d
+2026-09-27T05:11:41+00:00  info: cart.cartstore.ValkeyCartStore[0]
+2026-09-27T05:11:41+00:00        AddItemAsync called with userId=ecec8c42-ba31-11f1-9375-7e805effaa5d, productId=0PUK6V6EV0, quantity=3
+2026-09-27T05:11:41+00:00  info: cart.cartstore.ValkeyCartStore[0]
+2026-09-27T05:11:41+00:00        GetCartAsync called with userId=ecec8c42-ba31-11f1-9375-7e805effaa5d
+2026-09-27T05:11:41+00:00  info: cart.cartstore.ValkeyCartStore[0]
+2026-09-27T05:11:41+00:00        AddItemAsync called with userId=ecec8c42-ba31-11f1-9375-7e805effaa5d, productId=6E92ZMYYFZ, quantity=4
+2026-09-27T05:11:41+00:00  info: cart.cartstore.ValkeyCartStore[0]
+2026-09-27T05:11:41+00:00        GetCartAsync called with userId=ecec8c42-ba31-11f1-9375-7e805effaa5d
+2026-09-27T05:11:41+00:00  info: cart.cartstore.ValkeyCartStore[0]
+2026-09-27T05:11:41+00:00        AddItemAsync called with userId=ecec8c42-ba31-11f1-9375-7e805effaa5d, productId=66VCHSJNUP, quantity=5
+2026-09-27T05:11:41+00:00  info: cart.cartstore.ValkeyCartStore[0]
+2026-09-27T05:11:41+00:00        GetCartAsync called with userId=ecec8c42-ba31-11f1-9375-7e805effaa5d
+2026-09-27T05:11:41+00:00  info: cart.cartstore.ValkeyCartStore[0]
+2026-09-27T05:11:41+00:00        AddItemAsync called with userId=ecec8c42-ba31-11f1-9375-7e805effaa5d, productId=OLJCESPC7Z, quantity=2
+2026-09-27T05:11:41+00:00  info: cart.cartstore.ValkeyCartStore[0]
+2026-09-27T05:11:41+00:00        GetCartAsync called with userId=ecec8c42-ba31-11f1-9375-7e805effaa5d
+2026-09-27T05:11:41+00:00  info: cart.cartstore.ValkeyCartStore[0]
+2026-09-27T05:11:41+00:00        GetCartAsync called with userId=ecec8c42-ba31-11f1-9375-7e805effaa5d
+2026-09-27T05:11:41+00:00  info: cart.cartstore.ValkeyCartStore[0]
+2026-09-27T05:11:41+00:00        EmptyCartAsync called with userId=ecec8c42-ba31-11f1-9375-7e805effaa5d
+2026-09-27T05:11:42+00:00  info: cart.cartstore.ValkeyCartStore[0]
+2026-09-27T05:11:42+00:00        AddItemAsync called with userId=ed54a890-ba31-11f1-9375-7e805effaa5d, productId=66VCHSJNUP, quantity=10
+2026-09-27T05:11:42+00:00  info: cart.cartstore.ValkeyCartStore[0]
+2026-09-27T05:11:42+00:00        GetCartAsync called with userId=ed54a890-ba31-11f1-9375-7e805effaa5d
+2026-09-27T05:11:42+00:00  info: cart.cartstore.ValkeyCartStore[0]
+2026-09-27T05:11:42+00:00        AddItemAsync called with userId=ed54a890-ba31-11f1-9375-7e805effaa5d, productId=LS4PSXUNUM, quantity=2
+2026-09-27T05:11:42+00:00  info: cart.cartstore.ValkeyCartStore[0]
+2026-09-27T05:11:42+00:00        GetCartAsync called with userId=ed54a890-ba31-11f1-9375-7e805effaa5d
+2026-09-27T05:11:42+00:00  info: cart.cartstore.ValkeyCartStore[0]
+2026-09-27T05:11:42+00:00        GetCartAsync called with userId=ed54a890-ba31-11f1-9375-7e805effaa5d
+2026-09-27T05:11:42+00:00  info: cart.cartstore.ValkeyCartStore[0]
+2026-09-27T05:11:42+00:00        EmptyCartAsync called with userId=ed54a890-ba31-11f1-9375-7e805effaa5d
+2026-09-27T05:11:42+00:00  info: cart.cartstore.ValkeyCartStore[0]
+2026-09-27T05:11:42+00:00        AddItemAsync called with userId=edb30d0e-ba31-11f1-9375-7e805effaa5d, productId=1YMWWN1N4O, quantity=5
+2026-09-27T05:11:42+00:00  info: cart.cartstore.ValkeyCartStore[0]
+2026-09-27T05:11:42+00:00        GetCartAsync called with userId=edb30d0e-ba31-11f1-9375-7e805effaa5d
+2026-09-27T05:11:42+00:00  info: cart.cartstore.ValkeyCartStore[0]
+2026-09-27T05:11:42+00:00        GetCartAsync called with userId=
+2026-09-27T05:11:43+00:00  info: cart.cartstore.ValkeyCartStore[0]
+2026-09-27T05:11:43+00:00        GetCartAsync called with userId=
+2026-09-27T05:11:44+00:00  info: cart.cartstore.ValkeyCartStore[0]
+2026-09-27T05:11:44+00:00        AddItemAsync called with userId=ee83fcca-ba31-11f1-9375-7e805effaa5d, productId=OLJCESPC7Z, quantity=5
+2026-09-27T05:11:44+00:00  info: cart.cartstore.ValkeyCartStore[0]
+2026-09-27T05:11:44+00:00        GetCartAsync called with userId=ee83fcca-ba31-11f1-9375-7e805effaa5d
+2026-09-27T05:11:44+00:00  info: cart.cartstore.ValkeyCartStore[0]
+2026-09-27T05:11:44+00:00        AddItemAsync called with userId=ee83fcca-ba31-11f1-9375-7e805effaa5d, productId=66VCHSJNUP, quantity=5
+2026-09-27T05:11:44+00:00  info: cart.cartstore.ValkeyCartStore[0]
+2026-09-27T05:11:44+00:00        GetCartAsync called with userId=ee83fcca-ba31-11f1-9375-7e805effaa5d
+2026-09-27T05:11:44+00:00  info: cart.cartstore.ValkeyCartStore[0]
+2026-09-27T05:11:44+00:00        AddItemAsync called with userId=ee83fcca-ba31-11f1-9375-7e805effaa5d, productId=1YMWWN1N4O, quantity=4
+2026-09-27T05:11:44+00:00  info: cart.cartstore.ValkeyCartStore[0]
+2026-09-27T05:11:44+00:00        GetCartAsync called with userId=ee83fcca-ba31-11f1-9375-7e805effaa5d
+2026-09-27T05:11:44+00:00  info: cart.cartstore.ValkeyCartStore[0]
+2026-09-27T05:11:44+00:00        GetCartAsync called with userId=ee83fcca-ba31-11f1-9375-7e805effaa5d
+2026-09-27T05:11:44+00:00  info: cart.cartstore.ValkeyCartStore[0]
+2026-09-27T05:11:44+00:00        EmptyCartAsync called with userId=ee83fcca-ba31-11f1-9375-7e805effaa5d
+2026-09-27T05:11:49+00:00  info: cart.cartstore.ValkeyCartStore[0]
+2026-09-27T05:11:49+00:00        GetCartAsync called with userId=
+2026-09-27T05:11:50+00:00  info: cart.cartstore.ValkeyCartStore[0]
+2026-09-27T05:11:50+00:00        GetCartAsync called with userId=
