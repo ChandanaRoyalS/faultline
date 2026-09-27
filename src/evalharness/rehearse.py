@@ -615,6 +615,13 @@ def checkout_stall_remedy(blocking: list[str]) -> str:
 # Label names to try first, best guess first. Anything Loki actually reports is tried
 # after these, so a promtail config that labels logs some third way still works.
 LOG_LABEL_PREFERENCE = ("service", "container", "container_name", "job", "compose_service")
+HELPER_STREAM_PREFIX = "faultline-"
+"""Streams the injector's own helper containers write (`faultline-pumba-<scenario>`), which the
+closest-name fallback below must never select. **Found 2026-09-27, in a holdout bundle**:
+`v2-product-catalog-dependency-latency`'s target has no Loki stream, the sidecar's name contains
+the target's, and the capture came back holding pumba's `running netem ... delay 300ms` line -
+the answer, in the evidence. The sidecar is silent now (`injector.faults`), and this keeps the
+fallback from ever reaching for a helper again."""
 
 NETWORK_ERRORS = (urllib.error.URLError, QueryError, RehearsalError, TimeoutError, OSError)
 
@@ -679,7 +686,17 @@ def discover_log_source(container: str) -> LogSource:
             source.selector = f'{{{name}="{container}"}}'
             source.label, source.values = name, values
             return source
-        near = [v for v in values if container in v or v in container]
+        helpers = [v for v in values if v.startswith(HELPER_STREAM_PREFIX) and container in v]
+        if helpers:
+            source.notes.append(
+                f"# {name}: {', '.join(repr(h) for h in helpers)} named the target but is the "
+                "injector's own helper; not a log of the target's"
+            )
+        near = [
+            v
+            for v in values
+            if (container in v or v in container) and not v.startswith(HELPER_STREAM_PREFIX)
+        ]
         if near:
             source.selector = f'{{{name}="{near[0]}"}}'
             source.label, source.values = name, values
