@@ -1,17 +1,67 @@
----
-origin: scenario:v2-currency-freeze
-split: dev
-fault_class: process_freeze
-recorded_from: 2026-09-27T22:11:13+00:00
-capability: cap:d2b243e0
-onset_to_page: 5m30s
-page_to_fix: 5m00s
-fix_to_all_clear: 1m01s
----
-
 # The currency process is frozen - its socket accepts and nothing answers
 
-## What was observed
+## The scenario
+
+| | |
+|---|---|
+| scenario | `v2-currency-freeze` |
+| fault class | **`process_freeze`** |
+| expected remediation | `restart` |
+| split | `dev` |
+| injected at | `currency` via `v2-currency-freeze` |
+| time to page | 5m30s |
+| steady state captured | 300s |
+| capture window | 2026-09-27T22:06:13+00:00 → 2026-09-27T22:24:44+00:00 |
+
+The clock below runs from the moment the fault went in.
+
+| | |
+|---|---|
+| `t_inject` | T+0m00s |
+| first alert firing | T+5m30s |
+| `t_revert` | T+10m30s |
+| all clear | T+11m31s |
+
+## What fired, and when
+
+| when | service | alert | firing for | |
+|---|---|---|---:|---|
+| T+5m30s | `fraud-detection` | ServiceHighErrorRate | 2.0 min | **paged** |
+| T+6m30s | `fraud-detection` | ServiceHighLatency | 1.0 min | joined later |
+| T+7m30s | `accounting` | ServiceNoTraffic | 4.0 min | joined later |
+| T+7m30s | `currency` | ServiceNoTraffic | 4.0 min | joined later |
+| T+7m30s | `email` | ServiceNoTraffic | 4.0 min | joined later |
+| T+7m30s | `payment` | ServiceNoTraffic | 4.0 min | joined later |
+| T+7m30s | `quote` | ServiceNoTraffic | 4.0 min | joined later |
+| T+7m30s | `shipping` | ServiceNoTraffic | 4.0 min | joined later |
+| T+10m30s | `fraud-detection` | ServiceNoTraffic | 1.0 min | joined later |
+
+## What the bundle contains
+
+| capture | query |
+|---|---|
+| `metrics/alerts-firing.json` | `ALERTS{alertstate="firing"}` |
+| `metrics/call-rate.json` | `sum by(service_name) (rate(traces_span_metrics_calls_total[5m]))` |
+| `metrics/error-ratio.json` | `sum by(service_name) (rate(traces_span_metrics_calls_total{status_code="STATUS_CODE_ERROR"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total[5m]))` |
+| `metrics/latency-p95.json` | `histogram_quantile(0.95, sum by(service_name, le) (rate(traces_span_metrics_duration_milliseconds_bucket{span_kind!="SPAN_KIND_INTERNAL"}[5m])))` |
+| `metrics/runtime.json` | `{__name__=~"go_.*|dotnet_.*|jvm_.*|process_.*|v8js_.*|nodejs_.*",service_name="currency"}` |
+
+`logs/currency.txt` — 9 lines.
+
+## The incident record
+
+Written from the responder's chair, by someone who did not know the fault class
+or that anything had been injected. This text is also corpus material, which is
+why it never names the injector.
+
+**It keeps its own clock.** The table above is measured from the injection, which
+is the only origin the manifest records; a narrative's `T+` offsets are the
+responder's own and start wherever that responder started counting — usually the
+page, sometimes the injection, sometimes an event in the logs. The same moment can
+therefore carry two different offsets on this page. The absolute timestamps in the
+bundle are the tiebreak.
+
+### What was observed
 
 The page came 5m30s after orders started hanging, and it named the wrong service:
 `ServiceHighErrorRate` on **fraud-detection**, a consumer at the far end of the order path that
@@ -32,7 +82,7 @@ of its own; checkout's fell from 1.7 to about 0.2 and stayed there, its p95 drop
 4; and payment, shipping, quote, email and accounting went to zero with currency. From T+4 none of
 them had an error ratio or a latency value.
 
-## What was checked
+### What was checked
 
 **fraud-detection, because it was on the page.** A dead end, and a short one. Its error ratio
 read 100% from T+4 on a rate of 0.004 a second: one span in five minutes, its routine
@@ -78,7 +128,7 @@ call per order open for ten minutes that returned in two milliseconds the moment
 **What changed.** Nothing. No deploy, no image, no configuration, no limit, no flag, on any
 service involved. The change history for the window is empty.
 
-## Root cause
+### Root cause
 
 The currency process was suspended. The container existed and kept its port; the kernel went on
 accepting connections into its backlog; but nothing in the process ran, so no request was read or
@@ -90,7 +140,7 @@ fifteen seconds without ever reaching its error line. Currency neither errored n
 because it was not running, and it reports nothing of its own in any case. Nothing about it had
 been changed.
 
-## Resolution
+### Resolution
 
 The currency process was resumed. Every held order woke together: 110 orders completed in the
 minutes after the resume, each one's conversion having waited up to ten minutes and then taken
@@ -108,7 +158,7 @@ own p95 read 359ms on the burst. Whether the latency rules fired on that wave is
 the recording's window closed two minutes after the all-clear, a minute before those rules could
 have held their three.
 
-## Detection notes
+### Detection notes
 
 - Onset to first page: **5m30s**. The page named fraud-detection, a service two hops past the
   problem with nothing wrong.
@@ -134,3 +184,7 @@ have held their three.
 - **The all-clear can come before the recovery's own wave has had time to page.** Ten-minute
   spans closing at once put three services at the ceiling for the store's window; the rule
   needs three minutes, and the record ends before that.
+
+---
+
+Rendered from [`evals/scenarios/artifacts/dev/v2-currency-freeze/`](../../evals/scenarios/artifacts/dev/v2-currency-freeze/) by `faultline-render`. [All bundles](README.md).
