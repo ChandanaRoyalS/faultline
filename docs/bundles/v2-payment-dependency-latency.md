@@ -1,17 +1,80 @@
----
-origin: scenario:v2-payment-dependency-latency
-split: dev
-fault_class: dependency_latency
-recorded_from: 2026-09-27T10:27:19+00:00
-capability: cap:d2b243e0
-onset_to_page: 5m35s
-page_to_fix: 5m00s
-fix_to_all_clear: 4m02s
----
-
 # Payment's replies are late, and only checkout can tell
 
-## What was observed
+## The scenario
+
+| | |
+|---|---|
+| scenario | `v2-payment-dependency-latency` |
+| fault class | **`dependency_latency`** |
+| expected remediation | `restart` |
+| split | `dev` |
+| injected at | `payment` via `v2-payment-dependency-latency` |
+| time to page | 5m35s |
+| steady state captured | 300s |
+| capture window | 2026-09-27T10:22:19+00:00 → 2026-09-27T10:43:56+00:00 |
+
+The clock below runs from the moment the fault went in.
+
+| | |
+|---|---|
+| `t_inject` | T+0m00s |
+| first alert firing | T+5m35s |
+| `t_revert` | T+10m35s |
+| all clear | T+14m37s |
+
+## What fired, and when
+
+| when | service | alert | firing for | |
+|---|---|---|---:|---|
+| T+5m15s | `checkout` | ServiceHighLatency | 9.0 min | **paged** |
+
+## What the bundle contains
+
+| capture | query |
+|---|---|
+| `metrics/alerts-firing.json` | `ALERTS{alertstate="firing"}` |
+| `metrics/call-rate.json` | `sum by(service_name) (rate(traces_span_metrics_calls_total[5m]))` |
+| `metrics/error-ratio.json` | `sum by(service_name) (rate(traces_span_metrics_calls_total{status_code="STATUS_CODE_ERROR"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total[5m]))` |
+| `metrics/latency-p95.json` | `histogram_quantile(0.95, sum by(service_name, le) (rate(traces_span_metrics_duration_milliseconds_bucket{span_kind!="SPAN_KIND_INTERNAL"}[5m])))` |
+| `metrics/runtime.json` | `{__name__=~"go_.*|dotnet_.*|jvm_.*|process_.*|v8js_.*|nodejs_.*",service_name="payment"}` |
+
+`logs/payment.txt` — 509 lines.
+
+## A look at the logs
+
+From `logs/payment.txt` (---- onset 2026-09-27T10:27:19+00:00 ----):
+
+```
+2026-09-27T10:27:11+00:00      cardType: 'visa',
+2026-09-27T10:27:11+00:00      lastFourDigits: '5647',
+2026-09-27T10:27:11+00:00      amount: {
+2026-09-27T10:27:11+00:00        units: { low: 656, high: 0, unsigned: false },
+2026-09-27T10:27:11+00:00        nanos: 819999996,
+2026-09-27T10:27:11+00:00        currencyCode: 'USD'
+2026-09-27T10:27:11+00:00      },
+2026-09-27T10:27:11+00:00      loyalty_level: 'platinum'
+2026-09-27T10:27:11+00:00    }
+2026-09-27T10:27:11+00:00  }
+2026-09-27T10:27:14+00:00  {
+2026-09-27T10:27:14+00:00    resource: {
+```
+
+_488 further lines are in the bundle._
+
+## The incident record
+
+Written from the responder's chair, by someone who did not know the fault class
+or that anything had been injected. This text is also corpus material, which is
+why it never names the injector.
+
+**It keeps its own clock.** The table above is measured from the injection, which
+is the only origin the manifest records; a narrative's `T+` offsets are the
+responder's own and start wherever that responder started counting — usually the
+page, sometimes the injection, sometimes an event in the logs. The same moment can
+therefore carry two different offsets on this page. The absolute timestamps in the
+bundle are the tiebreak.
+
+### What was observed
 
 The page was one alert, `ServiceHighLatency` on **checkout**, 5m35s after the trouble started.
 Nothing else fired, then or later, and nothing fired after the fix. Nothing errored: every error
@@ -30,7 +93,7 @@ placed, each about 300ms later than before.
 That is the page: one service slow, by a fixed amount, and everything it depends on reporting
 itself fast.
 
-## What was checked
+### What was checked
 
 **Checkout's traces, the service on the page.** Every order was slow in one place. In 76 traces
 drawn under the fault, `PlaceOrder` took 329 to 373ms where it had taken 27 to 79. Beneath it the
@@ -81,7 +144,7 @@ container attached to payment's network namespace, carrying `eth0 delay=300ms ji
 four familiar questions came back empty on both services and the fifth was the incident, under
 the name of the service that never paged.
 
-## Root cause
+### Root cause
 
 A traffic-shaping rule attached to the payment service's network namespace added 300ms of delay
 to every packet leaving the container. Payment's code, image, configuration and process were
@@ -89,7 +152,7 @@ untouched, and it answered every charge in under a millisecond; its answers arri
 Payment calls nothing, so the delay never entered its own spans or metrics; checkout, which waits
 on every charge, carried it alone. Every order took about 300ms longer and nothing failed.
 
-## Resolution
+### Resolution
 
 The shaping container was removed and the rule went with it: the rule lives in payment's network
 namespace and does not outlive what holds it, so recreating payment would have cleared it as well.
@@ -102,7 +165,7 @@ container is the operator's remedy, and removing the shaping container is the sa
 other end. Nothing about payment's image or configuration, and nothing about checkout, needed to
 change.
 
-## Detection notes
+### Detection notes
 
 - Onset to first page: **5m35s**. Services on the page: **one**, checkout, which was not at
   fault. By the fix: **one**. The culprit never alerted and never could have.
@@ -126,3 +189,7 @@ change.
 - **"Nothing changed" on the paging service is the wrong service to ask.** Checkout's change
   history was empty and so were payment's deploys, image, environment and limits; the record was
   a container under payment's name.
+
+---
+
+Rendered from [`evals/scenarios/artifacts/dev/v2-payment-dependency-latency/`](../../evals/scenarios/artifacts/dev/v2-payment-dependency-latency/) by `faultline-render`. [All bundles](README.md).
