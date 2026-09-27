@@ -6,69 +6,61 @@
     {
       "alert": "ServiceHighErrorRate",
       "began_after_revert": false,
-      "first_seen": "2026-09-27T06:54:41+00:00",
-      "last_seen": "2026-09-27T07:03:26+00:00",
+      "first_seen": "2026-09-27T00:51:32+00:00",
+      "last_seen": "2026-09-27T01:00:17+00:00",
       "minutes_firing": 9.0,
       "service": "checkout"
     },
     {
+      "alert": "ServiceHighErrorRate",
+      "began_after_revert": false,
+      "first_seen": "2026-09-27T00:53:32+00:00",
+      "last_seen": "2026-09-27T00:54:17+00:00",
+      "minutes_firing": 1.0,
+      "service": "fraud-detection"
+    },
+    {
       "alert": "ServiceNoTraffic",
       "began_after_revert": false,
-      "first_seen": "2026-09-27T06:57:41+00:00",
-      "last_seen": "2026-09-27T07:00:26+00:00",
-      "minutes_firing": 3.0,
+      "first_seen": "2026-09-27T00:55:32+00:00",
+      "last_seen": "2026-09-27T00:57:17+00:00",
+      "minutes_firing": 2.0,
       "service": "accounting"
     },
     {
       "alert": "ServiceNoTraffic",
       "began_after_revert": false,
-      "first_seen": "2026-09-27T06:57:41+00:00",
-      "last_seen": "2026-09-27T07:00:26+00:00",
-      "minutes_firing": 3.0,
+      "first_seen": "2026-09-27T00:55:32+00:00",
+      "last_seen": "2026-09-27T00:57:17+00:00",
+      "minutes_firing": 2.0,
       "service": "email"
     },
     {
       "alert": "ServiceNoTraffic",
       "began_after_revert": false,
-      "first_seen": "2026-09-27T06:57:41+00:00",
-      "last_seen": "2026-09-27T06:58:26+00:00",
-      "minutes_firing": 1.0,
-      "service": "fraud-detection"
-    },
-    {
-      "alert": "ServiceNoTraffic",
-      "began_after_revert": false,
-      "first_seen": "2026-09-27T06:57:41+00:00",
-      "last_seen": "2026-09-27T07:00:26+00:00",
-      "minutes_firing": 3.0,
+      "first_seen": "2026-09-27T00:55:32+00:00",
+      "last_seen": "2026-09-27T00:57:17+00:00",
+      "minutes_firing": 2.0,
       "service": "payment"
     },
     {
       "alert": "ServiceNoTraffic",
       "began_after_revert": false,
-      "first_seen": "2026-09-27T06:57:41+00:00",
-      "last_seen": "2026-09-27T07:00:26+00:00",
-      "minutes_firing": 3.0,
+      "first_seen": "2026-09-27T00:55:32+00:00",
+      "last_seen": "2026-09-27T00:57:17+00:00",
+      "minutes_firing": 2.0,
       "service": "quote"
     },
     {
       "alert": "ServiceNoTraffic",
       "began_after_revert": false,
-      "first_seen": "2026-09-27T06:57:41+00:00",
-      "last_seen": "2026-09-27T07:00:26+00:00",
-      "minutes_firing": 3.0,
+      "first_seen": "2026-09-27T00:55:32+00:00",
+      "last_seen": "2026-09-27T00:57:17+00:00",
+      "minutes_firing": 2.0,
       "service": "shipping"
-    },
-    {
-      "alert": "ServiceHighErrorRate",
-      "began_after_revert": true,
-      "first_seen": "2026-09-27T07:00:41+00:00",
-      "last_seen": "2026-09-27T07:01:26+00:00",
-      "minutes_firing": 1.0,
-      "service": "fraud-detection"
     }
   ],
-  "baseline_clear_at": "2026-09-27T06:50:26+00:00",
+  "baseline_clear_at": "2026-09-27T00:47:47+00:00",
   "bundle_schema_version": 2,
   "capture_set": 2,
   "expected_remediation_class": "rollback",
@@ -89,31 +81,31 @@
     "derived_from": "the bundle's own captures (T7.5)",
     "none_can_answer": false,
     "runtime_series": 0,
-    "target_log_lines": 54
+    "target_log_lines": 51
   },
   "recorded_by": "evalharness.rehearse",
   "recorder": {
     "git_dirty": true,
-    "git_sha": "c78ad6fb80a5f6d941a6d51970e968b75ebe84c5",
+    "git_sha": "7a973c489ad1844b7db2a8b42e22dad4dcf67787",
     "tool": "evalharness.rehearse"
   },
   "scenario_fingerprint": "7f72da39614d5d3b1a86c329d46fbac2568e79d53c456f0b9696b28cb1d85ebe",
   "scenario_id": "v2-shipping-wrong-image",
   "seconds_of_steady_state": 300,
-  "seconds_to_alert": 273,
+  "seconds_to_alert": 245,
   "seconds_to_settle": 241,
   "split": "dev",
-  "t_alert_firing": "2026-09-27T06:54:59+00:00",
-  "t_clear": "2026-09-27T07:04:00+00:00",
-  "t_inject": "2026-09-27T06:50:26+00:00",
-  "t_revert": "2026-09-27T06:59:59+00:00",
+  "t_alert_firing": "2026-09-27T00:51:52+00:00",
+  "t_clear": "2026-09-27T01:00:53+00:00",
+  "t_inject": "2026-09-27T00:47:47+00:00",
+  "t_revert": "2026-09-27T00:56:52+00:00",
   "title": "Shipping deployed with another service's image",
   "window": {
-    "end": "2026-09-27T07:06:00+00:00",
-    "start": "2026-09-27T06:45:26+00:00"
+    "end": "2026-09-27T01:02:53+00:00",
+    "start": "2026-09-27T00:42:47+00:00"
   },
   "world": {
-    "compose_digest": "5a2bc6d912f922a03874ab2824d9362541362386fbcab7e0c2f99aa760f567df",
+    "compose_digest": "ae2fd2a20b5112e42d9606e123157365ce496effa1eb974e357f0430588222ff",
     "docker_arch": "arm64",
     "ffs_stub_image_id": "sha256:90f2fc6f5806a8914ef2740ff7c6348a1ddd4225bccc8f3398e58d03b3c1a512",
     "ffs_stub_source_digest": null,
@@ -135,9 +127,9 @@
   "world_lock": {
     "acquired": true,
     "host": "chandanas-MacBook-Air.local",
-    "pid": 7873,
+    "pid": 96665,
     "reason": "rehearse v2-shipping-wrong-image",
-    "since": "2026-09-27T06:50:21.760717+00:00",
-    "token": "7873-1790491821.7604"
+    "since": "2026-09-27T00:47:42.209271+00:00",
+    "token": "96665-1790470062.208997"
   }
 }
