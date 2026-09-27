@@ -1,58 +1,62 @@
 {
   "alerts_at_fire": [
+    "ServiceHighLatency/load-generator",
+    "ServiceHighLatency/frontend-proxy",
+    "ServiceHighLatency/frontend",
+    "ServiceHighLatency/product-catalog",
     "ServiceHighLatency/recommendation"
   ],
   "alerts_over_window": [
     {
       "alert": "ServiceHighLatency",
       "began_after_revert": false,
-      "first_seen": "2026-09-27T12:02:36+00:00",
-      "last_seen": "2026-09-27T12:12:21+00:00",
+      "first_seen": "2026-09-27T11:17:40+00:00",
+      "last_seen": "2026-09-27T11:27:25+00:00",
+      "minutes_firing": 10.0,
+      "service": "frontend"
+    },
+    {
+      "alert": "ServiceHighLatency",
+      "began_after_revert": false,
+      "first_seen": "2026-09-27T11:17:40+00:00",
+      "last_seen": "2026-09-27T11:27:25+00:00",
+      "minutes_firing": 10.0,
+      "service": "frontend-proxy"
+    },
+    {
+      "alert": "ServiceHighLatency",
+      "began_after_revert": false,
+      "first_seen": "2026-09-27T11:17:40+00:00",
+      "last_seen": "2026-09-27T11:27:25+00:00",
+      "minutes_firing": 10.0,
+      "service": "load-generator"
+    },
+    {
+      "alert": "ServiceHighLatency",
+      "began_after_revert": false,
+      "first_seen": "2026-09-27T11:17:40+00:00",
+      "last_seen": "2026-09-27T11:27:25+00:00",
+      "minutes_firing": 10.0,
+      "service": "product-catalog"
+    },
+    {
+      "alert": "ServiceHighLatency",
+      "began_after_revert": false,
+      "first_seen": "2026-09-27T11:17:40+00:00",
+      "last_seen": "2026-09-27T11:27:25+00:00",
       "minutes_firing": 10.0,
       "service": "recommendation"
     },
     {
       "alert": "ServiceHighLatency",
       "began_after_revert": false,
-      "first_seen": "2026-09-27T12:03:36+00:00",
-      "last_seen": "2026-09-27T12:11:21+00:00",
+      "first_seen": "2026-09-27T11:18:40+00:00",
+      "last_seen": "2026-09-27T11:26:25+00:00",
       "minutes_firing": 8.0,
       "service": "checkout"
-    },
-    {
-      "alert": "ServiceHighLatency",
-      "began_after_revert": false,
-      "first_seen": "2026-09-27T12:03:36+00:00",
-      "last_seen": "2026-09-27T12:12:21+00:00",
-      "minutes_firing": 9.0,
-      "service": "frontend"
-    },
-    {
-      "alert": "ServiceHighLatency",
-      "began_after_revert": false,
-      "first_seen": "2026-09-27T12:03:36+00:00",
-      "last_seen": "2026-09-27T12:12:21+00:00",
-      "minutes_firing": 9.0,
-      "service": "frontend-proxy"
-    },
-    {
-      "alert": "ServiceHighLatency",
-      "began_after_revert": false,
-      "first_seen": "2026-09-27T12:03:36+00:00",
-      "last_seen": "2026-09-27T12:12:21+00:00",
-      "minutes_firing": 9.0,
-      "service": "load-generator"
-    },
-    {
-      "alert": "ServiceHighLatency",
-      "began_after_revert": false,
-      "first_seen": "2026-09-27T12:03:36+00:00",
-      "last_seen": "2026-09-27T12:12:21+00:00",
-      "minutes_firing": 9.0,
-      "service": "product-catalog"
     }
   ],
-  "baseline_clear_at": "2026-09-27T11:59:06+00:00",
+  "baseline_clear_at": "2026-09-27T11:13:40+00:00",
   "bundle_schema_version": 2,
   "capture_set": 2,
   "expected_remediation_class": "restart",
@@ -75,28 +79,28 @@
     "derived_from": "the bundle's own captures (T7.5)",
     "none_can_answer": false,
     "runtime_series": 9,
-    "target_log_lines": 0
+    "target_log_lines": 2
   },
   "recorded_by": "evalharness.rehearse",
   "recorder": {
     "git_dirty": true,
-    "git_sha": "9b803ba2ecc2aa1510bed24fd61cf962d754ba59",
+    "git_sha": "8832f8aa8c659b36aa30b845706bb8260ab58196",
     "tool": "evalharness.rehearse"
   },
   "scenario_fingerprint": "8ad0efd22ca1ca925cea7ab18149da6b57c45ff667f46dac93af6947fe6806bd",
   "scenario_id": "v2-product-catalog-dependency-latency",
   "seconds_of_steady_state": 300,
-  "seconds_to_alert": 230,
-  "seconds_to_settle": 302,
+  "seconds_to_alert": 260,
+  "seconds_to_settle": 287,
   "split": "holdout",
-  "t_alert_firing": "2026-09-27T12:02:56+00:00",
-  "t_clear": "2026-09-27T12:12:58+00:00",
-  "t_inject": "2026-09-27T11:59:06+00:00",
-  "t_revert": "2026-09-27T12:07:56+00:00",
+  "t_alert_firing": "2026-09-27T11:18:00+00:00",
+  "t_clear": "2026-09-27T11:27:47+00:00",
+  "t_inject": "2026-09-27T11:13:40+00:00",
+  "t_revert": "2026-09-27T11:23:00+00:00",
   "title": "The product catalog's network path acquires 300ms of delay, and every page slows",
   "window": {
-    "end": "2026-09-27T12:14:58+00:00",
-    "start": "2026-09-27T11:54:06+00:00"
+    "end": "2026-09-27T11:29:47+00:00",
+    "start": "2026-09-27T11:08:40+00:00"
   },
   "world": {
     "compose_digest": "5a2bc6d912f922a03874ab2824d9362541362386fbcab7e0c2f99aa760f567df",
@@ -121,9 +125,9 @@
   "world_lock": {
     "acquired": true,
     "host": "chandanas-MacBook-Air.local",
-    "pid": 18104,
+    "pid": 16947,
     "reason": "rehearse v2-product-catalog-dependency-latency",
-    "since": "2026-09-27T11:59:01.923313+00:00",
-    "token": "18104-1790510341.923021"
+    "since": "2026-09-27T11:13:34.903865+00:00",
+    "token": "16947-1790507614.903511"
   }
 }
