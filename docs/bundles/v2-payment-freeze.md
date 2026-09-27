@@ -1,17 +1,86 @@
----
-origin: scenario:v2-payment-freeze
-split: holdout
-fault_class: process_freeze
-recorded_from: 2026-09-27T23:17:20+00:00
-capability: cap:d2b243e0
-onset_to_page: 7m16s
-page_to_fix: 5m00s
-fix_to_all_clear: 1m00s
----
-
 # The payment process is frozen - its socket accepts and nothing answers
 
-## What was observed
+## The scenario
+
+| | |
+|---|---|
+| scenario | `v2-payment-freeze` |
+| fault class | **`process_freeze`** |
+| expected remediation | `restart` |
+| split | `holdout` |
+| injected at | `payment` via `v2-payment-freeze` |
+| time to page | 7m16s |
+| steady state captured | 300s |
+| capture window | 2026-09-27T23:12:20+00:00 → 2026-09-27T23:32:36+00:00 |
+
+The clock below runs from the moment the fault went in.
+
+| | |
+|---|---|
+| `t_inject` | T+0m00s |
+| first alert firing | T+7m16s |
+| `t_revert` | T+12m16s |
+| all clear | T+13m16s |
+
+## What fired, and when
+
+| when | service | alert | firing for | |
+|---|---|---|---:|---|
+| T+7m15s | `accounting` | ServiceNoTraffic | 6.0 min | **paged** |
+| T+7m15s | `email` | ServiceNoTraffic | 6.0 min | **paged** |
+| T+7m15s | `payment` | ServiceNoTraffic | 6.0 min | **paged** |
+| T+8m15s | `frontend-proxy` | ServiceHighLatency | 5.0 min | joined later |
+| T+9m15s | `fraud-detection` | ServiceHighErrorRate | 2.0 min | joined later |
+| T+9m15s | `load-generator` | ServiceHighLatency | 4.0 min | joined later |
+| T+10m15s | `fraud-detection` | ServiceHighLatency | 1.0 min | joined later |
+
+## What the bundle contains
+
+| capture | query |
+|---|---|
+| `metrics/alerts-firing.json` | `ALERTS{alertstate="firing"}` |
+| `metrics/call-rate.json` | `sum by(service_name) (rate(traces_span_metrics_calls_total[5m]))` |
+| `metrics/error-ratio.json` | `sum by(service_name) (rate(traces_span_metrics_calls_total{status_code="STATUS_CODE_ERROR"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total[5m]))` |
+| `metrics/latency-p95.json` | `histogram_quantile(0.95, sum by(service_name, le) (rate(traces_span_metrics_duration_milliseconds_bucket{span_kind!="SPAN_KIND_INTERNAL"}[5m])))` |
+| `metrics/runtime.json` | `{__name__=~"go_.*|dotnet_.*|jvm_.*|process_.*|v8js_.*|nodejs_.*",service_name="payment"}` |
+
+`logs/payment.txt` — 509 lines.
+
+## A look at the logs
+
+From `logs/payment.txt` (---- onset 2026-09-27T23:17:20+00:00 ----):
+
+```
+2026-09-27T23:17:06+00:00      cardType: 'visa',
+2026-09-27T23:17:06+00:00      lastFourDigits: '1278',
+2026-09-27T23:17:06+00:00      amount: {
+2026-09-27T23:17:06+00:00        units: { low: 315, high: 0, unsigned: false },
+2026-09-27T23:17:06+00:00        nanos: 760000000,
+2026-09-27T23:17:06+00:00        currencyCode: 'USD'
+2026-09-27T23:17:06+00:00      },
+2026-09-27T23:17:06+00:00      loyalty_level: 'platinum'
+2026-09-27T23:17:06+00:00    }
+2026-09-27T23:17:06+00:00  }
+2026-09-27T23:17:12+00:00  {
+2026-09-27T23:17:12+00:00    resource: {
+```
+
+_488 further lines are in the bundle._
+
+## The incident record
+
+Written from the responder's chair, by someone who did not know the fault class
+or that anything had been injected. This text is also corpus material, which is
+why it never names the injector.
+
+**It keeps its own clock.** The table above is measured from the injection, which
+is the only origin the manifest records; a narrative's `T+` offsets are the
+responder's own and start wherever that responder started counting — usually the
+page, sometimes the injection, sometimes an event in the logs. The same moment can
+therefore carry two different offsets on this page. The absolute timestamps in the
+bundle are the tiebreak.
+
+### What was observed
 
 The page came 7m16s after orders started hanging, and it was silence: `ServiceNoTraffic` on
 **payment**, **email** and **accounting** at once. A minute later `ServiceHighLatency` fired on
@@ -31,7 +100,7 @@ with no error of its own, and email's and accounting's went with it; from T+4 no
 had an error ratio or a latency value. Checkout, though, kept going at about half its rate, its
 p95 *falling* from 39ms to 7; shipping ran at about half; currency and quote did not move at all.
 
-## What was checked
+### What was checked
 
 **The proxy and the load generator, because they paged on latency.** Their error traces - 93 in
 twelve minutes - were all the same thing: a checkout, `user_checkout_multi` 48 and
@@ -91,7 +160,7 @@ it had nothing else to report. Nothing was wrong with it.
 **What changed.** Nothing. No deploy, no image, no configuration, no limit, no flag, on any
 service involved. The change history for the window is empty.
 
-## Root cause
+### Root cause
 
 The payment process was suspended. The container existed and kept its port; the kernel went on
 accepting connections into its backlog; but nothing in the process ran, so no request was read
@@ -102,7 +171,7 @@ no order record. The storefront browsed, added to carts and viewed them as befor
 timed the hung checkouts out at fifteen seconds. Payment neither errored nor logged, because it
 was not running. Nothing about it had been changed.
 
-## Resolution
+### Resolution
 
 The payment process was resumed. Its first charge landed two seconds later and its runtime
 reports were back within fifteen; every held order woke together, and all 114 of them completed
@@ -121,7 +190,7 @@ cart's p95 rose to about 40ms on the burst of cart emptyings. Whether a latency 
 that wave is not recorded: the recording's window closed two minutes after the all-clear, before
 the rule could have held its three.
 
-## Detection notes
+### Detection notes
 
 - Onset to first page: **7m16s**, the no-traffic windows draining. Latency on the proxy a minute
   later, once a sixteenth of its requests at fifteen seconds had held its 95th percentile for
@@ -150,3 +219,7 @@ the rule could have held its three.
 - **The all-clear can come before the recovery's own wave has had time to page.** Minutes-long
   spans closing at once put checkout and the frontend at the ceiling for the store's window; the
   rule needs three minutes, and the record ends before that.
+
+---
+
+Rendered from [`evals/scenarios/artifacts/holdout/v2-payment-freeze/`](../../evals/scenarios/artifacts/holdout/v2-payment-freeze/) by `faultline-render`. [All bundles](README.md).

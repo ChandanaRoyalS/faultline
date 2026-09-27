@@ -4617,6 +4617,30 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-09-27: the twenty-eighth v2 scenario, `v2-payment-freeze`, rehearsed and labeled - slot
+`v2/process_freeze-4` (holdout), first recording. The `process_freeze` row is full.***
+
+- **The design.** `docker pause` on payment, the last step of an order: only checkout calls it,
+  once, after the cart read, the catalog lookups, both conversions and the shipping quote.
+- **The page, and the mechanism's predictions held.** `ServiceNoTraffic` on payment, email and
+  accounting together at 7m16s - the silence has the shape of the order after the charge -
+  then latency on frontend-proxy, fraud-detection's thin ratio and the load generator's latency,
+  fraud-detection's latency; seven alerts on six services, none after the fix, all clear 1m00s
+  after the resume. Checkout ran at half its rate with its p95 down to 7 ms; shipping at half;
+  currency and quote unchanged; the frontend unmoved. Every proxy error trace holds `Charge` open
+  for the length of the freeze after a preparation completed in milliseconds; payment's series
+  gapped from +4 to 14 s after the unpause, its log silent for twelve minutes.
+- **The other way from row 3.** The silence led and the dead end followed; a sixteenth of
+  requests at fifteen seconds held the proxy's 95th percentile where a twentieth had not, so
+  the storefront edge paged on latency here. All 114 held orders completed. The recorder's
+  all-clear again preceded the recovery's wave - the blind spot noted at row 3, now twice.
+- **Holdout.** Under `artifacts/holdout/`, pinned in `tests/test_freeze.py`, in no corpus.
+  Distinct from row 3 on (a), (c) and (d), from rows 1 and 2 on all three.
+- **The row, closed: four freezes, four points of one world, pages of sixteen, fourteen, nine
+  and seven alerts, the culprit on the page in none.** 29 of 44 slots filled; six classes
+  complete. `network_partition`, `datastore_corruption`, `disk_fill` (Q100 first) and
+  `injection` remain.
+
 ***2026-09-27: the twenty-seventh v2 scenario, `v2-currency-freeze`, rehearsed and labeled - slot
 `v2/process_freeze-3` (dev), first recording. The smallest freeze pages by the dead end.***
 

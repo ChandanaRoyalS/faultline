@@ -839,6 +839,12 @@ NARRATIVE_EVIDENCE_V2: dict[str, set[str]] = {
     # change history is empty. The narrative does not need the target's logs or runtime, and
     # reads the absence of both as such.
     "v2-currency-freeze": {"metrics", "logs", "traces", "changes"},
+    # Holdout. The target is paused at the last step of an order. Metrics carry three services'
+    # silence with everything before the charge still running; the target's runtime series stop
+    # and resume with the unpause; its log stops mid-stream and bursts back; the traces hold one
+    # Charge open for the length of the freeze under every order after a completed preparation;
+    # the change history is empty.
+    "v2-payment-freeze": {"metrics", "runtime_metrics", "logs", "traces", "changes"},
     # Holdout. The page names the culprit and reads as down. Metrics carry its rate going to zero
     # and everyone else's holding; runtime shows it alive; its log names the address and the
     # refused connection, and fraud-detection's shows the topic still read; traces show none of
