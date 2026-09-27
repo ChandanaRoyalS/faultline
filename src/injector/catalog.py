@@ -878,6 +878,27 @@ CATALOG: tuple[FaultDefinition, ...] = _validated(
             params={"memory": "160m"},
         ),
         FaultDefinition(
+            id="v2-cart-memory-squeeze",
+            fault_class=FaultClass.RESOURCE_EXHAUSTION,
+            target="cart",
+            world="v2",
+            description=(
+                "Shrink cart's memory limit below what its .NET runtime needs to run - a v1 "
+                "definition T7.20 probed at 200m (killed, back before detection) and 32m (never "
+                "ran long enough to export) and never authored. The storefront and every order "
+                "lose the cart; the same absence as a bad cart deploy, with a limit in the record "
+                "and a process that keeps starting in the log."
+            ),
+            # Measured 2026-09-27 before authoring, from cart's own .NET series: 94.8 MiB working
+            # set (83.4 to 111.9 over eight hours) in a 160M container, of which the GC has
+            # committed only 23.6 (24.9 at its high) - almost all of what cart holds is the
+            # runtime outside its managed heap. The row's rule restated for .NET, applied once:
+            # the working set's eight-hour low less the GC's committed high (58.5 MiB), rounded
+            # down to 16 MiB. Half the running working set, so the process dies at once, and under
+            # the ~60 MiB a restarted one needs outside its heap, so it cannot settle in.
+            params={"memory": "48m"},
+        ),
+        FaultDefinition(
             id="v2-cart-dependency-latency",
             fault_class=FaultClass.DEPENDENCY_LATENCY,
             target="cart",

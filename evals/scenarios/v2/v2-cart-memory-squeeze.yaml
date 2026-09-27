@@ -1,0 +1,80 @@
+# v2/resource_exhaustion-3 (dev) - see SPLIT-V2.md. Slot allocated before authoring; do not move.
+# Candidate order and eligibility: docs/design/t7.1-candidates.md, resource_exhaustion row 3 -
+# new: a v1 definition T7.20 probed and never authored, on cart's .NET runtime. The limit is
+# chosen once, by the row's rule restated for .NET, from cart's own series (2026-09-27), before
+# recording; T7.20's two findings are the things to predict against.
+id: v2-cart-memory-squeeze
+title: Cart service memory limit cut below what its runtime needs to run
+fault_class: resource_exhaustion
+split: dev
+slot: v2/resource_exhaustion-3
+world: v2
+injection:
+  target: cart
+  method: v2-cart-memory-squeeze
+  params:
+    # The working set's eight-hour low (83.4 MiB) less the GC's committed memory at its eight-hour
+    # high (24.9 MiB) - the runtime outside the managed heap, which a fresh process needs before
+    # it serves - rounded down to 16 MiB. Half the running working set, so the process dies at
+    # once; under the ~60 MiB a restarted one needs, so it cannot settle in. Not tuned after
+    # recording: a page of any shape is the scenario, and no page blocks it.
+    memory: "48m"
+ground_truth:
+  root_cause: >
+    The cart service container's memory limit was lowered to 48m, below the working set of its
+    .NET runtime and below what a fresh process needs outside its managed heap to run at all.
+    The kernel kills the container and the restart policy brings it back, and each new process is
+    killed again before it can serve steadily, so the storefront cannot read or add to carts and
+    every order fails at its first step. The store behind cart is healthy and nothing about cart's
+    image, code or configuration changed; restoring the limit fixes it.
+  category: resource_exhaustion
+expected_evidence:
+  # A new design: predicted before recording and checked against the bundle, as every v2
+  # scenario's list has been, and corrected there. Measured at rest (2026-09-27): cart at 94.8 MiB
+  # (83.4 to 111.9 over eight hours) of 160M, GC committed 23.6; cart calls are 16.2% of checkout's
+  # non-internal spans and 11.0% of the frontend's; 35 .NET runtime series; 50 to 212 log lines a
+  # minute; it starts in about a second (connected to its store, listening, `Application started`).
+  # The comparator for the page's shape is v2-cart-bad-image-tag (bad_deploy, dev), the same
+  # absence with a different cause: distinct on (b), a limit lowered against an image updated,
+  # and on (c), a process killed without a shutdown line and starting over and over against
+  # `Application is shutting down...` and silence. T7.20's two findings on v1's cart are the
+  # risks: at 200m it came back before detection, at 32m it exported nothing.
+  - alerts: ServiceHighErrorRate on checkout, frontend and frontend-proxy within about four
+      minutes, as in v2-cart-bad-image-tag (3m17s), load-generator following, once cart is absent
+      more than it is present; ServiceNoTraffic on cart and on the services an order reaches only
+      after its cart read - currency, shipping, quote, payment, email, accounting - as their
+      windows drain; fraud-detection's and flagd's routine stream alerts possible while orders are
+      stopped; if cart serves in bursts between kills, a later and less steady page
+  - metrics: cart's call rate falls to nothing, or to bursts, with no error ratio of its own;
+      checkout's error ratio climbs toward two thirds (the order and its cart read failing out of
+      three spans), the frontend's and frontend-proxy's to about a quarter; payment's, shipping's
+      and accounting's rates fall to zero; the storefront's p95 falls rather than rises
+  - traces: checkout's PlaceOrder fails at its first step, GetCart, with nothing beneath and
+      `name resolver error - produced zero addresses` or a refused connection; the frontend's
+      AddItem and GetCart fail the same way; nothing after the cart read runs
+  - logs: cart's log ends its request lines without a shutdown message - a killed process has
+      none - and then shows its start-up sequence over and over as the runtime backs off -
+      `Successfully connected to Redis`, `Now listening on`, `Application started`, perhaps a few
+      request lines, then the sequence again; no error, no exception; the frontend logs
+      `UNAVAILABLE` with `ECONNREFUSED` or `EHOSTUNREACH` at cart's address
+  - metrics: cart's 35 .NET runtime series hold their last values for the store's lookback and
+      vanish, or reappear in short bursts as each process starts and dies - T7.20's finding that a
+      crash-looping cart exports nothing is expected and is the absence answering
+  - container: exit code 137 with OOMKilled set between a kill and the next start, the restart
+      count climbing, the limit at 48m (not agent-visible; the probe samples it)
+  - change: a change record at onset - `memory limit lowered on cart`, carrying `memory=48m` -
+      and no deploy, no image change, no environment change
+  - discriminator: a service killed at start over and over with its image unchanged and its
+      change record a memory limit, was starved - a bad deploy shows an image in the record and a
+      clean shutdown in the log, a wrong store address shows a connection refused in cart's own
+      log with the process up, and a flag leaves no record and a process that stays up
+expected_remediation_class: config_revert
+rehearsed: false
+alert_timeout_seconds: 900
+# Declared before recording, checked against the bundle after (T7.5). Measured on the running world
+# 2026-09-27: cart holds 35 .NET runtime series and logs 50 to 212 lines a minute. Both are what
+# the fault removes, in bursts or entirely: they answer by going idle or absent. If no process
+# under the fault lives long enough to export, the runtime capture holds the old instance's series
+# only; the recorder derives from what it holds, and the declaration is corrected against it, not
+# argued with.
+answers_idle_or_absent: [runtime, logs]
