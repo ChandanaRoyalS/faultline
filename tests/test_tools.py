@@ -772,6 +772,10 @@ NARRATIVE_EVIDENCE_V2: dict[str, set[str]] = {
     # nothing beneath under an order that succeeds; there are no runtime series to cite; the
     # change record names the image.
     "v2-email-wrong-image": {"metrics", "logs", "traces", "changes"},
+    # The target is slow, not broken. Metrics carry five p95s stepping up with every error ratio at
+    # zero; cart's log goes on unchanged; the traces put 300ms on every message leaving cart;
+    # runtime shows the process unstrained; the change record is a container under cart's name.
+    "v2-cart-dependency-latency": {"metrics", "runtime_metrics", "logs", "traces", "changes"},
     # Holdout. The page names the culprit and reads as down. Metrics carry its rate going to zero
     # and everyone else's holding; runtime shows it alive; its log names the address and the
     # refused connection, and fraud-detection's shows the topic still read; traces show none of

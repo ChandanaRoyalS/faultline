@@ -4617,6 +4617,37 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-09-27: the eighteenth v2 scenario, `v2-cart-dependency-latency`, rehearsed and labeled -
+slot `v2/dependency_latency-1` (dev), first recording. The `dependency_latency` row opens.***
+
+- **Checked before authoring, because this injector's failure is silent.** Pumba exits at
+  startup if any container on the host references an image that is not present locally; after
+  the day's three image swaps that was worth a look rather than an assumption. Both sidecar
+  images on the host, all 37 containers' images present, cart's interface `eth0`. Measured at
+  rest: cart calls are 14.9% of checkout's spans and 8.2% of the frontend's, which settled the
+  one open part of v1's page - both callers' p95s land in the slow group.
+- **The page, and every prediction held.** `ServiceHighLatency` on cart, frontend, frontend-proxy
+  and load-generator together at 4m50s, on checkout at +5:30; five alerts, all latency, none
+  after the fix; every error ratio zero; nothing quiet; all clear 5m02s after the fix.
+- **The mechanism, measured to the millisecond.** In 80 traces every store command beneath cart
+  and its flag read took 300-305ms, so a `GetCart` cost 301ms at cart and an `AddItem` or
+  `EmptyCart` 903-905; each caller's span was another 300ms longer than cart's answer. Cart's p95
+  settled at 910-934ms and its callers' at 1.6-1.85 s - twice cart's, not predicted in size,
+  because a cart page and an order each touch cart twice. Cart's process unstrained throughout;
+  its log unchanged.
+- **A quirk of the trace tool, recorded for row 2.** It named the frontend's call into cart as the
+  degrading hop on cart's and the frontend's traces, and the load generator's own session span on
+  checkout's, whose scripted pauses dwarf the request. Row 2 puts the culprit outside the traced
+  graph, where that matters.
+- **Carried from v1:** the remediation class `restart` - the rule lives in the container's
+  network namespace, so a recreate clears it; the recorder's revert removes the sidecar, the same
+  fix from the other end, and the narrative says both. The change record is by construction.
+- **How it was recorded.** On AC power, under `caffeinate`, the world variable per command,
+  every container under 90% at the pre-check (ad highest at 73%). The host did not sleep; the
+  sidecar was gone after the revert.
+- **Next: row 2**, `v2-valkey-cart-dependency-latency` (`v2/dependency_latency-2`), the delay on
+  the store rather than the service.
+
 ***2026-09-27: the seventeenth v2 scenario, `v2-email-wrong-image`, rehearsed and labeled - slot
 `v2/bad_deploy-4` (holdout), first recording. The `bad_deploy` row is full.***
 
