@@ -1,0 +1,54 @@
+# v2/bad_deploy-1 (dev) - see SPLIT-V2.md. Slot allocated before authoring; do not move.
+# Candidate order and eligibility: docs/design/t7.1-candidates.md, bad_deploy row 1 - dev-only:
+# v1's cart-bad-image-tag is a published dev design, carried to v2's cart. The definition was
+# authored with the other v2 carry-overs; the tag was checked absent from the registry before
+# authoring (docker manifest inspect, 2026-09-27).
+id: v2-cart-bad-image-tag
+title: Cart deployed on an image tag that was never published
+fault_class: bad_deploy
+split: dev
+slot: v2/bad_deploy-1
+world: v2
+injection:
+  target: cart
+  method: v2-cart-bad-image-tag
+  params:
+    image: "ghcr.io/open-telemetry/demo:2.2.0-cart-hotfix.2"
+    # The injector needs this stated rather than inferred: a bare image swap either resolves and
+    # starts (then misbehaves) or resolves nowhere. Here it is the latter.
+    expect_start: "no"
+ground_truth:
+  root_cause: >
+    A deploy pointed cart at image tag ghcr.io/open-telemetry/demo:2.2.0-cart-hotfix.2, which does
+    not exist in the registry. The running container was removed and its replacement never
+    started, so the cart service is absent rather than unhealthy: the storefront cannot read or
+    add to carts, and checkout cannot read the cart an order is placed from. Its store,
+    valkey-cart, is healthy. Rolling back to the published image fixes it.
+  category: bad_deploy
+expected_evidence:
+  # Carried from v1's design and not measured on v2 yet. Written before the first recording and
+  # checked against the bundle, as every v2 scenario's list has been, and corrected there. Measured
+  # at rest (2026-09-27): cart serves 1.33 server spans a second (GetCart 0.79, AddItem 0.41,
+  # EmptyCart 0.14); the frontend makes 1.06 cart calls a second of its 11.7 spans, checkout 0.27
+  # of its 1.86.
+  - alerts: ServiceHighErrorRate on the callers - frontend and checkout, the storefront's edge
+      following - and later ServiceNoTraffic on cart, the one alert that names the failing
+      service; services only a placed order reaches may go quiet as well
+  - metrics: cart's call rate falls to zero rather than its error ratio rising; the callers' error
+      ratios rise while their own latency does not
+  - traces: no cart server spans anywhere after onset; the frontend's and checkout's cart client
+      spans end in error at the connection, with nothing beneath them
+  - logs: cart's Loki stream stops (114 to 222 lines a minute at rest); the frontend's log carries
+      the failed cart calls
+  - metrics: cart's .NET runtime series (39) stop - the process is gone, not unhealthy
+  - change: a change record names cart's image, moved to a tag the registry does not have, at onset
+  - discriminator: the callers are loud and cart is silent - an erroring service still records
+      calls and a missing one does not; the change record at onset is the image, and its tag does
+      not resolve
+expected_remediation_class: rollback
+rehearsed: false
+alert_timeout_seconds: 900
+# Declared before recording, checked against the bundle after (T7.5). Measured on the running world
+# 2026-09-27: Prometheus held 39 .NET runtime series for cart and its Loki stream logged 114 to 222
+# lines a minute. Both are what the fault removes: they answer by going idle or absent.
+answers_idle_or_absent: [runtime, logs]
