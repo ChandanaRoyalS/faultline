@@ -1,0 +1,94 @@
+# v2/network_partition-1 (dev) - see SPLIT-V2.md. Slot allocated before authoring; do not move.
+# Candidate order and eligibility: docs/design/t7.1-candidates.md, network_partition row 1 -
+# dev-only: A3 and R3 are published. The freeze's look-alike on (a), (b) and (d), separated on
+# (c) alone: the cut-off catalog keeps running and logs that it cannot reach anything, where the
+# paused one wrote nothing. Measured before authoring (2026-09-27): the catalog is on
+# `opentelemetry-demo` alone with aliases `product-catalog` (twice), is quiet when healthy (no
+# Loki stream, nothing in an hour), holds 9 Go runtime series, and is 24 % of the frontend's
+# non-internal spans, 14 % of checkout's and 50 % of recommendation's.
+id: v2-product-catalog-partition
+title: The product catalog is cut from the network - its process runs and reaches nothing
+fault_class: network_partition
+split: dev
+slot: v2/network_partition-1
+world: v2
+injection:
+  target: product-catalog
+  method: v2-product-catalog-partition
+  params:
+    network: opentelemetry-demo
+ground_truth:
+  root_cause: >
+    The product-catalog container was disconnected from the demo network (docker network
+    disconnect): the process kept running, its port stayed open on an address nothing could
+    reach, packets on its established connections were dropped rather than reset, and nothing
+    it tried to reach answered. Every caller hangs to its own deadline, so the browse path and
+    everything behind it stall, exactly as if the process were frozen; the difference is that
+    the catalog is alive and says so - it logs its failed telemetry exports once a minute for as
+    long as it is cut off.
+  category: network_partition
+expected_evidence:
+  # From A3 (by hand) and R3 (through the injector, 2026-09-24), and the freeze's recordings on the
+  # same target (row 1 of process_freeze, re-recorded on the revised world 2026-09-27); predicted
+  # before recording and checked against the bundle. Everything below except the log is the
+  # freeze's, and is predicted to match its current recording to within a minute; the log is the
+  # design.
+  - alerts: the callers page, not the culprit - ServiceHighErrorRate on frontend-proxy and
+      load-generator (R3 +4:38, A3 +4:36; the freeze 4m15s), their latency alerts a minute
+      later, ServiceHighLatency/frontend at about +6:38; ServiceNoTraffic on product-catalog at
+      about +7:38 with the starved services beside it - accounting, currency, email, payment,
+      quote, shipping, and checkout if its every span hangs; fourteen to sixteen alerts on
+      thirteen services by the revert
+  - alerts: (dead end) with orders stopped, fraud-detection's and flagd's routine
+      flagd.evaluation.v1.Service/EventStream reconnect raises error and latency alerts on them,
+      and recommendation's error ratio can read 100 % on one request in five minutes before its
+      traffic goes to zero, as in the freeze; none of it is a second fault
+  - metrics: frontend-proxy's p95 at the histogram's ceiling (15000 ms) from about +2 and
+      frontend's from about +3, while frontend's error ratio reads zero - not one span ends in
+      error - and its request rate falls by about four fifths; the errors surface one hop up, at
+      frontend-proxy (25 to 30 %) and load-generator, as Envoy's upstream timeouts
+  - metrics: product-catalog's request rate goes to zero within a minute of the page and stays
+      there, and from then on its error ratio and latency have no value at all - not zero
+      errors, no samples
+  - metrics: product-catalog's 9 Go runtime series stop moving at the cut - the SDK cannot reach
+      the collector, so its last report lands in the minute before onset - hold for the store's
+      lookback and drop out of queries by about +5; back within a minute of the reconnect. The
+      freeze cuts them too, so this separates cut-off-or-frozen from idle, not partition from
+      freeze
+  - logs: THE DESIGN - product-catalog, which writes nothing when healthy and nothing when
+      frozen, writes under the partition - a line ending in "context deadline exceeded" within
+      seconds of the cut, one naming the traces export with the same ending, and then, at :58 of
+      every minute for as long as it is cut off, "failed to upload metrics" ending in
+      "DeadlineExceeded" (R3 - fifteen lines over a thirteen-minute fault); a Loki stream for
+      product-catalog exists only because of them; the frontend logs its own timeouts as the
+      freeze had them
+  - traces: the proxy's spans end at its 15 s deadline; below it frontend's call into the
+      catalog (grpc.oteldemo.ProductCatalogService/GetProduct) stays open until the reconnect,
+      and checkout's GetProduct under prepareOrderItemsAndShippingQuoteFromCart likewise; the
+      catalog has no spans during the cut (nothing reaches it, and what it sends reaches nothing)
+      and its spans appear only after the reconnect
+  - recovery: at the reconnect the catalog is back on the network under its captured aliases at
+      a new address, and the woken backlog hits it at once - the freeze's current recording
+      (2026-09-27) saw `Product Not Found` for products that exist, 77 frontend error lines in
+      the minute of the resume, and four recovery-only alerts (errors on the frontend, latency on
+      checkout, product-catalog and recommendation); R3 saw the same second wave on checkout,
+      frontend, product-catalog and recommendation and all clear 5m12s after the reconnect;
+      Postgres at 256M since Q96, so no restart is expected and the count is checked
+  - change: nothing recorded - no deploy, no config, no flag; the history is empty for the
+      whole window (the injector records no change for this class)
+  - discriminator: a freeze of the same service looks identical on alerts, metrics, runtime
+      series and traces; the partition is the one whose target keeps running and logs its export
+      failures once a minute, where a frozen target logs nothing at all - on this target the
+      one line of separation, and the reason the row's rule blocks any target whose SDK cannot
+      write it
+expected_remediation_class: restart
+# The partition resolves when the container is put back on its network; where an operator cannot
+# reconnect it with its aliases, recreating or restarting the container does it
+# (knowledge/runbooks/class-network-partition.md). Nothing was changed, so nothing is reverted.
+rehearsed: false
+alert_timeout_seconds: 900
+# Declared before recording, checked against the bundle after (T7.5). Measured on the running world
+# 2026-09-27: the catalog holds 9 Go runtime series and has no Loki stream when healthy. The cut
+# stops the series (the SDK cannot export), so runtime answers by going absent; the log is the
+# reverse - it appears under the fault - and is the evidence, not an absence.
+answers_idle_or_absent: [runtime]
