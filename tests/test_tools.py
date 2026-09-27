@@ -826,6 +826,12 @@ NARRATIVE_EVIDENCE_V2: dict[str, set[str]] = {
     # unreachable and unresolved with nothing beneath; runtime stops; the change record names the
     # limit.
     "v2-recommendation-memory-squeeze": {"metrics", "runtime_metrics", "logs", "traces", "changes"},
+    # The target is paused; the freeze on the order path. Metrics carry the proxy's timeouts, the
+    # frontend at the ceiling with zero errors, and nine services going quiet; the target's
+    # runtime series stop and resume with the unpause; its log stops mid-stream and bursts back;
+    # the traces hold the open cart call under every timed-out request; the change history is
+    # empty, which is the answer.
+    "v2-cart-freeze": {"metrics", "runtime_metrics", "logs", "traces", "changes"},
     # Holdout. The page names the culprit and reads as down. Metrics carry its rate going to zero
     # and everyone else's holding; runtime shows it alive; its log names the address and the
     # refused connection, and fraud-detection's shows the topic still read; traces show none of

@@ -24,54 +24,59 @@ ground_truth:
   category: process_freeze
 expected_evidence:
   # A new design: predicted before recording from the freeze's mechanism and the catalog freeze's
-  # recording (row 1), and checked against the bundle. Measured at rest (2026-09-27): 34 of 138
-  # requests in a minute touch cart (16 add-to-cart, 14 cart views, 4 checkouts - 24.6 %); the
-  # frontend calls cart 0.9 times a second (AddItem 0.35, GetCart 0.56), checkout 0.27 (GetCart
-  # and EmptyCart, one each per order); neither sets a deadline, the proxy's is Envoy's default
-  # route timeout of 15 s; cart holds 35 .NET runtime series and logs 80 to 190 lines a minute.
-  # The comparator is v2-product-catalog-freeze: the same mechanism on the browse path, sixteen
-  # alerts on thirteen services with the frontend's rate down 83 %; here the order path, the
-  # browse path untouched. Distinct on (a) by which services starve, and on (c) and (d) by the
-  # target: cart's log stops mid-stream where the catalog had none.
-  - alerts: the callers page, not the culprit - ServiceHighErrorRate on frontend-proxy and
-      load-generator together, four to five minutes in (the catalog's came at 4m15s), the proxy's
-      errors being its own 15 s timeouts on the quarter of requests that hang; ServiceHighLatency
-      on frontend-proxy, frontend and load-generator within a minute or two of the page as the
-      hung requests reach the histogram's ceiling; ServiceNoTraffic on cart at about +8, with
-      the order path beside it as their windows drain - checkout, whose every span hangs on its
-      cart read, and payment, email and quote behind it - shipping and currency possibly not,
-      since the frontend still quotes and converts on the browse path; nothing on
-      product-catalog, ad or recommendation
-  - alerts: (dead end) with orders stopped, fraud-detection's and flagd's routine
-      flagd.evaluation.v1.Service/EventStream reconnect can raise ServiceHighErrorRate and
-      ServiceHighLatency on them, as it did in the catalog freeze; no order is involved
-  - metrics: frontend-proxy's p95 at the histogram's ceiling (15000 ms) from about +2 and the
-      frontend's from about +3, while the frontend's error ratio reads zero - not one of its
-      spans ends in error, the hung ones simply never end - and its rate falls by roughly the
-      quarter of requests that hang plus the load the blocked users no longer generate; the
-      proxy's error ratio settles near the share of requests that touch cart, the load
-      generator's with it; cart's rate goes to zero within the first minute and from then its
-      error ratio and p95 have no value; checkout's rate falls to nothing (a PlaceOrder that hangs
-      exports no span) and payment's, email's and accounting's with it; product-catalog's, ad's
-      and recommendation's hold
-  - metrics: cart's 35 .NET runtime series stop at the freeze - a paused process exports nothing
-      - hold their last values for the store's lookback and drop out of queries by about +5;
-      back within a minute of the unpause
-  - traces: the proxy's error spans end at its 15 s deadline; beneath them the frontend's
-      grpc.oteldemo.CartService/AddItem or GetCart stays open until the cart resumes, and the
-      trace tool names it as the degrading hop; checkout's PlaceOrder traces stay open at
-      oteldemo.CartService/GetCart under prepareOrderItemsAndShippingQuoteFromCart, with nothing
-      after it; cart has no spans during the freeze and its spans appear only after the resume
-  - logs: cart's log - 80 to 190 request lines a minute at rest - stops at the freeze with an
-      ordinary request line and shows nothing until the unpause - no error, no shutdown line, no
-      start-up sequence, a process that is not running writes nothing; the frontend logs no
-      cart error while the fault holds, its calls never returning; at the resume the woken backlog
-      logs at once
-  - recovery: at the unpause every hung request wakes together - the second wave the class
-      carries - cart answers the backlog in a burst, checkout's held orders complete or fail, the
-      frontend's held calls return, and the callers' five-minute windows carry the ceiling
-      latencies and the timeouts for minutes after the fix; recovery-only alerts possible, as the
-      catalog freeze had four; about six minutes from unpause to quiet
+  # recording, and checked against the first recording, on the revised world, 2026-09-27
+  # (t_inject 21:35:10, revert at +10:31). Every prediction held, and the no-traffic wave was
+  # larger than predicted: nine services, not four to six - shipping and currency went with the
+  # rest, because on this world the frontend quotes and converts only on the cart and checkout
+  # paths. Not predicted: the four-alert page (errors and latency together on the proxy and the
+  # load generator, the latency having been at the ceiling since +2), the recovery's `the
+  # connection is draining` on checkout's woken cart reads, and its 18 orders failing at the
+  # shipping quote with a 400. The list below states the recording. The comparator,
+  # v2-product-catalog-freeze: sixteen alerts on thirteen services with the frontend's rate down
+  # 83 % and the catalog on the no-traffic list; here fourteen on twelve, the rate down 59 %, the
+  # browse path serving throughout, and cart on the list - distinct on (a) by which services
+  # starve and on (c) and (d) by the target.
+  - alerts: the callers page, not the culprit - ServiceHighErrorRate and ServiceHighLatency on
+      frontend-proxy and load-generator together (page 5m31s), the proxy's errors its own 15 s
+      timeouts on the requests that touch cart; ServiceHighLatency on frontend at +6:30;
+      ServiceNoTraffic at +7:30 on nine services at once - cart, checkout, payment, shipping,
+      quote, currency, email, accounting and fraud-detection; fourteen alerts on twelve services
+      by the fix; nothing on product-catalog, ad or recommendation
+  - alerts: (dead end) fraud-detection's error ratio reads 100 % at +9 on a rate of 0.004 - its
+      routine flag-stream reconnect, the only span it has - and flagd's p95 sits at the ceiling
+      for two minutes on the same stream spans; ad's and recommendation's ratios read 1 to 3 % on
+      the same thinness; none of it pages and no order is involved
+  - metrics: frontend-proxy's p95 at the histogram's ceiling (15000 ms) from +2 and the
+      frontend's from +3, while the frontend's error ratio reads zero for the whole fault - not
+      one of its spans ends in error - and its rate falls from about 11 a second to 4.5 by +4;
+      the proxy's error ratio 1.5, 3.8, 9.2, 13 % and then 14 to 16 % until the fix, the load
+      generator's a point or two above; cart's rate 3.4 a second to 2.5, 1.8, 0.5 and nothing by
+      +4, and from then no error ratio or p95; checkout's 1.6 to nothing in the same minute (a
+      PlaceOrder that hangs exports no span), and payment's, shipping's, quote's, currency's,
+      email's, accounting's and fraud-detection's with it; product-catalog's rate halves and its
+      p95 holds at 7 ms, ad's and recommendation's hold
+  - metrics: cart's 36 .NET runtime series stop at the freeze - their last samples are from the
+      minutes before onset - hold for the store's four-minute lookback and drop out of queries
+      from +4; back 14 s after the unpause
+  - traces: every proxy error trace (247 - 132 add-to-cart, 71 cart views, 44 checkouts) ends at
+      its 15 s deadline; beneath it the frontend's request stays open for minutes - GET /api/cart
+      for 235 and 462 s, POST /api/checkout for 393 - on a single grpc.oteldemo.CartService/GetCart
+      or AddItem call that closes only at the resume, with cart's answer in two milliseconds
+      under it; checkout's PlaceOrder stays open at oteldemo.CartService/GetCart under
+      prepareOrderItemsAndShippingQuoteFromCart for 393 and 598 s with nothing after it; cart has
+      no spans during the freeze and its spans appear only after the resume
+  - logs: cart's log - 70 to 80 request lines a minute at rest - shows twelve lines in the first
+      seconds of the fault and nothing for ten minutes - no error, no shutdown line, no start-up
+      sequence - then 200 request lines in the 30 s after the unpause; the frontend logs no cart
+      error while the fault holds and 18 errors after the resume, its held checkouts failing at
+      the shipping quote
+  - recovery: at the unpause every hung request wakes together - checkout's held orders find
+      their cart connection draining (`the connection is draining` on the first GetCart), read
+      the cart again in 50 ms and go on - 29 complete minutes after they were placed and 18 fail at
+      the shipping quote with a 400; checkout's p95 reads 15000 ms from the resume to +14 as the
+      held spans close, its error ratio 17 % falling to 8 %, and it alerts on error rate at +13:30
+      and on latency at +14:30 - two recovery-only alerts; cart's rate up to two and a half times
+      its usual for four minutes at a p95 of 29 ms against 4; all clear 5m01s after the fix
   - change: nothing recorded - no deploy, no config change, no limit, no flag; the change history
       is empty for the whole window
   - discriminator: a partition of the same service looks identical on alerts, metrics, runtime
@@ -85,11 +90,13 @@ expected_remediation_class: restart
 # The freeze resolves when the process is unfrozen; where an operator cannot `unpause`, a restart
 # is what does it (knowledge/runbooks/class-process-freeze.md). Nothing was changed, so nothing
 # is reverted.
-rehearsed: false
+rehearsed: true
 alert_timeout_seconds: 900
 # Declared before recording, checked against the bundle after (T7.5). Measured on the running world
-# 2026-09-27: cart holds 35 .NET runtime series and logs 80 to 190 lines a minute. A paused process
+# 2026-09-27: cart holds 35 .NET runtime series and logs 70 to 190 lines a minute. A paused process
 # exports and writes nothing, so both answer by going absent - which separates frozen-or-cut-off
 # from idle, as the catalog note says, and not freeze from partition; the partition row is told
-# apart by its target's own log.
+# apart by its target's own log. The first recording (2026-09-27) confirmed both: 36 runtime
+# series (the same process's, gapped from +4 to +10:45) and 500 target log lines, 400 of them the
+# burst after the unpause; the recorder derived [runtime, logs].
 answers_idle_or_absent: [runtime, logs]

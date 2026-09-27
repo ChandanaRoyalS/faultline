@@ -56,6 +56,7 @@ OTHER_WORLD_NARRATIVES = [
     "v2-ad-memory-squeeze",
     "v2-fraud-detection-memory-squeeze",
     "v2-payment-memory-squeeze",
+    "v2-cart-freeze",
 ]
 OTHER_WORLD_INVALID = ["v2-cart-valkey-misconfig", "v2-cart-memory-squeeze"]
 """v2 dev bundles marked INVALID: recorded, blocked, and skipped for that reason before their

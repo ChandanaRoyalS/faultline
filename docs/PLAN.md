@@ -4617,6 +4617,29 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-09-27: the twenty-sixth v2 scenario, `v2-cart-freeze`, rehearsed and labeled - slot
+`v2/process_freeze-2` (dev), first recording. The freeze on the order path.***
+
+- **The design.** `docker pause` on cart, the second freeze after the catalog's; no change
+  record, by the class; remediation `restart`. Measured before authoring: a quarter of the
+  storefront's requests touch cart, and checkout's `GetCart` is the first thing an order does.
+- **The page, and every prediction held.** Four alerts at once at 5m31s - errors and latency on
+  frontend-proxy and load-generator, the proxy's errors its own 15 s timeouts on the 247 requests
+  that touched cart - latency on the frontend at +6:30, and `ServiceNoTraffic` at +7:30 on nine
+  services: cart, checkout, payment, shipping, quote, currency, email, accounting and
+  fraud-detection. Fourteen alerts on twelve services by the fix, two more in the recovery, all
+  clear 5m01s after the unpause. The frontend's error ratio zero throughout; its rate down 59 %;
+  the browse path serving at half its rate. Cart's 36 series gapped from +4 to 14 s after the
+  unpause; its log twelve lines and then nothing for ten minutes, then 200 lines in 30 s.
+- **Larger than predicted, and not predicted.** Shipping and currency starved too - the frontend
+  quotes and converts only on the cart and checkout paths. The page came as four alerts. The
+  recovery: checkout's woken orders found their cart connection draining, read the cart again in
+  50 ms, and 29 completed minutes after they were placed while 18 failed at the shipping quote.
+- **Distinct** from row 1 on (a) - the order path silent and the browse path up, against the
+  reverse - and on (c) and (d) by the target's log and the open span. 27 of 44 slots filled.
+- **Next: row 3**, `v2-currency-freeze` (`v2/process_freeze-3`), the freeze on every page that
+  renders a price, then the holdout `v2-payment-freeze`.
+
 ***2026-09-27: the twenty-fifth v2 scenario, `v2-recommendation-memory-squeeze`, rehearsed and
 labeled - slot `v2/resource_exhaustion-4` (holdout), first recording. The `resource_exhaustion`
 row is full.***
