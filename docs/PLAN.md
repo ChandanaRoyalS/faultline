@@ -4617,6 +4617,34 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-09-27: the twenty-second v2 scenario, `v2-ad-memory-squeeze`, rehearsed and labeled - slot
+`v2/resource_exhaustion-1` (dev), first recording. The `resource_exhaustion` row opens, with the
+limit re-measured rather than copied.***
+
+- **The value, chosen once by a rule.** The catalog's 192m was a starting value. Measured from ad's
+  own JVM series: the JVM sizes its heap from the container limit (121.8 MiB against 300M), so a
+  JVM restarted under 192m could settle in - one kill, no page, the edge `cart-memory-squeeze`
+  fell off at T7.20. Its non-heap (91.6 MiB) and what the container holds outside the JVM (about
+  80 MiB) cannot shrink. The rule: the JVM's committed memory at its eight-hour high (157.6 MiB)
+  rounded down to 16 MiB, **144m** - the running JVM dies at once, and a restarted one cannot
+  reach a serving state. Pre-registered with the no-page rule: blocked without a second value.
+- **The page, and every prediction held in its stronger form.** `ServiceHighErrorRate` on
+  frontend-proxy and frontend at 5m01s, `ServiceNoTraffic` on ad at +7:45; three alerts, none
+  after the fix; all clear 3m01s after it. Seventeen JVM starts in ten minutes, none reaching
+  `listening`; no ad server span in the fault; the frontend's own client spans show the name
+  resolving to nothing and the port refused. Ad's 51 series held four minutes and vanished.
+- **Distinct from `v2-ad-bad-image-tag`** - the same page - on (b), a limit against an image, and
+  (c), a JVM starting seventeen times against one shutting down once. The change record is by
+  construction; the remediation class `config_revert`, as v1's.
+- **A loss on the record, and what preserved the bundle.** The apply-and-record commands were run a
+  second time after the recording had finished: `git am` refused the already-merged patch, the
+  second `tee` and the second probe truncated the run's console log and the 10-second samples of
+  ad's exit code and OOM flag, and the recorder refused to overwrite the bundle. So the kills are
+  read from the log's banners and the series' stop, the restart count from `docker inspect`
+  afterwards; the bundle is whole and the host did not sleep.
+- **Next: row 2**, `v2-fraud-detection-memory-squeeze` (`v2/resource_exhaustion-2`), its limit by
+  the same rule.
+
 ***2026-09-27: the twenty-first v2 scenario, `v2-product-catalog-dependency-latency`, rehearsed
 and labeled - slot `v2/dependency_latency-4` (holdout), second recording. The `dependency_latency`
 row is full, and the injector's sidecar no longer announces the fault (Q111).***

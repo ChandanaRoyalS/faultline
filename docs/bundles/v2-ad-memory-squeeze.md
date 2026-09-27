@@ -1,17 +1,82 @@
----
-origin: scenario:v2-ad-memory-squeeze
-split: dev
-fault_class: resource_exhaustion
-recorded_from: 2026-09-27T12:39:52+00:00
-capability: cap:d2b243e0
-onset_to_page: 5m01s
-page_to_fix: 5m00s
-fix_to_all_clear: 3m01s
----
-
 # Ad service memory limit cut below what its JVM needs to run
 
-## What was observed
+## The scenario
+
+| | |
+|---|---|
+| scenario | `v2-ad-memory-squeeze` |
+| fault class | **`resource_exhaustion`** |
+| expected remediation | `config_revert` |
+| split | `dev` |
+| injected at | `ad` via `v2-ad-memory-squeeze` |
+| time to page | 5m01s |
+| steady state captured | 300s |
+| capture window | 2026-09-27T12:34:52+00:00 → 2026-09-27T12:54:54+00:00 |
+
+The clock below runs from the moment the fault went in.
+
+| | |
+|---|---|
+| `t_inject` | T+0m00s |
+| first alert firing | T+5m01s |
+| `t_revert` | T+10m01s |
+| all clear | T+13m02s |
+
+## What fired, and when
+
+| when | service | alert | firing for | |
+|---|---|---|---:|---|
+| T+4m45s | `frontend` | ServiceHighErrorRate | 8.0 min | **paged** |
+| T+4m45s | `frontend-proxy` | ServiceHighErrorRate | 8.0 min | **paged** |
+| T+7m45s | `ad` | ServiceNoTraffic | 5.0 min | joined later |
+
+## What the bundle contains
+
+| capture | query |
+|---|---|
+| `metrics/alerts-firing.json` | `ALERTS{alertstate="firing"}` |
+| `metrics/call-rate.json` | `sum by(service_name) (rate(traces_span_metrics_calls_total[5m]))` |
+| `metrics/error-ratio.json` | `sum by(service_name) (rate(traces_span_metrics_calls_total{status_code="STATUS_CODE_ERROR"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total[5m]))` |
+| `metrics/latency-p95.json` | `histogram_quantile(0.95, sum by(service_name, le) (rate(traces_span_metrics_duration_milliseconds_bucket{span_kind!="SPAN_KIND_INTERNAL"}[5m])))` |
+| `metrics/runtime.json` | `{__name__=~"go_.*|dotnet_.*|jvm_.*|process_.*|v8js_.*|nodejs_.*",service_name="ad"}` |
+
+`logs/ad.txt` — 240 lines.
+
+## A look at the logs
+
+From `logs/ad.txt` (---- onset 2026-09-27T12:39:52+00:00 ----):
+
+```
+2026-09-27T12:35:35+00:00  2026-09-27 12:35:35 - oteldemo.AdService - no baggage found in context trace_id=4d8b661cba4d7a0f21ae06f38653f188 span_id=fdd022e2c0ecb599 trace_flags=01
+2026-09-27T12:35:35+00:00  2026-09-27 12:35:35 - oteldemo.AdService - Targeted ad request received for [books] trace_id=4d8b661cba4d7a0f21ae06f38653f188 span_id=fdd022e2c0ecb599 trace_flags=01
+2026-09-27T12:35:41+00:00  2026-09-27 12:35:41 - oteldemo.AdService - no baggage found in context trace_id=c04360e251309f2cd6425b5d7b4d2ee7 span_id=b87ac6a78dcca38a trace_flags=01
+2026-09-27T12:35:41+00:00  2026-09-27 12:35:41 - oteldemo.AdService - Non-targeted ad request received, preparing random response. trace_id=c04360e251309f2cd6425b5d7b4d2ee7 span_id=b87ac6a78dcca38a trace_flags=01
+2026-09-27T12:35:51+00:00  2026-09-27 12:35:51 - oteldemo.AdService - no baggage found in context trace_id=697d6901916f8e05c7a1a62afda644a5 span_id=b97976fa36228001 trace_flags=01
+2026-09-27T12:35:51+00:00  2026-09-27 12:35:51 - oteldemo.AdService - Targeted ad request received for [travel] trace_id=697d6901916f8e05c7a1a62afda644a5 span_id=b97976fa36228001 trace_flags=01
+2026-09-27T12:35:56+00:00  2026-09-27 12:35:56 - oteldemo.AdService - no baggage found in context trace_id=3ff8d1ce2ed0a54ab5326d009b150e86 span_id=b189decd3d5ceaa9 trace_flags=01
+2026-09-27T12:35:56+00:00  2026-09-27 12:35:56 - oteldemo.AdService - Targeted ad request received for [binoculars] trace_id=3ff8d1ce2ed0a54ab5326d009b150e86 span_id=b189decd3d5ceaa9 trace_flags=01
+2026-09-27T12:36:01+00:00  2026-09-27 12:36:01 - oteldemo.AdService - no baggage found in context trace_id=a91df2d64a353f92b33238c35aa9b4c1 span_id=7cf293ace07dcd4f trace_flags=01
+2026-09-27T12:36:01+00:00  2026-09-27 12:36:01 - oteldemo.AdService - Targeted ad request received for [binoculars] trace_id=a91df2d64a353f92b33238c35aa9b4c1 span_id=7cf293ace07dcd4f trace_flags=01
+2026-09-27T12:36:01+00:00  2026-09-27 12:36:01 - oteldemo.AdService - no baggage found in context trace_id=a903c555590316132348854595c660be span_id=9b09eee90ab724f1 trace_flags=01
+2026-09-27T12:36:01+00:00  2026-09-27 12:36:01 - oteldemo.AdService - Non-targeted ad request received, preparing random response. trace_id=a903c555590316132348854595c660be span_id=9b09eee90ab724f1 trace_flags=01
+```
+
+_219 further lines are in the bundle._
+
+## The incident record
+
+Written from the responder's chair, by someone who did not know the fault class
+or that anything had been injected. This text is also corpus material, which is
+why it never names the injector.
+
+**It keeps its own clock.** The table above is measured from the injection, which
+is the only origin the manifest records; a narrative's `T+` offsets are the
+responder's own and start wherever that responder started counting — usually the
+page, sometimes the injection, sometimes an event in the logs. The same moment can
+therefore carry two different offsets on this page. The absolute timestamps in the
+bundle are the tiebreak.
+
+### What was observed
 
 The page was two alerts in the same moment, `ServiceHighErrorRate` on **frontend-proxy** and
 **frontend**, 5m01s after the trouble started. Three minutes later `ServiceNoTraffic` fired on
@@ -28,7 +93,7 @@ Ad's own numbers went from ordinary to nothing. Its call rate fell from about 0.
 to 0.36 a minute in, 0.15 at three, 0.03 at four and nothing from five, and from then on its error
 ratio and its latency had no value at all. It had recorded no error before the numbers ran out.
 
-## What was checked
+### What was checked
 
 **The page names callers.** Frontend-proxy forwards what the frontend returns, and the load
 generator is the synthetic shoppers counting their own failures. The frontend was the one service
@@ -78,7 +143,7 @@ image and configuration exactly as they were and kills it anyway.
 ratios under 2% for a few minutes at onset and again around nine minutes in, and had shown the same
 before the trouble: the flag service's routine ten-minute stream reconnect. Nothing near a line.
 
-## Root cause
+### Root cause
 
 The ad service container's memory limit was lowered from 300M to 144m, below the 230MB working set
 of a JVM that had sized its heap against 300M, and below what a fresh JVM needs to load its
@@ -87,7 +152,7 @@ restart policy brought it back, and every new JVM was killed again before it cou
 seventeen times, with the runtime backing off to once a minute - so ad was absent for the whole
 fault. The storefront's ad requests failed; nothing else changed, because nothing else calls ad.
 
-## Resolution
+### Resolution
 
 The memory limit was restored to 300M. The next JVM start, twenty seconds after the fix, was the
 first in ten minutes to reach `Ad service started, listening on 9555`, and it served its first ad
@@ -100,7 +165,7 @@ Class of fix: **config_revert**. The container's resource limit was wrong and it
 Restarting ad was what the runtime had already been doing, seventeen times; rolling back its image
 would have changed nothing, because the image was never the problem.
 
-## Detection notes
+### Detection notes
 
 - Onset to first page: **5m01s**. Services on the page: **two**, neither of them ad. By the fix:
   **three**, ad among them.
@@ -125,3 +190,7 @@ would have changed nothing, because the image was never the problem.
   and the order path never moved. This is the same page as a bad ad deploy; the change record and
   the log - a limit and a JVM that keeps starting, against an image and a JVM that shut down once -
   are what tell them apart.
+
+---
+
+Rendered from [`evals/scenarios/artifacts/dev/v2-ad-memory-squeeze/`](../../evals/scenarios/artifacts/dev/v2-ad-memory-squeeze/) by `faultline-render`. [All bundles](README.md).
