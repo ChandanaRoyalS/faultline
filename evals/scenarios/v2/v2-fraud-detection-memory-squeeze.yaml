@@ -1,0 +1,78 @@
+# v2/resource_exhaustion-2 (dev) - see SPLIT-V2.md. Slot allocated before authoring; do not move.
+# Candidate order and eligibility: docs/design/t7.1-candidates.md, resource_exhaustion row 2 -
+# dev-only: v1's frauddetection-memory-squeeze is a published dev design, carried to v2's
+# fraud-detection. The limit is re-measured on v2 under the 500M the world revision gave it,
+# never copied: chosen once, by the row's rule, from the JVM's own series (2026-09-27).
+id: v2-fraud-detection-memory-squeeze
+title: Fraud detection memory limit cut below what its JVM needs to run
+fault_class: resource_exhaustion
+split: dev
+slot: v2/resource_exhaustion-2
+world: v2
+injection:
+  target: fraud-detection
+  method: v2-fraud-detection-memory-squeeze
+  params:
+    # The JVM's own committed memory at its eight-hour high (168.1 MiB), rounded down to 16 MiB.
+    # 62 % of the 256 MiB working set, so the running JVM is killed at once; and under the ~190 MiB
+    # (100 non-heap plus ~88 outside the JVM) a restarted one needs before it can serve, so it
+    # cannot come back. Not tuned after recording: a page of any shape is the scenario, and no
+    # page blocks it.
+    memory: "160m"
+ground_truth:
+  root_cause: >
+    The fraud detection container's memory limit was lowered to 160m, below the working set of a
+    JVM that had been running under 500M, and below what the process needs outside its heap at
+    all. The kernel kills the container and the restart policy brings it back, and each new JVM
+    is killed again before it can consume, so orders stop being checked for fraud. Nothing calls
+    fraud-detection synchronously, so the storefront, checkout and accounting are untouched and
+    the only sign is its own silence. Nothing about its image, code or configuration changed;
+    restoring the limit fixes it.
+  category: resource_exhaustion
+expected_evidence:
+  # Carried from v1's design and not recorded on v2 yet. Written before the first recording and
+  # checked against the bundle, as every v2 scenario's list has been, and corrected there.
+  # Measured at rest (2026-09-27): fraud-detection at 256 MiB of 500M; heap ceiling 121.8 MiB,
+  # heap used 51, non-heap 100, JVM committed 168.1 at its eight-hour high; 0.15 orders a second
+  # consumed, one flag-stream span every ten minutes; 51 JVM runtime series; 4 to 15 log lines a
+  # minute. The comparators: v2-ad-memory-squeeze (the row's first recording - distinct on (a),
+  # one alert on the target itself against two on the storefront and none on the target until
+  # later) and the holdout v2-accounting-kafka-misconfig (the same one-alert page on the other
+  # consumer - distinct on (b), a limit against a variable, and (c), JVM banners against a broker
+  # refused).
+  - alerts: ServiceNoTraffic on fraud-detection alone, once its window drains - six to eight
+      minutes in (v1 paged at 6m15s); nothing else fires - the storefront, checkout, payment and
+      accounting never move; possibly a flagd latency blip as its stream to a dead client closes
+  - metrics: fraud-detection's call rate falls from ~0.3 spans a second to nothing with no error
+      ratio of its own, and from then its error ratio and p95 have no value; every other service's
+      error ratio zero, rates and latencies unchanged; accounting keeps consuming the same orders
+  - traces: no fraud-detection span at all during the fault - no `orders receive`, no `orders
+      process`; checkout's orders complete with their `orders publish` and accounting's consumer
+      spans continue; nothing calls fraud-detection, so no caller errors
+  - logs: fraud-detection's log turns into JVM start-up banners - `Picked up JAVA_TOOL_OPTIONS`,
+      the OpenJDK warning, the agent's version - repeating with nothing after them as the runtime
+      backs off between restarts, or at most the application's own start-up lines before each
+      kill; no error, no stack trace, no shutdown message; `Consumed record` lines stop at onset
+  - metrics: fraud-detection's 51 JVM runtime series hold their last values for the store's
+      lookback and vanish; no new instance's series until after the fix - a process that is
+      merely idle keeps exporting them
+  - container: the restart count climbing through the fault, the limit at 160m; exit code 137
+      with OOMKilled set between a kill and the next start (not agent-visible; the probe samples
+      it)
+  - change: a change record at onset - `memory limit lowered on fraud-detection`, carrying
+      `memory=160m` - and no deploy, no image change, no environment change
+  - discriminator: a consumer that goes silent with no caller to notice, whose log is a JVM
+      starting over and over with no error of its own, whose image is unchanged and whose change
+      record is its memory limit, was starved - a broker misconfiguration shows the broker refused
+      in the log and a variable in the record, and a flag leaves no record and a process that
+      stays up
+expected_remediation_class: config_revert
+rehearsed: false
+alert_timeout_seconds: 900
+# Declared before recording, checked against the bundle after (T7.5). Measured on the running world
+# 2026-09-27: fraud-detection holds 51 JVM runtime series and logs 4 to 15 lines a minute. Both are
+# what the fault removes: they answer by going idle or absent. If the JVM never runs long enough
+# to export a series under the fault, the runtime capture holds only the old instance's and the
+# recovery's; the recorder derives from what it holds, and the declaration is corrected against
+# it, not argued with.
+answers_idle_or_absent: [runtime, logs]
