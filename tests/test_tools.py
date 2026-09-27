@@ -798,6 +798,11 @@ NARRATIVE_EVIDENCE_V2: dict[str, set[str]] = {
         "traces",
         "changes",
     },
+    # The target is killed at start over and over. Metrics carry the storefront's errors and ad's
+    # traffic going to nothing; ad's log is JVM banners repeating with nothing after them, and the
+    # frontend's names the unreachable address; GetAds ends with nothing beneath; runtime stops;
+    # the change record names the limit.
+    "v2-ad-memory-squeeze": {"metrics", "runtime_metrics", "logs", "traces", "changes"},
     # Holdout. The page names the culprit and reads as down. Metrics carry its rate going to zero
     # and everyone else's holding; runtime shows it alive; its log names the address and the
     # refused connection, and fraud-detection's shows the topic still read; traces show none of

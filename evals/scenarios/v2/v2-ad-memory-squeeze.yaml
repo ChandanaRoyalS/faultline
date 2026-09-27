@@ -28,47 +28,51 @@ ground_truth:
     configuration changed; restoring the limit fixes it.
   category: resource_exhaustion
 expected_evidence:
-  # Carried from v1's design and not recorded on v2 yet. Written before the first recording and
-  # checked against the bundle, as every v2 scenario's list has been, and corrected there.
-  # Measured at rest (2026-09-27): ad at 230 MiB of 300M; heap ceiling 121.8 MiB, heap used 38,
-  # non-heap used 91.6, JVM committed 149, eight-hour high 157.6; ad's calls are 2.2% of the
-  # frontend's non-internal spans, all from the frontend; 50 JVM runtime series; 14 to 38 log
-  # lines a minute. The comparator for the page's shape is v2-ad-bad-image-tag (bad_deploy, dev),
-  # the same absence with a different cause: distinct on (b), a limit lowered against an image
-  # updated, and on (c), a JVM starting over and over against a shutdown and silence.
-  - alerts: ServiceHighErrorRate on frontend and frontend-proxy, and perhaps load-generator, once
-      the storefront's ad requests fail for long enough - within about six minutes if ad never
-      serves, later and less steadily if it serves in bursts between kills; ServiceNoTraffic on ad
-      if it never serves; nothing on the order path
-  - metrics: ad's call rate falls to zero, or to bursts, with no error ratio of its own; the
-      frontend's error ratio rises to about 7-12% (each failed /api/data fails several frontend
-      spans) and frontend-proxy's with it; the order path records no errors; the storefront's p95
-      barely moves
-  - traces: the frontend's storefront ad requests end in frontend/grpc.oteldemo.AdService/GetAds
-      in error with no ad span beneath, or with an ad span from a JVM that was killed moments
-      later; every order completes
-  - logs: ad's log turns into JVM start-up banners - `Picked up JAVA_TOOL_OPTIONS`, the OpenJDK
-      warning, the agent announcing its version, sometimes `Ad service starting` - repeating with
-      nothing after them, as the runtime backs off between restarts; no error, no stack trace, no
-      shutdown message before any of them; the frontend logs UNAVAILABLE errors
-  - metrics: ad's 50 JVM runtime series stop - held for the store's five-minute lookback and then
-      gone - or reappear in short bursts as each JVM starts and dies; a process that is merely
-      idle keeps exporting them
-  - container: exit code 137 with OOMKilled set on each exit, visible between a kill and the next
-      start; the restart count climbing through the fault (not agent-visible, recorded for the
-      narrative's readers)
+  # Carried from v1's design, the limit re-measured, predicted before recording and checked against
+  # the first recording, on the revised world, 2026-09-27 (t_inject 12:39:52, revert at +10:01).
+  # Every prediction held, in its stronger form: ad never served during the fault - seventeen JVM
+  # starts, none reaching `listening` - the storefront paged on errors at 5m01s and ServiceNoTraffic
+  # on ad followed; nothing on the order path. The list below states the recording. The container's
+  # exit code and OOM flag were not sampled for this run (the probe's file was overwritten by a
+  # second pass through the commands after the recording); the restart count, 18 by the fix, is on
+  # record from docker inspect afterwards, and the kills are read from the log and the series.
+  - alerts: ServiceHighErrorRate on frontend-proxy and frontend together (page 5m01s), then
+      ServiceNoTraffic on ad at +7:45 - three alerts by the fix and none after it; load-generator
+      rises to 4.7% and stays under the line; nothing on the order path
+  - metrics: ad's call rate falls from ~0.45 a second to nothing by +5 with no error ratio of its
+      own, and from then its error ratio and p95 have no value; the frontend's error ratio climbs
+      from 1.5% at +1 through 5.2% at +3 to 8.4% by the fix, frontend-proxy's with it; every other
+      error ratio zero; no latency moves; checkout, cart, payment and the catalog hold their rates
+  - traces: every frontend error trace (125) is a storefront ad request ending in
+      frontend/grpc.oteldemo.AdService/GetAds with no ad span beneath, and beneath the call the
+      frontend's own attempts - dns.lookup `getaddrinfo ENOTFOUND ad`, tcp.connect refused and
+      unreachable at ad's address, some waiting eleven and fourteen seconds; not one ad server span
+      in the fault; checkout has no error trace
+  - logs: ad's log ends its ordinary work two seconds before onset and one second after it turns
+      into JVM start-up banners - `Picked up JAVA_TOOL_OPTIONS`, the OpenJDK warning, the agent's
+      version - seventeen times in ten minutes, eight in the first 45 seconds, then gaps of 28 and
+      53 s, then once a minute; eleven reach `Ad service starting.` and none `started, listening`;
+      no error, stack trace or shutdown line before any of them; the frontend logs UNAVAILABLE 125
+      times, 2 to 16 a minute, and 13 more in the five minutes after the fix
+  - metrics: ad's 51 JVM runtime series hold their last values for four minutes (the store's
+      lookback) and vanish; no new instance's series until after the fix, when a second set of 51
+      begins - a process that is merely idle keeps exporting them
+  - container: the restart count 18 by the fix - seventeen in the fault and the recovery's start -
+      with the limit at 144m through the fault and 300M after; exit code and OOM flag not sampled
+      this recording (not agent-visible in any case)
   - change: a change record at onset - `memory limit lowered on ad`, carrying `memory=144m` - and
-      no deploy, no image change, no environment change
-  - discriminator: a service killed at start over and over whose image and code are unchanged and
-      whose change record is its memory limit, was starved - a wrong image would show a different
-      program in the log and an image change in the record, and a flag would leave no record and
-      a process that stays up
+      no deploy, no image change (the same 2.2.0-ad before and after), no environment change
+  - discriminator: a JVM that starts seventeen times and never listens, with no error of its own,
+      an unchanged image and a change record that is its memory limit, was starved - a wrong image
+      shows another program in the log and an image in the record (v2-ad-bad-image-tag, the same
+      page), a flag leaves no record and a process that stays up, and a slowdown would show latency
+      where here there is none
 expected_remediation_class: config_revert
-rehearsed: false
+rehearsed: true
 alert_timeout_seconds: 900
 # Declared before recording, checked against the bundle after (T7.5). Measured on the running world
 # 2026-09-27: ad holds 50 JVM runtime series and logs 14 to 38 lines a minute. Both are what the
-# fault removes, in bursts or entirely: they answer by going idle or absent. If the JVM never runs
-# long enough to export a series under the fault, the runtime capture is empty from onset and the
-# recorder derives from what it holds; the declaration is corrected against it, not argued with.
+# fault removes, in bursts or entirely: they answer by going idle or absent. The first recording
+# (2026-09-27) confirmed both classes: 102 runtime series (51 for the old instance, 51 for the
+# new) and 231 target log lines, and the recorder derived [runtime, logs].
 answers_idle_or_absent: [runtime, logs]
