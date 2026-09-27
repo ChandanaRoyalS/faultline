@@ -4617,6 +4617,37 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-09-27: the twentieth v2 scenario, `v2-payment-dependency-latency`, rehearsed and labeled -
+slot `v2/dependency_latency-3` (dev), second recording. A leaf's delay, seen only from its caller.***
+
+- **Measured before authoring, for the failure v1's leaf had.** `ad-dependency-latency` died on v1
+  because a leaf's delayed replies leave after its own spans close. Payment is a leaf (no call per
+  charge), so the page rests on checkout: `Charge` and the `PlaceOrder` containing it are 15.8% of
+  its non-internal spans, both landing in the histogram's 200-400ms bucket, which interpolates to
+  a p95 near 335ms; the frontend's order spans are 4.4%, under the 5% a p95 needs. Pre-registered:
+  checkout alone pages, payment never does, the storefront stays under the line; no page blocks
+  the design and passes the slot to `v2-postgresql-dependency-latency`.
+- **Three runs' worth of record.** The first run paged at 6m05s and was interrupted by accident
+  during its clear wait, after its revert; no bundle. The second began the second the first's
+  alert cleared, and its five pre-onset minutes carried the first's tail - checkout's p95 at
+  322-336ms, the alert firing at the window's start. **Decided: re-record on validity grounds**
+  (the queue-lag precedent), after a hand-run check held checkout's p95 under 100ms and no alert
+  for ten 30 s readings; the second bundle is under `superseded/`. **Q110** records the recorder
+  gap: its baseline check waits for the alert to clear, not for the window behind it to drain.
+- **The recording, and every prediction held.** `ServiceHighLatency` on checkout alone at 5m35s,
+  none after the fix, every error ratio zero, all clear 4m02s after the fix. Checkout's p95
+  335-338ms, on the interpolation's number; payment's 2-10ms throughout; the storefront under the
+  line, the proxy's and the load generator's p95s brushing 200 late. In 76 traces checkout's
+  `Charge` was 303ms over payment's 0.8, the whole gap after payment's span; payment's 75 runtime
+  series idle, its log unchanged. The trace tool named `PlaceOrder` to `Charge` on every trace.
+- **Distinct from rows 1 and 2 on (a)**: one alert on one service against five on five, and the
+  culprit never on it. The remediation class is `restart`, as the row's; the change record is by
+  construction.
+- **How it was recorded.** On AC power, under `caffeinate`, the world variable per command; the
+  host did not sleep in any of the three runs; the sidecar was gone after each revert.
+- **Next: row 4**, the holdout `v2-product-catalog-dependency-latency`
+  (`v2/dependency_latency-4`), carried from v1's holdout.
+
 ***2026-09-27: the nineteenth v2 scenario, `v2-valkey-cart-dependency-latency`, rehearsed and
 labeled - slot `v2/dependency_latency-2` (dev), first recording. The culprit is outside the traced
 graph.***

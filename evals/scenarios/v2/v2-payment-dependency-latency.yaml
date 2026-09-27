@@ -31,44 +31,49 @@ ground_truth:
     namespace.
   category: dependency_latency
 expected_evidence:
-  # A new design: predicted before recording and checked against the bundle, as every v2
-  # scenario's list has been, and corrected there. Measured at rest (2026-09-27): payment makes no
-  # call per charge; Charge is 7.9% of checkout's non-internal spans and PlaceOrder, which contains
-  # it, another 7.9%; the frontend's checkout spans are 4.4% of its total; payment holds 75 Node
-  # runtime series and logs 360 to 900 lines a minute. The rule's p95 is a histogram
-  # interpolation, and both of checkout's slowed spans land in its 200-400ms bucket, so checkout's
-  # p95 should read about 335ms, not 300; the frontend's share is under the 5% a p95 needs.
-  - alerts: ServiceHighLatency on checkout alone, four to five minutes in; payment itself never
-      pages, because its server spans close before its replies leave; the frontend,
-      frontend-proxy and load-generator stay under the line; no ServiceHighErrorRate anywhere and
-      nothing goes quiet
-  - metrics: checkout's p95 steps from ~35ms to about 300-340; payment's p95 does not move from
-      its few milliseconds; the frontend's rises but stays under 250; every error ratio stays at
-      zero; rates hold, or ease a little as shoppers wait on orders
-  - traces: every order is slow in one place - checkout's Charge client span takes ~300ms while
-      payment's Charge server span beneath it takes its usual millisecond or two, the extra time
-      sitting after payment's span ends and before checkout's closes; the cart read, product
-      lookups, currency conversions, shipping quote, shipment, cart emptying and confirmation are
-      unchanged; no span errors
-  - logs: payment's log goes on as before, its charge lines at their usual rate, with nothing new
-      in it; the frontend's log shows nothing new
-  - metrics: payment's 75 runtime series report without a gap, CPU and collections flat, no
-      restart - the process is up and unstrained
+  # A new design: predicted before recording and checked against the recording on the revised
+  # world, 2026-09-27 (t_inject 10:27:19, revert at +10:35 - the second recording; the first, the
+  # same day, paged at 6m05s but began the second its predecessor's alert cleared, with the
+  # previous run's tail still in checkout's window, and is under superseded/). Every prediction
+  # held: checkout alone paged, payment's p95 never moved, the storefront stayed under the line,
+  # the whole 300ms sat after payment's span. Not predicted: the page came at 5m35s rather than
+  # four to five minutes, and the proxy's and the load generator's p95s brushed 200 late.
+  - alerts: ServiceHighLatency on checkout alone (page 5m35s) - one alert, none after the fix;
+      payment never pages; the frontend, frontend-proxy and load-generator stay under the line;
+      no ServiceHighErrorRate anywhere and nothing goes quiet
+  - metrics: checkout's p95 steps from 35-39ms to 270 at +3, 306 at +4 and 335-338 from +5;
+      payment's p95 stays at 2-10ms throughout; the frontend's sits at 43-48, frontend-proxy's at
+      45-50 and load-generator's at 47-54, the last two brushing 200 in the two minutes before the
+      fix; every error ratio zero; checkout's rate dips from ~1.9 to 1.3-1.45 a second mid-fault
+      and recovers before the fix; nothing else moves
+  - traces: in 76 traces drawn under the fault every order is slow in one place - checkout's
+      Charge client span 303ms (311 at p95, from 2-10 at rest) over payment's Charge server span
+      of 0.8ms (5.6 at p95, unchanged), the whole gap after payment's span ends; PlaceOrder
+      329-373ms from 27-79; the cart read, product lookups, currency conversions, shipping quote,
+      shipment, cart emptying and confirmation unchanged; no span errors; the agent's trace tool
+      names PlaceOrder to Charge as the degrading hop on every payment and checkout trace
+  - logs: payment's log goes on as before - `Charge request received.` with each card, amount and
+      loyalty level, 84 charges over the fault at 3 to 13 a minute - with no error or warning; the
+      frontend's log shows nothing new
+  - metrics: payment's 75 Node runtime series report every 15 s without a gap - event-loop delay
+      flat, utilisation 0.2%, heap steady, collections on cadence - the process is up and idle
   - change: a change record at onset under payment's name that is none of the familiar kinds -
       not a deploy, an image, an environment variable or a limit - `traffic-shaping container
-      attached to payment's network namespace`, carrying `eth0 delay=300ms jitter=0ms`
-  - discriminator: a callee whose own spans are fast while every call to it is 300ms longer than
-      the span beneath, with the gap after the callee's span rather than inside it, has replies
-      that are held on their way out - a delay on the callee's egress; a slow callee would show
-      the time inside its own span, and a slow caller would slow more than the one call
+      attached to payment's network namespace`, carrying `eth0 delay=300ms jitter=0ms`; nothing
+      on checkout
+  - discriminator: a callee whose own span is fast beneath a client span 300ms longer, the gap
+      after the callee's span rather than inside it, on every call and at every traffic level,
+      has replies held on their way out - a delay on the callee's egress; a slow callee shows the
+      time inside its span, a slow caller slows more than the one call, and a leaf's egress delay
+      never enters the leaf's own metrics, so the culprit is the one service that reports nothing
+      wrong
 # The rule lives in the container's network namespace, so recreating the container is what
 # clears it - a restart, not a rollback or a config revert; the same class as the row's carries.
 expected_remediation_class: restart
-rehearsed: false
+rehearsed: true
 alert_timeout_seconds: 900
 # Declared before recording, checked against the bundle after (T7.5). Measured on the running world
 # 2026-09-27: payment holds 75 Node runtime series and logs 360 to 900 lines a minute. The fault
-# slows payment's replies and removes neither, so both classes stay populated in the capture; the
-# recorder derives the record from the capture, and if it says otherwise the declaration is
-# corrected against it, not argued with.
+# slows payment's replies and removes neither. The recording (2026-09-27) confirmed it: 75
+# runtime series, 500 target log lines, and the recorder derived [runtime, logs].
 answers_idle_or_absent: [runtime, logs]
