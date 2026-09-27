@@ -1,6 +1,6 @@
 # The bundles, rendered
 
-Every recorded rehearsal in this repository as a readable page — 40 in all: **36 runnable** (27 dev, 9 holdout) and **4 that could not fire** (4 dev).
+Every recorded rehearsal in this repository as a readable page — 41 in all: **37 runnable** (28 dev, 9 holdout) and **4 that could not fire** (4 dev).
 
 A bundle is what one rehearsal left behind — the manifest, the Prometheus captures,
 a slice of one service's logs, the exact queries, and the narrative a responder wrote
@@ -48,6 +48,7 @@ benchmark** — see [RESULTS.md](../RESULTS.md).
 | [`v2-fraud-detection-memory-squeeze`](v2-fraud-detection-memory-squeeze.md) | `resource_exhaustion` | Fraud detection memory limit cut below what its JVM needs to run — 1 alerts over the window |
 | [`v2-frontend-cart-misconfig`](v2-frontend-cart-misconfig.md) | `bad_config` | Frontend pointed at a cart port where nothing listens — 12 alerts over the window |
 | [`v2-payment-dependency-latency`](v2-payment-dependency-latency.md) | `dependency_latency` | Payment's replies are late, and only checkout can tell — 1 alerts over the window |
+| [`v2-payment-memory-squeeze`](v2-payment-memory-squeeze.md) | `resource_exhaustion` | Payment service memory limit cut to what its runtime can barely run in — 1 alerts over the window |
 | [`v2-payment-telemetry-blackout`](v2-payment-telemetry-blackout.md) | `bad_config` | Payment service healthy, serving, and invisible in the traffic metric — 1 alerts over the window |
 | [`v2-product-catalog-flag-failure`](v2-product-catalog-flag-failure.md) | `feature_flag` | A feature flag makes the product catalog fail one product — 2 alerts over the window |
 | [`v2-product-catalog-freeze`](v2-product-catalog-freeze.md) | `process_freeze` | The product catalog process is frozen - its socket accepts and nothing answers — 20 alerts over the window |

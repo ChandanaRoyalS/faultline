@@ -4617,6 +4617,32 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-09-27: the twenty-fourth v2 scenario, `v2-payment-memory-squeeze`, rehearsed and labeled -
+slot `v2/resource_exhaustion-3` (dev), third recording. A starvation that pages by latency.***
+
+- **What the recording showed.** `ServiceHighLatency` on payment alone at 9m46s, firing 45 s and
+  clearing on its own when a burst of restarts gave the window a fresh process; nothing else, none
+  after the fix. Payment's p95 from 4 ms to 430-450 for the four minutes that paged, its rate
+  unchanged, 122 orders completed; thirteen starts in bursts, each with nothing before it in the
+  log; six orders refused inside the bursts; the two-second probe caught `exit=137 oom=true`.
+- **Three recordings, one number.** 80m was chosen once by the cold rule and never touched. The
+  first recording showed the mechanism was not the one predicted (a process that starts inside
+  the limit and runs at its ceiling, not one killed before it can listen); the second showed the
+  first correction had claimed more than the series support (a heap ceiling, continuous
+  collection, a cadence). Each correction moved the fingerprint and the scenario was recorded
+  again, the earlier recordings under `superseded/` - the shipping-quote count, for the same
+  reason: the ground truth is the grader's reference and is corrected until it is true.
+- **The finding.** Node sizes V8's heap from the container's limit as it starts, so a cold
+  measurement taken with no limit (108 MiB) did not describe a process started under 80m, which
+  fits and runs slow. A cold measurement of a container-aware runtime is taken under the
+  candidate limit; the holdout row does so before recording. And the residue Q106 asks about was
+  checked on the live world and is absent: the process running at the fix was at 6 ms four
+  minutes later.
+- **Distinct** from rows 1 and 2 on (a), from `v2-payment-dependency-latency` on (a) and (d); the
+  page twin the decision note worried about (`v2-payment-flag-unreachable`) did not occur.
+- **Next: row 4**, the holdout `v2-recommendation-memory-squeeze`, authored at 16m on the cold
+  rule; its cold probe is run once more under 16m before it records. 25 of 44 slots filled.
+
 ***2026-09-27: `v2/resource_exhaustion-3` cannot stay empty - the row gains a reserve,
 `v2-payment-memory-squeeze`, authored ahead of the holdout.***
 
