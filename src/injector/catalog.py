@@ -881,6 +881,26 @@ CATALOG: tuple[FaultDefinition, ...] = _validated(
             # target's network namespace, so the store stays the image the world pins.
             params={"delay_ms": 300, "jitter_ms": 0, "duration": "1h", "interface": "eth0"},
         ),
+        FaultDefinition(
+            id="v2-payment-dependency-latency",
+            fault_class=FaultClass.DEPENDENCY_LATENCY,
+            target="payment",
+            world="v2",
+            description=(
+                "Add 300ms of network delay to payment, a leaf that only checkout calls. Its "
+                "delayed replies land after its own server spans have closed, so payment never "
+                "looks slow; checkout does, on the charge, and nothing else moves. T7.1's "
+                "dependency_latency row 3, a new design."
+            ),
+            # Measured 2026-09-27 before authoring: payment makes no call per charge (its only
+            # client spans are its flag stream and a DNS lookup, at 0.000/s), so v1's
+            # ad-dependency-latency lesson applies - the leaf's p95 will not move. The observer
+            # is checkout: Charge and the PlaceOrder that contains it are 15.8% of its
+            # non-internal spans, both landing in the latency histogram's 200-400ms bucket under
+            # the delay, which interpolates to a p95 near 335ms. The frontend's checkout spans
+            # are 4.4% of its total, under the 5% a p95 needs. Not tuned: the row's 300ms.
+            params={"delay_ms": 300, "jitter_ms": 0, "duration": "1h", "interface": "eth0"},
+        ),
     )
 )
 

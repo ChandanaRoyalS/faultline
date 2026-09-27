@@ -1,0 +1,74 @@
+# v2/dependency_latency-3 (dev) - see SPLIT-V2.md. Slot allocated before authoring; do not move.
+# Candidate order and eligibility: docs/design/t7.1-candidates.md, dependency_latency row 3 - a new
+# design: 300ms on payment, a leaf only checkout calls. The leaf's own spans cannot show an egress
+# delay (v1's ad-dependency-latency), so the page rests on checkout, whose charge spans were
+# measured before authoring (2026-09-27) to be a large enough share for its p95 to cross the line.
+id: v2-payment-dependency-latency
+title: Payment's replies are late, and only checkout can tell
+fault_class: dependency_latency
+split: dev
+slot: v2/dependency_latency-3
+world: v2
+injection:
+  target: payment
+  method: v2-payment-dependency-latency
+  params:
+    delay_ms: 300
+    jitter_ms: 0
+    duration: "1h"
+    # payment's one interface (ip link from a helper in its network namespace, 2026-09-27; the
+    # image is distroless and has no shell). The rule delays packets leaving payment: its replies
+    # to checkout, and its telemetry on its way out.
+    interface: "eth0"
+ground_truth:
+  root_cause: >
+    A traffic-shaping rule attached to the payment service's network namespace adds 300ms of
+    delay to every packet leaving the container. Payment's own code, image, configuration and
+    process are untouched, and it answers every charge in its usual milliseconds; its answers are
+    late arriving. Payment calls nothing, so the delay never enters its own spans: only checkout,
+    which waits on every charge, shows it. Every order takes about 300ms longer and nothing fails.
+    Recreating the payment container clears the rule, which is bound to the container's network
+    namespace.
+  category: dependency_latency
+expected_evidence:
+  # A new design: predicted before recording and checked against the bundle, as every v2
+  # scenario's list has been, and corrected there. Measured at rest (2026-09-27): payment makes no
+  # call per charge; Charge is 7.9% of checkout's non-internal spans and PlaceOrder, which contains
+  # it, another 7.9%; the frontend's checkout spans are 4.4% of its total; payment holds 75 Node
+  # runtime series and logs 360 to 900 lines a minute. The rule's p95 is a histogram
+  # interpolation, and both of checkout's slowed spans land in its 200-400ms bucket, so checkout's
+  # p95 should read about 335ms, not 300; the frontend's share is under the 5% a p95 needs.
+  - alerts: ServiceHighLatency on checkout alone, four to five minutes in; payment itself never
+      pages, because its server spans close before its replies leave; the frontend,
+      frontend-proxy and load-generator stay under the line; no ServiceHighErrorRate anywhere and
+      nothing goes quiet
+  - metrics: checkout's p95 steps from ~35ms to about 300-340; payment's p95 does not move from
+      its few milliseconds; the frontend's rises but stays under 250; every error ratio stays at
+      zero; rates hold, or ease a little as shoppers wait on orders
+  - traces: every order is slow in one place - checkout's Charge client span takes ~300ms while
+      payment's Charge server span beneath it takes its usual millisecond or two, the extra time
+      sitting after payment's span ends and before checkout's closes; the cart read, product
+      lookups, currency conversions, shipping quote, shipment, cart emptying and confirmation are
+      unchanged; no span errors
+  - logs: payment's log goes on as before, its charge lines at their usual rate, with nothing new
+      in it; the frontend's log shows nothing new
+  - metrics: payment's 75 runtime series report without a gap, CPU and collections flat, no
+      restart - the process is up and unstrained
+  - change: a change record at onset under payment's name that is none of the familiar kinds -
+      not a deploy, an image, an environment variable or a limit - `traffic-shaping container
+      attached to payment's network namespace`, carrying `eth0 delay=300ms jitter=0ms`
+  - discriminator: a callee whose own spans are fast while every call to it is 300ms longer than
+      the span beneath, with the gap after the callee's span rather than inside it, has replies
+      that are held on their way out - a delay on the callee's egress; a slow callee would show
+      the time inside its own span, and a slow caller would slow more than the one call
+# The rule lives in the container's network namespace, so recreating the container is what
+# clears it - a restart, not a rollback or a config revert; the same class as the row's carries.
+expected_remediation_class: restart
+rehearsed: false
+alert_timeout_seconds: 900
+# Declared before recording, checked against the bundle after (T7.5). Measured on the running world
+# 2026-09-27: payment holds 75 Node runtime series and logs 360 to 900 lines a minute. The fault
+# slows payment's replies and removes neither, so both classes stay populated in the capture; the
+# recorder derives the record from the capture, and if it says otherwise the declaration is
+# corrected against it, not argued with.
+answers_idle_or_absent: [runtime, logs]

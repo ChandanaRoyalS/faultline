@@ -412,6 +412,7 @@ def test_the_v2_old_mechanism_definitions_carry_v2_values_not_v1s() -> None:
         "v2-ad-memory-squeeze",
         "v2-cart-dependency-latency",
         "v2-valkey-cart-dependency-latency",
+        "v2-payment-dependency-latency",
     }
     for f in v2_old.values():
         flat = " ".join(str(v) for v in f.params.values())
@@ -471,6 +472,11 @@ def test_the_v2_old_mechanism_definitions_carry_v2_values_not_v1s() -> None:
     ), (
         "the same 300ms on the same kind of interface, on the store instead of the service: the "
         "pair is distinct by where the time sits, not by the number"
+    )
+    leaf = v2_old["v2-payment-dependency-latency"]
+    assert leaf.target == "payment" and leaf.params["delay_ms"] == 300, (
+        "the row's 300ms, not tuned: a leaf's delayed replies never enter its own spans, and "
+        "whether checkout pages is decided by the share of its spans the charge is"
     )
 
 
