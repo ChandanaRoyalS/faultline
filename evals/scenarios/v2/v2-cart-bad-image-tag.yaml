@@ -26,29 +26,35 @@ ground_truth:
     valkey-cart, is healthy. Rolling back to the published image fixes it.
   category: bad_deploy
 expected_evidence:
-  # Carried from v1's design and not measured on v2 yet. Written before the first recording and
-  # checked against the bundle, as every v2 scenario's list has been, and corrected there. Measured
-  # at rest (2026-09-27): cart serves 1.33 server spans a second (GetCart 0.79, AddItem 0.41,
-  # EmptyCart 0.14); the frontend makes 1.06 cart calls a second of its 11.7 spans, checkout 0.27
-  # of its 1.86.
-  - alerts: ServiceHighErrorRate on the callers - frontend and checkout, the storefront's edge
-      following - and later ServiceNoTraffic on cart, the one alert that names the failing
-      service; services only a placed order reaches may go quiet as well
-  - metrics: cart's call rate falls to zero rather than its error ratio rising; the callers' error
-      ratios rise while their own latency does not
-  - traces: no cart server spans anywhere after onset; the frontend's and checkout's cart client
-      spans end in error at the connection, with nothing beneath them
-  - logs: cart's Loki stream stops (114 to 222 lines a minute at rest); the frontend's log carries
-      the failed cart calls
-  - metrics: cart's .NET runtime series (39) stop - the process is gone, not unhealthy
-  - change: a change record names cart's image, moved to a tag the registry does not have, at onset
+  # Carried from v1's design, written before the first recording and checked against it
+  # (2026-09-27, t_inject 00:10:12, revert at +9:47). The probe saw cart's container exited for the
+  # whole fault and back on 2.2.0-cart at the fix.
+  - alerts: ServiceHighErrorRate on checkout, frontend, frontend-proxy and load-generator together
+      (page 4m47s); at +7:30 ServiceNoTraffic on cart and on currency, quote, shipping, payment,
+      email, accounting and fraud-detection - twelve alerts by the fix and none after it
+  - metrics: cart's call rate falls to zero with no errors; checkout's error ratio holds at exactly
+      two thirds while its p95 falls from ~38ms to under 2ms; frontend 26-29%, frontend-proxy
+      25-28%, load-generator 14-15%; recommendation and ad keep their rates
+  - traces: checkout's PlaceOrder errors with `cart failure - failed to get user cart during
+      checkout - rpc error - code = Unavailable desc = name resolver error - produced zero
+      addresses`, its GetCart failing in 0.0ms with no cart span beneath and nothing after it; the
+      frontend's AddItem fails in under a millisecond, also with nothing beneath
+  - logs: cart's log ends at onset with `Application is shutting down...` after 116-174 request
+      lines a minute and is silent until the fix; the frontend logs `Error - 14 UNAVAILABLE - No
+      connection established. Last error - connect EHOSTUNREACH` to cart's old address
+  - metrics: cart's 39 .NET runtime series hold their last values for five minutes (the lookback)
+      and vanish; a new instance's series begin after the fix
+  - change: a change record at onset - `image reference updated on cart`, to
+      ghcr.io/open-telemetry/demo:2.2.0-cart-hotfix.2, a tag the registry does not have
   - discriminator: the callers are loud and cart is silent - an erroring service still records
       calls and a missing one does not; the change record at onset is the image, and its tag does
       not resolve
 expected_remediation_class: rollback
-rehearsed: false
+rehearsed: true
 alert_timeout_seconds: 900
 # Declared before recording, checked against the bundle after (T7.5). Measured on the running world
 # 2026-09-27: Prometheus held 39 .NET runtime series for cart and its Loki stream logged 114 to 222
-# lines a minute. Both are what the fault removes: they answer by going idle or absent.
+# lines a minute. Both are what the fault removes: they answer by going idle or absent. The first
+# recording confirmed both classes: 76 runtime series (the old instance and the new) and 500
+# target log lines, and the recorder derived [runtime, logs].
 answers_idle_or_absent: [runtime, logs]
