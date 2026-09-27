@@ -863,6 +863,24 @@ CATALOG: tuple[FaultDefinition, ...] = _validated(
             # cart is on opentelemetry-demo with one interface (docker inspect, 2026-09-24).
             params={"delay_ms": 300, "jitter_ms": 0, "duration": "1h", "interface": "eth0"},
         ),
+        FaultDefinition(
+            id="v2-valkey-cart-dependency-latency",
+            fault_class=FaultClass.DEPENDENCY_LATENCY,
+            target="valkey-cart",
+            world="v2",
+            description=(
+                "Add 300ms of network delay to cart's store, not to cart (v1's "
+                "redis-cart-dependency-latency). Cart's handler waits on replies that are late, "
+                "so cart looks slow while the thing that is slow has no spans, no metrics and no "
+                "name anywhere in the traced graph."
+            ),
+            # The target is the datastore, and that is the whole point. Checked 2026-09-27:
+            # valkey-cart has an eth0, a Loki stream of its own (its five-minute save, five lines
+            # each) and not one Prometheus series under any label. A container target, as
+            # v2-cart-dependency-latency is; pumba runs tc from its sidecar image into the
+            # target's network namespace, so the store stays the image the world pins.
+            params={"delay_ms": 300, "jitter_ms": 0, "duration": "1h", "interface": "eth0"},
+        ),
     )
 )
 

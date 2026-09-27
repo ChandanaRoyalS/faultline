@@ -411,6 +411,7 @@ def test_the_v2_old_mechanism_definitions_carry_v2_values_not_v1s() -> None:
         "v2-email-wrong-image",
         "v2-ad-memory-squeeze",
         "v2-cart-dependency-latency",
+        "v2-valkey-cart-dependency-latency",
     }
     for f in v2_old.values():
         flat = " ".join(str(v) for v in f.params.values())
@@ -462,6 +463,14 @@ def test_the_v2_old_mechanism_definitions_carry_v2_values_not_v1s() -> None:
     assert email == {"image": "ghcr.io/open-telemetry/demo:2.2.0-quote", "expect_start": "yes"}, (
         "v2's own quote image, which exists: the deploy succeeds and the PHP server has no "
         "QUOTE_PORT in email's environment, so it exits 255 at start rather than being killed"
+    )
+    store = v2_old["v2-valkey-cart-dependency-latency"]
+    assert (
+        store.target == "valkey-cart"
+        and store.params == v2_old["v2-cart-dependency-latency"].params
+    ), (
+        "the same 300ms on the same kind of interface, on the store instead of the service: the "
+        "pair is distinct by where the time sits, not by the number"
     )
 
 
