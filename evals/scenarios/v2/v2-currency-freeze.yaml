@@ -1,0 +1,91 @@
+# v2/process_freeze-3 (dev) - see SPLIT-V2.md. Slot allocated before authoring; do not move.
+# Candidate order and eligibility: docs/design/t7.1-candidates.md, process_freeze row 3 - new: the
+# smallest freeze. The list called it "every page that renders a price"; measured before
+# authoring (2026-09-27), on this world only checkout converts, so it is every order and nothing
+# else - one request in twenty - on a target with no log and no runtime series.
+id: v2-currency-freeze
+title: The currency process is frozen - its socket accepts and nothing answers
+fault_class: process_freeze
+split: dev
+slot: v2/process_freeze-3
+world: v2
+injection:
+  target: currency
+  method: v2-currency-freeze
+  params: {}
+ground_truth:
+  root_cause: >
+    The currency container was paused (docker pause): the process exists and holds its port, the
+    kernel accepts connections into the backlog, and nothing answers them. Only checkout calls it,
+    twice an order, after the cart read and the catalog lookup, so every order hangs at its
+    currency conversion with no deadline of its own and nothing after it runs - no shipping
+    quote, no charge, no confirmation, no order record - while the storefront browses, adds to
+    carts and views them as before. Currency itself neither errors nor logs, because it is not
+    running, and it has no log or runtime series of its own in any case.
+  category: process_freeze
+expected_evidence:
+  # A new design: predicted before recording from the freeze's mechanism and rows 1 and 2, and
+  # checked against the bundle. Measured at rest (2026-09-27): 7 of 141 requests in a minute
+  # touch currency, all of them checkouts (5.0 %); checkout calls it 0.4 times a second, two or
+  # three Convert calls an order, the first after GetCart and GetProduct and before the shipping
+  # quote; no other service calls it; the proxy's timeout is 15 s and checkout sets none; currency
+  # has no Loki stream and no runtime series in the recorder's families. The comparators are the
+  # two freezes before it: the catalog's (browse path, sixteen alerts) and cart's (order and cart
+  # paths, fourteen). Distinct on (a) by construction - the storefront's rates and ratios barely
+  # move, since one request in twenty hangs - and on (d) by the open span, checkout's Convert.
+  - alerts: the page is most likely the silence itself - ServiceNoTraffic at about +8 on the
+      order path together, currency, checkout, shipping, quote, payment, email, accounting and
+      fraud-detection, as their five-minute windows drain - because the callers' alerts sit on
+      the line - a twentieth of requests hanging puts the proxy's and the load generator's error
+      ratio at about 5 %, exactly the rule's threshold, and their p95 at the histogram's ceiling
+      only if the hung share reaches the 95th percentile; ServiceHighErrorRate or
+      ServiceHighLatency on frontend-proxy and load-generator may fire first, or not at all; the
+      frontend's error ratio zero and its p95 unmoved (one span in seventy at 15 s); nothing on
+      cart, product-catalog, ad or recommendation; if nothing fires inside 900 s the design is
+      blocked
+  - alerts: (dead end) with orders stopped, fraud-detection's, flagd's, ad's and recommendation's
+      routine flag-stream reconnects show as error ratios on thin rates, as in rows 1 and 2
+  - metrics: currency's rate falls from 0.4 a second to nothing by +4 with no error ratio of its
+      own, and from then no ratio or p95; checkout's rate falls to nothing in the same minutes (a
+      PlaceOrder that hangs exports no span), shipping's, quote's, payment's, email's,
+      accounting's and fraud-detection's with it; cart's rate falls by checkout's share of it
+      (about 0.27 of 3.4 a second) and no more; the frontend's rate falls by the hung checkouts
+      and the users they block, a few percent; the proxy's error ratio climbs toward 5 % over the
+      first five minutes and holds near it; every latency on the browse path unmoved
+  - metrics: currency exports no runtime series on this world, so there is nothing to stop; the
+      store has no series to hold or drop
+  - traces: every proxy error trace is a checkout ending at its 15 s deadline; beneath it the
+      frontend's POST /api/checkout stays open for minutes on its PlaceOrder call, and
+      checkout's PlaceOrder stays open at oteldemo.CurrencyService/Convert under
+      prepareOrderItemsAndShippingQuoteFromCart - after a completed GetCart and GetProduct, before
+      the shipping quote - with nothing after it; currency has no spans during the freeze and its
+      spans appear only after the resume
+  - logs: currency writes nothing, before, during or after - it has no log stream on this world -
+      so silence is not evidence here; the frontend logs no checkout error while the fault holds;
+      at the resume the woken orders complete or fail and the frontend logs the failures
+  - recovery: at the unpause every held order wakes together - the held Convert calls return, the
+      orders go on to their quotes and charges, minutes after they were placed; checkout's p95
+      reads at the ceiling for the store's window as the held spans close and its error ratio
+      rises if held orders fail downstream; recovery-only alerts on checkout possible, as cart's
+      freeze had two; about six minutes from unpause to quiet
+  - change: nothing recorded - no deploy, no config change, no limit, no flag; the change history
+      is empty for the whole window
+  - discriminator: a partition of currency would look identical, and on this target the class's
+      own discriminator - the target logging its export failures once a minute - does not exist,
+      because currency has no log; the freeze is told from a partition here only by what an
+      operator can see on the container (not agent-visible), which is why the partition row must
+      not take this target; against the other faults on the order path - a slow payment shows
+      latency on checkout with payment's spans present, a starved payment shows restarts, a wrong
+      quote address shows shipping's own error spans - here the open span is Convert, nothing
+      errors, and nothing was changed
+expected_remediation_class: restart
+# The freeze resolves when the process is unfrozen; where an operator cannot `unpause`, a restart
+# is what does it (knowledge/runbooks/class-process-freeze.md). Nothing was changed, so nothing
+# is reverted.
+rehearsed: false
+alert_timeout_seconds: 900
+# Declared before recording, checked against the bundle after (T7.5). Measured on the running world
+# 2026-09-27: currency holds no runtime series in the recorder's families and has no Loki stream -
+# a zero-class target, like shipping in v2-shipping-quote-misconfig, kept deliberately: the fault
+# is read entirely off its callers.
+answers_idle_or_absent: []
