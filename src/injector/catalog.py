@@ -905,22 +905,23 @@ CATALOG: tuple[FaultDefinition, ...] = _validated(
             world="v2",
             description=(
                 "Shrink payment's memory limit to what its Node runtime can barely run in. The "
-                "running process is killed at once; each replacement reads the new limit as it "
-                "starts, sizes its heap to fit, and runs slow - charging in seconds, collecting "
-                "garbage constantly - until its footprint reaches the limit and it is killed "
-                "again. Orders complete, slowly. The reserve for v2/resource_exhaustion-3 after "
+                "running process is killed at once; each replacement starts inside the new limit "
+                "and runs at its ceiling, starved - charges in hundreds of milliseconds to "
+                "seconds - until its footprint reaches the limit and it is killed again, in "
+                "bursts. Orders complete, slowly. The reserve for v2/resource_exhaustion-3 after "
                 "the cart design was blocked."
             ),
             # Measured 2026-09-27 before authoring, on a cold process (the row's rule since row
             # 3): a throwaway container from the same image, no network, no exporters, no limit,
             # read from a sidecar because the image has no shell. It listens at +1.3 s holding
             # 108.0 MiB the kernel cannot reclaim, in both runs; the rule 16 x (ceil(need / 16)
-            # - 2) gave 80m. The first recording showed what the measurement missed: Node reads
-            # the container's limit as it starts and sizes V8's heap to it (old-space limit 23.3
-            # -> 18.0 MiB), so a process started under 80m fits, barely, and runs slow. The
-            # value stands - it was chosen once - and the scenario's mechanism text was
-            # corrected to the recording. A cold measurement of a container-aware runtime has
-            # to be taken under the candidate limit; the holdout row does that before recording.
+            # - 2) gave 80m. The recordings showed what the measurement missed: Node sizes V8's
+            # heap from the container's limit as it starts, so a process started under 80m fits
+            # where one started under no limit needed 108 MiB - and then runs at its ceiling,
+            # 76-78 MiB of 80, slow, until it is killed. The value stands - it was chosen once -
+            # and the scenario's mechanism text was corrected to the recordings, twice. A cold
+            # measurement of a container-aware runtime has to be taken under the candidate
+            # limit; the holdout row does that before recording.
             params={"memory": "80m"},
         ),
         FaultDefinition(

@@ -4,11 +4,14 @@
 # stay empty: slots are a contiguous prefix, and the holdout row 4 waits behind this one. The
 # limit is measured on a cold process, the row's rule since row 3, before recording.
 #
-# Corrected 2026-09-27 after the first recording, before re-recording (the first is under
-# superseded/): the ground truth said a process killed before it could listen, and the recording
-# showed a process that read the new limit as it started, sized its heap to it, and ran inside
-# it - slow, and killed every minute or two. The limit stays; the text of the mechanism moved,
-# which moved the fingerprint, so the scenario is recorded again against the corrected text.
+# Corrected 2026-09-27 after the first recording, before re-recording: the ground truth said a
+# process killed before it could listen, and the recording showed a process that started inside
+# the new limit and ran at its ceiling - slow, and killed again and again. Corrected once more
+# after the second recording, to say only what the captures show: the first correction asserted
+# a heap ceiling and continuous garbage collection the series do not support, and a cadence
+# ("every minute or two") the second recording contradicted (bursts). The limit stays; the text
+# of the mechanism moved twice, which moved the fingerprint, so the scenario was recorded three
+# times and the first two are under superseded/.
 id: v2-payment-memory-squeeze
 title: Payment service memory limit cut to what its runtime can barely run in
 fault_class: resource_exhaustion
@@ -31,65 +34,69 @@ injection:
 ground_truth:
   root_cause: >
     The payment service container's memory limit was lowered to 80m, below the 103 MiB its Node
-    process was using. The kernel killed it at once, and every process that replaced it read the
-    new limit as it started and sized its heap to fit - a heap ceiling within about a megabyte of
-    what it needs to hold - so it ran, collecting garbage almost continuously, charging cards in
-    seconds instead of milliseconds, and was killed and restarted every minute or two when its
-    footprint reached the limit anyway. Orders still complete, slowly, except the few in flight
-    when a kill lands. Nothing about payment's image, code or configuration changed; restoring
-    the limit fixes it.
+    process was using. The kernel killed it at once. Every process that replaced it started
+    inside the new limit and ran at its ceiling, starved for memory, so it served slowly -
+    charges taking hundreds of milliseconds to seconds instead of a few milliseconds - and was
+    killed and restarted again and again, in bursts, whenever its footprint reached the limit.
+    Orders still complete, slowly, except the few in flight when a kill lands. Nothing about
+    payment's image, code or configuration changed; restoring the limit fixes it.
   category: resource_exhaustion
 expected_evidence:
-  # Predicted before the second recording from the first (2026-09-27, t_inject 19:19:44, revert
-  # at +13:01), which the ground truth above was corrected to. The first predicted an absence and
-  # recorded a starvation: one alert, ServiceHighLatency on payment alone at 8m01s; orders
-  # completing at their usual rate; payment killed and back in seconds ten times. The list below
-  # states that recording as the prediction, and is checked against the second. The comparators:
-  # v2-payment-dependency-latency (dev, the same target slowed by the network - checkout's p95 up
-  # and payment's own unchanged, where here payment's own is up and checkout's is not: distinct on
-  # (a) and (d)); v2-payment-flag-unreachable (holdout - errors on checkout, no record, payment
-  # idle: distinct on (a), (b) and (c)); rows 1, 2 and 4 of this class (distinct on (a): one
-  # latency alert on the target against storefront errors, one consumer's silence, and the
-  # storefront again).
-  - alerts: ServiceHighLatency on payment alone, about eight minutes in - its p95 over 250 ms from
-      about +4:45 and the three-minute hold - and nothing else by the fix or after it; it may clear
-      and return within the fault as a restart gives a fresh heap (the first recording's cleared at
-      +11:45, 76 s before the fix); no ServiceHighErrorRate anywhere (checkout's ratio 0.4 to 0.6 %,
-      the frontend's and the proxy's 0.15 %); no ServiceNoTraffic, payment never being absent for a
-      window; the flag readers' routine stream reconnect possible and not a page
-  - metrics: payment's p95 from 4 to 7 ms to about 30 ms in the first minute (a fresh process on a
-      heap sized to 80m) and to 800 to 900 ms from about +4:45 - more than one charge in twenty
-      over 800 ms - for the rest of the fault, with its call rate unchanged at 0.2 to 0.3 a second
-      and its error ratio zero; checkout's p95 unmoved (its charges are one span in fourteen), its
-      error ratio 0.4 to 0.6 %; every other rate, ratio and latency unchanged; orders completing at
-      the usual rate (102 in the first recording's thirteen minutes)
-  - traces: charges of one to three seconds beneath an otherwise ordinary order - cart, catalog,
-      currency and the shipping quote in milliseconds, then Charge at 960 to 3,300 ms; the few
-      checkout error traces are PlaceOrder failing at Charge with `connection reset by peer` or
-      `error reading from server - EOF` after a one-to-three-second Charge, a kill landing on a
-      request in flight; payment server spans present in every minute of the fault
-  - logs: payment's `payment gRPC server started on 0.0.0.0:50051` at +3 s and then about every
-      minute or two (ten in the first recording's thirteen minutes), each with nothing before it -
-      no shutdown line, no error, no exception - and charge records continuing between them; the
-      telemetry SDK's resource dump with every record throughout; no `UNAVAILABLE` on the frontend;
-      email, accounting and fraud-detection logging every order as usual
-  - metrics: payment's V8 old-space heap limit falls from 23.3 to 18.0 MiB at the first restart
-      and its used old space sits within about a megabyte of it for the rest of the fault, with
-      garbage collections climbing; the 75 Node series never vanish - the SDK carries no instance
-      id, so a restart shows in them only as the limit's drop and a counter's reset, not as a gap
-  - container: the restart count climbing by one every minute or two (11 in thirteen minutes in the
-      first recording), exit code 137 and OOMKilled between a kill and the next start but the
-      restart too quick for a ten-second probe to sample (0 of 71); the working set 76 to 78 MiB
-      under the 80m limit while running (not agent-visible; the probe samples it)
+  # Predicted before the third recording from the first two (2026-09-27, t_inject 19:19:44 and
+  # 19:50:45, each reverted at +13:01 / +14:01), which the ground truth above was corrected to.
+  # Both paged once, ServiceHighLatency on payment alone (8m01s, 9m01s); both completed their
+  # orders (102, 103); both restarted payment in bursts (10 starts, 14 starts); the second's
+  # probe, sampling every two seconds, caught exit 137 with OOMKilled three times. The list
+  # states what both showed, with the second's numbers where they differ, and is checked against
+  # the third. The comparators: v2-payment-dependency-latency (dev, the same target slowed by the
+  # network - checkout's p95 up and payment's own unchanged, where here payment's own is up and
+  # checkout's barely: distinct on (a) and (d)); v2-payment-flag-unreachable (holdout - errors on
+  # checkout, no record, payment idle: distinct on (a), (b) and (c)); rows 1, 2 and 4 of this
+  # class (distinct on (a): one latency alert on the target against storefront errors, one
+  # consumer's silence, and the storefront again).
+  - alerts: ServiceHighLatency on payment alone, eight to nine minutes in - its p95 over 250 ms
+      from about +5 or +6 and the three-minute hold - and nothing else by the fix or after it; it
+      clears within the fault when a burst of restarts gives a fresh process (+11:45 in the first
+      recording, +10:45 in the second) and the all-clear is at the fix; no ServiceHighErrorRate
+      anywhere (checkout's ratio at most 2.4 %, the frontend's and the proxy's under 1 %); no
+      ServiceNoTraffic, payment never being absent for a window; the flag readers' routine
+      stream reconnect possible and not a page
+  - metrics: payment's p95 from 3 to 7 ms to 20 to 36 ms in the first minutes, briefly back to
+      single digits after a burst of restarts, and 450 to 900 ms for the slow stretch of four to
+      six minutes that pages - more than one charge in twenty over 400 or 800 ms - with its call
+      rate unchanged at 0.2 to 0.35 a second and its error ratio zero; checkout's p95 up by tens
+      of milliseconds at most (its charges are one span in fourteen), its error ratio 0.4 to
+      2.4 % while kills land on charges in flight; every other rate, ratio and latency unchanged;
+      orders completing at the usual rate; after the fix the five-minute window carries the last
+      slow minutes for four minutes and then reads single digits again
+  - traces: charges of one to one and a half seconds beneath an otherwise ordinary order - cart,
+      catalog, currency and the shipping quote in milliseconds, then Charge at 960 to 3,300 ms;
+      the few checkout error traces (three, six) are PlaceOrder failing at Charge with
+      `error reading from server - EOF`, `connection reset by peer` or `connection refused` after
+      a one-second Charge, a kill landing on a request in flight; payment server spans present in
+      every minute of the fault
+  - logs: payment's `payment gRPC server started on 0.0.0.0:50051` twice within ten seconds of
+      onset and then in bursts - the second recording's at +5:10 to +5:50 (five), +10:51 and
+      +10:59, +13:00 to +13:34 (five); fourteen starts in all - each with nothing before it - no
+      shutdown line, no error, no exception; charge records continuing between them; the
+      telemetry SDK's resource dump with every record throughout; no `UNAVAILABLE` on the
+      frontend; email, accounting and fraud-detection logging every order as usual
+  - metrics: payment's 75 Node runtime series never vanish - the SDK carries no instance id, so a
+      restart shows in them only as counters resetting (garbage collections, event-loop time) and
+      the heap's spaces starting smaller, not as a gap; the event loop's utilisation rising from
+      0.3 % to about 4 % in the slow stretch; no series names the limit
+  - container: the restart count climbing in bursts (11 to 25 in the second recording's fourteen
+      minutes), exit code 137 and OOMKilled between a kill and the next start, caught by a
+      two-second probe three times and by a ten-second one not at all; the working set 76 to 78
+      MiB under the 80m limit while running (not agent-visible; the probe samples it)
   - change: a change record at onset - `memory limit lowered on payment`, carrying `memory=80m` -
       and no deploy, no image change, no environment change, no flag
-  - discriminator: a service that is slow with its call rate unchanged, its heap ceiling dropped
-      and its heap pinned against it, and its start-up line repeating with no error before it,
-      whose change record is a memory limit, was starved; the same target slowed by the network
-      (v2-payment-dependency-latency) shows checkout's p95 up and payment's own unchanged, with no
-      restart and no change to its heap; the flag that fails its charges shows errors, not
-      latency, and leaves no record; a bad deploy shows an image in the record; and the storefront
-      is untouched here, which no fault on the storefront edge leaves so
+  - discriminator: a service that is slow with its call rate unchanged, its start-up line repeating
+      in bursts with no error before it, and a change record that is its memory limit, was
+      starved; the same target slowed by the network (v2-payment-dependency-latency) shows
+      checkout's p95 up and payment's own unchanged, with no restart; the flag that fails its
+      charges shows errors, not latency, and leaves no record; a bad deploy shows an image in the
+      record; and the storefront is untouched here, which no fault on the storefront edge leaves so
 expected_remediation_class: config_revert
 rehearsed: false
 alert_timeout_seconds: 900
