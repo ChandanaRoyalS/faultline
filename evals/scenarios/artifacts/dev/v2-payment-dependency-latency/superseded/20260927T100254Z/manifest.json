@@ -6,13 +6,13 @@
     {
       "alert": "ServiceHighLatency",
       "began_after_revert": false,
-      "first_seen": "2026-09-27T10:32:34+00:00",
-      "last_seen": "2026-09-27T10:41:19+00:00",
-      "minutes_firing": 9.0,
+      "first_seen": "2026-09-27T10:08:39+00:00",
+      "last_seen": "2026-09-27T10:16:24+00:00",
+      "minutes_firing": 8.0,
       "service": "checkout"
     }
   ],
-  "baseline_clear_at": "2026-09-27T10:27:19+00:00",
+  "baseline_clear_at": "2026-09-27T10:02:54+00:00",
   "bundle_schema_version": 2,
   "capture_set": 2,
   "expected_remediation_class": "restart",
@@ -41,23 +41,23 @@
   "recorded_by": "evalharness.rehearse",
   "recorder": {
     "git_dirty": true,
-    "git_sha": "d57af57ab138155032b86a56a4237c65becfcc79",
+    "git_sha": "504c0e0602e2d02f50a07e1400f680c72442fa08",
     "tool": "evalharness.rehearse"
   },
   "scenario_fingerprint": "ef5075af4251bcd0156bec094236e2bc0bf54be5ccc51e32b80488b60725d5b7",
   "scenario_id": "v2-payment-dependency-latency",
   "seconds_of_steady_state": 300,
-  "seconds_to_alert": 335,
-  "seconds_to_settle": 242,
+  "seconds_to_alert": 365,
+  "seconds_to_settle": 167,
   "split": "dev",
-  "t_alert_firing": "2026-09-27T10:32:54+00:00",
-  "t_clear": "2026-09-27T10:41:56+00:00",
-  "t_inject": "2026-09-27T10:27:19+00:00",
-  "t_revert": "2026-09-27T10:37:54+00:00",
+  "t_alert_firing": "2026-09-27T10:08:59+00:00",
+  "t_clear": "2026-09-27T10:16:46+00:00",
+  "t_inject": "2026-09-27T10:02:54+00:00",
+  "t_revert": "2026-09-27T10:13:59+00:00",
   "title": "Payment's replies are late, and only checkout can tell",
   "window": {
-    "end": "2026-09-27T10:43:56+00:00",
-    "start": "2026-09-27T10:22:19+00:00"
+    "end": "2026-09-27T10:18:46+00:00",
+    "start": "2026-09-27T09:57:54+00:00"
   },
   "world": {
     "compose_digest": "5a2bc6d912f922a03874ab2824d9362541362386fbcab7e0c2f99aa760f567df",
@@ -82,9 +82,9 @@
   "world_lock": {
     "acquired": true,
     "host": "chandanas-MacBook-Air.local",
-    "pid": 15353,
+    "pid": 14908,
     "reason": "rehearse v2-payment-dependency-latency",
-    "since": "2026-09-27T10:27:14.037247+00:00",
-    "token": "15353-1790504834.036906"
+    "since": "2026-09-27T10:02:33.940533+00:00",
+    "token": "14908-1790503353.9402"
   }
 }
