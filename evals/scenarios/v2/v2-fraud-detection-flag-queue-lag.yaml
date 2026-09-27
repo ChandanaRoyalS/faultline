@@ -31,32 +31,36 @@ ground_truth:
     accounting.
   category: feature_flag
 expected_evidence:
-  # Corrected against the first recording (2026-09-26, t_inject 20:59:40, now in superseded/) and
-  # checked against the re-record (t_inject 21:29:48, revert at +9:00). The injector's revert is
-  # flag-only; accounting was restarted by the recording routine 69 s after the fix, outside the
-  # recorded settle. In the first recording nobody restarted it for eight minutes, and it refused
-  # every new order until they did.
-  - alerts: ServiceHighLatency on fraud-detection alone (page 4m00s; first recording 4m16s);
-      nothing else during the fault or after the fix - accounting's failures raise no alert at all
-  - metrics: fraud-detection's p95 goes from ~90ms to ~1,380ms and its consumption pins at exactly
-      one record a second; after the fix it drains the backlog (8,302 records in a minute) and its
-      lag returns to zero; accounting's span rate goes from ~0.45 to ~33 a second with zero errors
-      and its p95 falls from ~90ms to ~2ms; the checkout path is unchanged
-  - logs: fraud-detection logs `FeatureFlag 'kafkaQueueProblems' is enabled, sleeping 1 second`
-      sixty times a minute and `Consumed record with orderId` for the same order id over and over;
-      accounting logs `Order details` then `Order parsing failed` for every record it reads, 700 to
-      2,400 a minute, originals included from the first full minute - an identity conflict on
-      OrderEntity for the duplicates; after the fix, until its restart, it refuses every record
-      (104 of 104 in 69 s), the new orders with `Unexpected entry.EntityState - Detached`
-  - traces: fraud-detection's `orders process` spans last ~1,003ms each, two hundred of them in a
-      single poll's trace; accounting's order-consumed spans carry no error and no database call;
-      checkout's orders complete
-  - metrics: fraud-detection's JVM runtime series (51) report through the fault - the process is up
+  # Corrected against the first recording (2026-09-26, t_inject 20:59:40) and checked against the
+  # re-record (t_inject 21:29:48), both now in superseded/. Re-recorded on the revised world on
+  # 2026-09-27 (t_inject 05:17:32, revert at +9:15) and restated from that capture and its live
+  # read-back. The injector's revert is flag-only; accounting was restarted by the recording batch
+  # 62 s after the fix, one second after the recorder's all-clear. In the first recording nobody
+  # restarted it for eight minutes, and it refused every new order until they did.
+  - alerts: ServiceHighLatency on fraud-detection alone (page 4m15s; earlier recordings 4m16s and
+      4m00s); nothing else during the fault or after the fix - accounting's failures raise no alert
+  - metrics: fraud-detection's p95 goes from ~90ms to ~1,370-1,380ms and its consumption pins at
+      exactly one record a second (error ratio under 1%); after the fix it drains the backlog
+      (~6,500 records in a minute) and its p95 falls to ~2ms; accounting's span rate goes from ~0.4
+      to 16-25 a second with zero errors and its p95 falls from ~90ms to ~2ms; the checkout path is
+      unchanged
+  - logs: fraud-detection logs `FeatureFlag 'kafkaQueueProblems' is enabled, sleeping 1 second` up
+      to sixty times a minute (551 in all, none before onset) and `Consumed record with orderId` for
+      the same order id 101 times in a row; accounting logs `Order details` then `Order parsing
+      failed` 302 to 1,010 a minute (6,566 in all, none before onset) - an identity conflict on
+      OrderEntity for the duplicates, and `Unexpected entry.EntityState - Detached` for new orders
+      (66, 2 to 10 a minute); after the fix, before its restart, it refuses 6 more new orders, each
+      with Detached
+  - traces: fraud-detection's `orders process` spans last about a second each, about a hundred of
+      them under a single poll's trace; accounting's order-consumed spans carry no error and no
+      database call; checkout's orders complete
+  - metrics: fraud-detection's JVM runtime series (51, one instance) report through the fault - the
+      process is up
   - change: nothing recorded - no deploy, no configuration change, no restart; flagd reloads its
       own file and leaves no change record
   - discriminator: the page is latency on one consumer, and its log names the flag; the same order
       id consumed again and again says the topic is flooded; accounting's log says it is refusing
-      every order, silently, and it still is after the flag is off - the fix is the flag and a
+      new orders, silently, and it still is after the flag is off - the fix is the flag and a
       restart of accounting, and the orders refused in between are lost
 expected_remediation_class: config_revert
 rehearsed: true
@@ -64,6 +68,7 @@ alert_timeout_seconds: 900
 # Declared before recording, checked against the bundle after (T7.5). Measured on the running
 # world 2026-09-26, as the candidate list asks: Prometheus holds 51 JVM runtime series for
 # fraud-detection (14 families), and its Loki stream logged 7 to 11 lines a minute at rest. Both
-# recordings confirmed it: 51 runtime series and 447 target log lines, and the recorder derived
-# [runtime, logs].
+# 2026-09-26 recordings confirmed it: 51 runtime series and 447 target log lines, and the recorder
+# derived [runtime, logs]. The 2026-09-27 re-record captured 51 runtime series and 439 target log
+# lines and derived the same [runtime, logs].
 answers_idle_or_absent: [runtime, logs]

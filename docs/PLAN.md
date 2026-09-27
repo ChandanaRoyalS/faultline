@@ -4617,6 +4617,53 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-09-27: every v2 bundle re-recorded on the revised world, and the sixteenth v2 scenario,
+`v2-ad-bad-image-tag`, rehearsed and labeled - slot `v2/bad_deploy-3` (dev), first recording.***
+
+- **The batch.** The fifteen recorded v2 scenarios were re-recorded back to back with `--force`,
+  one commit each, then row 3 of `bad_deploy`: sixteen bundles on one `compose_digest`. Each old
+  recording is kept under its bundle's `superseded/`. On AC power, under `caffeinate`, the world
+  variable per command; the host did not sleep in any run. Accounting was restarted after the
+  queue-lag recording and checkout after the payment flag's, as their narratives' repairs say.
+- **Two stops, neither a void.** The batch stopped itself once on battery, after the freeze
+  recording; that recording stands (Q104's rule voids a run only when the host slept). It stopped
+  again when the recorder refused the next run on frontend-proxy at 94.4% of 65M after the
+  frontend-cart recording, against an eight-hour high of 39 MiB; a restart brought it to 43% and
+  the batch resumed (Q109).
+- **Tempo, counted by kind before the batch as the revision entry said:** 53 blocklist poll
+  failures, which 2.6.1 tolerates by design (Q104), and 18 `pusher failed ... at least 1 live
+  replicas required`, all inside two seconds on 2026-09-26 - one burst, not a trend.
+- **What the new captures changed in the stories.** Most pages came sooner: shipping-quote from
+  4m46s to 3m19s, with shipping now paging alone and checkout a minute later; cart-bad-image from
+  4m47s to 3m17s, three callers first and the load generator a minute later; freeze from 5m01s to
+  4m15s, two alerts where there were four; ad-flag from 10m31s to 8m31s, and its page cleared on
+  its own two and a half minutes before the fix. Payment-flag (4m16s), queue-lag (4m15s) and
+  shipping-wrong-image (4m33s) came slightly later; email's was 4m16s again. Email restarted 30
+  times (24 before), shipping's wrong image started 18 times (17), and checkout's goroutines
+  under the payment flag climbed from 78 to 358 and were 360 after the fix.
+- **A red herring, now on two services (Q108).** In seven of the sixteen recordings, while orders
+  were stopped, fraud-detection raised `ServiceHighErrorRate` or `ServiceHighLatency`, and in six
+  of them flagd raised `ServiceHighLatency` beside it; four of these alerts began after the fix, in
+  two recordings. The only spans behind them are the flag-service `EventStream`, closed by flagd on
+  its routine ten-minute timeout: with no orders beside them, those few long spans are all the two
+  services report. Fraud-detection's side is not new - five of the fifteen previous recordings had
+  it - but flagd's was in one. Every narrative lists them where they fired and walks them as a
+  dead end.
+- **Relabelled.** All sixteen narratives rechecked against their new captures and the live
+  read-backs: front matter, every alert, timing and count; claims the new data could not support
+  dropped. Each scenario's `expected_evidence` restated from the new recording, with its date and
+  revert offset. Derived reachability matched the declared set for all sixteen. Every narrative's
+  distinctness claims still hold. The product-catalog-flag and ad-flag trace claims were checked
+  against Tempo directly, because the read-back tool's newest-ten sample held no error trace.
+- **Row 3.** `ServiceHighErrorRate` on frontend and frontend-proxy together at 5m17s; a one-minute
+  alert on load-generator; `ServiceNoTraffic` on ad at +8:00; four alerts, none after the fix,
+  all clear 4m01s after it. `GetAds` fails with nothing beneath it; ad's log ends at onset with the
+  JVM shutting down; its 51 JVM series hold five minutes and vanish; the order path records no
+  errors. Every prediction held; the frontend's 7-12% and the load generator's minute were not
+  predicted. Distinct in the row and from `v2-ad-flag-failure` on (a), and on (b) from the flag.
+  The change record is by construction, as for every v2 recording.
+- **Next: row 4**, the holdout `v2-email-wrong-image` (`v2/bad_deploy-4`).
+
 ***2026-09-27: the v2 world revised for headroom - four limits by the rule, in one digest move;
 every v2 bundle is re-recorded on it.***
 

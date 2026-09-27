@@ -31,31 +31,34 @@ ground_truth:
     empty.
   category: feature_flag
 expected_evidence:
-  # Written before the first recording and checked against it (2026-09-26, t_inject 23:30:38,
-  # revert at +9:16). The page was not predicted as a shape and the guess (errors on checkout) was
-  # wrong: it paged latency, so by the row's rule it is a scenario. Probe every 20 s.
+  # Written before the first recording and checked against it (2026-09-26). The page was not
+  # predicted as a shape and the guess (errors on checkout) was wrong: it paged latency, so by the
+  # row's rule it is a scenario. Re-recorded on the revised world on 2026-09-27 (t_inject
+  # 06:11:33, revert at +9:16); the list below states that recording. Probe every 20 s.
   - alerts: ServiceHighLatency on email alone (page 4m16s), then ServiceHighLatency on checkout
       (+6:00) - two alerts by the fix and none after it; checkout's errors stay under the line
-      (1.6-3.6%) and no ServiceNoTraffic fires
-  - metrics: email's p95 from 20-36ms to 345ms at +1 and 870-960ms from +4, with no error spans at
-      all and its span rate falling from ~0.5 to ~0.22 a second; checkout's p95 from ~31ms to
-      550-590ms; payment, accounting and fraud-detection keep their rates - orders complete
-  - logs: email's request log shows each completed confirmation taking 0.28-0.97s (0.002-0.04s at
+      (1.7-3.6%) and no ServiceNoTraffic fires; flag readers and flagd show 0.4-2.3% errors at
+      +7 to +10, as they did before onset (flagd's stream reconnect), and nothing alerts on them
+  - metrics: email's p95 from 37-43ms to 770ms at +1 and 770-850ms through the fault, with no
+      error spans at all and its span rate falling from ~0.5 to 0.2-0.38 a second; checkout's p95
+      from ~35ms to 560-585ms from +4; payment, accounting and fraud-detection keep their rates -
+      orders complete
+  - logs: email's request log shows each completed confirmation taking 0.28-1.14s (0.002-0.04s at
       rest), and its server starting again - `== Sinatra (v4.2.1) has taken the stage` and Puma's
-      banner - 24 times in 9 minutes, 0 to 4 a minute, each after one or two confirmations, with
-      nothing logged before any of them; confirmations sent fall from 6-10 to 1-7 a minute
-  - traces: email's send_email span holds 280-670ms of self-time with only a fast template render
-      beneath it; checkout's HTTP POST to email errors with `EOF` after 100-480ms under a PlaceOrder
-      that does not error, the charge, cart, shipment and publication succeeding beside it
-  - metrics: email has no runtime series; read on the container (not by the tools), its memory
-      stood at 99.2-99.8% of 100M before each restart and its restart count went 0 to 24; the
-      runtime did not flag the exits as OOM kills
+      banner - 30 times in 9 minutes, 1 to 4 a minute, from +14s, each after one or two
+      confirmations, with nothing logged before any of them and none after the fix; confirmations
+      sent fall from 5-10 to 3-7 a minute
+  - traces: email's send_email span holds most of the request's time as self-time with only a fast
+      template render beneath it; checkout's HTTP POST to email errors with `EOF`, and once with
+      `connect - connection refused` while email restarts, under a PlaceOrder that completes
+  - metrics: email has no runtime series and no memory metric, so the telemetry holds no memory
+      reading and no kill record; its limit is an unchanged 100M
   - change: nothing recorded - no deploy, no configuration change, no limit change; flagd reloads
       its own file and leaves no change record, and the restarts are the runtime's, not a change
-  - discriminator: a service that sat at half its unchanged limit for days now fills it within one
-      or two requests of the same traffic, each request costing a hundred times the time in its own
-      code, with nothing in change history - something changed what a request does without a
-      deploy, and on this world that is a feature flag
+  - discriminator: a service that ran steadily now dies after every one or two requests of the
+      same traffic, each request costing tens to hundreds of times the time in its own code, with
+      nothing in change history - something changed what a request does without a deploy, and on
+      this world that is a feature flag
 expected_remediation_class: config_revert
 rehearsed: true
 alert_timeout_seconds: 900
@@ -63,5 +66,6 @@ alert_timeout_seconds: 900
 # world 2026-09-26, as the candidate list asks: Prometheus held no runtime series for email (none
 # of go_, dotnet_, jvm_, process_, v8js_, nodejs_ or ruby_), and its Loki stream logged 4 to 22
 # lines a minute at rest. The first recording confirmed it: 0 runtime series and 482 target log
-# lines, and the recorder derived [logs].
+# lines, and the recorder derived [logs]. The 2026-09-27 re-recording agrees: 0 runtime series,
+# 464 target log lines, derived [logs].
 answers_idle_or_absent: [logs]

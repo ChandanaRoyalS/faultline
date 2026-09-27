@@ -2,9 +2,9 @@
 origin: scenario:v2-shipping-wrong-image
 split: dev
 fault_class: bad_deploy
-recorded_from: 2026-09-27T00:47:47+00:00
+recorded_from: 2026-09-27T06:50:26+00:00
 capability: cap:d2b243e0
-onset_to_page: 4m05s
+onset_to_page: 4m33s
 page_to_fix: 5m00s
 fix_to_all_clear: 4m01s
 ---
@@ -13,20 +13,19 @@ fix_to_all_clear: 4m01s
 
 ## What was observed
 
-The page was one alert, `ServiceHighErrorRate` on **checkout**, 4m05s after the trouble started.
+The page was one alert, `ServiceHighErrorRate` on **checkout**, 4m33s after the trouble started.
 
-Checkout's error ratio had been zero. It was about 2% a minute in, 9% at two minutes, 21% at four,
-and from five minutes it held at 24-26%. Its latency fell, from a p95 of about 35ms to about 22ms:
-its orders were finishing sooner, which is what failing orders do. The storefront's error ratios
-rose to about 5% and hovered there, frontend and frontend-proxy each touching the line and dropping
-back, so neither paged. Browsing and the cart worked. Checking out did not.
+Checkout's error ratio had been zero. It was 5% at two minutes, 11% at three, 16% at four, and
+from five minutes it held at 26-28%. Its latency fell, from a p95 of about 35ms to between 15 and
+24ms: its orders were finishing sooner, which is what failing orders do. The storefront's error
+ratios rose to 4-5% and hovered there, frontend-proxy touching the line once and dropping back, so
+neither it nor the frontend paged. Browsing and the cart worked. Checking out did not.
 
-About four minutes after the page, five services went quiet in the same minute: `ServiceNoTraffic`
-on **shipping**, and on quote, payment, email and accounting. None of them had recorded an error.
-Cart, the product catalog and currency kept their traffic. In between, fraud-detection raised a
-one-minute `ServiceHighErrorRate` of its own: with orders gone it had almost no spans, and the
-one it did make, its stream to the flag service closing on the server's routine ten-minute timeout,
-was an error. Seven alerts by the fix, and none after it.
+About three minutes after the page, six services went quiet in the same minute:
+`ServiceNoTraffic` on **shipping**, and on quote, payment, email, accounting and fraud-detection.
+None of them had recorded an error. Cart, the product catalog and currency kept their traffic.
+Fraud-detection's quiet lasted only a minute, and 42 seconds after the fix it raised a one-minute
+`ServiceHighErrorRate` of its own. Seven alerts by the fix, and that one after it.
 
 ## What was checked
 
@@ -37,22 +36,29 @@ failed POST to shipping service: Post "http://shipping:50050/get-quote": dial tc
 on 127.0.0.11:53: no such host`. Nothing after the quote ran: no charge, no shipment, no email.
 
 **The frontend's log,** which carries checkout's errors up to the storefront, gave the same failure
-in two forms, alternating: `lookup shipping ... no such host`, and `dial tcp 172.18.0.23:50050:
-connect: connection refused`. Sometimes the name `shipping` did not exist at all, and sometimes it
+in two forms: `lookup shipping ... no such host`, 138 times, 6 to 18 a minute, and `connect:
+connection refused`, 12 times. Mostly the name `shipping` did not exist at all, and sometimes it
 did and nothing was listening behind it. A service that is simply down gives one or the other. A
 service that keeps coming up and going down gives both.
 
 **Shipping itself.** No errors, no traces, and no traffic: its error ratio stayed at zero because
 it answered nothing to fail. Shipping has never written a log line the tools can read, and now it
-had a stream, and the stream was not shipping's. Seventeen times in nine minutes it logged exactly
-three lines - `Picked up JAVA_TOOL_OPTIONS: -javaagent:/usr/src/app/opentelemetry-javaagent.jar`,
+had a stream, and the stream was not shipping's. Eighteen times in a little over nine minutes it
+logged the same start -
+`Picked up JAVA_TOOL_OPTIONS: -javaagent:/usr/src/app/opentelemetry-javaagent.jar`,
 `OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes`, and the
-OpenTelemetry Java agent announcing its version - and then nothing. Shipping is not a Java
-service. The gaps between the starts grew from three seconds to about a minute, which is the
-runtime backing off a container that keeps dying. Read on the container directly, each exit was
-code 137 and marked as killed for memory, and its restart count climbed to 17. Its memory limit is
-20M, sized for the small native binary shipping normally is; a Java virtual machine with an agent
-attached cannot even finish starting in that.
+OpenTelemetry Java agent announcing its version - and then nothing.
+Shipping is not a Java service. The first start came three seconds in, and the gaps between them
+grew from a second to about a minute and stayed there, which is the runtime backing off a
+container that keeps dying. Its memory limit is 20M, sized for the small native binary shipping
+normally is; a Java virtual machine with an agent attached cannot even finish starting in that.
+
+**Fraud-detection's error alert.** A dead end. With orders gone it had gone quiet, and then its one
+remaining span, its `flagd.evaluation.v1.Service/EventStream` stream to the flag service, was
+ended by flagd with `stream closed due to server-side timeout`, the routine ten-minute reconnect.
+That one span was an error, so fraud-detection read 100% errors on almost no traffic, with a p95
+at the top of the histogram, 15 seconds; flagd's p95 went the same way for two minutes without
+alerting. No order was involved, and the alert cleared as orders came back.
 
 **What changed.** One record, at the start: `image reference updated on shipping`, to
 `ghcr.io/open-telemetry/demo:2.2.0-ad`. That is the ad service's image. The deploy had worked -
@@ -65,31 +71,32 @@ checkout, quote or anywhere else.
 A deploy put the ad service's image into shipping's slot. The image resolved, so the deploy
 succeeded and the container started, but what it ran was the ad service's Java process, which
 cannot start inside shipping's 20M limit and was killed for memory before it could serve,
-seventeen times, with the runtime backing off between attempts. Shipping never answered a request.
+eighteen times, with the runtime backing off between attempts. Shipping never answered a request.
 Every order failed at its shipping quote, after the cart, the catalog and currency had done their
 parts. Nothing was wrong with shipping's limit or with any caller.
 
 ## Resolution
 
-Shipping was rolled back to its own image, `2.2.0-shipping`. The container was recreated, started
-cleanly, and did not restart again. Quotes, charges, confirmations and orders came back within a
-minute of the fix, and the error ratios drained with their windows. Everything was quiet 4m01s
-after the fix, and nothing fired during recovery.
+Shipping was rolled back to its own image, `2.2.0-shipping`. The container was recreated and did
+not start over again. The quiet services had traffic again within half a minute of the fix, and
+the error ratios drained with their windows. Everything was quiet 4m01s after the fix. The one
+alert that began during recovery was fraud-detection's stream-timeout error alert.
 
 Class of fix: **rollback**. A deploy was wrong and it was undone. Raising shipping's memory limit
 would only have let the wrong program run, and restarting it was what the runtime had already been
-doing, seventeen times.
+doing, eighteen times.
 
 ## Detection notes
 
-- Onset to first page: **4m05s**. Services on the page: **one**, checkout, which was not at fault.
+- Onset to first page: **4m33s**. Services on the page: **one**, checkout, which was not at fault.
   By the fix: **seven**, shipping among them.
-- Alerts that fired only during recovery: **none**.
+- Alerts that fired only during recovery: **one**, fraud-detection's `ServiceHighErrorRate`, a
+  routine flag-stream timeout while its orders were still gone.
 - Did the loudest service turn out to be the culprit? **No.** Checkout paged on its calls to
-  shipping; shipping's only alert was the absence of traffic, four minutes later.
+  shipping; shipping's only alert was the absence of traffic, three minutes later.
 - Would the page alone have led you to the right service? **No, but one trace does.** Every failing
   order stops at the shipping quote.
-- **"No such host" and "connection refused" alternating is a restart loop.** A service that is gone
+- **"No such host" and "connection refused" together is a restart loop.** A service that is gone
   gives one; a service that is dying and starting over gives both.
 - **A log in the wrong language is the whole story.** Shipping does not run Java. A stream that
   appears where there was none, and says `JAVA_TOOL_OPTIONS`, means something else is running in

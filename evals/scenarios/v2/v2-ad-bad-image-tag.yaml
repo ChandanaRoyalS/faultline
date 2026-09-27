@@ -27,29 +27,43 @@ ground_truth:
     browsing, carts and orders are untouched. Rolling back to the published image fixes it.
   category: bad_deploy
 expected_evidence:
-  # A new design: nothing here is measured yet. Written before the first recording and checked
-  # against the bundle, as every v2 scenario's list has been, and corrected there. Measured at rest
-  # (2026-09-27): ad serves 0.18 GetAds a second, all from the frontend, of the frontend's 11.6
-  # spans a second. In v2-ad-flag-failure a tenth of GetAds failing moved the frontend and
-  # frontend-proxy to about 1%, so every GetAds failing should move them to several percent.
-  - alerts: ServiceHighErrorRate on the frontend and frontend-proxy is likely and not certain;
-      ServiceNoTraffic on ad once its window drains; nothing on the order path
-  - metrics: ad's call rate falls to zero rather than its error ratio rising; the frontend's error
-      ratio rises while checkout, payment and the rest of the order path are unchanged
-  - traces: the frontend's GetAds client spans end in error at the connection, with nothing beneath
-      them, under the storefront's ad requests
-  - logs: ad's Loki stream stops (14 to 28 lines a minute at rest); the frontend's log carries the
-      failed ad calls
-  - metrics: ad's JVM runtime series (51) stop - the process is gone, not unhealthy
-  - change: a change record at onset - `image reference updated on ad`, to a tag the registry does
-      not have
+  # A new design: predicted before recording (measured at rest 2026-09-27 - ad serves 0.18 GetAds
+  # a second, all from the frontend, of the frontend's 11.6 spans a second) and checked against the
+  # first recording, on the revised world, 2026-09-27 (t_inject 07:09:40, revert at +10:17). Every
+  # prediction held: the frontend and frontend-proxy paged, ad went quiet rather than erroring, the
+  # order path did not move, GetAds failed with nothing beneath, ad's log and its 51 JVM series
+  # stopped, and the change record named the image. Not predicted - the frontend reached 7-12%, not
+  # "several percent", and load-generator crossed the line for a minute. The list below states the
+  # recording.
+  - alerts: ServiceHighErrorRate on frontend and frontend-proxy together (page 5m17s); a one-minute
+      ServiceHighErrorRate on load-generator at +6:00; ServiceNoTraffic on ad at +8:00, once its
+      window drains - four alerts by the fix and none after it; nothing on the order path
+  - metrics: ad's call rate falls to zero with no errors of its own rather than its error ratio
+      rising; the frontend's error ratio peaks at 12% at +5 and holds at 7-10%, frontend-proxy
+      peaks at 11% and holds at 8-10%, load-generator 4-7%; the storefront's p95 barely moves
+      (~42ms to at most 47); checkout, payment and the rest of the order path record no errors
+  - traces: the frontend's storefront ad requests - load-generator GET, frontend-proxy ingress,
+      frontend GET /api/data - end in frontend/grpc.oteldemo.AdService/GetAds in error with no ad
+      span beneath
+  - logs: ad's log ends at onset with `*** shutting down gRPC ads server since JVM is shutting
+      down` and `*** server shut down` after about 16 ad requests a minute (82 in the five minutes
+      before), silent until the fix (10m18s);
+      the frontend logs `UNAVAILABLE` errors 156 times during the fault (up to 24 a minute, none
+      before) and 14 more in the five minutes after the fix
+  - metrics: ad's 51 JVM runtime series hold their last values for five minutes (the lookback) and
+      vanish - the process is gone, not unhealthy; a new instance's 51 series begin after the fix
+  - change: a change record at onset - `image reference updated on ad`, from
+      ghcr.io/open-telemetry/demo:2.2.0-ad to ghcr.io/open-telemetry/demo:2.2.0-ad-hotfix.2, a tag
+      the registry does not have
   - discriminator: the storefront's ad calls fail and ad is silent - an erroring service still
       records calls and a missing one does not; the change record at onset is the image, and its
       tag does not resolve
 expected_remediation_class: rollback
-rehearsed: false
+rehearsed: true
 alert_timeout_seconds: 900
 # Declared before recording, checked against the bundle after (T7.5). Measured on the running world
 # 2026-09-27: Prometheus held 51 JVM runtime series for ad and its Loki stream logged 14 to 28 lines
-# a minute. Both are what the fault removes: they answer by going idle or absent.
+# a minute. Both are what the fault removes: they answer by going idle or absent. The first
+# recording (2026-09-27) confirmed both classes: 102 runtime series (51 for the old instance, 51
+# for the new) and 172 target log lines, and the recorder derived [runtime, logs].
 answers_idle_or_absent: [runtime, logs]

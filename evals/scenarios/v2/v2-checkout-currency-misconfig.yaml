@@ -29,24 +29,29 @@ ground_truth:
   category: bad_config
 expected_evidence:
   # Written before the first recording and checked against it (2026-09-26, t_inject 08:00:53,
-  # revert at +9:31). The probe during the fault saw one checkout container, restarts 0 - no
-  # crashloop. Distinct from v2-shipping-quote-misconfig on (a), as predicted before recording:
-  # there checkout and shipping paged; here checkout pages alone and shipping goes quiet.
-  - alerts: ServiceHighErrorRate on checkout alone (page 4m31s); frontend and frontend-proxy errors
-      about two minutes later; ServiceNoTraffic on currency, shipping, quote, payment, email,
-      accounting and fraud-detection about three minutes after the page. Shipping does not page
-      with errors. One alert after the fix, fraud-detection errors, from its flagd EventStream's
-      ten-minute server-side close landing in an empty window
+  # revert at +9:31); that recording's probe during the fault saw one checkout container,
+  # restarts 0 - no crashloop. Re-recorded on the revised world on 2026-09-27 (t_inject 04:22:29,
+  # revert at +9:17) and restated against that recording. Distinct from
+  # v2-shipping-quote-misconfig on (a), as predicted before recording and still so after its own
+  # re-record: there shipping pages (checkout a minute later); here checkout pages alone and
+  # shipping goes quiet.
+  - alerts: ServiceHighErrorRate on checkout alone (page 4m17s); frontend and frontend-proxy errors
+      two minutes later (+6m15s); ServiceNoTraffic on currency, shipping, quote, payment, email and
+      accounting three minutes after the page (+7m15s). Shipping does not page with errors.
+      Fraud-detection ServiceHighErrorRate at +8m15s and fraud-detection and flagd
+      ServiceHighLatency at +9m15s, from its flagd EventStream's ten-minute server-side close in a
+      window with no orders; nothing starts after the fix
   - metrics: checkout's error ratio settles at exactly 0.4 (two of five spans in every order) while
-      its latency falls from ~37ms to ~5ms; currency's request rate falls from ~0.35/s to zero by
-      ~+5:00 with no error series at all
+      its latency falls from ~40ms to under 4ms; currency's request rate falls from ~0.3/s to zero
+      by ~+5:00 with no error series at all; frontend's error ratio peaks at ~6%
   - logs: neither checkout nor currency has a Loki stream; the frontend's log carries checkout's
-      error text (`failed to prepare order`, `failed to convert price of ... to USD`), 6 to 13 a
-      minute through the fault
-  - traces: checkout's PlaceOrder errors with that text; beneath it GetCart and the first
-      GetProduct succeed, and oteldemo.CurrencyService/Convert errors with `name resolver error -
-      produced zero addresses` and no currency span beneath it (the degrading hop); no shipping
-      or payment call follows
+      error text (`failed to prepare order`, `failed to convert price of ... to USD`), 164 lines
+      over ~10 minutes (4 to 32 a minute, two lines per error), none before or after
+  - traces: checkout's PlaceOrder errors with that text; oteldemo.CurrencyService/Convert errors
+      with `name resolver error - produced zero addresses` and no currency span beneath it (the
+      degrading hop from prepareOrderItemsAndShippingQuoteFromCart, 10 of 10 sampled traces); no
+      shipping or payment call follows; fraud-detection's only error spans are its flagd
+      EventStream, closed by server-side timeout
   - metrics: checkout's Go runtime series (9) report through the fault without a gap - the process
       is up
   - change: CURRENCY_ADDR on checkout changed to currencyservice:7001, coinciding with onset;
@@ -63,4 +68,5 @@ alert_timeout_seconds: 900
 # (8 families, go_*), and Loki has no checkout stream in 24 hours (checkout logs only over OTLP,
 # to a store no tool reads). The first recording confirmed it: 9 runtime series, 0 target log
 # lines, and the recorder derived [runtime].
+# The 2026-09-27 re-record derived the same: 9 runtime series, 0 target log lines, [runtime].
 answers_idle_or_absent: [runtime]

@@ -2,29 +2,29 @@
 origin: scenario:v2-cart-flag-failure
 split: dev
 fault_class: feature_flag
-recorded_from: 2026-09-26T20:17:03+00:00
+recorded_from: 2026-09-27T04:59:36+00:00
 capability: cap:d2b243e0
-onset_to_page: 5m45s
+onset_to_page: 5m16s
 page_to_fix: 5m00s
-fix_to_all_clear: 2m01s
+fix_to_all_clear: 2m00s
 ---
 
 # A feature flag makes the cart fail to empty after an order
 
 ## What was observed
 
-The page was one alert, `ServiceHighErrorRate` on **checkout**, 5m45s after the trouble started.
+The page was one alert, `ServiceHighErrorRate` on **checkout**, 5m16s after the trouble started.
 Nothing else fired, then or later, and nothing fired after the fix.
 
-Checkout's error ratio had been zero. It rose from about a minute in and held at 7-8%. Its latency
-rose too, from a p95 of about 30ms to between 110 and 160ms, without reaching the latency alert.
-The storefront's latency followed it up a little, from about 38ms to about 60ms, and its error
-ratio stayed at **zero**. So did frontend-proxy's and the load generator's. Payment, email and
-accounting kept their usual traffic: orders were being charged, confirmed and recorded at the
-normal rate.
+Checkout's error ratio had been zero. It rose from about a minute in and held at 7.1-7.4%. Its
+latency rose too, from a p95 of about 34ms to between 85 and 160ms, without reaching the latency
+alert. The storefront's latency followed it up a little, from about 42ms to about 68ms at the
+peak, and its error ratio stayed at **zero**. So did frontend-proxy's and the load generator's.
+Payment, email and accounting kept their usual traffic: orders were being charged, confirmed and
+recorded at the normal rate.
 
-That is the puzzle on the page: checkout erroring on 7-8% of its spans while every order it was
-asked to place went through.
+That is the puzzle on the page: checkout erroring on about 7% of its spans while every order it
+was asked to place went through.
 
 ## What was checked
 
@@ -36,20 +36,20 @@ once the order is placed. Its error was `Can't access cart storage. System.Appli
 Wasn't able to connect to redis`. Checkout does not treat that as an order failure, which is why
 the orders succeeded and why the storefront saw nothing.
 
-**How long it took.** Between about 60 milliseconds and five seconds. In one order `EmptyCart`
-held the order open for 5.1 seconds before failing, and the confirmation email went out only after
-it. That is checkout's latency rise: its orders were waiting on a call that was going to fail.
+**How long it took.** Anywhere from tens of milliseconds to several seconds, the order held open
+until `EmptyCart` gave up, and the confirmation went out only after it. That is checkout's latency
+rise: its orders were waiting on a call that was going to fail.
 
 **The cart, where the error came from.** Cart's own `EmptyCart` span was in error with the same
 message, `FailedPrecondition`, `Can't access cart storage`. Beneath it was a single call, to the
 flag service, a feature-flag lookup, and then nothing: no call to the cart store at all. In the
 same traces, cart's `GetCart` ran its store query, `HGET`, and answered in about a millisecond.
 
-**Its log.** Cart logged each `EmptyCartAsync called with userId=...`, followed within a second by
-`fail: ... Wasn't able to connect to redis` and the gRPC server's `Error status code
-'FailedPrecondition'`, 4 to 12 of these a minute, one for every `EmptyCart` from the start until
-the fix, and none before or after. Its `AddItemAsync` and `GetCartAsync` lines went on at their
-usual rate beside them.
+**Its log.** Cart logged 98 `EmptyCartAsync called with userId=...` lines between onset and the
+fix, and beside them 182 lines saying it `Wasn't able to connect to redis`, 2 to 26 a minute, none
+in the five minutes before onset and none in the five after the fix. Its `AddItemAsync` lines went
+on at their usual pace beside them, 268 during the fault against 120 and 176 in the five minutes
+either side.
 
 **Whether the cart's store was down.** This is where the log points, and it was not. "Wasn't able
 to connect to redis" reads like the cart's Valkey store is unreachable. But in the same minutes
@@ -59,10 +59,12 @@ shows only through cart's calls to it, and those were fine. Something that could
 for two operations and not for the third was not failing on the store. It was going somewhere else
 for the third.
 
-**Whether cart was struggling.** It was not. Its error ratio rose only to about 4.5%, because
+**Whether cart was struggling.** It was not. Its error ratio rose only to about 4.3%, because
 `EmptyCart` is about one call in ten to cart and its other spans stayed clean, so cart itself never
-paged. Its .NET runtime series, 39 of them, reported without a gap, and its latency rose only
-slightly.
+paged. Its .NET runtime series reported without a gap and its latency rose only slightly. The one
+new series was an exception counter: `ApplicationException`, first seen 30 seconds in, reached 91
+by the fix and stopped there, while its socket-exception count went from 5 to over 26,000 in the
+same minutes and also stopped at the fix. Cart was trying, and failing, to open connections.
 
 **What changed.** Nothing, as far as change history shows: no deploy, no configuration change, no
 restart. The one thing in the failing span besides the error is the feature-flag lookup made just
@@ -81,19 +83,20 @@ and the cart's store was healthy. The fault was the flag's value.
 ## Resolution
 
 The flag was turned back off. The flag service picks up the change on its own, so nothing was
-restarted or redeployed. `EmptyCart` went back to the real store and succeeded at once, and the
-error ratios drained with their windows. Everything was quiet 2m01s after the fix, and nothing
-fired during recovery.
+restarted or redeployed. `EmptyCart` went back to the real store and succeeded at once, cart's
+exception counters stopped climbing, and the error ratios drained with their windows. Checkout's
+alert went out about a minute and a half after the fix, everything was quiet 2m00s after it, and
+nothing fired during recovery.
 
 Class of fix: **config_revert**. One setting was wrong and it was set back.
 
 ## Detection notes
 
-- Onset to first page: **5m45s**. Services on the page: **one**, checkout, which was not at fault.
+- Onset to first page: **5m16s**. Services on the page: **one**, checkout, which was not at fault.
   By the fix: **one**.
 - Alerts that fired only during recovery: **none**.
 - Did the loudest service turn out to be the culprit? **No.** Checkout paged on its calls to cart.
-  Cart, where the flag acts, stayed under the line at 4.5%.
+  Cart, where the flag acts, stayed under the line at 4.3%.
 - Would the page alone have led you to the right service? **No, but the traces do in one step.**
   Checkout's error traces all fail at the same call, `EmptyCart`, and nowhere else.
 - **An error ratio can rise while nothing fails for the user.** Checkout's orders all went through.

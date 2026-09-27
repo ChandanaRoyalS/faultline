@@ -1,17 +1,83 @@
----
-origin: scenario:v2-ad-bad-image-tag
-split: dev
-fault_class: bad_deploy
-recorded_from: 2026-09-27T07:09:40+00:00
-capability: cap:d2b243e0
-onset_to_page: 5m17s
-page_to_fix: 5m00s
-fix_to_all_clear: 4m01s
----
-
 # Ad deployed on an image tag that was never published
 
-## What was observed
+## The scenario
+
+| | |
+|---|---|
+| scenario | `v2-ad-bad-image-tag` |
+| fault class | **`bad_deploy`** |
+| expected remediation | `rollback` |
+| split | `dev` |
+| injected at | `ad` via `v2-ad-bad-image-tag` |
+| time to page | 5m17s |
+| steady state captured | 300s |
+| capture window | 2026-09-27T07:04:40+00:00 → 2026-09-27T07:25:58+00:00 |
+
+The clock below runs from the moment the fault went in.
+
+| | |
+|---|---|
+| `t_inject` | T+0m00s |
+| first alert firing | T+5m17s |
+| `t_revert` | T+10m17s |
+| all clear | T+14m18s |
+
+## What fired, and when
+
+| when | service | alert | firing for | |
+|---|---|---|---:|---|
+| T+5m00s | `frontend` | ServiceHighErrorRate | 9.0 min | **paged** |
+| T+5m00s | `frontend-proxy` | ServiceHighErrorRate | 9.0 min | **paged** |
+| T+6m00s | `load-generator` | ServiceHighErrorRate | 1.0 min | joined later |
+| T+8m00s | `ad` | ServiceNoTraffic | 4.0 min | joined later |
+
+## What the bundle contains
+
+| capture | query |
+|---|---|
+| `metrics/alerts-firing.json` | `ALERTS{alertstate="firing"}` |
+| `metrics/call-rate.json` | `sum by(service_name) (rate(traces_span_metrics_calls_total[5m]))` |
+| `metrics/error-ratio.json` | `sum by(service_name) (rate(traces_span_metrics_calls_total{status_code="STATUS_CODE_ERROR"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total[5m]))` |
+| `metrics/latency-p95.json` | `histogram_quantile(0.95, sum by(service_name, le) (rate(traces_span_metrics_duration_milliseconds_bucket{span_kind!="SPAN_KIND_INTERNAL"}[5m])))` |
+| `metrics/runtime.json` | `{__name__=~"go_.*|dotnet_.*|jvm_.*|process_.*|v8js_.*|nodejs_.*",service_name="ad"}` |
+
+`logs/ad.txt` — 181 lines.
+
+## A look at the logs
+
+From `logs/ad.txt` (---- onset 2026-09-27T07:09:40+00:00 ----):
+
+```
+2026-09-27T07:06:27+00:00  2026-09-27 07:06:27 - oteldemo.AdService - no baggage found in context trace_id=b127c5731a730f7788ba4880cd5247f8 span_id=6625fd8f83b231d3 trace_flags=01
+2026-09-27T07:06:27+00:00  2026-09-27 07:06:27 - oteldemo.AdService - Targeted ad request received for [books] trace_id=b127c5731a730f7788ba4880cd5247f8 span_id=6625fd8f83b231d3 trace_flags=01
+2026-09-27T07:06:31+00:00  2026-09-27 07:06:31 - oteldemo.AdService - no baggage found in context trace_id=e42134ac496acff057ad8ababe516f1e span_id=ac4d3f7722fe4873 trace_flags=01
+2026-09-27T07:06:31+00:00  2026-09-27 07:06:31 - oteldemo.AdService - Targeted ad request received for [binoculars] trace_id=e42134ac496acff057ad8ababe516f1e span_id=ac4d3f7722fe4873 trace_flags=01
+2026-09-27T07:06:33+00:00  2026-09-27 07:06:33 - oteldemo.AdService - no baggage found in context trace_id=26eb5096f1dc140ecd5377d372dff004 span_id=373457e517ff506f trace_flags=01
+2026-09-27T07:06:33+00:00  2026-09-27 07:06:33 - oteldemo.AdService - Targeted ad request received for [books] trace_id=26eb5096f1dc140ecd5377d372dff004 span_id=373457e517ff506f trace_flags=01
+2026-09-27T07:06:39+00:00  2026-09-27 07:06:39 - oteldemo.AdService - no baggage found in context trace_id=f39c3581d8e2976a3f68d2aacfa0bf93 span_id=8a2e603853982a30 trace_flags=01
+2026-09-27T07:06:39+00:00  2026-09-27 07:06:39 - oteldemo.AdService - Targeted ad request received for [accessories] trace_id=f39c3581d8e2976a3f68d2aacfa0bf93 span_id=8a2e603853982a30 trace_flags=01
+2026-09-27T07:06:50+00:00  2026-09-27 07:06:50 - oteldemo.AdService - no baggage found in context trace_id=56ca3248ec3378c63859d2dbd82bf63b span_id=84267f3ebae41a1d trace_flags=01
+2026-09-27T07:06:50+00:00  2026-09-27 07:06:50 - oteldemo.AdService - Targeted ad request received for [accessories] trace_id=56ca3248ec3378c63859d2dbd82bf63b span_id=84267f3ebae41a1d trace_flags=01
+2026-09-27T07:06:51+00:00  2026-09-27 07:06:51 - oteldemo.AdService - no baggage found in context trace_id=4364b36d22e02bba8413fb98c6badbf4 span_id=8b0d5c9cc3c9cb05 trace_flags=01
+2026-09-27T07:06:51+00:00  2026-09-27 07:06:51 - oteldemo.AdService - Targeted ad request received for [travel] trace_id=4364b36d22e02bba8413fb98c6badbf4 span_id=8b0d5c9cc3c9cb05 trace_flags=01
+```
+
+_160 further lines are in the bundle._
+
+## The incident record
+
+Written from the responder's chair, by someone who did not know the fault class
+or that anything had been injected. This text is also corpus material, which is
+why it never names the injector.
+
+**It keeps its own clock.** The table above is measured from the injection, which
+is the only origin the manifest records; a narrative's `T+` offsets are the
+responder's own and start wherever that responder started counting — usually the
+page, sometimes the injection, sometimes an event in the logs. The same moment can
+therefore carry two different offsets on this page. The absolute timestamps in the
+bundle are the tiebreak.
+
+### What was observed
 
 The page was two alerts in the same moment, `ServiceHighErrorRate` on **frontend** and
 **frontend-proxy**, 5m17s after the trouble started. The service the failures would turn out to
@@ -30,7 +96,7 @@ About three minutes after the page, `ServiceNoTraffic` fired on **ad**. Ad had r
 of its own; its traffic had simply run out. Four alerts on four services by the fix, and none after
 it.
 
-## What was checked
+### What was checked
 
 **The page names callers.** Frontend-proxy forwards what the frontend returns, and the load
 generator is the synthetic shoppers counting their own failures. The frontend was the one service
@@ -66,7 +132,7 @@ routine timeout. None came near a line, and it had begun before the trouble did.
 one ever ran: the registry has no such tag, so there was nothing to start. Nothing else had changed
 on ad or on the frontend.
 
-## Root cause
+### Root cause
 
 A deploy moved ad to an image tag, `2.2.0-ad-hotfix.2`, that was never published. The running
 container was stopped to make way for it and the replacement could not be pulled, so ad was absent
@@ -74,7 +140,7 @@ rather than unhealthy: nothing answered the storefront's ad requests, and the fr
 failed with them. Ad sits off the order path, so browsing, carts and orders went on untouched.
 Nothing was wrong with the frontend or with anything else.
 
-## Resolution
+### Resolution
 
 Ad was rolled back to the published `2.2.0-ad` image. Its JVM was starting a second after the fix
 and listening on its port two seconds later, and it served its first ad request about a minute
@@ -86,7 +152,7 @@ recovery.
 Class of fix: **rollback**. A deploy was wrong and it was undone. Restarting ad would have found
 nothing to restart, and nothing about its configuration needed to change.
 
-## Detection notes
+### Detection notes
 
 - Onset to first page: **5m17s**. Services on the page: **two**, neither of them ad. By the fix:
   **four**, ad among them.
@@ -105,3 +171,7 @@ nothing to restart, and nothing about its configuration needed to change.
   and a change at that moment says why.
 - **Runtime series that stop do not stop at once.** They held their last values for five minutes
   before vanishing. Flat and then gone is a process that ended, not one that is idle.
+
+---
+
+Rendered from [`evals/scenarios/artifacts/dev/v2-ad-bad-image-tag/`](../../evals/scenarios/artifacts/dev/v2-ad-bad-image-tag/) by `faultline-render`. [All bundles](README.md).

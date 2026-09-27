@@ -24,22 +24,27 @@ ground_truth:
   category: bad_config
 expected_evidence:
   # From v1's payment-telemetry-blackout (dev-only, T7.36), checked against this scenario's bundle
-  # as re-recorded 2026-09-26 on Tempo 2.6.1 (Q102, Q104; revert at +13:20; two earlier
-  # recordings in superseded/) and read-backs of its window. Dev-only evidence.
+  # as re-recorded on the revised world on 2026-09-27 (raised memory limits; t_inject
+  # 2026-09-27T02:55:27+00:00, revert at +12:20; three earlier recordings in superseded/) and the
+  # live read-back of its window. Dev-only evidence.
   - alerts: ServiceNoTraffic on payment and nothing else, during the fault or after the fix; no
-      error-rate or latency alert anywhere (bundle page 8m20s, v1 +5:19), the traffic series
-      reaching zero at ~+5:00 and the alert's 3m hold after it
-  - metrics: checkout's error ratio stays at zero and its rate and latency, frontend's, and those
-      of email, accounting and fraud-detection (which only see paid orders) do not move
+      error-rate or latency alert anywhere (bundle +7:15 first seen, page 7m20s, v1 +5:19), the
+      traffic series reaching zero at ~+4:15 and the alert's 3m hold after it; clear 1m05s after
+      the fix
+  - metrics: checkout's rate and latency, frontend's, and those of email, accounting and
+      fraud-detection (which only see paid orders) do not move; checkout's error ratio reads zero
+      except a ~1.4 % bump from +2:00 to +5:00 (frontend 0.4 %) from a handful of errors in the
+      first minute, around payment's recreate, that does not recur
   - logs: payment keeps logging its charges throughout - `Charge request received.` and
-      `Transaction complete.`, 4-11 a minute through the fault against 6-13 before it (Loki
-      count_over_time); each record is a ~40-line structured object, so the bundle's split capture
-      holds the first minute after onset, including `payment gRPC server started`
+      `Transaction complete.`, 96 charges during the fault, up to 12 a minute, against 50 in the
+      five minutes before and 49 after (Loki count_over_time); each record is a ~40-line structured
+      object, so the bundle's split capture holds the first minute after onset, including `payment
+      gRPC server started` 6 s after the change (2 such lines in the fault - onset and revert)
   - metrics: payment's own runtime series (Node's nodejs_eventloop_* and v8js_gc_*, 75 series by
       service_name) report without a gap through the fault, because only the traces endpoint moved
-  - traces: every checkout trace in the window has a `checkout/oteldemo.PaymentService/Charge` span
-      of 2-3 ms, not an error, with its whole duration as self-time and no payment span beneath
-      it; payment's own traces for the window return nothing
+  - traces: checkout's error traces from +1:00 to the revert return nothing - its
+      `checkout/oteldemo.PaymentService/Charge` calls succeed; payment's own spans are absent for
+      the window, so its span-derived rate reads exactly zero while checkout's calls continue
   - change: OTEL_EXPORTER_OTLP_TRACES_ENDPOINT on payment changed to a dead address, coinciding
       with onset - the only class that names the change itself
   - discriminator: a payment that was down or frozen would stop its logs and its runtime series
@@ -51,4 +56,6 @@ alert_timeout_seconds: 900
 # v1 fired at +5:19: the 3m rate window has to drain before the 3m for clause starts.
 # Declared before recording, checked against the bundle after (T7.5): on v2 payment's runtime
 # series travel on the metrics exporter, which this fault leaves alone, and it logs every charge.
+# The 2026-09-27 re-recording captured 75 runtime series and 500 target log lines and derived
+# the same [runtime, logs].
 answers_idle_or_absent: [runtime, logs]
