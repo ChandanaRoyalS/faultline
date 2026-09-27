@@ -407,6 +407,7 @@ def test_the_v2_old_mechanism_definitions_carry_v2_values_not_v1s() -> None:
         "v2-cart-valkey-misconfig",
         "v2-cart-bad-image-tag",
         "v2-shipping-wrong-image",
+        "v2-ad-bad-image-tag",
         "v2-ad-memory-squeeze",
         "v2-cart-dependency-latency",
     }
@@ -451,6 +452,11 @@ def test_the_v2_old_mechanism_definitions_carry_v2_values_not_v1s() -> None:
         "v2's own ad image, which exists: the deploy succeeds and the JVM cannot run in "
         "shipping's 20M slot"
     )
+    ad_tag = v2_old["v2-ad-bad-image-tag"].params
+    assert ad_tag == {
+        "image": "ghcr.io/open-telemetry/demo:2.2.0-ad-hotfix.2",
+        "expect_start": "no",
+    }
 
 
 def test_the_v2_flag_definitions_name_the_demo_flag_and_the_service_that_reads_it() -> None:
