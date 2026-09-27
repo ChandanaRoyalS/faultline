@@ -6,13 +6,13 @@
     {
       "alert": "ServiceHighLatency",
       "began_after_revert": false,
-      "first_seen": "2026-09-27T20:27:39+00:00",
-      "last_seen": "2026-09-27T20:28:24+00:00",
-      "minutes_firing": 1.0,
+      "first_seen": "2026-09-27T19:59:45+00:00",
+      "last_seen": "2026-09-27T20:01:30+00:00",
+      "minutes_firing": 2.0,
       "service": "payment"
     }
   ],
-  "baseline_clear_at": "2026-09-27T20:17:54+00:00",
+  "baseline_clear_at": "2026-09-27T19:50:45+00:00",
   "bundle_schema_version": 2,
   "capture_set": 2,
   "expected_remediation_class": "config_revert",
@@ -38,23 +38,23 @@
   "recorded_by": "evalharness.rehearse",
   "recorder": {
     "git_dirty": true,
-    "git_sha": "cf7ffa548a53db95edecf9009ee8044ab8be29a0",
+    "git_sha": "62d843031169c5f27e4a11709a401ade95d0d5ce",
     "tool": "evalharness.rehearse"
   },
-  "scenario_fingerprint": "ad6828e78ffc86d82d9be900e7bf8dced908d70b41a02b5c457569c5fe7aeb30",
+  "scenario_fingerprint": "48c0c6f318e26cda9158c26f79ebf4afdbfc2b2b2f64fc2fcee0c0ea122111d5",
   "scenario_id": "v2-payment-memory-squeeze",
   "seconds_of_steady_state": 300,
-  "seconds_to_alert": 586,
+  "seconds_to_alert": 541,
   "seconds_to_settle": 0,
   "split": "dev",
-  "t_alert_firing": "2026-09-27T20:27:40+00:00",
-  "t_clear": "2026-09-27T20:32:40+00:00",
-  "t_inject": "2026-09-27T20:17:54+00:00",
-  "t_revert": "2026-09-27T20:32:40+00:00",
+  "t_alert_firing": "2026-09-27T19:59:46+00:00",
+  "t_clear": "2026-09-27T20:04:46+00:00",
+  "t_inject": "2026-09-27T19:50:45+00:00",
+  "t_revert": "2026-09-27T20:04:46+00:00",
   "title": "Payment service memory limit cut to what its runtime can barely run in",
   "window": {
-    "end": "2026-09-27T20:34:40+00:00",
-    "start": "2026-09-27T20:12:54+00:00"
+    "end": "2026-09-27T20:06:46+00:00",
+    "start": "2026-09-27T19:45:45+00:00"
   },
   "world": {
     "compose_digest": "5a2bc6d912f922a03874ab2824d9362541362386fbcab7e0c2f99aa760f567df",
@@ -79,9 +79,9 @@
   "world_lock": {
     "acquired": true,
     "host": "chandanas-MacBook-Air.local",
-    "pid": 32892,
+    "pid": 30165,
     "reason": "rehearse v2-payment-memory-squeeze",
-    "since": "2026-09-27T20:17:48.784710+00:00",
-    "token": "32892-1790540268.784424"
+    "since": "2026-09-27T19:50:39.626121+00:00",
+    "token": "30165-1790538639.625847"
   }
 }
