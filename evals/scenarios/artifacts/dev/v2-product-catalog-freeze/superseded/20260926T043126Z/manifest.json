@@ -1,171 +1,173 @@
 {
   "alerts_at_fire": [
     "ServiceHighErrorRate/load-generator",
-    "ServiceHighErrorRate/frontend-proxy"
+    "ServiceHighErrorRate/frontend-proxy",
+    "ServiceHighLatency/frontend-proxy",
+    "ServiceHighLatency/load-generator"
   ],
   "alerts_over_window": [
     {
       "alert": "ServiceHighErrorRate",
       "began_after_revert": false,
-      "first_seen": "2026-09-27T02:19:42+00:00",
-      "last_seen": "2026-09-27T02:27:27+00:00",
-      "minutes_firing": 8.0,
+      "first_seen": "2026-09-26T04:36:11+00:00",
+      "last_seen": "2026-09-26T04:44:56+00:00",
+      "minutes_firing": 9.0,
       "service": "frontend-proxy"
     },
     {
       "alert": "ServiceHighErrorRate",
       "began_after_revert": false,
-      "first_seen": "2026-09-27T02:19:42+00:00",
-      "last_seen": "2026-09-27T02:28:27+00:00",
+      "first_seen": "2026-09-26T04:36:11+00:00",
+      "last_seen": "2026-09-26T04:44:56+00:00",
       "minutes_firing": 9.0,
       "service": "load-generator"
     },
     {
-      "alert": "ServiceHighErrorRate",
-      "began_after_revert": false,
-      "first_seen": "2026-09-27T02:20:42+00:00",
-      "last_seen": "2026-09-27T02:22:27+00:00",
-      "minutes_firing": 2.0,
-      "service": "fraud-detection"
-    },
-    {
       "alert": "ServiceHighLatency",
       "began_after_revert": false,
-      "first_seen": "2026-09-27T02:20:42+00:00",
-      "last_seen": "2026-09-27T02:28:27+00:00",
-      "minutes_firing": 8.0,
+      "first_seen": "2026-09-26T04:36:11+00:00",
+      "last_seen": "2026-09-26T04:44:56+00:00",
+      "minutes_firing": 9.0,
       "service": "frontend-proxy"
     },
     {
       "alert": "ServiceHighLatency",
       "began_after_revert": false,
-      "first_seen": "2026-09-27T02:20:42+00:00",
-      "last_seen": "2026-09-27T02:28:27+00:00",
-      "minutes_firing": 8.0,
+      "first_seen": "2026-09-26T04:36:11+00:00",
+      "last_seen": "2026-09-26T04:44:56+00:00",
+      "minutes_firing": 9.0,
       "service": "load-generator"
     },
     {
-      "alert": "ServiceHighErrorRate",
-      "began_after_revert": false,
-      "first_seen": "2026-09-27T02:21:42+00:00",
-      "last_seen": "2026-09-27T02:22:27+00:00",
-      "minutes_firing": 1.0,
-      "service": "recommendation"
-    },
-    {
       "alert": "ServiceHighLatency",
       "began_after_revert": false,
-      "first_seen": "2026-09-27T02:21:42+00:00",
-      "last_seen": "2026-09-27T02:22:27+00:00",
-      "minutes_firing": 1.0,
-      "service": "flagd"
-    },
-    {
-      "alert": "ServiceHighLatency",
-      "began_after_revert": false,
-      "first_seen": "2026-09-27T02:21:42+00:00",
-      "last_seen": "2026-09-27T02:22:27+00:00",
-      "minutes_firing": 1.0,
-      "service": "fraud-detection"
-    },
-    {
-      "alert": "ServiceHighLatency",
-      "began_after_revert": false,
-      "first_seen": "2026-09-27T02:21:42+00:00",
-      "last_seen": "2026-09-27T02:29:27+00:00",
-      "minutes_firing": 8.0,
+      "first_seen": "2026-09-26T04:37:11+00:00",
+      "last_seen": "2026-09-26T04:45:56+00:00",
+      "minutes_firing": 9.0,
       "service": "frontend"
     },
     {
       "alert": "ServiceNoTraffic",
       "began_after_revert": false,
-      "first_seen": "2026-09-27T02:23:42+00:00",
-      "last_seen": "2026-09-27T02:25:27+00:00",
-      "minutes_firing": 2.0,
+      "first_seen": "2026-09-26T04:39:11+00:00",
+      "last_seen": "2026-09-26T04:41:56+00:00",
+      "minutes_firing": 3.0,
       "service": "accounting"
     },
     {
       "alert": "ServiceNoTraffic",
       "began_after_revert": false,
-      "first_seen": "2026-09-27T02:23:42+00:00",
-      "last_seen": "2026-09-27T02:25:27+00:00",
-      "minutes_firing": 2.0,
+      "first_seen": "2026-09-26T04:39:11+00:00",
+      "last_seen": "2026-09-26T04:41:56+00:00",
+      "minutes_firing": 3.0,
       "service": "currency"
     },
     {
       "alert": "ServiceNoTraffic",
       "began_after_revert": false,
-      "first_seen": "2026-09-27T02:23:42+00:00",
-      "last_seen": "2026-09-27T02:25:27+00:00",
-      "minutes_firing": 2.0,
+      "first_seen": "2026-09-26T04:39:11+00:00",
+      "last_seen": "2026-09-26T04:41:56+00:00",
+      "minutes_firing": 3.0,
       "service": "email"
     },
     {
       "alert": "ServiceNoTraffic",
       "began_after_revert": false,
-      "first_seen": "2026-09-27T02:23:42+00:00",
-      "last_seen": "2026-09-27T02:25:27+00:00",
-      "minutes_firing": 2.0,
+      "first_seen": "2026-09-26T04:39:11+00:00",
+      "last_seen": "2026-09-26T04:39:56+00:00",
+      "minutes_firing": 1.0,
+      "service": "fraud-detection"
+    },
+    {
+      "alert": "ServiceNoTraffic",
+      "began_after_revert": false,
+      "first_seen": "2026-09-26T04:39:11+00:00",
+      "last_seen": "2026-09-26T04:41:56+00:00",
+      "minutes_firing": 3.0,
       "service": "payment"
     },
     {
       "alert": "ServiceNoTraffic",
       "began_after_revert": false,
-      "first_seen": "2026-09-27T02:23:42+00:00",
-      "last_seen": "2026-09-27T02:25:27+00:00",
-      "minutes_firing": 2.0,
+      "first_seen": "2026-09-26T04:39:11+00:00",
+      "last_seen": "2026-09-26T04:41:56+00:00",
+      "minutes_firing": 3.0,
       "service": "product-catalog"
     },
     {
       "alert": "ServiceNoTraffic",
       "began_after_revert": false,
-      "first_seen": "2026-09-27T02:23:42+00:00",
-      "last_seen": "2026-09-27T02:25:27+00:00",
-      "minutes_firing": 2.0,
+      "first_seen": "2026-09-26T04:39:11+00:00",
+      "last_seen": "2026-09-26T04:41:56+00:00",
+      "minutes_firing": 3.0,
       "service": "quote"
     },
     {
       "alert": "ServiceNoTraffic",
       "began_after_revert": false,
-      "first_seen": "2026-09-27T02:23:42+00:00",
-      "last_seen": "2026-09-27T02:25:27+00:00",
+      "first_seen": "2026-09-26T04:39:11+00:00",
+      "last_seen": "2026-09-26T04:40:56+00:00",
       "minutes_firing": 2.0,
+      "service": "recommendation"
+    },
+    {
+      "alert": "ServiceNoTraffic",
+      "began_after_revert": false,
+      "first_seen": "2026-09-26T04:39:11+00:00",
+      "last_seen": "2026-09-26T04:41:56+00:00",
+      "minutes_firing": 3.0,
       "service": "shipping"
     },
     {
       "alert": "ServiceHighErrorRate",
       "began_after_revert": true,
-      "first_seen": "2026-09-27T02:27:42+00:00",
-      "last_seen": "2026-09-27T02:29:27+00:00",
+      "first_seen": "2026-09-26T04:44:11+00:00",
+      "last_seen": "2026-09-26T04:45:56+00:00",
+      "minutes_firing": 2.0,
+      "service": "checkout"
+    },
+    {
+      "alert": "ServiceHighErrorRate",
+      "began_after_revert": true,
+      "first_seen": "2026-09-26T04:44:11+00:00",
+      "last_seen": "2026-09-26T04:45:56+00:00",
       "minutes_firing": 2.0,
       "service": "frontend"
     },
     {
+      "alert": "ServiceHighErrorRate",
+      "began_after_revert": true,
+      "first_seen": "2026-09-26T04:44:11+00:00",
+      "last_seen": "2026-09-26T04:45:56+00:00",
+      "minutes_firing": 2.0,
+      "service": "product-catalog"
+    },
+    {
       "alert": "ServiceHighLatency",
       "began_after_revert": true,
-      "first_seen": "2026-09-27T02:28:42+00:00",
-      "last_seen": "2026-09-27T02:29:27+00:00",
+      "first_seen": "2026-09-26T04:44:11+00:00",
+      "last_seen": "2026-09-26T04:45:56+00:00",
+      "minutes_firing": 2.0,
+      "service": "recommendation"
+    },
+    {
+      "alert": "ServiceHighLatency",
+      "began_after_revert": true,
+      "first_seen": "2026-09-26T04:45:11+00:00",
+      "last_seen": "2026-09-26T04:45:56+00:00",
       "minutes_firing": 1.0,
       "service": "checkout"
     },
     {
       "alert": "ServiceHighLatency",
       "began_after_revert": true,
-      "first_seen": "2026-09-27T02:28:42+00:00",
-      "last_seen": "2026-09-27T02:29:27+00:00",
+      "first_seen": "2026-09-26T04:45:11+00:00",
+      "last_seen": "2026-09-26T04:45:56+00:00",
       "minutes_firing": 1.0,
       "service": "product-catalog"
-    },
-    {
-      "alert": "ServiceHighLatency",
-      "began_after_revert": true,
-      "first_seen": "2026-09-27T02:28:42+00:00",
-      "last_seen": "2026-09-27T02:29:27+00:00",
-      "minutes_firing": 1.0,
-      "service": "recommendation"
     }
   ],
-  "baseline_clear_at": "2026-09-27T02:15:42+00:00",
+  "baseline_clear_at": "2026-09-26T04:31:26+00:00",
   "bundle_schema_version": 2,
   "capture_set": 2,
   "expected_remediation_class": "restart",
@@ -188,26 +190,26 @@
   "recorded_by": "evalharness.rehearse",
   "recorder": {
     "git_dirty": true,
-    "git_sha": "5a2f3fbfd6508d28a16d5a2531c4028b48b045b0",
+    "git_sha": "ba483897581b7d95e15d2dda461916201c335877",
     "tool": "evalharness.rehearse"
   },
   "scenario_fingerprint": "e06fbcc0bfa1b069c70a829a048d4892337b45bbff12f528218dbfffe5992220",
   "scenario_id": "v2-product-catalog-freeze",
   "seconds_of_steady_state": 300,
-  "seconds_to_alert": 255,
-  "seconds_to_settle": 301,
+  "seconds_to_alert": 301,
+  "seconds_to_settle": 300,
   "split": "dev",
-  "t_alert_firing": "2026-09-27T02:19:57+00:00",
-  "t_clear": "2026-09-27T02:29:58+00:00",
-  "t_inject": "2026-09-27T02:15:42+00:00",
-  "t_revert": "2026-09-27T02:24:57+00:00",
+  "t_alert_firing": "2026-09-26T04:36:27+00:00",
+  "t_clear": "2026-09-26T04:46:27+00:00",
+  "t_inject": "2026-09-26T04:31:26+00:00",
+  "t_revert": "2026-09-26T04:41:27+00:00",
   "title": "The product catalog process is frozen - its socket accepts and nothing answers",
   "window": {
-    "end": "2026-09-27T02:31:58+00:00",
-    "start": "2026-09-27T02:10:42+00:00"
+    "end": "2026-09-26T04:48:27+00:00",
+    "start": "2026-09-26T04:26:26+00:00"
   },
   "world": {
-    "compose_digest": "5a2bc6d912f922a03874ab2824d9362541362386fbcab7e0c2f99aa760f567df",
+    "compose_digest": "ae2fd2a20b5112e42d9606e123157365ce496effa1eb974e357f0430588222ff",
     "docker_arch": "arm64",
     "ffs_stub_image_id": "sha256:90f2fc6f5806a8914ef2740ff7c6348a1ddd4225bccc8f3398e58d03b3c1a512",
     "ffs_stub_source_digest": null,
@@ -229,9 +231,9 @@
   "world_lock": {
     "acquired": true,
     "host": "chandanas-MacBook-Air.local",
-    "pid": 459,
+    "pid": 70399,
     "reason": "rehearse v2-product-catalog-freeze",
-    "since": "2026-09-27T02:15:36.589100+00:00",
-    "token": "459-1790475336.588682"
+    "since": "2026-09-26T04:31:21.895650+00:00",
+    "token": "70399-1790397081.895295"
   }
 }
