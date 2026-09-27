@@ -410,6 +410,7 @@ def test_the_v2_old_mechanism_definitions_carry_v2_values_not_v1s() -> None:
         "v2-ad-bad-image-tag",
         "v2-email-wrong-image",
         "v2-ad-memory-squeeze",
+        "v2-fraud-detection-memory-squeeze",
         "v2-cart-dependency-latency",
         "v2-valkey-cart-dependency-latency",
         "v2-payment-dependency-latency",
@@ -488,6 +489,11 @@ def test_the_v2_old_mechanism_definitions_carry_v2_values_not_v1s() -> None:
         "the JVM's own committed memory at its eight-hour high, rounded down to 16 MiB, measured "
         "2026-09-27: under the working set so the running JVM dies at once, and with nothing "
         "left for what the process holds outside the JVM, so a restarted one cannot settle in"
+    )
+    squeeze_fd = v2_old["v2-fraud-detection-memory-squeeze"].params
+    assert squeeze_fd == {"memory": "160m"}, (
+        "the same rule as ad's, measured 2026-09-27 under the revised 500M limit: committed "
+        "168.1 MiB at the eight-hour high, rounded down to 16 MiB"
     )
 
 

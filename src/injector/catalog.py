@@ -859,6 +859,25 @@ CATALOG: tuple[FaultDefinition, ...] = _validated(
             params={"memory": "144m"},
         ),
         FaultDefinition(
+            id="v2-fraud-detection-memory-squeeze",
+            fault_class=FaultClass.RESOURCE_EXHAUSTION,
+            target="fraud-detection",
+            world="v2",
+            description=(
+                "Shrink fraud-detection's memory limit below what its JVM needs to run (v1's "
+                "frauddetection-memory-squeeze). It consumes from Kafka and nothing calls it, so "
+                "it dies without the storefront noticing - the smallest page there is."
+            ),
+            # Measured 2026-09-27 before authoring, from its own JVM series, under the 500M limit
+            # the world revision gave it: 256 MiB in docker stats; heap ceiling 121.8 MiB (the
+            # same figure as ad's against 300M - the JVM's own setting, not a share of the limit),
+            # heap used 51, non-heap 100, committed 168.1 at its eight-hour high; about 88 MiB
+            # held outside the JVM. The row's rule, applied once: the JVM's committed memory at
+            # its eight-hour high rounded down to 16 MiB - 62 % of the working set, so the running
+            # JVM dies at once, and under the ~190 MiB a restarted one needs before it can serve.
+            params={"memory": "160m"},
+        ),
+        FaultDefinition(
             id="v2-cart-dependency-latency",
             fault_class=FaultClass.DEPENDENCY_LATENCY,
             target="cart",
