@@ -4617,6 +4617,39 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-09-27: the twenty-fifth v2 scenario, `v2-recommendation-memory-squeeze`, rehearsed and
+labeled - slot `v2/resource_exhaustion-4` (holdout), first recording. The `resource_exhaustion`
+row is full.***
+
+- **The value, by the cold rule, and checked under it.** A fresh interpreter listens at +1.3 s
+  holding 37.1 and 39.0 MiB the kernel cannot reclaim; `16 x (ceil(need / 16) - 2)` gave 16m.
+  Before recording, the same throwaway container under `--memory 16m`: killed 0.3 s after
+  starting, exit 137, OOMKilled, no socket, both runs. The first squeeze on this world whose
+  prediction was tested before the recorder was.
+- **The page, and every prediction held.** `ServiceHighErrorRate` on the frontend and
+  frontend-proxy together at 5m16s, computed beforehand from the error rule's own arithmetic (four
+  frontend spans and two proxy spans per failed request, 6 to 10 % of their span rates), then
+  `ServiceNoTraffic` on recommendation at +8:15; three alerts, none after the fix; no latency
+  anywhere; 91 orders completed; the load generator at half the ratio and under the line; all
+  clear 3m00s after the fix. Recommendation's log stopped 0.6 s before onset and showed nothing
+  for eleven minutes; its series were gone from +5; the probe sampled `exit=137 oom=true` in
+  315 of 413 samples, restart count 0 to 19.
+- **Not predicted, and taught.** The frontend's connection attempts under the failed call read the
+  container's state from outside - refused, unreachable, unresolved. The start-up line does
+  appear, once, 48 s after the fix. Recovery waited 47 s on the restart policy's backoff.
+- **Holdout.** The bundle is under `artifacts/holdout/`, pinned in `tests/test_freeze.py`'s holdout
+  origins, and in no corpus. Distinct from row 2 on (a), from row 1 on (c), from the dev reserve
+  on (a), (c) and (d).
+- **The row, closed: four squeezes, four runtimes, three shapes and one block.** A JVM that
+  cannot start (storefront errors, then no-traffic on ad); a JVM nobody calls (one silent alert);
+  a Node process that fits and runs slow (one latency alert on itself); an interpreter that
+  cannot start (callers' errors, then no-traffic); and .NET, which fit and came back too fast to
+  page. The rule that held is the cold measurement taken under the candidate limit. 26 of 44
+  slots filled; `bad_config`, `feature_flag`, `bad_deploy`, `dependency_latency` and
+  `resource_exhaustion` are complete.
+- **Next: `process_freeze`**, two dev slots and the holdout after `v2-product-catalog-freeze`, in
+  the candidate list's order: `v2-cart-freeze`, `v2-currency-freeze`, then `v2-payment-freeze`.
+
 ***2026-09-27: the twenty-fourth v2 scenario, `v2-payment-memory-squeeze`, rehearsed and labeled -
 slot `v2/resource_exhaustion-3` (dev), third recording. A starvation that pages by latency.***
 

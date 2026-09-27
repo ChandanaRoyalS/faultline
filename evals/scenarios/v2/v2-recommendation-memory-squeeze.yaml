@@ -31,59 +31,65 @@ ground_truth:
     configuration changed; restoring the limit fixes it.
   category: resource_exhaustion
 expected_evidence:
-  # Carried from v1's holdout design, the limit re-measured on a cold process; predicted before
-  # recording and to be checked against the bundle. Measured at rest (2026-09-27): recommendation
-  # at 46 MiB (46.1 to 47.9 over eight hours) of 500M; the frontend its only caller, at 0.21
-  # requests a second; the error rule counts every span, and a failed recommendation request
-  # errors four frontend spans (the request, the route, the api route, the gRPC client) and two
-  # frontend-proxy spans, which against their whole span rates is about 7.5 % and 7.7 % - over the
-  # 5 % line, narrowly - and one load-generator span, 4.3 %, under it. v1's page was the frontend
-  # and the load generator at 3m45s, then no-traffic on the target at +6:00.
-  - alerts: ServiceHighErrorRate on the frontend and frontend-proxy, five to six minutes in
-      (the five-minute ratio crossing 5 % after about three and a half minutes, then the two-minute
-      hold), the frontend first or both together; ServiceNoTraffic on recommendation about eight
-      minutes in, as its window drains; the load generator rising to about 4 % and staying under
-      the line; nothing on the order path; the flag readers' routine stream reconnect possible
-      and not a page
-  - metrics: recommendation's call rate falls from 0.2 a second to nothing by +5 with no error
-      ratio of its own, and from then its error ratio and p95 have no value; the frontend's error
-      ratio climbs through 5 % to about 7 to 8 %, frontend-proxy's the same, the load generator's
-      to about 4 %; product-catalog's rate falls by the four lookups each recommendation used to
-      make; no latency moves anywhere, a refused connection costing nothing; checkout, cart and
-      payment hold their rates
-  - traces: every frontend error trace is a `user_get_recommendations` request ending at
-      frontend/grpc.oteldemo.RecommendationService/ListRecommendations with no recommendation
-      span beneath and no catalog lookups after it - the frontend's own attempts show a name
-      that resolves to nothing or a connection refused at recommendation's address; not one
+  # Carried from v1's holdout design, the limit re-measured on a cold process and checked under
+  # it before recording; predicted before recording and checked against the first recording, on
+  # the revised world, 2026-09-27 (t_inject 20:55:24, revert at +10:16). Every prediction held:
+  # the two storefront error alerts narrowly over the line, the no-traffic alert on the target at
+  # eight, no latency, an empty log, the series gone, the probe sampling exit 137 with OOMKilled
+  # in 315 of 413 samples. Not predicted: the frontend's connection attempts telling the
+  # container's story (refused, unreachable, not resolving), the start-up line appearing once
+  # after the fix (the stdout handler does write it; no process under the fault got that far),
+  # and recovery waiting 47 s on the restart policy's backoff. The list below states the recording.
+  - alerts: ServiceHighErrorRate on the frontend and frontend-proxy together (page 5m16s), then
+      ServiceNoTraffic on recommendation at +8:15 - three alerts by the fix and none after it;
+      the load generator rises to 3 to 5 % and touches the line for a minute without holding it;
+      nothing on the order path, nothing on the catalog; all clear 3m00s after the fix
+  - metrics: recommendation's call rate falls from 0.5 to 0.7 a second through 0.43, 0.28, 0.14
+      and 0.01 to nothing by +5 with no error ratio of its own, and from then its error ratio and
+      p95 have no value; the frontend's error ratio climbs 2.0, 4.9, 6.2, 8.1 % and sits between
+      5.9 and 9.9 % for the rest of the fault, the proxy's a fraction under it, the load
+      generator's about half; product-catalog's rate falls from about 5 a second to about 3 with
+      no errors and its p95 easing; no latency moves anywhere; checkout, payment, shipping and
+      email hold their rates and 91 orders complete
+  - traces: every frontend error trace (129, every recommendation request in the fault) is a
+      `user_get_recommendations` request ending at
+      frontend/grpc.oteldemo.RecommendationService/ListRecommendations with no recommendation span
+      beneath and no catalog lookups after it, failing in about 20 ms; beneath the call the
+      frontend's own attempts - dns.lookup, tcp.connect `ECONNREFUSED` at recommendation's
+      address five times, then `EHOSTUNREACH` at the same address with waits of three, fourteen
+      and thirty-eight seconds, once `getaddrinfo ENOTFOUND recommendation`; not one
       recommendation server span in the fault; checkout has no error trace
-  - logs: recommendation's stream ends at onset and shows nothing until after the fix - no
-      shutdown line, no exception, no start-up banner, because the interpreter is killed while
-      it is still importing and its stdout handler writes nothing a reader sees at start-up in
-      any case; after the fix the first line is an ordinary request; the frontend logs
-      UNAVAILABLE for every recommendation request, about twelve a minute
-  - metrics: recommendation's process series (about twenty `process_*` series - interpreter
-      memory, CPU, threads, garbage collection) hold their last values for the store's lookback
-      and vanish, and no new instance's series appear before the fix - a process killed during
-      import never initialises the SDK that would export them; a merely idle process keeps
-      exporting
-  - container: exit code 137 with OOMKilled set between every kill and the next start, the state
-      `restarting` for most of the fault as the runtime backs off toward one start a minute, the
-      restart count climbing past twenty, the limit at 16m (not agent-visible; the probe samples it)
+  - logs: recommendation's stream ends 0.6 s before onset with an ordinary request line and shows
+      nothing for eleven minutes - no shutdown line, no error, no exception, no start-up banner,
+      the interpreter being killed while it imports - and resumes 48 s after the fix with
+      `Recommendation service started, listening on port 9001` and then requests; the frontend
+      logs `UNAVAILABLE` 131 times, `ECONNREFUSED` 64 and `EHOSTUNREACH` 198 in the fault
+  - metrics: recommendation's 20 `process_*` series (interpreter memory, CPU, threads, garbage
+      collection, file descriptors) hold their last values for the store's lookback and have no
+      value from about +5 until the recovered process's first export after the fix; the SDK
+      carries no instance id, so the same series resume rather than a new set beginning
+  - container: sampled every two seconds - `state=restarting exit=137 oom=true` in 315 of 413
+      samples with the limit at 16m, the restart count 0 to 19, the runtime backing off toward a
+      minute between attempts; the recovered start 47 s after the limit was restored (not
+      agent-visible; the probe samples it)
   - change: a change record at onset - `memory limit lowered on recommendation`, carrying
-      `memory=16m` - and no deploy, no image change, no environment change
+      `memory=16m` - and no deploy, no image change (the same 2.2.0-recommendation before and
+      after), no environment change, no flag
   - discriminator: a service that goes silent with its image unchanged, its log empty rather than
       full of errors, and a change record that is its memory limit, was starved; a bad deploy
-      shows an image in the record and another program's output in the log; a slow catalog
+      shows another program's output in the log and an image in the record; a slow catalog
       (v2-product-catalog-dependency-latency, recommendation on its page too) shows latency with
       the target present, where here there is none and the target is absent; a flag leaves no
-      record and a process that stays up; and the starved runtime that announces each restart
-      (v2-ad-memory-squeeze) is told from this one, which never says a word, by its log
+      record and a process that keeps exporting; and a starved process that still fits
+      (v2-payment-memory-squeeze) shows latency on the target and start-up lines repeating, where
+      here nothing is slow and no start-up line comes until the fix
 expected_remediation_class: config_revert
-rehearsed: false
+rehearsed: true
 alert_timeout_seconds: 900
 # Declared before recording, checked against the bundle after (T7.5). Measured on the running world
-# 2026-09-27: recommendation holds about twenty `process_*` series in the recorder's families and
-# logs 12 to 19 lines a minute. Both are what the fault removes entirely: they answer by going
-# absent. The interpreter is killed before its SDK initialises, so no new instance's series can
-# appear under the fault; the runtime capture will hold the old instance's series only.
+# 2026-09-27: recommendation holds 20 `process_*` series in the recorder's families and logs 12
+# to 19 lines a minute. Both are what the fault removes entirely: they answer by going absent.
+# The first recording (2026-09-27) confirmed both: 20 runtime series (the old process's, and the
+# recovered one's after the fix under the same labels) and 81 target log lines, 27 of them from
+# onset and all of those after the fix; the recorder derived [runtime, logs].
 answers_idle_or_absent: [runtime, logs]

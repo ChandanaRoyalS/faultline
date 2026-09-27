@@ -1,17 +1,82 @@
----
-origin: scenario:v2-recommendation-memory-squeeze
-split: holdout
-fault_class: resource_exhaustion
-recorded_from: 2026-09-27T20:55:24+00:00
-capability: cap:d2b243e0
-onset_to_page: 5m16s
-page_to_fix: 5m00s
-fix_to_all_clear: 3m00s
----
-
 # Recommendation service memory limit cut below what its interpreter needs to start
 
-## What was observed
+## The scenario
+
+| | |
+|---|---|
+| scenario | `v2-recommendation-memory-squeeze` |
+| fault class | **`resource_exhaustion`** |
+| expected remediation | `config_revert` |
+| split | `holdout` |
+| injected at | `recommendation` via `v2-recommendation-memory-squeeze` |
+| time to page | 5m16s |
+| steady state captured | 300s |
+| capture window | 2026-09-27T20:50:24+00:00 → 2026-09-27T21:10:40+00:00 |
+
+The clock below runs from the moment the fault went in.
+
+| | |
+|---|---|
+| `t_inject` | T+0m00s |
+| first alert firing | T+5m16s |
+| `t_revert` | T+10m16s |
+| all clear | T+13m16s |
+
+## What fired, and when
+
+| when | service | alert | firing for | |
+|---|---|---|---:|---|
+| T+5m15s | `frontend` | ServiceHighErrorRate | 8.0 min | **paged** |
+| T+5m15s | `frontend-proxy` | ServiceHighErrorRate | 8.0 min | **paged** |
+| T+8m15s | `recommendation` | ServiceNoTraffic | 4.0 min | joined later |
+
+## What the bundle contains
+
+| capture | query |
+|---|---|
+| `metrics/alerts-firing.json` | `ALERTS{alertstate="firing"}` |
+| `metrics/call-rate.json` | `sum by(service_name) (rate(traces_span_metrics_calls_total[5m]))` |
+| `metrics/error-ratio.json` | `sum by(service_name) (rate(traces_span_metrics_calls_total{status_code="STATUS_CODE_ERROR"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total[5m]))` |
+| `metrics/latency-p95.json` | `histogram_quantile(0.95, sum by(service_name, le) (rate(traces_span_metrics_duration_milliseconds_bucket{span_kind!="SPAN_KIND_INTERNAL"}[5m])))` |
+| `metrics/runtime.json` | `{__name__=~"go_.*|dotnet_.*|jvm_.*|process_.*|v8js_.*|nodejs_.*",service_name="recommendation"}` |
+
+`logs/recommendation.txt` — 90 lines.
+
+## A look at the logs
+
+From `logs/recommendation.txt` (---- onset 2026-09-27T20:55:24+00:00 ----):
+
+```
+2026-09-27T20:50:26+00:00  2026-09-27 20:50:26,053 INFO [main] [recommendation_server.py:47] [trace_id=dcd08b13ae020251b098c4eae57e9879 span_id=ded666bf36e0137e resource.service.name=recommendation trace_sampled=True] - Receive ListRecommendations for product ids:['OLJCESPC7Z', 'LS4PSXUNUM', 'L9ECAV7KIM', '6E92ZMYYFZ', '2ZYFJ3GM2N']
+2026-09-27T20:50:33+00:00  2026-09-27 20:50:33,672 INFO [main] [recommendation_server.py:47] [trace_id=1c79b061975d68127905357b083429be span_id=cf7f0a19e99b919a resource.service.name=recommendation trace_sampled=True] - Receive ListRecommendations for product ids:['66VCHSJNUP', 'L9ECAV7KIM', 'LS4PSXUNUM', 'HQTGWGPNH4', '9SIQT8TOJO']
+2026-09-27T20:50:33+00:00  2026-09-27 20:50:33,758 INFO [main] [recommendation_server.py:47] [trace_id=bf30cc10c838335e6392c5eb8e2bf3f0 span_id=0ddd2bc55a20d0c5 resource.service.name=recommendation trace_sampled=True] - Receive ListRecommendations for product ids:['1YMWWN1N4O', '6E92ZMYYFZ', '9SIQT8TOJO', 'OLJCESPC7Z', 'LS4PSXUNUM']
+2026-09-27T20:50:45+00:00  2026-09-27 20:50:45,621 INFO [main] [recommendation_server.py:47] [trace_id=9f77716b1fc2f48997a5d97f55bfe44c span_id=6ce53a4e42f657ab resource.service.name=recommendation trace_sampled=True] - Receive ListRecommendations for product ids:['OLJCESPC7Z', '66VCHSJNUP', '6E92ZMYYFZ', '9SIQT8TOJO', '0PUK6V6EV0']
+2026-09-27T20:50:53+00:00  2026-09-27 20:50:53,207 INFO [main] [recommendation_server.py:47] [trace_id=1e96aa84d5328a3206b33a7df507d6b4 span_id=620e261f15ca7d96 resource.service.name=recommendation trace_sampled=True] - Receive ListRecommendations for product ids:['1YMWWN1N4O', '2ZYFJ3GM2N', 'HQTGWGPNH4', 'LS4PSXUNUM', '6E92ZMYYFZ']
+2026-09-27T20:50:54+00:00  2026-09-27 20:50:54,985 INFO [main] [recommendation_server.py:47] [trace_id=03a3626c2d12fcd119745fe050a156cc span_id=fd0579a76fab72ce resource.service.name=recommendation trace_sampled=True] - Receive ListRecommendations for product ids:['L9ECAV7KIM', '0PUK6V6EV0', 'LS4PSXUNUM', '66VCHSJNUP', '9SIQT8TOJO']
+2026-09-27T20:50:55+00:00  2026-09-27 20:50:55,772 INFO [main] [recommendation_server.py:47] [trace_id=97cbf9606b9f5304ca19bb21fd1bda85 span_id=887c36862dbe3511 resource.service.name=recommendation trace_sampled=True] - Receive ListRecommendations for product ids:['0PUK6V6EV0', 'OLJCESPC7Z', '9SIQT8TOJO', '6E92ZMYYFZ', '1YMWWN1N4O']
+2026-09-27T20:50:57+00:00  2026-09-27 20:50:57,194 INFO [main] [recommendation_server.py:47] [trace_id=bd7c14b59adf8338d8b15991466b2879 span_id=e7842930ff00d0fc resource.service.name=recommendation trace_sampled=True] - Receive ListRecommendations for product ids:['LS4PSXUNUM', '9SIQT8TOJO', '2ZYFJ3GM2N', 'OLJCESPC7Z', '0PUK6V6EV0']
+2026-09-27T20:50:57+00:00  2026-09-27 20:50:57,660 INFO [main] [recommendation_server.py:47] [trace_id=ce6c8ae5543ffdbcd9473e0d39eafc24 span_id=62562c8e7eb35eeb resource.service.name=recommendation trace_sampled=True] - Receive ListRecommendations for product ids:['L9ECAV7KIM', 'OLJCESPC7Z', '66VCHSJNUP', '2ZYFJ3GM2N', '9SIQT8TOJO']
+2026-09-27T20:51:04+00:00  2026-09-27 20:51:04,880 INFO [main] [recommendation_server.py:47] [trace_id=fe0e6a6eff3fe56a282d6adb67f5798e span_id=035232ee96bdedf6 resource.service.name=recommendation trace_sampled=True] - Receive ListRecommendations for product ids:['HQTGWGPNH4', '66VCHSJNUP', '9SIQT8TOJO', 'LS4PSXUNUM', '2ZYFJ3GM2N']
+2026-09-27T20:51:10+00:00  2026-09-27 20:51:10,882 INFO [main] [recommendation_server.py:47] [trace_id=cc618e3ece1e4b2344009aa0c9807fd7 span_id=48f480c7b02ad399 resource.service.name=recommendation trace_sampled=True] - Receive ListRecommendations for product ids:['L9ECAV7KIM', 'OLJCESPC7Z', '0PUK6V6EV0', 'LS4PSXUNUM', '2ZYFJ3GM2N']
+2026-09-27T20:51:22+00:00  2026-09-27 20:51:22,780 INFO [main] [recommendation_server.py:47] [trace_id=9fcd2031bba78fd23b5900e169c2d63a span_id=d799ca0cc3c20962 resource.service.name=recommendation trace_sampled=True] - Receive ListRecommendations for product ids:['LS4PSXUNUM', '9SIQT8TOJO', '1YMWWN1N4O', '66VCHSJNUP', 'OLJCESPC7Z']
+```
+
+_69 further lines are in the bundle._
+
+## The incident record
+
+Written from the responder's chair, by someone who did not know the fault class
+or that anything had been injected. This text is also corpus material, which is
+why it never names the injector.
+
+**It keeps its own clock.** The table above is measured from the injection, which
+is the only origin the manifest records; a narrative's `T+` offsets are the
+responder's own and start wherever that responder started counting — usually the
+page, sometimes the injection, sometimes an event in the logs. The same moment can
+therefore carry two different offsets on this page. The absolute timestamps in the
+bundle are the tiebreak.
+
+### What was observed
 
 The page was `ServiceHighErrorRate` on the **frontend** and **frontend-proxy** together, 5m16s
 after the trouble started. Three minutes later `ServiceNoTraffic` fired on **recommendation**.
@@ -31,7 +96,7 @@ minute in, 0.28 at two, 0.14 at three, 0.01 at four, and nothing from five; from
 ratio and its latency had no value at all. It had recorded no error of its own before its numbers
 ran out, and no rise in latency.
 
-## What was checked
+### What was checked
 
 **The frontend's error traces, the service on the page.** 129 of them across the ten minutes, and
 every one is the same request: a `user_get_recommendations` page load ending at
@@ -76,7 +141,7 @@ exporting. A starved process that still fits - that shows a slow service, restar
 themselves in the log, and latency on the target; here there is no latency anywhere and the log
 has no start-up line until the fix, because no process ever got that far.
 
-## Root cause
+### Root cause
 
 The recommendation service container's memory limit was lowered from 500M to 16m, below what its
 Python interpreter needs to finish starting. The kernel killed the running process at once and
@@ -86,7 +151,7 @@ the errors, and recommendation itself went silent - no spans, no series, no log,
 survived long enough to write. Nothing about its image, code or configuration changed; restoring
 the limit fixed it.
 
-## Resolution
+### Resolution
 
 The memory limit was restored to 500M. The restart policy had backed off to about a minute between
 attempts by then, so the next start came 47 seconds after the fix, and that one finished: the
@@ -100,7 +165,7 @@ Restarting recommendation was what the runtime had been doing, nineteen times, a
 starts could finish under the limit; rolling back its image would have changed nothing, because
 the image was never the problem.
 
-## Detection notes
+### Detection notes
 
 - Onset to first page: **5m16s**, the frontend's five-minute error ratio crossing 5% and holding
   for the rule's two minutes. Services on the page: **2**, frontend and frontend-proxy, neither the
@@ -126,3 +191,7 @@ the image was never the problem.
 - **Recovery waits on the restart policy's backoff.** The limit was restored at once; the next
   start took 47 seconds to come, because the runtime had backed off to a minute after nineteen
   kills. A fix to a crash-looping service takes effect on the next attempt, not immediately.
+
+---
+
+Rendered from [`evals/scenarios/artifacts/holdout/v2-recommendation-memory-squeeze/`](../../evals/scenarios/artifacts/holdout/v2-recommendation-memory-squeeze/) by `faultline-render`. [All bundles](README.md).
