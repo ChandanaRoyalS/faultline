@@ -4617,6 +4617,30 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-09-27: the fourteenth v2 scenario, `v2-cart-bad-image-tag`, rehearsed and labeled - slot
+`v2/bad_deploy-1` (dev), first recording.***
+
+- **The page, and v1's shape reproduced.** `ServiceHighErrorRate` on checkout, frontend,
+  frontend-proxy and load-generator at 4m47s (v1: 4m46s); at +7:30 `ServiceNoTraffic` on cart and
+  seven services an order reaches only after its cart read. Twelve alerts, none after the fix; all
+  clear 6m01s after it.
+- **The evidence.** Checkout's error ratio holds at exactly two thirds - PlaceOrder and its GetCart
+  fail, `name resolver error: produced zero addresses`, with nothing beneath and nothing after -
+  and its p95 falls to under 2ms; the frontend's AddItem fails with `connect EHOSTUNREACH` to cart's
+  old address; cart's log ends at `Application is shutting down...` and is silent until the fix;
+  its runtime series hold their last values for five minutes, then vanish.
+- **One straggler after the fix**: an order whose cart the outage left empty failed at the shipping
+  quote, which checkout's own code reports as `failed POST to email service` - a wrong service name
+  in the demo's quote path, recorded in the narrative.
+- **Distinct from `v2-frontend-cart-misconfig`** on (a) and (b), as predicted before recording.
+- **The change record is by construction**, as for every v2 recording: the platform Postgres is down
+  on the development Mac, so the injector wrote none; the narrative gives the record it writes when
+  the log is up (`image reference updated on cart`). Found by the read-back's direct query failing.
+- **How it was recorded.** On AC power, grafana restarted and settled first, under `caffeinate`
+  with the pre-state guard; the world variable set per command, not exported. The host did not
+  sleep. Cart back on `2.2.0-cart` and serving.
+- **Next: row 2**, `v2-shipping-wrong-image` (`v2/bad_deploy-2`).
+
 ***2026-09-26: the thirteenth v2 scenario, `v2-email-flag-memory-leak`, rehearsed and labeled -
 slot `v2/feature_flag-6` (holdout), first recording, by the reserve. The `feature_flag` row is full.***
 

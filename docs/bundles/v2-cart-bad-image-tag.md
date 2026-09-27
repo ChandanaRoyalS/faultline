@@ -1,17 +1,91 @@
----
-origin: scenario:v2-cart-bad-image-tag
-split: dev
-fault_class: bad_deploy
-recorded_from: 2026-09-27T00:10:12+00:00
-capability: cap:d2b243e0
-onset_to_page: 4m47s
-page_to_fix: 5m00s
-fix_to_all_clear: 6m01s
----
-
 # Cart deployed on an image tag that was never published
 
-## What was observed
+## The scenario
+
+| | |
+|---|---|
+| scenario | `v2-cart-bad-image-tag` |
+| fault class | **`bad_deploy`** |
+| expected remediation | `rollback` |
+| split | `dev` |
+| injected at | `cart` via `v2-cart-bad-image-tag` |
+| time to page | 4m47s |
+| steady state captured | 300s |
+| capture window | 2026-09-27T00:05:12+00:00 → 2026-09-27T00:28:00+00:00 |
+
+The clock below runs from the moment the fault went in.
+
+| | |
+|---|---|
+| `t_inject` | T+0m00s |
+| first alert firing | T+4m47s |
+| `t_revert` | T+9m47s |
+| all clear | T+15m48s |
+
+## What fired, and when
+
+| when | service | alert | firing for | |
+|---|---|---|---:|---|
+| T+4m30s | `checkout` | ServiceHighErrorRate | 10.0 min | **paged** |
+| T+4m30s | `frontend` | ServiceHighErrorRate | 11.0 min | **paged** |
+| T+4m30s | `frontend-proxy` | ServiceHighErrorRate | 11.0 min | **paged** |
+| T+4m30s | `load-generator` | ServiceHighErrorRate | 10.0 min | **paged** |
+| T+7m30s | `accounting` | ServiceNoTraffic | 4.0 min | joined later |
+| T+7m30s | `cart` | ServiceNoTraffic | 3.0 min | joined later |
+| T+7m30s | `currency` | ServiceNoTraffic | 4.0 min | joined later |
+| T+7m30s | `email` | ServiceNoTraffic | 4.0 min | joined later |
+| T+7m30s | `fraud-detection` | ServiceNoTraffic | 3.0 min | joined later |
+| T+7m30s | `payment` | ServiceNoTraffic | 4.0 min | joined later |
+| T+7m30s | `quote` | ServiceNoTraffic | 4.0 min | joined later |
+| T+7m30s | `shipping` | ServiceNoTraffic | 3.0 min | joined later |
+
+## What the bundle contains
+
+| capture | query |
+|---|---|
+| `metrics/alerts-firing.json` | `ALERTS{alertstate="firing"}` |
+| `metrics/call-rate.json` | `sum by(service_name) (rate(traces_span_metrics_calls_total[5m]))` |
+| `metrics/error-ratio.json` | `sum by(service_name) (rate(traces_span_metrics_calls_total{status_code="STATUS_CODE_ERROR"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total[5m]))` |
+| `metrics/latency-p95.json` | `histogram_quantile(0.95, sum by(service_name, le) (rate(traces_span_metrics_duration_milliseconds_bucket{span_kind!="SPAN_KIND_INTERNAL"}[5m])))` |
+| `metrics/runtime.json` | `{__name__=~"go_.*|dotnet_.*|jvm_.*|process_.*|v8js_.*|nodejs_.*",service_name="cart"}` |
+
+`logs/cart.txt` — 509 lines.
+
+## A look at the logs
+
+From `logs/cart.txt` (---- onset 2026-09-27T00:10:12+00:00 ----):
+
+```
+2026-09-27T00:09:44+00:00  info: cart.cartstore.ValkeyCartStore[0]
+2026-09-27T00:09:44+00:00        AddItemAsync called with userId=be7d641e-ba07-11f1-b5af-ea5dfb8fa78a, productId=OLJCESPC7Z, quantity=2
+2026-09-27T00:09:44+00:00  info: cart.cartstore.ValkeyCartStore[0]
+2026-09-27T00:09:44+00:00        GetCartAsync called with userId=be7d641e-ba07-11f1-b5af-ea5dfb8fa78a
+2026-09-27T00:09:44+00:00  info: cart.cartstore.ValkeyCartStore[0]
+2026-09-27T00:09:44+00:00        AddItemAsync called with userId=be7d641e-ba07-11f1-b5af-ea5dfb8fa78a, productId=L9ECAV7KIM, quantity=5
+2026-09-27T00:09:44+00:00  info: cart.cartstore.ValkeyCartStore[0]
+2026-09-27T00:09:44+00:00        GetCartAsync called with userId=be7d641e-ba07-11f1-b5af-ea5dfb8fa78a
+2026-09-27T00:09:44+00:00  info: cart.cartstore.ValkeyCartStore[0]
+2026-09-27T00:09:44+00:00        AddItemAsync called with userId=be7d641e-ba07-11f1-b5af-ea5dfb8fa78a, productId=66VCHSJNUP, quantity=1
+2026-09-27T00:09:44+00:00  info: cart.cartstore.ValkeyCartStore[0]
+2026-09-27T00:09:44+00:00        GetCartAsync called with userId=be7d641e-ba07-11f1-b5af-ea5dfb8fa78a
+```
+
+_488 further lines are in the bundle._
+
+## The incident record
+
+Written from the responder's chair, by someone who did not know the fault class
+or that anything had been injected. This text is also corpus material, which is
+why it never names the injector.
+
+**It keeps its own clock.** The table above is measured from the injection, which
+is the only origin the manifest records; a narrative's `T+` offsets are the
+responder's own and start wherever that responder started counting — usually the
+page, sometimes the injection, sometimes an event in the logs. The same moment can
+therefore carry two different offsets on this page. The absolute timestamps in the
+bundle are the tiebreak.
+
+### What was observed
 
 The page was four alerts in the same moment, `ServiceHighErrorRate` on **checkout**, **frontend**,
 **frontend-proxy** and **load-generator**, 4m47s after the trouble started. The service the
@@ -29,7 +103,7 @@ About three minutes after the page, eight services went quiet in the same minute
 fraud-detection. None of the eight had recorded an error. Twelve alerts on twelve services by the
 fix, and none after it.
 
-## What was checked
+### What was checked
 
 **The page names callers.** Frontend-proxy forwards what the frontend returns, and the load
 generator is the synthetic shoppers counting their own failures. Frontend and checkout were the
@@ -74,7 +148,7 @@ orders and cart pages make.
 one ever ran: the registry has no such tag, so there was nothing to start. Nothing else had changed
 on cart, on valkey-cart or on any of the callers.
 
-## Root cause
+### Root cause
 
 A deploy moved cart to an image tag, `2.2.0-cart-hotfix.2`, that was never published. The running
 container was stopped to make way for it and the replacement could not be pulled, so cart was
@@ -82,7 +156,7 @@ absent rather than unhealthy: its name resolved to nothing and its address answe
 storefront could not read or add to carts, and every order failed at its first step, reading the
 cart. The store behind cart was healthy, and nothing was wrong with any caller.
 
-## Resolution
+### Resolution
 
 Cart was rolled back to the published `2.2.0-cart` image. It started within a second and was
 serving cart reads twenty seconds later, and its callers found it again. One order just after the
@@ -96,7 +170,7 @@ with their windows. Everything was quiet 6m01s after the fix, and nothing new fi
 Class of fix: **rollback**. A deploy was wrong and it was undone. Restarting cart would have found
 nothing to restart, and nothing about its configuration needed to change.
 
-## Detection notes
+### Detection notes
 
 - Onset to first page: **4m47s**. Services on the page: **four**, none of them cart. By the fix:
   **twelve**, cart among them.
@@ -115,3 +189,7 @@ nothing to restart, and nothing about its configuration needed to change.
   before vanishing. Flat and then gone is a process that ended, not one that is idle.
 - **After the fix, stragglers.** Carts left empty by the outage can fail an order once more, with an
   error that names a different step and, here, the wrong service.
+
+---
+
+Rendered from [`evals/scenarios/artifacts/dev/v2-cart-bad-image-tag/`](../../evals/scenarios/artifacts/dev/v2-cart-bad-image-tag/) by `faultline-render`. [All bundles](README.md).

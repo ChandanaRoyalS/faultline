@@ -752,6 +752,11 @@ NARRATIVE_EVIDENCE_V2: dict[str, set[str]] = {
     # with nothing before each start; the traces put the time in send_email and checkout's EOFs;
     # there are no runtime series to cite; change history answers "nothing".
     "v2-email-flag-memory-leak": {"metrics", "logs", "traces", "changes"},
+    # The target is absent. Metrics carry the callers' errors, checkout's exact two thirds and
+    # cart's traffic going to zero; cart's log ends at a shutdown and the frontend's names the
+    # unreachable address; the cart calls end with nothing beneath them; runtime stops; the change
+    # record names the image.
+    "v2-cart-bad-image-tag": {"metrics", "runtime_metrics", "logs", "traces", "changes"},
     # Holdout. The page names the culprit and reads as down. Metrics carry its rate going to zero
     # and everyone else's holding; runtime shows it alive; its log names the address and the
     # refused connection, and fraud-detection's shows the topic still read; traces show none of
