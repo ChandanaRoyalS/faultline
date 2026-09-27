@@ -774,6 +774,26 @@ CATALOG: tuple[FaultDefinition, ...] = _validated(
             },
         ),
         FaultDefinition(
+            id="v2-shipping-wrong-image",
+            fault_class=FaultClass.BAD_DEPLOY,
+            target="shipping",
+            world="v2",
+            description=(
+                "Deploy the ad service's image into shipping's slot (v1's shipping-wrong-image). "
+                "The image resolves and the deploy succeeds, but a JVM does not fit a container "
+                "sized for a Rust binary, so it is killed at start, over and over."
+            ),
+            # Read and measured 2026-09-27: v2's shipping is Rust with a 20M limit (5.7MiB used at
+            # rest); the ad image is a Temurin 21 JRE with the OTel Java agent on
+            # JAVA_TOOL_OPTIONS, and it also refuses to start without AD_PORT, which shipping's
+            # environment does not set. Either way it cannot serve; v1's restart loop is the
+            # expectation, measured at rehearsal.
+            params={
+                "image": "ghcr.io/open-telemetry/demo:2.2.0-ad",
+                "expect_start": "yes",
+            },
+        ),
+        FaultDefinition(
             id="v2-ad-memory-squeeze",
             fault_class=FaultClass.RESOURCE_EXHAUSTION,
             target="ad",
