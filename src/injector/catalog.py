@@ -794,6 +794,25 @@ CATALOG: tuple[FaultDefinition, ...] = _validated(
             },
         ),
         FaultDefinition(
+            id="v2-ad-bad-image-tag",
+            fault_class=FaultClass.BAD_DEPLOY,
+            target="ad",
+            world="v2",
+            description=(
+                "Deploy ad on an image tag that was never pushed. The container never starts, so "
+                "ad goes dark: the storefront's ad requests fail while orders are untouched. "
+                "T7.1's bad_deploy row 3, taken by a new reserve after row 3 and the listed "
+                "reserve were passed over."
+            ),
+            # Checked 2026-09-27: the tag does not resolve in the registry and is not on the host;
+            # the running image is 2.2.0-ad. A plausible hotfix tag on the real repository, as
+            # v2-cart-bad-image-tag's, so the investigator has to notice the tag is wrong.
+            params={
+                "image": "ghcr.io/open-telemetry/demo:2.2.0-ad-hotfix.2",
+                "expect_start": "no",
+            },
+        ),
+        FaultDefinition(
             id="v2-ad-memory-squeeze",
             fault_class=FaultClass.RESOURCE_EXHAUSTION,
             target="ad",
