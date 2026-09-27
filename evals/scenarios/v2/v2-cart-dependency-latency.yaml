@@ -1,0 +1,71 @@
+# v2/dependency_latency-1 (dev) - see SPLIT-V2.md. Slot allocated before authoring; do not move.
+# Candidate order and eligibility: docs/design/t7.1-candidates.md, dependency_latency row 1 -
+# dev-only: v1's cart-dependency-latency is a published dev design, carried to v2's cart. The
+# pumba and tc images were checked present on the host, every container's image present (pumba
+# exits at startup otherwise), and cart's interface confirmed eth0, before authoring (2026-09-27).
+id: v2-cart-dependency-latency
+title: Cart service network path acquires 300ms of delay
+fault_class: dependency_latency
+split: dev
+slot: v2/dependency_latency-1
+world: v2
+injection:
+  target: cart
+  method: v2-cart-dependency-latency
+  params:
+    delay_ms: 300
+    jitter_ms: 0
+    duration: "1h"
+    # cart's one interface (docker exec cart ls /sys/class/net, 2026-09-27). The rule delays
+    # packets leaving cart: its answers to callers and its requests to its store both pay it.
+    interface: "eth0"
+ground_truth:
+  root_cause: >
+    A traffic-shaping rule attached to the cart service's network namespace adds 300ms of delay
+    to every packet leaving the container. Cart's own code, image, configuration and store were
+    untouched. Every cart operation pays the delay on its answer and again on each round trip to
+    its store, so cart's latency rises to several hundred milliseconds and every caller that
+    reads or writes a cart waits on it; nothing fails. Recreating the cart container clears the
+    rule, which is bound to the container's network namespace.
+  category: dependency_latency
+expected_evidence:
+  # Carried from v1's design and not recorded on v2 yet. Written before the first recording and
+  # checked against the bundle, as every v2 scenario's list has been, and corrected there. Measured
+  # at rest (2026-09-27): cart's p95 3.0ms; GetCart 0.70, AddItem 0.38, EmptyCart 0.14 a second;
+  # beneath them HGET 1.0, HMSET 0.48, EXPIRE 0.48 a second to the store and 0.17 flag reads;
+  # cart calls are 14.9% of checkout's spans and 8.2% of the frontend's, so a p95 over all spans
+  # lands in the slow group for both callers; 35 .NET runtime series; 76 to 186 log lines a minute.
+  - alerts: ServiceHighLatency on cart and on its callers - checkout, frontend, frontend-proxy and
+      load-generator - within about a minute of each other, three to four minutes in; no
+      ServiceHighErrorRate anywhere and nothing goes quiet
+  - metrics: cart's p95 steps from 3ms to several hundred (about 300 for a GetCart, more for an
+      AddItem or EmptyCart, which make more store round trips); checkout's from ~40ms to several
+      hundred; the frontend's, frontend-proxy's and load-generator's from ~45ms to past the line;
+      every error ratio stays at zero; call rates hold, or the load generator's slows a little as
+      its shoppers wait
+  - traces: every trace touching cart is slow at cart and nowhere else - cart's server span holds
+      the time, each store command beneath it (HGET, HMSET, EXPIRE) takes ~300ms instead of a
+      fraction of one, and the caller's client span exceeds cart's server span by another ~300ms;
+      no span errors; the trace tool names cart as the degrading hop
+  - logs: cart's log goes on as before, its request lines at their usual rate - a slow service
+      keeps logging; the frontend's log shows nothing new
+  - metrics: cart's 35 runtime series report without a gap, CPU and collections flat, no restart -
+      the process is up and unstrained
+  - change: a change record at onset under cart's name that is none of the familiar kinds - not a
+      deploy, an image, an environment variable or a limit - `traffic-shaping container attached to
+      cart's network namespace`, carrying `eth0 delay=300ms jitter=0ms`
+  - discriminator: latency without errors, stepping at once rather than ramping, on a service whose
+      process is unstrained and whose store answers in a fraction of a millisecond, is a network
+      delay at the service's edge; each store round trip paying the same ~300ms places it at
+      cart's interface rather than in the store
+# Carried from v1: the rule lives in the container's network namespace, so recreating the container
+# is what clears it - a restart, not a rollback or a config revert.
+expected_remediation_class: restart
+rehearsed: false
+alert_timeout_seconds: 900
+# Declared before recording, checked against the bundle after (T7.5). Measured on the running world
+# 2026-09-27: cart holds 35 .NET runtime series and logs 76 to 186 lines a minute. The fault slows
+# cart and removes neither, so both classes stay populated in the capture and both could answer;
+# the recorder derives the record from the capture, and if it says otherwise the declaration is
+# corrected against it, not argued with.
+answers_idle_or_absent: [runtime, logs]
