@@ -26,30 +26,36 @@ ground_truth:
     changed. Rolling back to shipping's own image fixes it.
   category: bad_deploy
 expected_evidence:
-  # Carried from v1's design and not measured on v2 yet. Written before the first recording and
-  # checked against the bundle, as every v2 scenario's list has been, and corrected there. Measured
-  # at rest (2026-09-27): shipping serves get-quote and ship-order at 0.12 a second each, holds no
-  # runtime series, and writes no log line Loki holds.
-  - alerts: ServiceHighErrorRate on checkout, the storefront's edge perhaps following; later
-      ServiceNoTraffic on shipping and on the services an order reaches after its quote
-  - metrics: shipping's call rate falls to zero rather than its error ratio rising; checkout's
-      error ratio rises while its latency falls
-  - traces: checkout's shipping quote call fails at the connection with nothing beneath it; the
-      steps before it (cart, catalog, currency) succeed
-  - logs: a Loki stream for shipping appears where none was, a Java process's start-up lines
-      repeating with nothing after them
-  - metrics: shipping has no runtime series before or during the fault
+  # Carried from v1's design, written before the first recording and checked against it
+  # (2026-09-27, t_inject 00:47:47, revert at +9:05). Probe every 20 s.
+  - alerts: ServiceHighErrorRate on checkout alone (page 4m05s); at +7:45 ServiceNoTraffic on
+      shipping, quote, payment, email and accounting; a one-minute ServiceHighErrorRate on
+      fraud-detection at +5:45 from its routine flag-service stream timeout while orders were gone -
+      seven alerts by the fix, none after it; frontend and frontend-proxy touch 5% without holding
+  - metrics: shipping's call rate falls to zero with no errors; checkout's error ratio holds at
+      24-26% while its p95 falls from ~35ms to ~22ms; cart, product-catalog and currency keep
+      their traffic
+  - traces: checkout's cart read, product lookups and currency conversions succeed, then its
+      HTTP POST for the shipping quote fails with nothing beneath it - `lookup shipping on
+      127.0.0.11 - no such host` - and nothing after the quote runs; no shipping traces at all
+  - logs: shipping, which logs nothing at rest, logs a Java process starting 17 times - `Picked up
+      JAVA_TOOL_OPTIONS`, a class-sharing warning, the OTel Java agent's version - three lines
+      each and nothing after, the gaps growing from ~3s to ~62s; the frontend carries checkout's
+      error as `no such host` and `connection refused` by turns
+  - metrics: shipping has no runtime series before or during the fault; read on the container
+      (not by the tools), each exit is 137 with OOMKilled set while it waits to restart, and its
+      restart count reaches 17
   - change: a change record at onset - `image reference updated on shipping`, to
       ghcr.io/open-telemetry/demo:2.2.0-ad, the ad service's image
-  - discriminator: a service killed at start over and over with its memory limit unchanged, whose
-      log is suddenly another runtime's, was given the wrong image - the change record names it,
-      and a memory-limit fault would show the limit lowered instead
+  - discriminator: a service killed for memory at start over and over with its limit unchanged,
+      whose log is suddenly another runtime's, was given the wrong image - the change record names
+      it, and a memory-limit fault would show the limit lowered instead
 expected_remediation_class: rollback
-rehearsed: false
+rehearsed: true
 alert_timeout_seconds: 900
 # Declared before recording, checked against the bundle after (T7.5). Measured on the running world
 # 2026-09-27: no runtime series for shipping and no Loki stream (v2's shipping logs nothing to
 # stdout). The ad image's JVM writes its start-up lines to stdout, so the fault itself should give
-# the capture a talkative stream, as v1's did ([logs]). If the bundle's capture says otherwise, the
-# declaration is corrected against it, not argued with.
+# the capture a talkative stream, as v1's did ([logs]). The first recording confirmed it: 0 runtime
+# series and 51 target log lines, all from the fault, and the recorder derived [logs].
 answers_idle_or_absent: [logs]

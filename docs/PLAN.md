@@ -4617,6 +4617,27 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-09-27: the fifteenth v2 scenario, `v2-shipping-wrong-image`, rehearsed and labeled - slot
+`v2/bad_deploy-2` (dev), first recording.***
+
+- **The page, and v1's shape reproduced.** `ServiceHighErrorRate` on checkout alone at 4m05s (v1:
+  3m04s); at +7:45 `ServiceNoTraffic` on shipping, quote, payment, email and accounting.
+  Fraud-detection's routine flag-service stream timeout paged it for a minute while orders were
+  gone. Seven alerts, none after the fix; all clear 4m01s after it.
+- **The evidence.** Checkout's orders fail at the shipping quote after cart, catalog and currency
+  succeed - `no such host` and `connection refused` by turns, the signature of a restart loop.
+  Shipping, silent at rest, logs a JVM starting 17 times, three lines each; each exit 137 with
+  `OOMKilled` set; its 20M slot cannot hold the ad image's JVM.
+- **A correction to the email note (addendum in the candidate list).** Docker does flag OOM kills on
+  this host; the flag clears when the container starts again, and email restarted too fast for a
+  20-second probe to see it.
+- **Distinct from `v2-shipping-quote-misconfig`** on (a) and (b), and from row 1 on (a), as
+  predicted. The change record is by construction, as for every v2 recording.
+- **How it was recorded.** On AC power, grafana restarted and settled first, under `caffeinate`
+  with the pre-state guard; the world variable per command. The host did not sleep. Shipping back
+  on `2.2.0-shipping`, no restarts.
+- **Next: row 3**, `v2-payment-bad-image-tag` (`v2/bad_deploy-3`), a new design.
+
 ***2026-09-27: the fourteenth v2 scenario, `v2-cart-bad-image-tag`, rehearsed and labeled - slot
 `v2/bad_deploy-1` (dev), first recording.***
 

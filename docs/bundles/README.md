@@ -1,6 +1,6 @@
 # The bundles, rendered
 
-Every recorded rehearsal in this repository as a readable page — 30 in all: **27 runnable** (20 dev, 7 holdout) and **3 that could not fire** (3 dev).
+Every recorded rehearsal in this repository as a readable page — 31 in all: **28 runnable** (21 dev, 7 holdout) and **3 that could not fire** (3 dev).
 
 A bundle is what one rehearsal left behind — the manifest, the Prometheus captures,
 a slice of one service's logs, the exact queries, and the narrative a responder wrote
@@ -46,6 +46,7 @@ benchmark** — see [RESULTS.md](../RESULTS.md).
 | [`v2-product-catalog-flag-failure`](v2-product-catalog-flag-failure.md) | `feature_flag` | A feature flag makes the product catalog fail one product — 2 alerts over the window |
 | [`v2-product-catalog-freeze`](v2-product-catalog-freeze.md) | `process_freeze` | The product catalog process is frozen - its socket accepts and nothing answers — 20 alerts over the window |
 | [`v2-shipping-quote-misconfig`](v2-shipping-quote-misconfig.md) | `bad_config` | Shipping service pointed at a quote service that does not resolve — 10 alerts over the window |
+| [`v2-shipping-wrong-image`](v2-shipping-wrong-image.md) | `bad_deploy` | Shipping deployed with another service's image — 7 alerts over the window |
 
 ## Holdout split
 
