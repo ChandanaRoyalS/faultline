@@ -1,0 +1,304 @@
+# target container: email
+# loki labels: service, stream
+# selector: {service="email"}
+# 296 lines
+# before onset (2026-09-27T08:06:47+00:00): 98 lines, the newest kept
+# from onset: 198 lines, the oldest kept
+
+2026-09-27T08:01:56+00:00  Order confirmation email sent to: moore@example.com
+2026-09-27T08:01:56+00:00  172.18.0.9 - - [27/Sep/2026:08:01:56 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0273
+2026-09-27T08:01:57+00:00  Order confirmation email sent to: jeff@example.com
+2026-09-27T08:01:57+00:00  172.18.0.9 - - [27/Sep/2026:08:01:57 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0025
+2026-09-27T08:01:59+00:00  Order confirmation email sent to: jeff@example.com
+2026-09-27T08:01:59+00:00  172.18.0.9 - - [27/Sep/2026:08:01:59 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0029
+2026-09-27T08:02:02+00:00  Order confirmation email sent to: jack@example.com
+2026-09-27T08:02:02+00:00  172.18.0.9 - - [27/Sep/2026:08:02:02 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0026
+2026-09-27T08:02:12+00:00  Order confirmation email sent to: bill@example.com
+2026-09-27T08:02:12+00:00  172.18.0.9 - - [27/Sep/2026:08:02:12 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0233
+2026-09-27T08:02:16+00:00  Order confirmation email sent to: jack@example.com
+2026-09-27T08:02:16+00:00  172.18.0.9 - - [27/Sep/2026:08:02:16 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0027
+2026-09-27T08:02:16+00:00  Order confirmation email sent to: jeff@example.com
+2026-09-27T08:02:16+00:00  172.18.0.9 - - [27/Sep/2026:08:02:16 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0023
+2026-09-27T08:02:17+00:00  Order confirmation email sent to: moore@example.com
+2026-09-27T08:02:17+00:00  172.18.0.9 - - [27/Sep/2026:08:02:17 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0196
+2026-09-27T08:02:19+00:00  Order confirmation email sent to: reed@example.com
+2026-09-27T08:02:19+00:00  172.18.0.9 - - [27/Sep/2026:08:02:19 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0043
+2026-09-27T08:02:27+00:00  Order confirmation email sent to: tobias@example.com
+2026-09-27T08:02:27+00:00  172.18.0.9 - - [27/Sep/2026:08:02:27 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0056
+2026-09-27T08:02:37+00:00  Order confirmation email sent to: mark@example.com
+2026-09-27T08:02:37+00:00  172.18.0.9 - - [27/Sep/2026:08:02:37 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0038
+2026-09-27T08:02:40+00:00  Order confirmation email sent to: larry_sergei@example.com
+2026-09-27T08:02:40+00:00  172.18.0.9 - - [27/Sep/2026:08:02:40 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0091
+2026-09-27T08:02:42+00:00  Order confirmation email sent to: mark@example.com
+2026-09-27T08:02:42+00:00  172.18.0.9 - - [27/Sep/2026:08:02:42 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0024
+2026-09-27T08:02:51+00:00  Order confirmation email sent to: moore@example.com
+2026-09-27T08:02:51+00:00  172.18.0.9 - - [27/Sep/2026:08:02:51 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0061
+2026-09-27T08:02:51+00:00  Order confirmation email sent to: bill@example.com
+2026-09-27T08:02:51+00:00  172.18.0.9 - - [27/Sep/2026:08:02:51 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0032
+2026-09-27T08:02:53+00:00  Order confirmation email sent to: bill@example.com
+2026-09-27T08:02:53+00:00  172.18.0.9 - - [27/Sep/2026:08:02:53 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0032
+2026-09-27T08:02:55+00:00  Order confirmation email sent to: jeff@example.com
+2026-09-27T08:02:55+00:00  172.18.0.9 - - [27/Sep/2026:08:02:55 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0028
+2026-09-27T08:02:55+00:00  Order confirmation email sent to: bill@example.com
+2026-09-27T08:02:55+00:00  172.18.0.9 - - [27/Sep/2026:08:02:55 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0039
+2026-09-27T08:03:03+00:00  Order confirmation email sent to: moore@example.com
+2026-09-27T08:03:03+00:00  172.18.0.9 - - [27/Sep/2026:08:03:03 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0113
+2026-09-27T08:03:15+00:00  Order confirmation email sent to: jeff@example.com
+2026-09-27T08:03:15+00:00  172.18.0.9 - - [27/Sep/2026:08:03:15 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0056
+2026-09-27T08:03:17+00:00  Order confirmation email sent to: bill@example.com
+2026-09-27T08:03:17+00:00  172.18.0.9 - - [27/Sep/2026:08:03:17 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0042
+2026-09-27T08:03:26+00:00  Order confirmation email sent to: reed@example.com
+2026-09-27T08:03:26+00:00  172.18.0.9 - - [27/Sep/2026:08:03:26 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0075
+2026-09-27T08:03:53+00:00  Order confirmation email sent to: bill@example.com
+2026-09-27T08:03:53+00:00  172.18.0.9 - - [27/Sep/2026:08:03:53 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0054
+2026-09-27T08:04:04+00:00  Order confirmation email sent to: jack@example.com
+2026-09-27T08:04:04+00:00  172.18.0.9 - - [27/Sep/2026:08:04:04 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0049
+2026-09-27T08:04:06+00:00  Order confirmation email sent to: larry_sergei@example.com
+2026-09-27T08:04:06+00:00  172.18.0.9 - - [27/Sep/2026:08:04:06 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0026
+2026-09-27T08:04:12+00:00  Order confirmation email sent to: moore@example.com
+2026-09-27T08:04:12+00:00  172.18.0.9 - - [27/Sep/2026:08:04:12 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0040
+2026-09-27T08:04:13+00:00  Order confirmation email sent to: steve@example.com
+2026-09-27T08:04:13+00:00  172.18.0.9 - - [27/Sep/2026:08:04:13 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0176
+2026-09-27T08:04:19+00:00  Order confirmation email sent to: moore@example.com
+2026-09-27T08:04:19+00:00  172.18.0.9 - - [27/Sep/2026:08:04:19 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0035
+2026-09-27T08:04:27+00:00  Order confirmation email sent to: jack@example.com
+2026-09-27T08:04:27+00:00  172.18.0.9 - - [27/Sep/2026:08:04:27 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0067
+2026-09-27T08:04:28+00:00  Order confirmation email sent to: jeff@example.com
+2026-09-27T08:04:28+00:00  172.18.0.9 - - [27/Sep/2026:08:04:28 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0033
+2026-09-27T08:04:29+00:00  Order confirmation email sent to: moore@example.com
+2026-09-27T08:04:29+00:00  172.18.0.9 - - [27/Sep/2026:08:04:29 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0017
+2026-09-27T08:04:30+00:00  Order confirmation email sent to: moore@example.com
+2026-09-27T08:04:30+00:00  172.18.0.9 - - [27/Sep/2026:08:04:30 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0021
+2026-09-27T08:04:44+00:00  Order confirmation email sent to: steve@example.com
+2026-09-27T08:04:44+00:00  172.18.0.9 - - [27/Sep/2026:08:04:44 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0058
+2026-09-27T08:04:52+00:00  Order confirmation email sent to: bill@example.com
+2026-09-27T08:04:52+00:00  172.18.0.9 - - [27/Sep/2026:08:04:52 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0068
+2026-09-27T08:04:58+00:00  Order confirmation email sent to: bill@example.com
+2026-09-27T08:04:58+00:00  172.18.0.9 - - [27/Sep/2026:08:04:58 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0111
+2026-09-27T08:05:03+00:00  Order confirmation email sent to: mark@example.com
+2026-09-27T08:05:03+00:00  172.18.0.9 - - [27/Sep/2026:08:05:03 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0028
+2026-09-27T08:05:05+00:00  Order confirmation email sent to: jeff@example.com
+2026-09-27T08:05:05+00:00  172.18.0.9 - - [27/Sep/2026:08:05:05 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0034
+2026-09-27T08:05:07+00:00  Order confirmation email sent to: steve@example.com
+2026-09-27T08:05:07+00:00  172.18.0.9 - - [27/Sep/2026:08:05:07 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0052
+2026-09-27T08:05:08+00:00  Order confirmation email sent to: steve@example.com
+2026-09-27T08:05:08+00:00  172.18.0.9 - - [27/Sep/2026:08:05:08 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0049
+2026-09-27T08:05:11+00:00  Order confirmation email sent to: reed@example.com
+2026-09-27T08:05:11+00:00  172.18.0.9 - - [27/Sep/2026:08:05:11 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0021
+2026-09-27T08:05:39+00:00  Order confirmation email sent to: tobias@example.com
+2026-09-27T08:05:39+00:00  172.18.0.9 - - [27/Sep/2026:08:05:39 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0099
+2026-09-27T08:05:47+00:00  Order confirmation email sent to: moore@example.com
+2026-09-27T08:05:47+00:00  172.18.0.9 - - [27/Sep/2026:08:05:47 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0048
+2026-09-27T08:05:51+00:00  Order confirmation email sent to: mark@example.com
+2026-09-27T08:05:51+00:00  172.18.0.9 - - [27/Sep/2026:08:05:51 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0033
+2026-09-27T08:06:01+00:00  Order confirmation email sent to: larry_sergei@example.com
+2026-09-27T08:06:01+00:00  172.18.0.9 - - [27/Sep/2026:08:06:01 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0030
+2026-09-27T08:06:02+00:00  Order confirmation email sent to: moore@example.com
+2026-09-27T08:06:02+00:00  172.18.0.9 - - [27/Sep/2026:08:06:02 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0090
+2026-09-27T08:06:10+00:00  Order confirmation email sent to: larry_sergei@example.com
+2026-09-27T08:06:10+00:00  172.18.0.9 - - [27/Sep/2026:08:06:10 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0069
+2026-09-27T08:06:26+00:00  Order confirmation email sent to: jeff@example.com
+2026-09-27T08:06:26+00:00  172.18.0.9 - - [27/Sep/2026:08:06:26 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0215
+2026-09-27T08:06:30+00:00  Order confirmation email sent to: jeff@example.com
+2026-09-27T08:06:30+00:00  172.18.0.9 - - [27/Sep/2026:08:06:30 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0209
+2026-09-27T08:06:41+00:00  Order confirmation email sent to: larry_sergei@example.com
+2026-09-27T08:06:41+00:00  172.18.0.9 - - [27/Sep/2026:08:06:41 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0086
+# ---- onset 2026-09-27T08:06:47+00:00 ----
+2026-09-27T08:06:47+00:00  Order confirmation email sent to: moore@example.com
+2026-09-27T08:06:47+00:00  172.18.0.9 - - [27/Sep/2026:08:06:47 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0038
+2026-09-27T08:06:48+00:00  - Gracefully stopping, waiting for requests to finish
+2026-09-27T08:06:48+00:00  == Sinatra has ended his set (crowd applauds)
+2026-09-27T08:06:49+00:00  
+2026-09-27T08:06:49+00:00  Fatal error: Uncaught InvalidArgumentException: Invalid URI "tcp://0.0.0.0:" given (EINVAL) in /var/www/vendor/react/socket/src/TcpServer.php:161
+2026-09-27T08:06:49+00:00  Stack trace:
+2026-09-27T08:06:49+00:00  #0 /var/www/vendor/react/socket/src/SocketServer.php(65): React\Socket\TcpServer->__construct('tcp://0.0.0.0:', NULL, Array)
+2026-09-27T08:06:49+00:00  #1 /var/www/public/index.php(102): React\Socket\SocketServer->__construct('0.0.0.0:')
+2026-09-27T08:06:49+00:00  #2 {main}
+2026-09-27T08:06:49+00:00    thrown in /var/www/vendor/react/socket/src/TcpServer.php on line 161
+2026-09-27T08:06:49+00:00  
+2026-09-27T08:06:49+00:00  Fatal error: Uncaught InvalidArgumentException: Invalid URI "tcp://0.0.0.0:" given (EINVAL) in /var/www/vendor/react/socket/src/TcpServer.php:161
+2026-09-27T08:06:49+00:00  Stack trace:
+2026-09-27T08:06:49+00:00  #0 /var/www/vendor/react/socket/src/SocketServer.php(65): React\Socket\TcpServer->__construct('tcp://0.0.0.0:', NULL, Array)
+2026-09-27T08:06:49+00:00  #1 /var/www/public/index.php(102): React\Socket\SocketServer->__construct('0.0.0.0:')
+2026-09-27T08:06:49+00:00  #2 {main}
+2026-09-27T08:06:49+00:00    thrown in /var/www/vendor/react/socket/src/TcpServer.php on line 161
+2026-09-27T08:06:49+00:00  
+2026-09-27T08:06:49+00:00  Fatal error: Uncaught InvalidArgumentException: Invalid URI "tcp://0.0.0.0:" given (EINVAL) in /var/www/vendor/react/socket/src/TcpServer.php:161
+2026-09-27T08:06:49+00:00  Stack trace:
+2026-09-27T08:06:49+00:00  #0 /var/www/vendor/react/socket/src/SocketServer.php(65): React\Socket\TcpServer->__construct('tcp://0.0.0.0:', NULL, Array)
+2026-09-27T08:06:49+00:00  #1 /var/www/public/index.php(102): React\Socket\SocketServer->__construct('0.0.0.0:')
+2026-09-27T08:06:49+00:00  #2 {main}
+2026-09-27T08:06:49+00:00    thrown in /var/www/vendor/react/socket/src/TcpServer.php on line 161
+2026-09-27T08:06:50+00:00  
+2026-09-27T08:06:50+00:00  Fatal error: Uncaught InvalidArgumentException: Invalid URI "tcp://0.0.0.0:" given (EINVAL) in /var/www/vendor/react/socket/src/TcpServer.php:161
+2026-09-27T08:06:50+00:00  Stack trace:
+2026-09-27T08:06:50+00:00  #0 /var/www/vendor/react/socket/src/SocketServer.php(65): React\Socket\TcpServer->__construct('tcp://0.0.0.0:', NULL, Array)
+2026-09-27T08:06:50+00:00  #1 /var/www/public/index.php(102): React\Socket\SocketServer->__construct('0.0.0.0:')
+2026-09-27T08:06:50+00:00  #2 {main}
+2026-09-27T08:06:50+00:00    thrown in /var/www/vendor/react/socket/src/TcpServer.php on line 161
+2026-09-27T08:06:51+00:00  
+2026-09-27T08:06:51+00:00  Fatal error: Uncaught InvalidArgumentException: Invalid URI "tcp://0.0.0.0:" given (EINVAL) in /var/www/vendor/react/socket/src/TcpServer.php:161
+2026-09-27T08:06:51+00:00  Stack trace:
+2026-09-27T08:06:51+00:00  #0 /var/www/vendor/react/socket/src/SocketServer.php(65): React\Socket\TcpServer->__construct('tcp://0.0.0.0:', NULL, Array)
+2026-09-27T08:06:51+00:00  #1 /var/www/public/index.php(102): React\Socket\SocketServer->__construct('0.0.0.0:')
+2026-09-27T08:06:51+00:00  #2 {main}
+2026-09-27T08:06:51+00:00    thrown in /var/www/vendor/react/socket/src/TcpServer.php on line 161
+2026-09-27T08:06:52+00:00  
+2026-09-27T08:06:52+00:00  Fatal error: Uncaught InvalidArgumentException: Invalid URI "tcp://0.0.0.0:" given (EINVAL) in /var/www/vendor/react/socket/src/TcpServer.php:161
+2026-09-27T08:06:52+00:00  Stack trace:
+2026-09-27T08:06:52+00:00  #0 /var/www/vendor/react/socket/src/SocketServer.php(65): React\Socket\TcpServer->__construct('tcp://0.0.0.0:', NULL, Array)
+2026-09-27T08:06:52+00:00  #1 /var/www/public/index.php(102): React\Socket\SocketServer->__construct('0.0.0.0:')
+2026-09-27T08:06:52+00:00  #2 {main}
+2026-09-27T08:06:52+00:00    thrown in /var/www/vendor/react/socket/src/TcpServer.php on line 161
+2026-09-27T08:06:56+00:00  
+2026-09-27T08:06:56+00:00  Fatal error: Uncaught InvalidArgumentException: Invalid URI "tcp://0.0.0.0:" given (EINVAL) in /var/www/vendor/react/socket/src/TcpServer.php:161
+2026-09-27T08:06:56+00:00  Stack trace:
+2026-09-27T08:06:56+00:00  #0 /var/www/vendor/react/socket/src/SocketServer.php(65): React\Socket\TcpServer->__construct('tcp://0.0.0.0:', NULL, Array)
+2026-09-27T08:06:56+00:00  #1 /var/www/public/index.php(102): React\Socket\SocketServer->__construct('0.0.0.0:')
+2026-09-27T08:06:56+00:00  #2 {main}
+2026-09-27T08:06:56+00:00    thrown in /var/www/vendor/react/socket/src/TcpServer.php on line 161
+2026-09-27T08:07:02+00:00  
+2026-09-27T08:07:02+00:00  Fatal error: Uncaught InvalidArgumentException: Invalid URI "tcp://0.0.0.0:" given (EINVAL) in /var/www/vendor/react/socket/src/TcpServer.php:161
+2026-09-27T08:07:02+00:00  Stack trace:
+2026-09-27T08:07:02+00:00  #0 /var/www/vendor/react/socket/src/SocketServer.php(65): React\Socket\TcpServer->__construct('tcp://0.0.0.0:', NULL, Array)
+2026-09-27T08:07:02+00:00  #1 /var/www/public/index.php(102): React\Socket\SocketServer->__construct('0.0.0.0:')
+2026-09-27T08:07:02+00:00  #2 {main}
+2026-09-27T08:07:02+00:00    thrown in /var/www/vendor/react/socket/src/TcpServer.php on line 161
+2026-09-27T08:07:15+00:00  
+2026-09-27T08:07:15+00:00  Fatal error: Uncaught InvalidArgumentException: Invalid URI "tcp://0.0.0.0:" given (EINVAL) in /var/www/vendor/react/socket/src/TcpServer.php:161
+2026-09-27T08:07:15+00:00  Stack trace:
+2026-09-27T08:07:15+00:00  #0 /var/www/vendor/react/socket/src/SocketServer.php(65): React\Socket\TcpServer->__construct('tcp://0.0.0.0:', NULL, Array)
+2026-09-27T08:07:15+00:00  #1 /var/www/public/index.php(102): React\Socket\SocketServer->__construct('0.0.0.0:')
+2026-09-27T08:07:15+00:00  #2 {main}
+2026-09-27T08:07:15+00:00    thrown in /var/www/vendor/react/socket/src/TcpServer.php on line 161
+2026-09-27T08:07:41+00:00  
+2026-09-27T08:07:41+00:00  Fatal error: Uncaught InvalidArgumentException: Invalid URI "tcp://0.0.0.0:" given (EINVAL) in /var/www/vendor/react/socket/src/TcpServer.php:161
+2026-09-27T08:07:41+00:00  Stack trace:
+2026-09-27T08:07:41+00:00  #0 /var/www/vendor/react/socket/src/SocketServer.php(65): React\Socket\TcpServer->__construct('tcp://0.0.0.0:', NULL, Array)
+2026-09-27T08:07:41+00:00  #1 /var/www/public/index.php(102): React\Socket\SocketServer->__construct('0.0.0.0:')
+2026-09-27T08:07:41+00:00  #2 {main}
+2026-09-27T08:07:41+00:00    thrown in /var/www/vendor/react/socket/src/TcpServer.php on line 161
+2026-09-27T08:08:33+00:00  
+2026-09-27T08:08:33+00:00  Fatal error: Uncaught InvalidArgumentException: Invalid URI "tcp://0.0.0.0:" given (EINVAL) in /var/www/vendor/react/socket/src/TcpServer.php:161
+2026-09-27T08:08:33+00:00  Stack trace:
+2026-09-27T08:08:33+00:00  #0 /var/www/vendor/react/socket/src/SocketServer.php(65): React\Socket\TcpServer->__construct('tcp://0.0.0.0:', NULL, Array)
+2026-09-27T08:08:33+00:00  #1 /var/www/public/index.php(102): React\Socket\SocketServer->__construct('0.0.0.0:')
+2026-09-27T08:08:33+00:00  #2 {main}
+2026-09-27T08:08:33+00:00    thrown in /var/www/vendor/react/socket/src/TcpServer.php on line 161
+2026-09-27T08:09:33+00:00  
+2026-09-27T08:09:33+00:00  Fatal error: Uncaught InvalidArgumentException: Invalid URI "tcp://0.0.0.0:" given (EINVAL) in /var/www/vendor/react/socket/src/TcpServer.php:161
+2026-09-27T08:09:33+00:00  Stack trace:
+2026-09-27T08:09:33+00:00  #0 /var/www/vendor/react/socket/src/SocketServer.php(65): React\Socket\TcpServer->__construct('tcp://0.0.0.0:', NULL, Array)
+2026-09-27T08:09:33+00:00  #1 /var/www/public/index.php(102): React\Socket\SocketServer->__construct('0.0.0.0:')
+2026-09-27T08:09:33+00:00  #2 {main}
+2026-09-27T08:09:33+00:00    thrown in /var/www/vendor/react/socket/src/TcpServer.php on line 161
+2026-09-27T08:10:33+00:00  
+2026-09-27T08:10:33+00:00  Fatal error: Uncaught InvalidArgumentException: Invalid URI "tcp://0.0.0.0:" given (EINVAL) in /var/www/vendor/react/socket/src/TcpServer.php:161
+2026-09-27T08:10:33+00:00  Stack trace:
+2026-09-27T08:10:33+00:00  #0 /var/www/vendor/react/socket/src/SocketServer.php(65): React\Socket\TcpServer->__construct('tcp://0.0.0.0:', NULL, Array)
+2026-09-27T08:10:33+00:00  #1 /var/www/public/index.php(102): React\Socket\SocketServer->__construct('0.0.0.0:')
+2026-09-27T08:10:33+00:00  #2 {main}
+2026-09-27T08:10:33+00:00    thrown in /var/www/vendor/react/socket/src/TcpServer.php on line 161
+2026-09-27T08:11:33+00:00  
+2026-09-27T08:11:33+00:00  Fatal error: Uncaught InvalidArgumentException: Invalid URI "tcp://0.0.0.0:" given (EINVAL) in /var/www/vendor/react/socket/src/TcpServer.php:161
+2026-09-27T08:11:33+00:00  Stack trace:
+2026-09-27T08:11:33+00:00  #0 /var/www/vendor/react/socket/src/SocketServer.php(65): React\Socket\TcpServer->__construct('tcp://0.0.0.0:', NULL, Array)
+2026-09-27T08:11:33+00:00  #1 /var/www/public/index.php(102): React\Socket\SocketServer->__construct('0.0.0.0:')
+2026-09-27T08:11:33+00:00  #2 {main}
+2026-09-27T08:11:33+00:00    thrown in /var/www/vendor/react/socket/src/TcpServer.php on line 161
+2026-09-27T08:12:33+00:00  
+2026-09-27T08:12:33+00:00  Fatal error: Uncaught InvalidArgumentException: Invalid URI "tcp://0.0.0.0:" given (EINVAL) in /var/www/vendor/react/socket/src/TcpServer.php:161
+2026-09-27T08:12:33+00:00  Stack trace:
+2026-09-27T08:12:33+00:00  #0 /var/www/vendor/react/socket/src/SocketServer.php(65): React\Socket\TcpServer->__construct('tcp://0.0.0.0:', NULL, Array)
+2026-09-27T08:12:33+00:00  #1 /var/www/public/index.php(102): React\Socket\SocketServer->__construct('0.0.0.0:')
+2026-09-27T08:12:33+00:00  #2 {main}
+2026-09-27T08:12:33+00:00    thrown in /var/www/vendor/react/socket/src/TcpServer.php on line 161
+2026-09-27T08:13:34+00:00  
+2026-09-27T08:13:34+00:00  Fatal error: Uncaught InvalidArgumentException: Invalid URI "tcp://0.0.0.0:" given (EINVAL) in /var/www/vendor/react/socket/src/TcpServer.php:161
+2026-09-27T08:13:34+00:00  Stack trace:
+2026-09-27T08:13:34+00:00  #0 /var/www/vendor/react/socket/src/SocketServer.php(65): React\Socket\TcpServer->__construct('tcp://0.0.0.0:', NULL, Array)
+2026-09-27T08:13:34+00:00  #1 /var/www/public/index.php(102): React\Socket\SocketServer->__construct('0.0.0.0:')
+2026-09-27T08:13:34+00:00  #2 {main}
+2026-09-27T08:13:34+00:00    thrown in /var/www/vendor/react/socket/src/TcpServer.php on line 161
+2026-09-27T08:14:34+00:00  
+2026-09-27T08:14:34+00:00  Fatal error: Uncaught InvalidArgumentException: Invalid URI "tcp://0.0.0.0:" given (EINVAL) in /var/www/vendor/react/socket/src/TcpServer.php:161
+2026-09-27T08:14:34+00:00  Stack trace:
+2026-09-27T08:14:34+00:00  #0 /var/www/vendor/react/socket/src/SocketServer.php(65): React\Socket\TcpServer->__construct('tcp://0.0.0.0:', NULL, Array)
+2026-09-27T08:14:34+00:00  #1 /var/www/public/index.php(102): React\Socket\SocketServer->__construct('0.0.0.0:')
+2026-09-27T08:14:34+00:00  #2 {main}
+2026-09-27T08:14:34+00:00    thrown in /var/www/vendor/react/socket/src/TcpServer.php on line 161
+2026-09-27T08:15:34+00:00  
+2026-09-27T08:15:34+00:00  Fatal error: Uncaught InvalidArgumentException: Invalid URI "tcp://0.0.0.0:" given (EINVAL) in /var/www/vendor/react/socket/src/TcpServer.php:161
+2026-09-27T08:15:34+00:00  Stack trace:
+2026-09-27T08:15:34+00:00  #0 /var/www/vendor/react/socket/src/SocketServer.php(65): React\Socket\TcpServer->__construct('tcp://0.0.0.0:', NULL, Array)
+2026-09-27T08:15:34+00:00  #1 /var/www/public/index.php(102): React\Socket\SocketServer->__construct('0.0.0.0:')
+2026-09-27T08:15:34+00:00  #2 {main}
+2026-09-27T08:15:34+00:00    thrown in /var/www/vendor/react/socket/src/TcpServer.php on line 161
+2026-09-27T08:16:34+00:00  
+2026-09-27T08:16:34+00:00  Fatal error: Uncaught InvalidArgumentException: Invalid URI "tcp://0.0.0.0:" given (EINVAL) in /var/www/vendor/react/socket/src/TcpServer.php:161
+2026-09-27T08:16:34+00:00  Stack trace:
+2026-09-27T08:16:34+00:00  #0 /var/www/vendor/react/socket/src/SocketServer.php(65): React\Socket\TcpServer->__construct('tcp://0.0.0.0:', NULL, Array)
+2026-09-27T08:16:34+00:00  #1 /var/www/public/index.php(102): React\Socket\SocketServer->__construct('0.0.0.0:')
+2026-09-27T08:16:34+00:00  #2 {main}
+2026-09-27T08:16:34+00:00    thrown in /var/www/vendor/react/socket/src/TcpServer.php on line 161
+2026-09-27T08:16:51+00:00  == Sinatra (v4.2.1) has taken the stage on 6060 for production with backup from Puma
+2026-09-27T08:16:51+00:00  I, [2026-09-27T08:16:51.302270 #1]  INFO -- : Instrumentation: OpenTelemetry::Instrumentation::Sinatra was successfully installed with the following options {install_rack: true}
+2026-09-27T08:16:51+00:00  Puma starting in single mode...
+2026-09-27T08:16:51+00:00  * Puma version: 7.1.0 ("Neon Witch")
+2026-09-27T08:16:51+00:00  * Ruby version: ruby 3.4.7 (2025-10-08 revision 7a5688e2a2) +PRISM [aarch64-linux-musl]
+2026-09-27T08:16:51+00:00  *  Min threads: 0
+2026-09-27T08:16:51+00:00  *  Max threads: 5
+2026-09-27T08:16:51+00:00  *  Environment: production
+2026-09-27T08:16:51+00:00  *          PID: 1
+2026-09-27T08:16:51+00:00  * Listening on http://0.0.0.0:6060
+2026-09-27T08:16:51+00:00  Use Ctrl-C to stop
+2026-09-27T08:16:53+00:00  Order confirmation email sent to: jeff@example.com
+2026-09-27T08:16:53+00:00  172.18.0.9 - - [27/Sep/2026:08:16:53 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0522
+2026-09-27T08:17:07+00:00  Order confirmation email sent to: jeff@example.com
+2026-09-27T08:17:07+00:00  172.18.0.9 - - [27/Sep/2026:08:17:07 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0112
+2026-09-27T08:17:10+00:00  Order confirmation email sent to: bill@example.com
+2026-09-27T08:17:10+00:00  172.18.0.9 - - [27/Sep/2026:08:17:10 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0032
+2026-09-27T08:17:25+00:00  Order confirmation email sent to: moore@example.com
+2026-09-27T08:17:25+00:00  172.18.0.9 - - [27/Sep/2026:08:17:25 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0082
+2026-09-27T08:17:40+00:00  Order confirmation email sent to: moore@example.com
+2026-09-27T08:17:40+00:00  172.18.0.9 - - [27/Sep/2026:08:17:40 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0181
+2026-09-27T08:17:49+00:00  Order confirmation email sent to: steve@example.com
+2026-09-27T08:17:49+00:00  172.18.0.9 - - [27/Sep/2026:08:17:49 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0173
+2026-09-27T08:17:53+00:00  Order confirmation email sent to: bill@example.com
+2026-09-27T08:17:53+00:00  172.18.0.9 - - [27/Sep/2026:08:17:53 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0226
+2026-09-27T08:18:01+00:00  Order confirmation email sent to: jeff@example.com
+2026-09-27T08:18:01+00:00  172.18.0.9 - - [27/Sep/2026:08:18:01 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0041
+2026-09-27T08:18:03+00:00  Order confirmation email sent to: jeff@example.com
+2026-09-27T08:18:03+00:00  172.18.0.9 - - [27/Sep/2026:08:18:03 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0053
+2026-09-27T08:18:28+00:00  Order confirmation email sent to: steve@example.com
+2026-09-27T08:18:28+00:00  172.18.0.9 - - [27/Sep/2026:08:18:28 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0092
+2026-09-27T08:18:30+00:00  Order confirmation email sent to: bill@example.com
+2026-09-27T08:18:30+00:00  172.18.0.9 - - [27/Sep/2026:08:18:30 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0028
+2026-09-27T08:18:32+00:00  Order confirmation email sent to: jeff@example.com
+2026-09-27T08:18:32+00:00  172.18.0.9 - - [27/Sep/2026:08:18:32 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0186
+2026-09-27T08:18:36+00:00  Order confirmation email sent to: bill@example.com
+2026-09-27T08:18:36+00:00  172.18.0.9 - - [27/Sep/2026:08:18:36 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0078
+2026-09-27T08:18:41+00:00  Order confirmation email sent to: steve@example.com
+2026-09-27T08:18:41+00:00  172.18.0.9 - - [27/Sep/2026:08:18:41 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0081
+2026-09-27T08:18:42+00:00  172.18.0.9 - - [27/Sep/2026:08:18:42 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0082
+2026-09-27T08:18:42+00:00  Order confirmation email sent to: jeff@example.com
+2026-09-27T08:18:43+00:00  172.18.0.9 - - [27/Sep/2026:08:18:43 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0076
+2026-09-27T08:18:43+00:00  Order confirmation email sent to: bill@example.com
+2026-09-27T08:18:58+00:00  Order confirmation email sent to: steve@example.com
+2026-09-27T08:18:58+00:00  172.18.0.9 - - [27/Sep/2026:08:18:58 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0085
+2026-09-27T08:19:00+00:00  Order confirmation email sent to: mark@example.com
+2026-09-27T08:19:00+00:00  172.18.0.9 - - [27/Sep/2026:08:19:00 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0025
+2026-09-27T08:19:11+00:00  Order confirmation email sent to: reed@example.com
+2026-09-27T08:19:11+00:00  172.18.0.9 - - [27/Sep/2026:08:19:11 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0106
+2026-09-27T08:19:11+00:00  Order confirmation email sent to: larry_sergei@example.com
+2026-09-27T08:19:11+00:00  172.18.0.9 - - [27/Sep/2026:08:19:11 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0017
+2026-09-27T08:19:12+00:00  Order confirmation email sent to: tobias@example.com
+2026-09-27T08:19:12+00:00  172.18.0.9 - - [27/Sep/2026:08:19:12 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0050
+2026-09-27T08:19:24+00:00  Order confirmation email sent to: jack@example.com
+2026-09-27T08:19:24+00:00  172.18.0.9 - - [27/Sep/2026:08:19:24 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0028
+2026-09-27T08:19:32+00:00  Order confirmation email sent to: jack@example.com
+2026-09-27T08:19:32+00:00  172.18.0.9 - - [27/Sep/2026:08:19:32 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0188
+2026-09-27T08:19:34+00:00  Order confirmation email sent to: mark@example.com
+2026-09-27T08:19:34+00:00  172.18.0.9 - - [27/Sep/2026:08:19:34 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0028
+2026-09-27T08:19:48+00:00  Order confirmation email sent to: reed@example.com
+2026-09-27T08:19:48+00:00  172.18.0.9 - - [27/Sep/2026:08:19:48 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0150
