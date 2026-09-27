@@ -408,6 +408,7 @@ def test_the_v2_old_mechanism_definitions_carry_v2_values_not_v1s() -> None:
         "v2-cart-bad-image-tag",
         "v2-shipping-wrong-image",
         "v2-ad-bad-image-tag",
+        "v2-email-wrong-image",
         "v2-ad-memory-squeeze",
         "v2-cart-dependency-latency",
     }
@@ -457,6 +458,11 @@ def test_the_v2_old_mechanism_definitions_carry_v2_values_not_v1s() -> None:
         "image": "ghcr.io/open-telemetry/demo:2.2.0-ad-hotfix.2",
         "expect_start": "no",
     }
+    email = v2_old["v2-email-wrong-image"].params
+    assert email == {"image": "ghcr.io/open-telemetry/demo:2.2.0-quote", "expect_start": "yes"}, (
+        "v2's own quote image, which exists: the deploy succeeds and the PHP server has no "
+        "QUOTE_PORT in email's environment, so it exits 255 at start rather than being killed"
+    )
 
 
 def test_the_v2_flag_definitions_name_the_demo_flag_and_the_service_that_reads_it() -> None:
