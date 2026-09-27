@@ -1,0 +1,75 @@
+# v2/dependency_latency-2 (dev) - see SPLIT-V2.md. Slot allocated before authoring; do not move.
+# Candidate order and eligibility: docs/design/t7.1-candidates.md, dependency_latency row 2 -
+# dev-only: v1's redis-cart-dependency-latency is a published dev design, carried to v2's
+# valkey-cart. The store's interface (eth0), its Loki stream and its absence from Prometheus were
+# checked before authoring (2026-09-27).
+id: v2-valkey-cart-dependency-latency
+title: Cart is slow because its store is, and the store has no spans
+fault_class: dependency_latency
+split: dev
+slot: v2/dependency_latency-2
+world: v2
+injection:
+  target: valkey-cart
+  method: v2-valkey-cart-dependency-latency
+  params:
+    delay_ms: 300
+    jitter_ms: 0
+    duration: "1h"
+    # The store's one interface (docker exec valkey-cart ls /sys/class/net, 2026-09-27). The rule
+    # delays packets leaving the store: its replies to cart, and nothing else.
+    interface: "eth0"
+ground_truth:
+  root_cause: >
+    A traffic-shaping rule attached to valkey-cart's network namespace adds 300ms of delay to
+    every packet leaving the store, so each of cart's store commands waits 300ms for its reply.
+    Cart's own code, image, configuration and process are untouched, and so are its answers to its
+    callers: cart is slow only because every request it serves waits on its store. The store has
+    no spans, no metrics and no name anywhere in the traced graph; it is named only in the change
+    record. Recreating the store container clears the rule, which is bound to the container's
+    network namespace.
+  category: dependency_latency
+expected_evidence:
+  # Carried from v1's design and not recorded on v2 yet. Written before the first recording and
+  # checked against the bundle, as every v2 scenario's list has been, and corrected there. The
+  # comparator is v2-cart-dependency-latency, recorded the same day: there the delay was on cart's
+  # egress, so every store command and every answer to a caller paid 300ms. Here only the store's
+  # replies pay it. Predicted: the same five latency alerts, and the distinction in the traces and
+  # the change record - see the candidate list's note for the prediction in full.
+  - alerts: ServiceHighLatency on cart and on its callers - checkout, frontend, frontend-proxy and
+      load-generator - within about a minute of each other, four to five minutes in, as in
+      v2-cart-dependency-latency; no ServiceHighErrorRate anywhere and nothing goes quiet
+  - metrics: cart's p95 steps from 3ms to about 900 (an AddItem or EmptyCart is three store round
+      trips at ~300 each), as in the comparator; the callers' p95s to about 1.2 s rather than the
+      comparator's 1.8, because cart's answers are not delayed - a cart page or an order touches
+      cart twice and pays only the store's time; every error ratio stays at zero; rates hold or
+      ease as shoppers wait; the store has no series to move
+  - traces: cart's server span holds the time and beneath it every store command (HGET, HMSET,
+      EXPIRE) takes ~300ms - but cart's flag read to flagd, beside them, stays at a few
+      milliseconds, and the caller's client span ends within milliseconds of cart's server span
+      rather than 300ms after it; the store itself has no span anywhere; no span errors
+  - logs: cart's log goes on as before, its request lines at their usual rate, with nothing new in
+      it; the store's log is its five-minute save and nothing else, before, during and after
+  - metrics: cart's 35 runtime series report without a gap, CPU and collections flat, no restart -
+      the process is up and unstrained; the store has no runtime series and never had
+  - change: a change record at onset under valkey-cart's name - a name that appears in no
+      service's metrics or spans - `traffic-shaping container attached to valkey-cart's network
+      namespace`, carrying `eth0 delay=300ms jitter=0ms`; nothing recorded on cart or on any
+      traced service
+  - discriminator: the same ~300ms on every store command and on nothing else - not on cart's
+      flag read, not on cart's answers - places the delay between cart and its store rather than
+      at cart's interface; a service whose every dependency call is slow has a slow interface, a
+      service whose calls to one dependency are slow has a slow dependency, and here the slow
+      dependency is one the traces cannot see, so its name comes from the change record alone
+# Carried from v1: the rule lives in the store container's network namespace, so recreating the
+# store is what clears it - a restart, not a rollback or a config revert.
+expected_remediation_class: restart
+rehearsed: false
+alert_timeout_seconds: 900
+# Declared before recording, checked against the bundle after (T7.5). Measured on the running world
+# 2026-09-27: valkey-cart has no runtime series (none of the v2 families, nor anything else under
+# its name in Prometheus) and a Loki stream of its own that carries its five-minute save, five
+# lines each time - about twenty lines over a recording's window, just past the recorder's
+# ten-line threshold. So [logs], marginally: if the bundle's capture falls short of the threshold
+# the recorder derives [] and the declaration is corrected against it, not argued with.
+answers_idle_or_absent: [logs]
