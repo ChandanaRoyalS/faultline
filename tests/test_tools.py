@@ -814,6 +814,12 @@ NARRATIVE_EVIDENCE_V2: dict[str, set[str]] = {
         "traces",
         "changes",
     },
+    # The target is starved, not killed for good: it runs at its ceiling, slow, and is killed and
+    # restarted in bursts. Metrics carry its p95 up with every rate unchanged; runtime shows it
+    # alive with its counters resetting; its log is the start-up line repeating with nothing
+    # before it; the traces show slow charges and refusals inside the bursts; the change record
+    # names the limit.
+    "v2-payment-memory-squeeze": {"metrics", "runtime_metrics", "logs", "traces", "changes"},
     # Holdout. The page names the culprit and reads as down. Metrics carry its rate going to zero
     # and everyone else's holding; runtime shows it alive; its log names the address and the
     # refused connection, and fraud-detection's shows the topic still read; traces show none of
