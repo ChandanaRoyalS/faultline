@@ -1,6 +1,6 @@
 # The bundles, rendered
 
-Every recorded rehearsal in this repository as a readable page — 36 in all: **33 runnable** (25 dev, 8 holdout) and **3 that could not fire** (3 dev).
+Every recorded rehearsal in this repository as a readable page — 37 in all: **34 runnable** (25 dev, 9 holdout) and **3 that could not fire** (3 dev).
 
 A bundle is what one rehearsal left behind — the manifest, the Prometheus captures,
 a slice of one service's logs, the exact queries, and the narrative a responder wrote
@@ -67,6 +67,7 @@ pre-registered entry.
 | [`v2-email-flag-memory-leak`](v2-email-flag-memory-leak.md) | `feature_flag` | A feature flag makes the email service keep every confirmation it sends — 2 alerts over the window |
 | [`v2-email-wrong-image`](v2-email-wrong-image.md) | `bad_deploy` | Email deployed with another service's image — 2 alerts over the window |
 | [`v2-payment-flag-unreachable`](v2-payment-flag-unreachable.md) | `feature_flag` | A feature flag makes checkout charge cards at an address that does not exist — 7 alerts over the window |
+| [`v2-product-catalog-dependency-latency`](v2-product-catalog-dependency-latency.md) | `dependency_latency` | The product catalog's network path acquires 300ms of delay, and every page slows — 6 alerts over the window |
 
 ---
 

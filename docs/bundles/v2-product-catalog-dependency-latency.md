@@ -1,17 +1,64 @@
----
-origin: scenario:v2-product-catalog-dependency-latency
-split: holdout
-fault_class: dependency_latency
-recorded_from: 2026-09-27T11:59:06+00:00
-capability: cap:d2b243e0
-onset_to_page: 3m50s
-page_to_fix: 5m00s
-fix_to_all_clear: 5m02s
----
-
 # The product catalog's network path acquires 300ms of delay, and every page slows
 
-## What was observed
+## The scenario
+
+| | |
+|---|---|
+| scenario | `v2-product-catalog-dependency-latency` |
+| fault class | **`dependency_latency`** |
+| expected remediation | `restart` |
+| split | `holdout` |
+| injected at | `product-catalog` via `v2-product-catalog-dependency-latency` |
+| time to page | 3m50s |
+| steady state captured | 300s |
+| capture window | 2026-09-27T11:54:06+00:00 → 2026-09-27T12:14:58+00:00 |
+
+The clock below runs from the moment the fault went in.
+
+| | |
+|---|---|
+| `t_inject` | T+0m00s |
+| first alert firing | T+3m50s |
+| `t_revert` | T+8m50s |
+| all clear | T+13m52s |
+
+## What fired, and when
+
+| when | service | alert | firing for | |
+|---|---|---|---:|---|
+| T+3m30s | `recommendation` | ServiceHighLatency | 10.0 min | **paged** |
+| T+4m30s | `checkout` | ServiceHighLatency | 8.0 min | joined later |
+| T+4m30s | `frontend` | ServiceHighLatency | 9.0 min | joined later |
+| T+4m30s | `frontend-proxy` | ServiceHighLatency | 9.0 min | joined later |
+| T+4m30s | `load-generator` | ServiceHighLatency | 9.0 min | joined later |
+| T+4m30s | `product-catalog` | ServiceHighLatency | 9.0 min | joined later |
+
+## What the bundle contains
+
+| capture | query |
+|---|---|
+| `metrics/alerts-firing.json` | `ALERTS{alertstate="firing"}` |
+| `metrics/call-rate.json` | `sum by(service_name) (rate(traces_span_metrics_calls_total[5m]))` |
+| `metrics/error-ratio.json` | `sum by(service_name) (rate(traces_span_metrics_calls_total{status_code="STATUS_CODE_ERROR"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total[5m]))` |
+| `metrics/latency-p95.json` | `histogram_quantile(0.95, sum by(service_name, le) (rate(traces_span_metrics_duration_milliseconds_bucket{span_kind!="SPAN_KIND_INTERNAL"}[5m])))` |
+| `metrics/runtime.json` | `{__name__=~"go_.*|dotnet_.*|jvm_.*|process_.*|v8js_.*|nodejs_.*",service_name="product-catalog"}` |
+
+`logs/product-catalog.txt` — 10 lines.
+
+## The incident record
+
+Written from the responder's chair, by someone who did not know the fault class
+or that anything had been injected. This text is also corpus material, which is
+why it never names the injector.
+
+**It keeps its own clock.** The table above is measured from the injection, which
+is the only origin the manifest records; a narrative's `T+` offsets are the
+responder's own and start wherever that responder started counting — usually the
+page, sometimes the injection, sometimes an event in the logs. The same moment can
+therefore carry two different offsets on this page. The absolute timestamps in the
+bundle are the tiebreak.
+
+### What was observed
 
 The page was one alert, `ServiceHighLatency` on **recommendation**, 3m50s after the trouble
 started. A minute later `ServiceHighLatency` fired on five more services at once: **frontend**,
@@ -34,7 +81,7 @@ catalog's from about 5.3 to 4.6, as shoppers waited on slow pages; recommendatio
 checkout's eased with them. Every page that showed a product, every recommendation and every
 order was slow. Everything else was fine.
 
-## What was checked
+### What was checked
 
 **The traces, because six services slowed at once and one of them had to be first.** Every slow
 trace touched the product catalog, and inside the catalog the time was in one place. At rest, the
@@ -96,7 +143,7 @@ catalog's name, at the start, that is none of those: a **container created**, de
 traffic-shaping container attached to product-catalog's network namespace, carrying `eth0
 delay=300ms jitter=0ms`. Five services paged and the sixth was the one the record named.
 
-## Root cause
+### Root cause
 
 A traffic-shaping rule attached to the product catalog's network namespace added 300ms of delay
 to every packet leaving the container. The catalog's code, image, configuration, process and
@@ -105,7 +152,7 @@ again on its answer, and lookups queued behind each other while each held the ca
 connection for 600ms. Because the storefront, the recommendations and every order look products
 up, the whole store slowed at once, by seconds. Nothing failed.
 
-## Resolution
+### Resolution
 
 The shaping container was removed and the rule went with it: the rule lives in the catalog's
 network namespace and does not outlive what holds it, so recreating the catalog would have
@@ -119,7 +166,7 @@ container is the operator's remedy, and removing the shaping container is the sa
 other end. Nothing about the catalog's image or configuration, and nothing about its database,
 needed to change.
 
-## Detection notes
+### Detection notes
 
 - Onset to first page: **3m50s**. Services on the page: **one**, recommendation, which was not at
   fault. By the fix: **six**, the catalog among them.
@@ -145,3 +192,7 @@ needed to change.
 - **"Nothing changed" is a conclusion about four queries, not about a service.** Deploy, image,
   environment and limit all came back empty on six services; the change record held the answer
   under the catalog's name, as a container that was not the catalog.
+
+---
+
+Rendered from [`evals/scenarios/artifacts/holdout/v2-product-catalog-dependency-latency/`](../../evals/scenarios/artifacts/holdout/v2-product-catalog-dependency-latency/) by `faultline-render`. [All bundles](README.md).
