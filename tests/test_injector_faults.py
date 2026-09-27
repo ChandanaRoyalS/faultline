@@ -413,6 +413,7 @@ def test_the_v2_old_mechanism_definitions_carry_v2_values_not_v1s() -> None:
         "v2-cart-dependency-latency",
         "v2-valkey-cart-dependency-latency",
         "v2-payment-dependency-latency",
+        "v2-product-catalog-dependency-latency",
     }
     for f in v2_old.values():
         flat = " ".join(str(v) for v in f.params.values())
@@ -477,6 +478,10 @@ def test_the_v2_old_mechanism_definitions_carry_v2_values_not_v1s() -> None:
     assert leaf.target == "payment" and leaf.params["delay_ms"] == 300, (
         "the row's 300ms, not tuned: a leaf's delayed replies never enter its own spans, and "
         "whether checkout pages is decided by the share of its spans the charge is"
+    )
+    catalog = v2_old["v2-product-catalog-dependency-latency"]
+    assert catalog.target == "product-catalog" and catalog.params == leaf.params, (
+        "the row's fourth target, the same rule: the catalog is not a leaf, so its own p95 moves"
     )
 
 
