@@ -757,6 +757,10 @@ NARRATIVE_EVIDENCE_V2: dict[str, set[str]] = {
     # unreachable address; the cart calls end with nothing beneath them; runtime stops; the change
     # record names the image.
     "v2-cart-bad-image-tag": {"metrics", "runtime_metrics", "logs", "traces", "changes"},
+    # The callee restarts in a loop. Metrics carry checkout's errors and shipping's traffic going to
+    # zero; shipping's log is a Java process starting and dying; checkout's quote call fails with
+    # nothing beneath; there are no runtime series to cite; the change record names the image.
+    "v2-shipping-wrong-image": {"metrics", "logs", "traces", "changes"},
     # Holdout. The page names the culprit and reads as down. Metrics carry its rate going to zero
     # and everyone else's holding; runtime shows it alive; its log names the address and the
     # refused connection, and fraud-detection's shows the topic still read; traces show none of
