@@ -1,0 +1,99 @@
+# v2/process_freeze-4 (HOLDOUT) - see SPLIT-V2.md. Nothing may be tuned against this scenario.
+# Slot allocated before authoring; do not move. Candidate order and eligibility:
+# docs/design/t7.1-candidates.md, process_freeze row 4 - new: the freeze at the last step of an
+# order. Measured before authoring (2026-09-27): only checkout calls payment, once an order, after
+# the cart read, the catalog lookups, both conversions and the shipping quote; one request in
+# sixteen; payment holds 75 runtime series and logs every charge.
+id: v2-payment-freeze
+title: The payment process is frozen - its socket accepts and nothing answers
+fault_class: process_freeze
+split: holdout
+slot: v2/process_freeze-4
+world: v2
+injection:
+  target: payment
+  method: v2-payment-freeze
+  params: {}
+ground_truth:
+  root_cause: >
+    The payment container was paused (docker pause): the process exists and holds its port, the
+    kernel accepts connections into the backlog, and nothing answers them. Only checkout calls
+    payment, once an order, after the cart read, the catalog lookups, the conversions and the
+    shipping quote, so every order hangs at its charge with no deadline of its own, five steps
+    done and none of the rest - no shipment, no confirmation email, no order record - while the
+    storefront browses, adds to carts and views them as before. Payment itself neither errors nor
+    logs, because it is not running.
+  category: process_freeze
+expected_evidence:
+  # A new design: predicted before recording from the freeze's mechanism and rows 1 to 3, and
+  # checked against the bundle. Measured at rest (2026-09-27): 8 of 130 requests in a minute touch
+  # payment, all of them checkouts (6.2 %); checkout calls it 0.14 times a second, one Charge an
+  # order, the last call before the shipment, the cart emptying, the email and the order record;
+  # nothing else calls it; the proxy's timeout is 15 s and checkout sets none; payment holds 75
+  # Node runtime series and logs 180 to 1,260 lines a minute (each charge a multi-line record).
+  # The comparator is row 3, v2-currency-freeze, the same hang two steps earlier in the same
+  # order: nine alerts on seven services there, the page a starved consumer's error ratio and
+  # then six services' silence. Here the silence is narrower - only what comes after the charge -
+  # and the target reports its own absence. Distinct from row 3 on (a) by which services starve
+  # (shipping, quote and currency keep the part of their rate that comes before the charge), on
+  # (c) by a log that stops mid-stream where currency has none, and on (d) by the open span,
+  # Charge; the two are twins in everything else, and the record says so.
+  - alerts: the page is most likely fraud-detection's - ServiceHighErrorRate on it about five and
+      a half minutes in, its one stream span at 100 % once orders stop reaching the topic, then
+      its latency - as in row 3; ServiceNoTraffic at about +7:30 on payment, email and accounting
+      together, fraud-detection's later as its stream span drops out; no alert on checkout,
+      shipping, quote or currency, which keep the part of an order that comes before the charge;
+      the proxy's and the load generator's error ratios at 3 to 6 %, on the line, and their p95s
+      touching the ceiling without holding it, as in row 3 - either may fire and neither is
+      predicted to; nothing on the frontend, cart, product-catalog, ad or recommendation; if
+      nothing fires inside 900 s the design is blocked
+  - metrics: payment's rate from 0.14 a second to nothing by +4 with no error ratio of its own,
+      and from then no ratio or p95; checkout's rate falling by about a third and no further - the
+      cart read, the catalog lookups, the conversions and the quote before the hung charge still
+      export - and its p95 falling with it; email's and accounting's rates to zero by +4,
+      fraud-detection's to its stream span and then zero; shipping's and quote's roughly halved
+      (quotes continue, shipments stop), currency's unchanged; the frontend's error ratio zero
+      and its p95 unmoved, its rate down a few percent as blocked users wait; the proxy's error
+      ratio peaking near 3 to 6 %; cart, product-catalog, ad and recommendation serving
+  - metrics: payment's 75 Node runtime series stop at the freeze - a paused process exports
+      nothing - hold their last values for the store's lookback and drop out of queries from
+      about +4; back within a minute of the unpause
+  - traces: every proxy error trace is a checkout ending at its 15 s deadline; beneath it the
+      frontend's POST /api/checkout stays open for the length of the freeze on its PlaceOrder
+      call, and checkout's PlaceOrder stays open at oteldemo.PaymentService/Charge - after
+      prepareOrderItemsAndShippingQuoteFromCart has completed in full, cart read, catalog
+      lookups, conversions and quote in milliseconds - with nothing after it; payment has no
+      spans during the freeze and its spans appear only after the resume
+  - logs: payment's log - a multi-line record per charge, hundreds of lines a minute - stops at
+      the freeze with an ordinary charge record and shows nothing until the unpause; no error, no
+      shutdown line, no start-up sequence; then the held charges' records in a burst; the
+      frontend logs nothing while the fault holds
+  - recovery: at the unpause every held order wakes together and its charge returns in
+      milliseconds after waiting up to ten minutes; the orders go on to their shipments, emails
+      and records; the no-traffic alerts clear as the windows refill; checkout's and the
+      frontend's p95 at the ceiling for the store's window as ten-minute spans close, the order
+      path at two to three times its rate; whether the recovery's latencies page depends on how
+      long they hold against the window - row 3's cleared in 1m01s and the wave was not on
+      record; row 2's took 5m01s with two recovery-only alerts
+  - change: nothing recorded - no deploy, no config change, no limit, no flag; the change history
+      is empty for the whole window
+  - discriminator: a partition of the same service looks identical on alerts, metrics and traces;
+      the freeze is the one whose target logs nothing at all from the moment it stops, where a
+      partitioned target keeps running and logs its export failures; against the other faults on
+      this target - a slow payment (v2-payment-dependency-latency) shows checkout's latency with
+      payment's spans present and slow; a starved payment (v2-payment-memory-squeeze) shows
+      latency on payment itself and start-up lines repeating; a flag that fails charges
+      (v2-payment-flag-unreachable) shows errors on checkout with payment idle and exporting -
+      here the callers wait rather than fail, payment's series and log both stop, and nothing was
+      changed
+expected_remediation_class: restart
+# The freeze resolves when the process is unfrozen; where an operator cannot `unpause`, a restart
+# is what does it (knowledge/runbooks/class-process-freeze.md). Nothing was changed, so nothing
+# is reverted.
+rehearsed: false
+alert_timeout_seconds: 900
+# Declared before recording, checked against the bundle after (T7.5). Measured on the running world
+# 2026-09-27: payment holds 75 Node runtime series and logs 180 to 1,260 lines a minute. A paused
+# process exports and writes nothing, so both answer by going absent - frozen-or-cut-off from
+# idle, as the row's note says, not freeze from partition, which its log would tell apart.
+answers_idle_or_absent: [runtime, logs]

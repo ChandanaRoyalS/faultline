@@ -604,6 +604,19 @@ CATALOG: tuple[FaultDefinition, ...] = _validated(
             ),
         ),
         FaultDefinition(
+            id="v2-payment-freeze",
+            fault_class=FaultClass.PROCESS_FREEZE,
+            target="payment",
+            world="v2",
+            description=(
+                "docker pause the payment service. Only checkout calls it, once an order, after "
+                "the cart read, the catalog lookups, both conversions and the shipping quote - so "
+                "every order hangs at its charge with five steps already done, and only what "
+                "comes after the charge goes silent: the shipment, the confirmation, the order "
+                "record. One request in sixteen (measured 2026-09-27); the storefront untouched."
+            ),
+        ),
+        FaultDefinition(
             id="v2-product-catalog-partition",
             fault_class=FaultClass.NETWORK_PARTITION,
             target="product-catalog",
