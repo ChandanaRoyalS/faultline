@@ -1,17 +1,84 @@
----
-origin: scenario:v2-cart-dependency-latency
-split: dev
-fault_class: dependency_latency
-recorded_from: 2026-09-27T08:42:06+00:00
-capability: cap:d2b243e0
-onset_to_page: 4m50s
-page_to_fix: 5m00s
-fix_to_all_clear: 5m02s
----
-
 # Cart service network path acquires 300ms of delay
 
-## What was observed
+## The scenario
+
+| | |
+|---|---|
+| scenario | `v2-cart-dependency-latency` |
+| fault class | **`dependency_latency`** |
+| expected remediation | `restart` |
+| split | `dev` |
+| injected at | `cart` via `v2-cart-dependency-latency` |
+| time to page | 4m50s |
+| steady state captured | 300s |
+| capture window | 2026-09-27T08:37:06+00:00 → 2026-09-27T08:58:58+00:00 |
+
+The clock below runs from the moment the fault went in.
+
+| | |
+|---|---|
+| `t_inject` | T+0m00s |
+| first alert firing | T+4m50s |
+| `t_revert` | T+9m50s |
+| all clear | T+14m52s |
+
+## What fired, and when
+
+| when | service | alert | firing for | |
+|---|---|---|---:|---|
+| T+4m30s | `cart` | ServiceHighLatency | 10.0 min | **paged** |
+| T+4m30s | `frontend` | ServiceHighLatency | 9.0 min | **paged** |
+| T+4m30s | `frontend-proxy` | ServiceHighLatency | 9.0 min | **paged** |
+| T+4m30s | `load-generator` | ServiceHighLatency | 9.0 min | **paged** |
+| T+5m30s | `checkout` | ServiceHighLatency | 8.0 min | joined later |
+
+## What the bundle contains
+
+| capture | query |
+|---|---|
+| `metrics/alerts-firing.json` | `ALERTS{alertstate="firing"}` |
+| `metrics/call-rate.json` | `sum by(service_name) (rate(traces_span_metrics_calls_total[5m]))` |
+| `metrics/error-ratio.json` | `sum by(service_name) (rate(traces_span_metrics_calls_total{status_code="STATUS_CODE_ERROR"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total[5m]))` |
+| `metrics/latency-p95.json` | `histogram_quantile(0.95, sum by(service_name, le) (rate(traces_span_metrics_duration_milliseconds_bucket{span_kind!="SPAN_KIND_INTERNAL"}[5m])))` |
+| `metrics/runtime.json` | `{__name__=~"go_.*|dotnet_.*|jvm_.*|process_.*|v8js_.*|nodejs_.*",service_name="cart"}` |
+
+`logs/cart.txt` — 509 lines.
+
+## A look at the logs
+
+From `logs/cart.txt` (---- onset 2026-09-27T08:42:06+00:00 ----):
+
+```
+2026-09-27T08:41:36+00:00  info: cart.cartstore.ValkeyCartStore[0]
+2026-09-27T08:41:36+00:00        AddItemAsync called with userId=4000efbe-ba4f-11f1-9375-7e805effaa5d, productId=OLJCESPC7Z, quantity=5
+2026-09-27T08:41:36+00:00  info: cart.cartstore.ValkeyCartStore[0]
+2026-09-27T08:41:36+00:00        GetCartAsync called with userId=4000efbe-ba4f-11f1-9375-7e805effaa5d
+2026-09-27T08:41:36+00:00  info: cart.cartstore.ValkeyCartStore[0]
+2026-09-27T08:41:36+00:00        AddItemAsync called with userId=4000efbe-ba4f-11f1-9375-7e805effaa5d, productId=HQTGWGPNH4, quantity=5
+2026-09-27T08:41:36+00:00  info: cart.cartstore.ValkeyCartStore[0]
+2026-09-27T08:41:36+00:00        GetCartAsync called with userId=4000efbe-ba4f-11f1-9375-7e805effaa5d
+2026-09-27T08:41:36+00:00  info: cart.cartstore.ValkeyCartStore[0]
+2026-09-27T08:41:36+00:00        GetCartAsync called with userId=4000efbe-ba4f-11f1-9375-7e805effaa5d
+2026-09-27T08:41:36+00:00  info: cart.cartstore.ValkeyCartStore[0]
+2026-09-27T08:41:36+00:00        EmptyCartAsync called with userId=4000efbe-ba4f-11f1-9375-7e805effaa5d
+```
+
+_488 further lines are in the bundle._
+
+## The incident record
+
+Written from the responder's chair, by someone who did not know the fault class
+or that anything had been injected. This text is also corpus material, which is
+why it never names the injector.
+
+**It keeps its own clock.** The table above is measured from the injection, which
+is the only origin the manifest records; a narrative's `T+` offsets are the
+responder's own and start wherever that responder started counting — usually the
+page, sometimes the injection, sometimes an event in the logs. The same moment can
+therefore carry two different offsets on this page. The absolute timestamps in the
+bundle are the tiebreak.
+
+### What was observed
 
 The page was four alerts in the same moment, `ServiceHighLatency` on **cart**, **frontend**,
 **frontend-proxy** and **load-generator**, 4m50s after the trouble started. A minute later
@@ -32,7 +99,7 @@ slow page make fewer requests. Cart kept serving, at about 3.4 to 3.9 spans a se
 4.2, and payment, shipping, currency and the catalog kept their usual rates and their usual few
 milliseconds. Orders were being placed, slowly.
 
-## What was checked
+### What was checked
 
 **The traces, because four services slowed at once and the page did not say which one first.**
 Every slow trace touched cart, and the time sat in the same places in all of them. At rest, cart
@@ -86,7 +153,7 @@ the fifth was the incident. The change was made below the level a service's own 
 describes, and it is recorded under the service's name rather than anywhere in the service's
 configuration.
 
-## Root cause
+### Root cause
 
 A traffic-shaping rule attached to the cart service's network namespace added 300ms of delay to
 every packet leaving the container. Cart's code, image, configuration and store were untouched
@@ -95,7 +162,7 @@ each round trip to its store or to the flag service, so a cart read cost its cal
 add or an empty 1.2 seconds, and every page and order that touched a cart waited on it. Nothing
 failed.
 
-## Resolution
+### Resolution
 
 The shaping container was removed and the rule went with it: the rule lives in cart's network
 namespace and does not outlive what holds it, so recreating cart would have cleared it as well. The
@@ -108,7 +175,7 @@ Class of fix: **restart**. The rule is bound to the container's network namespac
 container is the operator's remedy, and removing the shaping container is the same fix from the
 other end. Nothing about cart's image or configuration needed to change.
 
-## Detection notes
+### Detection notes
 
 - Onset to first page: **4m50s**. Services on the page: **four**, cart among them, with three of
   its callers. By the fix: **five**.
@@ -134,3 +201,7 @@ other end. Nothing about cart's image or configuration needed to change.
 - **"Nothing changed" is a conclusion about four queries, not about a service.** The deploy, image,
   environment and limit questions all came back empty; the change record still held the answer,
   under cart's name, as a container that was not cart.
+
+---
+
+Rendered from [`evals/scenarios/artifacts/dev/v2-cart-dependency-latency/`](../../evals/scenarios/artifacts/dev/v2-cart-dependency-latency/) by `faultline-render`. [All bundles](README.md).
