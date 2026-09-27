@@ -1,17 +1,81 @@
----
-origin: scenario:v2-email-wrong-image
-split: holdout
-fault_class: bad_deploy
-recorded_from: 2026-09-27T08:06:47+00:00
-capability: cap:d2b243e0
-onset_to_page: 5m02s
-page_to_fix: 5m00s
-fix_to_all_clear: 3m01s
----
-
 # Email deployed with another service's image
 
-## What was observed
+## The scenario
+
+| | |
+|---|---|
+| scenario | `v2-email-wrong-image` |
+| fault class | **`bad_deploy`** |
+| expected remediation | `rollback` |
+| split | `holdout` |
+| injected at | `email` via `v2-email-wrong-image` |
+| time to page | 5m02s |
+| steady state captured | 300s |
+| capture window | 2026-09-27T08:01:47+00:00 → 2026-09-27T08:21:50+00:00 |
+
+The clock below runs from the moment the fault went in.
+
+| | |
+|---|---|
+| `t_inject` | T+0m00s |
+| first alert firing | T+5m02s |
+| `t_revert` | T+10m02s |
+| all clear | T+13m03s |
+
+## What fired, and when
+
+| when | service | alert | firing for | |
+|---|---|---|---:|---|
+| T+4m45s | `checkout` | ServiceHighErrorRate | 8.0 min | **paged** |
+| T+7m45s | `email` | ServiceNoTraffic | 3.0 min | joined later |
+
+## What the bundle contains
+
+| capture | query |
+|---|---|
+| `metrics/alerts-firing.json` | `ALERTS{alertstate="firing"}` |
+| `metrics/call-rate.json` | `sum by(service_name) (rate(traces_span_metrics_calls_total[5m]))` |
+| `metrics/error-ratio.json` | `sum by(service_name) (rate(traces_span_metrics_calls_total{status_code="STATUS_CODE_ERROR"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total[5m]))` |
+| `metrics/latency-p95.json` | `histogram_quantile(0.95, sum by(service_name, le) (rate(traces_span_metrics_duration_milliseconds_bucket{span_kind!="SPAN_KIND_INTERNAL"}[5m])))` |
+| `metrics/runtime.json` | `{__name__=~"go_.*|dotnet_.*|jvm_.*|process_.*|v8js_.*|nodejs_.*",service_name="email"}` |
+
+`logs/email.txt` — 305 lines.
+
+## A look at the logs
+
+From `logs/email.txt` (---- onset 2026-09-27T08:06:47+00:00 ----):
+
+```
+2026-09-27T08:01:56+00:00  Order confirmation email sent to: moore@example.com
+2026-09-27T08:01:56+00:00  172.18.0.9 - - [27/Sep/2026:08:01:56 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0273
+2026-09-27T08:01:57+00:00  Order confirmation email sent to: jeff@example.com
+2026-09-27T08:01:57+00:00  172.18.0.9 - - [27/Sep/2026:08:01:57 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0025
+2026-09-27T08:01:59+00:00  Order confirmation email sent to: jeff@example.com
+2026-09-27T08:01:59+00:00  172.18.0.9 - - [27/Sep/2026:08:01:59 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0029
+2026-09-27T08:02:02+00:00  Order confirmation email sent to: jack@example.com
+2026-09-27T08:02:02+00:00  172.18.0.9 - - [27/Sep/2026:08:02:02 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0026
+2026-09-27T08:02:12+00:00  Order confirmation email sent to: bill@example.com
+2026-09-27T08:02:12+00:00  172.18.0.9 - - [27/Sep/2026:08:02:12 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0233
+2026-09-27T08:02:16+00:00  Order confirmation email sent to: jack@example.com
+2026-09-27T08:02:16+00:00  172.18.0.9 - - [27/Sep/2026:08:02:16 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0027
+```
+
+_284 further lines are in the bundle._
+
+## The incident record
+
+Written from the responder's chair, by someone who did not know the fault class
+or that anything had been injected. This text is also corpus material, which is
+why it never names the injector.
+
+**It keeps its own clock.** The table above is measured from the injection, which
+is the only origin the manifest records; a narrative's `T+` offsets are the
+responder's own and start wherever that responder started counting — usually the
+page, sometimes the injection, sometimes an event in the logs. The same moment can
+therefore carry two different offsets on this page. The absolute timestamps in the
+bundle are the tiebreak.
+
+### What was observed
 
 The page was one alert, `ServiceHighErrorRate` on **checkout**, 5m02s after the trouble started.
 Three minutes later `ServiceNoTraffic` fired on **email**. Nothing else fired, then or later, and
@@ -30,7 +94,7 @@ of its own and, from then on, no latency value at all.
 That is the page: checkout erroring on about one span in fourteen while every order it was asked
 to place went through.
 
-## What was checked
+### What was checked
 
 **Checkout's error traces, the service on the page.** Every one had the same shape, 84 of them over
 the ten minutes, one for each order. `oteldemo.CheckoutService/PlaceOrder` succeeded. Beneath it the
@@ -87,7 +151,7 @@ worked - the image exists and the container was created - and what it ran was th
 Nothing else had changed: email's memory limit and environment were what they had always been, and
 nothing had changed on checkout or anywhere else.
 
-## Root cause
+### Root cause
 
 A deploy put the quote service's image into email's slot. The image resolved, so the deploy
 succeeded, but what it started was the quote service's PHP server, which binds to a port named by
@@ -97,7 +161,7 @@ failed at checkout's call to email, after the order had been charged and shipped
 completed the orders anyway. Nothing was wrong with email's limit, with checkout or with any other
 service.
 
-## Resolution
+### Resolution
 
 Email was rolled back to its own image, `2.2.0-email`. Sinatra was listening two seconds after the
 fix and sent its first confirmation two seconds after that, 59 in the five minutes after the fix
@@ -109,7 +173,7 @@ Class of fix: **rollback**. A deploy was wrong and it was undone. Restarting ema
 runtime had already been doing, 19 times; raising its limit would have changed nothing, because
 the process never reached it.
 
-## Detection notes
+### Detection notes
 
 - Onset to first page: **5m02s**. Services on the page: **one**, checkout, which was not at fault.
   By the fix: **two**, email among them.
@@ -133,3 +197,7 @@ the process never reached it.
   which program.
 - **"No such host" from a caller means the callee has no address, not that the name was wrong.**
   Between a crash-looping container's starts, its name resolves to nothing.
+
+---
+
+Rendered from [`evals/scenarios/artifacts/holdout/v2-email-wrong-image/`](../../evals/scenarios/artifacts/holdout/v2-email-wrong-image/) by `faultline-render`. [All bundles](README.md).

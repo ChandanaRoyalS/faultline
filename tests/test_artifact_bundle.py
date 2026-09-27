@@ -94,6 +94,9 @@ NO_RUNTIME_METRICS = frozenset(
         # T7.1 (2026-09-27): v2's shipping again (see v2-shipping-quote-misconfig); the ad image's
         # JVM never lived long enough to export a series either.
         "v2-shipping-wrong-image",
+        # T7.1 (2026-09-27): v2's email again (see v2-email-flag-memory-leak); the quote image's PHP
+        # process died at start every time and exported nothing either.
+        "v2-email-wrong-image",
     }
 )
 """Bundles whose target exports no runtime metrics, so an empty `runtime.json` is the world

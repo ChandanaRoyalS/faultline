@@ -28,38 +28,41 @@ ground_truth:
     reached. Rolling back to email's own image fixes it.
   category: bad_deploy
 expected_evidence:
-  # Carried from v1's design and not recorded on v2 yet. Written before the first recording and
-  # checked against the bundle, as every v2 scenario's list has been, and corrected there. Measured
-  # at rest (2026-09-27): email logs 12 to 18 lines a minute and holds no runtime series; the
-  # order rate is a few a minute. The page is not certain in shape: every confirmation failing
-  # puts checkout's error ratio near the 5% line (the email call is one span of an order's ten or
-  # so), so ServiceHighErrorRate on checkout is likely and may be marginal, and ServiceNoTraffic on
-  # email follows once its window drains. Orders complete, so nothing else should go quiet.
-  - alerts: ServiceHighErrorRate on checkout, possibly marginal; ServiceNoTraffic on email once
-      its window drains; nothing on payment, accounting, fraud-detection or the storefront,
-      because orders complete
-  - metrics: email's call rate falls to zero rather than its error ratio rising, with no latency;
-      checkout's error ratio rises to about the share of its spans the email call is, while its
-      latency does not rise; payment's, accounting's and fraud-detection's rates hold
-  - traces: checkout's HTTP POST to email fails at the connection with nothing beneath it, after
-      the cart read, the product lookups, the currency conversions, the shipping quote and the
-      charge have all succeeded, and PlaceOrder itself succeeds
-  - logs: email's stream stops carrying Sinatra's request lines and carries instead a PHP fatal
-      error, `Invalid URI "tcp://0.0.0.0:"` with its stack trace, repeating with nothing after it
-      as the container restarts; the frontend's log shows nothing new, because the order succeeds
+  # Carried from v1's design, predicted before recording and checked against the first recording,
+  # on the revised world, 2026-09-27 (t_inject 08:06:47, revert at +10:02). Every prediction held:
+  # checkout paged on error rate, at 5m02s and not marginally (7.4-7.5% from +5), email went quiet
+  # rather than erroring, every order completed, and nothing else moved. The list below states the
+  # recording.
+  - alerts: ServiceHighErrorRate on checkout alone (page 5m02s); ServiceNoTraffic on email at +7:45,
+      once its window drains - two alerts by the fix and none after it; nothing on payment,
+      accounting, fraud-detection or the storefront, because every order completes
+  - metrics: email's call rate falls from ~0.6 a second to zero by +5 with no errors and then no
+      latency value at all; checkout's error ratio climbs to 7.4-7.5% and holds there (the email
+      call's share of an order's spans) while its p95 eases from 31-34ms to 25-28ms and its rate
+      holds; payment's, accounting's and fraud-detection's rates hold; the storefront records no
+      errors and no latency change
+  - traces: 84 checkout error traces over the fault, one per order - PlaceOrder succeeds, and
+      beneath it the cart read, product lookups, currency conversions, shipping quote, Charge,
+      ship-order and EmptyCart all succeed, then checkout's HTTP POST to email fails with `dial tcp
+      - lookup email on 127.0.0.11:53 - no such host`, nothing beneath it, ~2ms, and the order is
+      still published; email produces no span at all
+  - logs: email's stream ends Sinatra's request lines with a clean stop at onset and then carries a
+      PHP stack trace, `Fatal error - Uncaught InvalidArgumentException - Invalid URI
+      "tcp://0.0.0.0:" given (EINVAL)` from React\Socket\TcpServer via public/index.php(102), seven
+      lines each, 19 times in ten minutes - six in the first three seconds, then gaps of 4, 6, 13,
+      26 and 52 s, then once a minute - and nothing else; the frontend logs nothing new
   - metrics: email has no runtime series before or during the fault
   - change: a change record at onset - `image reference updated on email`, to
       ghcr.io/open-telemetry/demo:2.2.0-quote, the quote service's image
   - discriminator: a service that dies at start over and over, with a log in another language
       that names a variable it was never given, was given the wrong image - the change record
-      names it; a memory fault would show the limit reached or lowered, and here it is neither,
-      and unlike a flag the deploy leaves a record
+      names it; a memory fault would show a kill with no last words, and here every exit is
+      preceded by the program's own error; unlike a flag, the deploy leaves a record
 expected_remediation_class: rollback
-rehearsed: false
+rehearsed: true
 alert_timeout_seconds: 900
 # Declared before recording, checked against the bundle after (T7.5). Measured on the running world
 # 2026-09-27: no runtime series for email (Ruby exports none) and a Loki stream of 12 to 18 lines a
-# minute, talkative at rest. A restarting process repeats itself in that stream, so logs can answer
-# and runtime cannot, as for v2-email-flag-memory-leak; the recorder derives the record from the
-# capture, and if it says otherwise the declaration is corrected against it, not argued with.
+# minute, talkative at rest. The first recording (2026-09-27) confirmed it: 0 runtime series, 296
+# target log lines, and the recorder derived [logs].
 answers_idle_or_absent: [logs]
