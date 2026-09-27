@@ -578,6 +578,19 @@ CATALOG: tuple[FaultDefinition, ...] = _validated(
             ),
         ),
         FaultDefinition(
+            id="v2-cart-freeze",
+            fault_class=FaultClass.PROCESS_FREEZE,
+            target="cart",
+            world="v2",
+            description=(
+                "docker pause the cart. Its socket accepts and nothing answers; every add-to-cart, "
+                "cart view and checkout hangs - a quarter of the storefront's requests, measured "
+                "2026-09-27 - to the proxy's 15 s timeout, and the order path behind checkout's "
+                "cart read goes silent while browsing carries on. The freeze on the order path, "
+                "against the catalog's on the browse path."
+            ),
+        ),
+        FaultDefinition(
             id="v2-product-catalog-partition",
             fault_class=FaultClass.NETWORK_PARTITION,
             target="product-catalog",

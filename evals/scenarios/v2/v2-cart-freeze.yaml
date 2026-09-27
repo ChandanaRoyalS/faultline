@@ -1,0 +1,95 @@
+# v2/process_freeze-2 (dev) - see SPLIT-V2.md. Slot allocated before authoring; do not move.
+# Candidate order and eligibility: docs/design/t7.1-candidates.md, process_freeze row 2 - new: the
+# freeze on the order path, against row 1's on the browse path. Measured before authoring
+# (2026-09-27): a quarter of the storefront's requests touch cart, and checkout reads the cart
+# before anything else it does.
+id: v2-cart-freeze
+title: The cart process is frozen - its socket accepts and nothing answers
+fault_class: process_freeze
+split: dev
+slot: v2/process_freeze-2
+world: v2
+injection:
+  target: cart
+  method: v2-cart-freeze
+  params: {}
+ground_truth:
+  root_cause: >
+    The cart container was paused (docker pause): the process exists and holds its port, the
+    kernel accepts connections into the backlog, and nothing answers them. Every add-to-cart,
+    cart view and checkout hangs to its caller's deadline, and because checkout reads the cart
+    before it does anything else, no order gets past its first step: payment, shipping, email and
+    the order topic's consumers go quiet while browsing, ads and recommendations carry on. The
+    cart itself neither errors nor logs, because it is not running.
+  category: process_freeze
+expected_evidence:
+  # A new design: predicted before recording from the freeze's mechanism and the catalog freeze's
+  # recording (row 1), and checked against the bundle. Measured at rest (2026-09-27): 34 of 138
+  # requests in a minute touch cart (16 add-to-cart, 14 cart views, 4 checkouts - 24.6 %); the
+  # frontend calls cart 0.9 times a second (AddItem 0.35, GetCart 0.56), checkout 0.27 (GetCart
+  # and EmptyCart, one each per order); neither sets a deadline, the proxy's is Envoy's default
+  # route timeout of 15 s; cart holds 35 .NET runtime series and logs 80 to 190 lines a minute.
+  # The comparator is v2-product-catalog-freeze: the same mechanism on the browse path, sixteen
+  # alerts on thirteen services with the frontend's rate down 83 %; here the order path, the
+  # browse path untouched. Distinct on (a) by which services starve, and on (c) and (d) by the
+  # target: cart's log stops mid-stream where the catalog had none.
+  - alerts: the callers page, not the culprit - ServiceHighErrorRate on frontend-proxy and
+      load-generator together, four to five minutes in (the catalog's came at 4m15s), the proxy's
+      errors being its own 15 s timeouts on the quarter of requests that hang; ServiceHighLatency
+      on frontend-proxy, frontend and load-generator within a minute or two of the page as the
+      hung requests reach the histogram's ceiling; ServiceNoTraffic on cart at about +8, with
+      the order path beside it as their windows drain - checkout, whose every span hangs on its
+      cart read, and payment, email and quote behind it - shipping and currency possibly not,
+      since the frontend still quotes and converts on the browse path; nothing on
+      product-catalog, ad or recommendation
+  - alerts: (dead end) with orders stopped, fraud-detection's and flagd's routine
+      flagd.evaluation.v1.Service/EventStream reconnect can raise ServiceHighErrorRate and
+      ServiceHighLatency on them, as it did in the catalog freeze; no order is involved
+  - metrics: frontend-proxy's p95 at the histogram's ceiling (15000 ms) from about +2 and the
+      frontend's from about +3, while the frontend's error ratio reads zero - not one of its
+      spans ends in error, the hung ones simply never end - and its rate falls by roughly the
+      quarter of requests that hang plus the load the blocked users no longer generate; the
+      proxy's error ratio settles near the share of requests that touch cart, the load
+      generator's with it; cart's rate goes to zero within the first minute and from then its
+      error ratio and p95 have no value; checkout's rate falls to nothing (a PlaceOrder that hangs
+      exports no span) and payment's, email's and accounting's with it; product-catalog's, ad's
+      and recommendation's hold
+  - metrics: cart's 35 .NET runtime series stop at the freeze - a paused process exports nothing
+      - hold their last values for the store's lookback and drop out of queries by about +5;
+      back within a minute of the unpause
+  - traces: the proxy's error spans end at its 15 s deadline; beneath them the frontend's
+      grpc.oteldemo.CartService/AddItem or GetCart stays open until the cart resumes, and the
+      trace tool names it as the degrading hop; checkout's PlaceOrder traces stay open at
+      oteldemo.CartService/GetCart under prepareOrderItemsAndShippingQuoteFromCart, with nothing
+      after it; cart has no spans during the freeze and its spans appear only after the resume
+  - logs: cart's log - 80 to 190 request lines a minute at rest - stops at the freeze with an
+      ordinary request line and shows nothing until the unpause - no error, no shutdown line, no
+      start-up sequence, a process that is not running writes nothing; the frontend logs no
+      cart error while the fault holds, its calls never returning; at the resume the woken backlog
+      logs at once
+  - recovery: at the unpause every hung request wakes together - the second wave the class
+      carries - cart answers the backlog in a burst, checkout's held orders complete or fail, the
+      frontend's held calls return, and the callers' five-minute windows carry the ceiling
+      latencies and the timeouts for minutes after the fix; recovery-only alerts possible, as the
+      catalog freeze had four; about six minutes from unpause to quiet
+  - change: nothing recorded - no deploy, no config change, no limit, no flag; the change history
+      is empty for the whole window
+  - discriminator: a partition of the same service looks identical on alerts, metrics, runtime
+      series and traces; the freeze is the one whose target logs nothing at all from the moment
+      it stops, where a partitioned target keeps running and logs its export failures once a
+      minute; a slow cart (v2-cart-dependency-latency) shows latency with cart's spans present
+      and slow; a dead cart (v2-cart-bad-image-tag) shows fast failures and a change record
+      naming an image; a starved cart shows restarts in its log; here the log simply stops, the
+      callers wait rather than fail, and nothing was changed
+expected_remediation_class: restart
+# The freeze resolves when the process is unfrozen; where an operator cannot `unpause`, a restart
+# is what does it (knowledge/runbooks/class-process-freeze.md). Nothing was changed, so nothing
+# is reverted.
+rehearsed: false
+alert_timeout_seconds: 900
+# Declared before recording, checked against the bundle after (T7.5). Measured on the running world
+# 2026-09-27: cart holds 35 .NET runtime series and logs 80 to 190 lines a minute. A paused process
+# exports and writes nothing, so both answer by going absent - which separates frozen-or-cut-off
+# from idle, as the catalog note says, and not freeze from partition; the partition row is told
+# apart by its target's own log.
+answers_idle_or_absent: [runtime, logs]
