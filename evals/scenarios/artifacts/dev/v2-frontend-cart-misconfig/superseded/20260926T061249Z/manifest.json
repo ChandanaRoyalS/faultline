@@ -1,0 +1,162 @@
+{
+  "alerts_at_fire": [
+    "ServiceHighErrorRate/checkout",
+    "ServiceHighErrorRate/frontend",
+    "ServiceHighErrorRate/frontend-proxy"
+  ],
+  "alerts_over_window": [
+    {
+      "alert": "ServiceHighErrorRate",
+      "began_after_revert": false,
+      "first_seen": "2026-09-26T06:16:04+00:00",
+      "last_seen": "2026-09-26T06:24:49+00:00",
+      "minutes_firing": 9.0,
+      "service": "checkout"
+    },
+    {
+      "alert": "ServiceHighErrorRate",
+      "began_after_revert": false,
+      "first_seen": "2026-09-26T06:16:04+00:00",
+      "last_seen": "2026-09-26T06:24:49+00:00",
+      "minutes_firing": 9.0,
+      "service": "frontend"
+    },
+    {
+      "alert": "ServiceHighErrorRate",
+      "began_after_revert": false,
+      "first_seen": "2026-09-26T06:16:04+00:00",
+      "last_seen": "2026-09-26T06:24:49+00:00",
+      "minutes_firing": 9.0,
+      "service": "frontend-proxy"
+    },
+    {
+      "alert": "ServiceHighErrorRate",
+      "began_after_revert": false,
+      "first_seen": "2026-09-26T06:17:04+00:00",
+      "last_seen": "2026-09-26T06:23:49+00:00",
+      "minutes_firing": 7.0,
+      "service": "load-generator"
+    },
+    {
+      "alert": "ServiceNoTraffic",
+      "began_after_revert": false,
+      "first_seen": "2026-09-26T06:20:04+00:00",
+      "last_seen": "2026-09-26T06:21:49+00:00",
+      "minutes_firing": 2.0,
+      "service": "accounting"
+    },
+    {
+      "alert": "ServiceNoTraffic",
+      "began_after_revert": false,
+      "first_seen": "2026-09-26T06:20:04+00:00",
+      "last_seen": "2026-09-26T06:21:49+00:00",
+      "minutes_firing": 2.0,
+      "service": "currency"
+    },
+    {
+      "alert": "ServiceNoTraffic",
+      "began_after_revert": false,
+      "first_seen": "2026-09-26T06:20:04+00:00",
+      "last_seen": "2026-09-26T06:21:49+00:00",
+      "minutes_firing": 2.0,
+      "service": "email"
+    },
+    {
+      "alert": "ServiceNoTraffic",
+      "began_after_revert": false,
+      "first_seen": "2026-09-26T06:20:04+00:00",
+      "last_seen": "2026-09-26T06:21:49+00:00",
+      "minutes_firing": 2.0,
+      "service": "payment"
+    },
+    {
+      "alert": "ServiceNoTraffic",
+      "began_after_revert": false,
+      "first_seen": "2026-09-26T06:20:04+00:00",
+      "last_seen": "2026-09-26T06:21:49+00:00",
+      "minutes_firing": 2.0,
+      "service": "quote"
+    },
+    {
+      "alert": "ServiceHighErrorRate",
+      "began_after_revert": true,
+      "first_seen": "2026-09-26T06:22:04+00:00",
+      "last_seen": "2026-09-26T06:22:49+00:00",
+      "minutes_firing": 1.0,
+      "service": "fraud-detection"
+    }
+  ],
+  "baseline_clear_at": "2026-09-26T06:12:49+00:00",
+  "bundle_schema_version": 2,
+  "capture_set": 2,
+  "expected_remediation_class": "config_revert",
+  "fault_class": "bad_config",
+  "injection": {
+    "method": "v2-frontend-cart-misconfig",
+    "params": {
+      "env_var": "CART_ADDR",
+      "value": "cart:7071"
+    },
+    "target": "frontend"
+  },
+  "origin": "scenario:v2-frontend-cart-misconfig",
+  "reachability": {
+    "answers_idle_or_absent": [
+      "runtime",
+      "logs"
+    ],
+    "derived_from": "the bundle's own captures (T7.5)",
+    "none_can_answer": false,
+    "runtime_series": 75,
+    "target_log_lines": 400
+  },
+  "recorded_by": "evalharness.rehearse",
+  "recorder": {
+    "git_dirty": true,
+    "git_sha": "71fbf1c48cece7f2b2040a16067fdc98d661176b",
+    "tool": "evalharness.rehearse"
+  },
+  "scenario_fingerprint": "093c42d6fff82d59608527d3a92562808e614d64613cf1d3fb1afcb7530b02b2",
+  "scenario_id": "v2-frontend-cart-misconfig",
+  "seconds_of_steady_state": 300,
+  "seconds_to_alert": 211,
+  "seconds_to_settle": 242,
+  "split": "dev",
+  "t_alert_firing": "2026-09-26T06:16:20+00:00",
+  "t_clear": "2026-09-26T06:25:22+00:00",
+  "t_inject": "2026-09-26T06:12:49+00:00",
+  "t_revert": "2026-09-26T06:21:20+00:00",
+  "title": "Frontend pointed at a cart port where nothing listens",
+  "window": {
+    "end": "2026-09-26T06:27:22+00:00",
+    "start": "2026-09-26T06:07:49+00:00"
+  },
+  "world": {
+    "compose_digest": "ae2fd2a20b5112e42d9606e123157365ce496effa1eb974e357f0430588222ff",
+    "docker_arch": "arm64",
+    "ffs_stub_image_id": "sha256:90f2fc6f5806a8914ef2740ff7c6348a1ddd4225bccc8f3398e58d03b3c1a512",
+    "ffs_stub_source_digest": null,
+    "host_platform": "Darwin/arm64",
+    "observability_digest": "7d6097ab0f00132d57993804ee4f4d9eff1abedfb71a273bdd7e553ef887637b",
+    "observability_files": {
+      "compose/otelcol-extras-v2.yml": "48cd277022d94eb34a9cedd743fab54efb1d78ce59258349b06360917495b443",
+      "compose/prometheus/alert-rules-v2.yml": "7f006a034167ffd3c1eacc17f9d952f73eeb22d1936aa17669626c442fa8f20b",
+      "compose/prometheus/alertmanager.yml": "cec8f9f623152c001d14a53c8c3a6930ad35665d5ee093117ff17cf0d09d61f1",
+      "compose/prometheus/prometheus-config-v2.yaml": "b2e8c9c59bcbfa5d7235748871db1852de74d59c43d89723a2d260c0aaf45867",
+      "compose/promtail-config.yml": "2d43bc91f78cf65504a1091e406a7e97bcece0a194dc5f27cf1fd4c49edb72ec",
+      "compose/tempo-v2.yaml": "8b0e0300b81ca9cd83a252ab0f6743c04fbb3adf3eb4c75a290d17978bb3c4fb",
+      "world-v2/src/otel-collector/otelcol-config.yml": "0a472a67088ca6fa1d5a222ce8c633aa26bbb75cd8d11558c2feaabdfc70141e"
+    },
+    "otel_demo_image": "ghcr.io/open-telemetry/demo:2.2.0-cart",
+    "otel_demo_image_digest": "ghcr.io/open-telemetry/demo@sha256:1adaf3b33fbf4d42e5a1fa68fec1ea1b645d50471881179bd7be0a0ce2656706",
+    "world_name": "v2"
+  },
+  "world_lock": {
+    "acquired": true,
+    "host": "chandanas-MacBook-Air.local",
+    "pid": 74291,
+    "reason": "rehearse v2-frontend-cart-misconfig",
+    "since": "2026-09-26T06:12:44.137895+00:00",
+    "token": "74291-1790403164.137738"
+  }
+}

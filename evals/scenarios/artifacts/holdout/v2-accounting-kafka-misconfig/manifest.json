@@ -6,13 +6,13 @@
     {
       "alert": "ServiceNoTraffic",
       "began_after_revert": false,
-      "first_seen": "2026-09-26T06:50:10+00:00",
-      "last_seen": "2026-09-26T06:55:55+00:00",
+      "first_seen": "2026-09-27T04:10:32+00:00",
+      "last_seen": "2026-09-27T04:16:17+00:00",
       "minutes_firing": 6.0,
       "service": "accounting"
     }
   ],
-  "baseline_clear_at": "2026-09-26T06:42:40+00:00",
+  "baseline_clear_at": "2026-09-27T04:03:17+00:00",
   "bundle_schema_version": 2,
   "capture_set": 2,
   "expected_remediation_class": "config_revert",
@@ -34,31 +34,31 @@
     "derived_from": "the bundle's own captures (T7.5)",
     "none_can_answer": false,
     "runtime_series": 42,
-    "target_log_lines": 484
+    "target_log_lines": 500
   },
   "recorded_by": "evalharness.rehearse",
   "recorder": {
     "git_dirty": true,
-    "git_sha": "6d6f77540984a0a282cb9d737498d3c98ff693a9",
+    "git_sha": "a1892f58ee227bf4f21a0e662d3d9a03cff5f050",
     "tool": "evalharness.rehearse"
   },
   "scenario_fingerprint": "89cc61d5d2e609860c6a1a780b594a02240f730540334fd2ed4e0de30aa7397a",
   "scenario_id": "v2-accounting-kafka-misconfig",
   "seconds_of_steady_state": 300,
-  "seconds_to_alert": 467,
+  "seconds_to_alert": 452,
   "seconds_to_settle": 61,
   "split": "holdout",
-  "t_alert_firing": "2026-09-26T06:50:27+00:00",
-  "t_clear": "2026-09-26T06:56:28+00:00",
-  "t_inject": "2026-09-26T06:42:40+00:00",
-  "t_revert": "2026-09-26T06:55:27+00:00",
+  "t_alert_firing": "2026-09-27T04:10:49+00:00",
+  "t_clear": "2026-09-27T04:16:50+00:00",
+  "t_inject": "2026-09-27T04:03:17+00:00",
+  "t_revert": "2026-09-27T04:15:49+00:00",
   "title": "Accounting pointed at a Kafka port where nothing listens",
   "window": {
-    "end": "2026-09-26T06:58:28+00:00",
-    "start": "2026-09-26T06:37:40+00:00"
+    "end": "2026-09-27T04:18:50+00:00",
+    "start": "2026-09-27T03:58:17+00:00"
   },
   "world": {
-    "compose_digest": "ae2fd2a20b5112e42d9606e123157365ce496effa1eb974e357f0430588222ff",
+    "compose_digest": "5a2bc6d912f922a03874ab2824d9362541362386fbcab7e0c2f99aa760f567df",
     "docker_arch": "arm64",
     "ffs_stub_image_id": "sha256:90f2fc6f5806a8914ef2740ff7c6348a1ddd4225bccc8f3398e58d03b3c1a512",
     "ffs_stub_source_digest": null,
@@ -80,9 +80,9 @@
   "world_lock": {
     "acquired": true,
     "host": "chandanas-MacBook-Air.local",
-    "pid": 75828,
+    "pid": 3381,
     "reason": "rehearse v2-accounting-kafka-misconfig",
-    "since": "2026-09-26T06:42:35.272718+00:00",
-    "token": "75828-1790404955.272563"
+    "since": "2026-09-27T04:03:12.639870+00:00",
+    "token": "3381-1790481792.639572"
   }
 }

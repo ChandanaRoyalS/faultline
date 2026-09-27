@@ -2,27 +2,28 @@
 origin: scenario:v2-accounting-bad-credential
 split: dev
 fault_class: bad_config
-recorded_from: 2026-09-26T04:46:35+00:00
+recorded_from: 2026-09-27T02:37:31+00:00
 capability: cap:d2b243e0
-onset_to_page: 3m46s
+onset_to_page: 3m16s
 page_to_fix: 5m00s
-fix_to_all_clear: 4m02s
+fix_to_all_clear: 4m01s
 ---
 
 # Accounting's database password rotated to one the database does not accept
 
 ## What was observed
 
-The page was a single alert, `ServiceHighErrorRate` on **accounting**, 3m46s after the trouble
+The page was a single alert, `ServiceHighErrorRate` on **accounting**, 3m16s after the trouble
 started. Nothing else fired then, and nothing else fired afterwards. Its error ratio had read
-zero before the incident. It rose from about a minute and a half in, climbed, and settled at
-**exactly one third** of its spans once the rate window filled. It held there, flat, until the
-fix.
+zero before the incident. It rose from about a minute in, climbed, and settled at **exactly one
+third** of its spans about four minutes in, once the rate window filled. It held there, flat,
+until the fix.
 
 Nothing around accounting moved. Its own request rate held at its usual level, a little under
 half a request a second, and its latency did not change. Checkout was placing orders at its
 usual rate. The storefront showed nothing, and neither did the other services that read and
-write the same database.
+write the same database. fraud-detection, the other reader of the orders, kept its usual rate
+and latency.
 
 ## What was checked
 
@@ -33,14 +34,16 @@ something specific. The container had been recreated at the start of the inciden
 been running normally since.
 
 **Its logs, first over the whole incident.** The log tool returns the oldest and newest lines of a
-window. From the start to the fix, the oldest were the service's own startup banner and
-environment dump, the trace of the recreate, and the newest were the bottom of one stack trace:
-`SqlState: 28P01`, `MessageText: password authentication failed for user "otelu"`. The exception's
-name and the label around it were in the forty lines above, in the part the tool does not return.
-Narrowed to the minute after the start, the log was unambiguous. Every order accounting received
-was followed by `fail: Accounting.Consumer … Order parsing failed:` wrapping `Npgsql.PostgresException:
-28P01: password authentication failed for user "otelu"`, about forty lines of stack trace per
-order. Every order in that minute failed the same way, and none before the change had.
+window. From the start to the fix, the oldest were the service's own startup banner and environment
+dump, the trace of the recreate, and the newest were the bottom of one stack trace: `SqlState:
+28P01`, `MessageText: password authentication failed for user "otelu"`. The exception's name and the
+label around it were in the forty lines above, in the part the tool does not return. Narrowed to the
+minutes after the start, the log was unambiguous. The recreated service connected to Kafka, took its
+first order 44 seconds after the change, and every order from then on was followed by `fail:
+Accounting.Consumer … Order parsing failed:` wrapping `Npgsql.PostgresException: 28P01: password
+authentication failed for user "otelu"`, about forty lines of stack trace per order. Over the
+incident that was 66 failures, up to 11 a minute, with none in the five minutes before the change
+and none after the fix.
 
 **A library error on the way.** Just before the first failure the log says `Cannot load library
 libgssapi_krb5.so.2`. That reads like a broken image, but it appeared once, the orders before the
@@ -48,24 +51,28 @@ change had not needed it, and the failures after it all name the password. It is
 driver reaching for another way to authenticate after the password was refused, not the cause.
 
 **The "Order parsing failed" label.** It reads like a malformed message on the orders topic,
-something checkout started producing, and that is the dead end it invites. The other consumer of
-the same topic answered it: fraud-detection read the same orders throughout with no change in its
-errors or latency. The messages were fine. The label is the consumer's catch-all, and the
+something checkout started producing, and that is the dead end it invites. The other consumer of the
+same topic answered it: fraud-detection read the same orders throughout at its usual rate and
+latency. Its error ratio did twitch, to about 1.5%, but flagd, ad, recommendation and
+product-reviews twitched in the same minutes and again ten minutes later, after the fix, so it had
+nothing to do with orders. The messages were fine. The label is the consumer's catch-all, and the
 exception inside it is the real error.
 
 **The database.** Postgres was up and serving. product-catalog and product-reviews, which use the
-same database, showed no change in errors or latency. The database was healthy and one client
-could not get in.
+same database, showed no change in latency, and the catalog no errors at all. The database was
+healthy and one client could not get in.
 
 **The traces.** Each order is three spans: `order-consumed`, `orders receive`, and a `CONNECT otel`
-to the database. The connect span was the error, and its status read `28P01`, the Postgres code
-for a failed password authentication. The consumer span around it did not error. That is also
+to the database. All ten error traces drawn named the connect span under `order-consumed` as the
+failing hop, and its status read `28P01`, the Postgres code for a failed password
+authentication. The consumer span around it did not error. That is also
 the one-third: one span of three fails on every order, so an error ratio of exactly 0.333 means
 every order was failing, not a third of them.
 
-**Its runtime counters.** `PostgresException` in the .NET exception counter climbed at about two a
-second through the incident, from nothing: the counter did not exist before the change. That is
-many times the rate orders arrive, so each failure is counted more than once on its way up.
+**Its runtime counters.** `PostgresException` in the .NET exception counter had not moved before
+the change. From the second minute it climbed at about two and a half a second, to 1,188 by
+the fix. That is many times the rate orders arrive, so each failure is counted more than once on
+its way up.
 
 **What changed.** One record, at the start: `DB_CONNECTION_STRING updated on accounting`. That is
 the credential the failing connect span uses.
@@ -81,14 +88,14 @@ Nothing upstream waits on accounting, so nothing upstream noticed.
 
 The connection string was set back to the working password and accounting was recreated with it.
 It wrote orders normally again. The error ratio drained with its five-minute window, and the
-alert cleared 4m02s after the fix. Nothing fired during recovery.
+alert cleared 4m01s after the fix. Nothing fired during recovery.
 
 Class of fix: **config_revert**. Nothing was deployed and no code was wrong. One configuration
 value was wrong, and it was set back.
 
 ## Detection notes
 
-- Onset to first page: **3m46s**. Services on the page: **one**. By the fix: **one**.
+- Onset to first page: **3m16s**. Services on the page: **one**. By the fix: **one**.
 - Alerts that fired only during recovery: **none**.
 - Did the loudest service turn out to be the culprit? **Yes**, and it was the only one. A failure
   in a pure consumer stays where it is, because nothing calls it and nothing waits on it.

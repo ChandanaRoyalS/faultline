@@ -9,18 +9,18 @@
 | expected remediation | `config_revert` |
 | split | `holdout` |
 | injected at | `checkout` via `v2-payment-flag-unreachable` |
-| time to page | 4m00s |
+| time to page | 4m16s |
 | steady state captured | 300s |
-| capture window | 2026-09-26T22:36:46+00:00 → 2026-09-26T22:56:47+00:00 |
+| capture window | 2026-09-27T05:47:37+00:00 → 2026-09-27T06:07:54+00:00 |
 
 The clock below runs from the moment the fault went in.
 
 | | |
 |---|---|
 | `t_inject` | T+0m00s |
-| first alert firing | T+4m00s |
-| `t_revert` | T+9m00s |
-| all clear | T+13m01s |
+| first alert firing | T+4m16s |
+| `t_revert` | T+9m16s |
+| all clear | T+13m17s |
 
 ## What fired, and when
 
@@ -29,8 +29,10 @@ The clock below runs from the moment the fault went in.
 | T+4m00s | `checkout` | ServiceHighErrorRate | 9.0 min | **paged** |
 | T+8m00s | `accounting` | ServiceNoTraffic | 2.0 min | joined later |
 | T+8m00s | `email` | ServiceNoTraffic | 2.0 min | joined later |
-| T+8m00s | `fraud-detection` | ServiceNoTraffic | 1.0 min | joined later |
+| T+8m00s | `fraud-detection` | ServiceHighErrorRate | 2.0 min | joined later |
 | T+8m00s | `payment` | ServiceNoTraffic | 2.0 min | joined later |
+| T+9m00s | `flagd` | ServiceHighLatency | 1.0 min | joined later |
+| T+9m00s | `fraud-detection` | ServiceHighLatency | 1.0 min | joined later |
 
 ## What the bundle contains
 
@@ -59,47 +61,49 @@ bundle are the tiebreak.
 
 ### What was observed
 
-The page was one alert, `ServiceHighErrorRate` on **checkout**, 4m00s after the trouble started.
+The page was one alert, `ServiceHighErrorRate` on **checkout**, 4m16s after the trouble started.
 
-Checkout's error ratio had been zero. It was about 2% a minute in, 10% at three minutes and 18% at
-four, and from five minutes it held at 20-22%. Its latency did not move: its p95 stayed between
-about 32 and 41ms, as it had been. The storefront's error ratios followed it up without crossing
-the line. The frontend reached 4.7%, frontend-proxy 4.9% and the load generator 2.7%. Browsing and
-the cart worked. Checking out did not.
+Checkout's error ratio had been zero. It was about 4% a minute in, 14% at three minutes and 19% at
+four, and from five minutes it held at 20-21%. Its latency did not move: its p95 stayed between
+about 32 and 40ms, as it had been. The storefront's error ratios followed it up without crossing
+the line. The frontend reached 4.6%, frontend-proxy just under 5% and the load generator 2.7%.
+Browsing and the cart worked. Checking out did not.
 
 Behind checkout, traffic drained away. Payment's request rate fell to zero with no errors of its
-own, and so did email's, accounting's and fraud-detection's. Four minutes after the page, a minute
-before the fix, `ServiceNoTraffic` fired on all four together. In front of the failure, traffic
-held: cart, the product catalog, currency and quote kept their usual rates. Shipping kept its
-quotes and lost its other work, falling from about 0.45 spans a second to about 0.25.
+own, and so did email's and accounting's. Under four minutes after the page, `ServiceNoTraffic`
+fired on all three together, and in the same minute `ServiceHighErrorRate` fired on
+**fraud-detection**, whose order traffic had stopped too. A minute later, sixteen seconds before
+the fix, `ServiceHighLatency` fired on fraud-detection and on **flagd**, the flag service. In
+front of the failure, traffic held: cart, the product catalog, currency and quote kept their usual
+rates. Shipping kept its quotes and lost its other work, falling from about 0.4 spans a second to
+about 0.25.
 
-Five alerts on five services by the fix. Nothing fired after it.
+Seven alerts on six services by the fix. Nothing fired after it.
 
 ### What was checked
 
 **Checkout's own log, the service on the page.** It has none the tools can read. Its errors
 reach a log only through the storefront, which receives them.
 
-**The frontend's log.** From the first minute it logged `Error: 13 INTERNAL: failed to charge
-card: could not charge the card: rpc error: code = Unavailable desc = name resolver error:
-produced zero addresses`. The first came within seconds of onset, then one to ten a minute, 77 in
-all, until the minute of the fix, with none before and none after. It names a step, charging the
-card, and that step belongs to the payment service.
+**The frontend's log.** It logged `Error: 13 INTERNAL: failed to charge card: could not charge
+the card: rpc error: code = Unavailable desc = name resolver error: produced zero addresses`,
+each error over two lines, for about 70 failed orders, 2 to 11 a minute, until the fix, with none
+before and none after. It names a step, charging the card, and that step belongs to the payment
+service.
 
 **Checkout's traces.** Every failing order had the same shape. `oteldemo.CheckoutService/PlaceOrder`
-errored with that message. Beneath it, the order was prepared normally: the cart read, the product
-lookups, the currency conversions and the shipping quote all succeeded, each in a few
-milliseconds. Then the call to `oteldemo.PaymentService/Charge` failed in **no measurable time**,
-0.0ms, with `name resolver error: produced zero addresses`, and there was **no payment span beneath
-it**. Nothing after the charge ran: no shipment, no confirmation email, no emptying of the cart,
-no order published. Orders failed within 14 to 70ms, which is why checkout's latency did not
-rise.
+errored with that message, and beneath it the failing call was `oteldemo.PaymentService/Charge`.
+Before it, the order was prepared normally: the cart read, the product lookups, the currency
+conversions and the shipping quote all succeeded, each in a few milliseconds. The charge failed in
+**no measurable time**, with `name resolver error: produced zero addresses`, and there was **no
+payment span beneath it**. Nothing after the charge ran: no shipment, no confirmation email, no
+emptying of the cart, no order published. Orders failed in tens of milliseconds, which is why
+checkout's latency did not rise.
 
 **Whether payment was down.** This is where the error text points, and it was not. Payment's log
-recorded `Charge request received.` and `Transaction complete.` 5 to 12 times a minute before the
-trouble, and **none** from the first minute on. It logged no errors, raised no error spans, and
-its process stayed up and steady in memory. Payment was not refusing charges. None were reaching
-it.
+recorded 44 `Charge request received.` in the five minutes before the trouble and 3 during it,
+none after the first minute. It logged no errors, raised no error spans, and it answered charges
+again the moment they came back. Payment was not refusing charges. None were reaching it.
 
 **What the error says.** `name resolver error: produced zero addresses` means checkout could not
 turn the name it was calling into an address. The call did not reach a network, which is why it
@@ -107,17 +111,20 @@ took no time. In the same orders, the same process resolved and called cart, the
 and shipping without trouble. Something about the one name checkout used for the charge did not
 exist.
 
-**Checkout's health.** Its Go runtime series, nine of them, reported without a gap, and it
-restarted nothing. One series moved. Checkout's goroutine count had been about 80. From a minute
-or so in it climbed by about thirty a minute, to 322 by the fix, and its stack memory rose from 1.7
-to 2.6MB. Every failed charge was leaving something behind that kept running. A client that called
-payment over its usual connection would not do that. One built afresh for each charge, and never
-closed, would.
+**Checkout's health.** Its Go runtime series, nine of them, reported without a gap through the
+fault, and it restarted nothing. One series moved. Checkout's goroutine count had been 78, flat.
+From a minute in it climbed by about thirty-five a minute, to 358 at the last reading before the
+fix, and its stack memory rose from 1.9 to 2.7MB. Every failed charge was leaving something behind
+that kept running. A client that called payment over its usual connection would not do that. One
+built afresh for each charge, and never closed, would.
 
-**Fraud-detection's one span during the silence.** A minute before the fix, fraud-detection
-reported a single span, in error and ten minutes long: its stream to the flag service closing on
-the server's ten-minute timeout, as it does at rest. It was a routine reconnect, not work, and it
-cleared fraud-detection's no-traffic alert a minute before the orders came back. A dead end.
+**Fraud-detection's and flagd's alerts.** A dead end. With orders gone, fraud-detection's only
+spans were its client stream to the flag service, `flagd.evaluation.v1.Service/EventStream`, ended
+by flagd with `stream closed due to server-side timeout`: the routine ten-minute reconnect it makes
+at rest. Those few spans were in error and ten minutes long, so fraud-detection's error ratio read
+100% and its p95 sat at the top of the latency histogram, and flagd's own ten-minute stream spans
+did the same to its latency. No order was involved, and it was not a second fault. It is also why
+fraud-detection never showed as quiet: the stream kept it from reading zero.
 
 **What changed.** Nothing, as far as change history shows: no deploy, no configuration change, no
 restart, on checkout, on payment or anywhere else. Checkout's configured address for payment had
@@ -137,22 +144,22 @@ checkout behaved exactly as written. The fault was the flag's value.
 ### Resolution
 
 The flag was turned back off. The flag service picks up the change on its own, so nothing was
-restarted or redeployed. Charges resumed within the minute: payment logged its first charge seconds
-after the fix, and 6 to 12 a minute after that. Email, accounting and fraud-detection followed
-with the orders, the no-traffic alerts cleared a minute after the fix, and checkout's error ratio
-drained with its window. Everything was quiet 4m01s after the fix, and nothing fired during
+restarted or redeployed. Charges resumed within the minute: payment logged 66 in the five minutes
+after the fix. Email, accounting and fraud-detection followed with the orders, and the no-traffic,
+fraud-detection and flagd alerts all cleared about thirty seconds after the fix. Checkout's error
+ratio drained with its window. Everything was quiet 4m01s after the fix, and nothing fired during
 recovery.
 
-The goroutines did not go away. Nine minutes after the fix checkout still held 354 of them, with its
-stack memory still at 2.6MB. Orders were unaffected, but only a restart releases them, and checkout
-was restarted before the world was used again.
+The goroutines did not go away. Four minutes after the fix, at the last reading, checkout still
+held 360 of them, with its stack memory still at 2.7MB. Orders were unaffected, but only a restart
+releases them, and checkout was restarted as soon as the page cleared.
 
 Class of fix: **config_revert**. One setting was wrong and it was set back.
 
 ### Detection notes
 
-- Onset to first page: **4m00s**. Services on the page: **one**, checkout, the service whose code
-  reads the flag. By the fix: **five**.
+- Onset to first page: **4m16s**. Services on the page: **one**, checkout, the service whose code
+  reads the flag. By the fix: **six**.
 - Alerts that fired only during recovery: **none**.
 - Did the loudest service turn out to be the culprit? **Yes**, but its error text points away from
   it. "Could not charge the card" and `Unavailable` read as the payment service being down.
@@ -161,8 +168,11 @@ Class of fix: **config_revert**. One setting was wrong and it was set back.
 - **The quiet services mark where the chain breaks.** Everything before the charge kept its traffic
   and everything after it went quiet. The failure sits between the last busy step and the first
   quiet one.
+- **A service with no work left reports only its background.** Fraud-detection and flagd alerted on
+  a routine stream reconnect because nothing else was left in their numbers. Read what the spans
+  are before counting them as a second fault.
 - **A call that fails in no time never left the caller.** A down or overloaded server makes a call
-  wait or be refused. `produced zero addresses` in 0.0ms means the caller was dialing a name that
+  wait or be refused. `produced zero addresses` in no time means the caller was dialing a name that
   does not resolve, while resolving its other dependencies in the same request.
 - **A count that climbs with every failure and stays after the fix is a leak, not a load.** It
   says the failing path builds something per call. It also says the fix leaves a residue that a

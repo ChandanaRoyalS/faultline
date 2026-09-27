@@ -29,30 +29,38 @@ ground_truth:
 expected_evidence:
   # From A1 (by hand, 2026-09-22) and R1 (through the injector, 2026-09-24), dev-only evidence,
   # checked against this scenario's first recording (2026-09-26, t_inject 19:41:58, revert at
-  # +11:00). It reproduced A1's shape, not R1's: the culprit stayed under the line.
-  - alerts: ServiceHighErrorRate on frontend and frontend-proxy together (page 6m00s; A1 +5:37 and
+  # +11:00). Re-recorded on the revised world on 2026-09-27 (t_inject 04:40:26, revert at +10:31)
+  # and restated against that recording. It still has A1's shape, not R1's: the culprit touched
+  # the line twice but never held it for the rule's two minutes, so it never paged. The trace item
+  # stands on the first recording's read-back; the re-record's errors-only trace query returned
+  # nothing and is to be re-run.
+  - alerts: ServiceHighErrorRate on frontend and frontend-proxy together (page 5m31s; A1 +5:37 and
       +6:07, R1 +5:31 and +6:01) and nothing else, during the fault or after the fix;
-      product-catalog stays under the line (4.64% at most, A1 4.63%; R1 crossed at 5.64%), because
-      one failing product is diluted across everything it serves; checkout touches 5.0% once
-      without alerting; no latency alert anywhere
-  - metrics: product-catalog's error ratio rises to a flat 4.2-4.6%; frontend holds at ~7-8% and
-      frontend-proxy at ~8-9%, because one failing product fails the whole page; load-generator ~5%;
-      p95 and request rates unchanged everywhere - the failures are fast
+      product-catalog does not page although it crosses 5% twice for about a minute each (5.12%
+      at +4:15, 5.67% at +10:15; A1 4.63%; R1 crossed and paged at 5.64%), because one failing
+      product is diluted across everything it serves; checkout peaks at 4.6% without alerting; no
+      latency alert anywhere
+  - metrics: product-catalog's error ratio holds at ~4-5% (3.8-5.7%); frontend at ~6.5-9% and
+      frontend-proxy at ~7-10%, because one failing product fails the whole page; load-generator
+      ~4-5%; the catalog's and frontend's p95 and request rates unchanged - the failures are fast
   - logs: product-catalog has no Loki stream and logs nothing; the frontend's log carries the
-      flag's words seven seconds after onset, a 13 INTERNAL error reading `Product Catalog Fail
-      Feature Flag Enabled`, 6 to 15 a minute until the fix, and checkout's `failed to get product`
-      for product OLJCESPC7Z, 1 to 5 a minute
-  - traces: failing traces end at product-catalog's own GetProduct server span, in error in no
-      measurable time, its status message naming the flag (the (d) read R1 owed); the trace tool
-      names it as the degrading hop; in the same trace the page's other GetProduct calls succeed
-      with their database queries, and checkout's failing orders show the same refusal under a
-      successful cart read
+      flag's words from the first minute, a 13 INTERNAL error reading `Product Catalog Fail Feature
+      Flag Enabled`, 272 lines over ~11 minutes (12 to 40 a minute, two lines per error), and
+      checkout's `failed to get product` for product OLJCESPC7Z, 34 lines (up to 8 a minute); none
+      of either in the five minutes before or after
+  - traces: failing traces end at product-catalog's own GetProduct server span, in error, usually
+      in no measurable time and with no database query beneath it, its status message naming the
+      flag (the (d) read R1 owed) - 153 error traces touching the catalog over the fault, from
+      recommendation, product, cart and checkout requests; in the same trace the page's other
+      GetProduct calls succeed with their database queries, and checkout's failing orders show the
+      same refusal after a successful cart read, one product lookup and a currency conversion
+      (re-queried against Tempo directly on this recording)
   - metrics: product-catalog's Go runtime series (9) report through the fault without a gap - the
       process is up and not strained
   - change: nothing recorded - no deploy, no configuration change, no restart; flagd reloads its
       own file and leaves no change record
   - discriminator: nothing changed that change history can see, and the culprit's own error names
-      a feature flag; one product fails and every other succeeds, fast, at a flat partial ratio -
+      a feature flag; one product fails and every other succeeds, fast, at a steady partial ratio -
       a data-dependent branch, not an overloaded or broken service - so the fix is the flag, not a
       rollback or a restart
 expected_remediation_class: config_revert
@@ -63,4 +71,5 @@ alert_timeout_seconds: 900
 # product-catalog (8 families, go_*), and Loki has no product-catalog stream in 24 hours. The
 # first recording confirmed it: 9 runtime series, 0 target log lines, and the recorder derived
 # [runtime].
+# The 2026-09-27 re-record derived the same: 9 runtime series, 0 target log lines, [runtime].
 answers_idle_or_absent: [runtime]

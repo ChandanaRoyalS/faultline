@@ -27,23 +27,33 @@ ground_truth:
   category: feature_flag
 expected_evidence:
   # Written before the first recording and checked against it (2026-09-26, t_inject 22:03:16,
-  # revert at +15:31). The page was predicted to be marginal (about 4.7% against the 5% line); it
-  # paged, late, so by the row's rule it is a scenario.
-  - alerts: ServiceHighErrorRate on ad alone (page 10m31s), and nothing else during the fault or
-      after the fix; the ratio touched the line at ~+6, fell under at ~+7 and restarted the hold,
-      then stayed over from between +8 and +9
-  - metrics: ad's error ratio rises to 2-3% and then hovers at 5-9% while its rate and latency
-      hold; frontend and frontend-proxy rise to ~1%; no latency changes anywhere
+  # revert at +15:31, now in superseded/). Re-recorded on the revised world on 2026-09-27
+  # (t_inject 05:33:27, revert at +13:31) and restated from that capture and its live read-back;
+  # the errors-only trace query returned nothing for the new window, so the trace line stands on
+  # the first recording's read-back until it is re-queried. The page was predicted to be marginal
+  # (about 4.7% against the 5% line); it paged, late, so by the row's rule it is a scenario.
+  - alerts: ServiceHighErrorRate on ad alone (page 8m31s), and nothing else during the fault or
+      after the fix; the ratio crossed the line at ~+3, fell under at ~+5 just short of the 2m hold
+      and restarted it, stayed over from ~+6 until it fired, then dipped to 4.6% at ~+11 and the
+      alert resolved 2m31s before the fix - all clear 1 s after the fix
+  - metrics: ad's error ratio rises to 4.4% and then hovers at 4-8% while its request rate holds;
+      frontend and frontend-proxy rise to ~1% (1.3% at most); no storefront latency changes; ad's
+      p95 rises from ~5ms to ~40ms for a few minutes mid-fault and falls back while the failures go
+      on
   - logs: ad logs `GetAds Failed with status Status{code=UNAVAILABLE, description=null, cause=null}`
-      for 22 of about 200 requests, 0 to 4 a minute, across targeted and random requests alike;
-      the frontend logs `Error - 14 UNAVAILABLE` with empty details, once per failure
+      for 23 of 168 requests, 0 to 3 a minute, the first 4 s after onset, none before or after,
+      across targeted requests in six categories and random requests alike; the frontend logs
+      `Error - 14 UNAVAILABLE` with empty details, 23 times, once per failure
   - traces: failing requests end at ad's own GetAds span, in error, with no status message, under
-      the frontend's /api/data; the ads were chosen before it failed
-  - metrics: ad's JVM runtime series (51) report through the fault - the process is up
+      the frontend's /api/data - 23 over the fault, one per logged failure; the ads were chosen
+      before it failed; ad's only other error spans are two closes of its own flag-service stream
+      (re-queried against Tempo directly on this recording)
+  - metrics: ad's JVM runtime series (51, one instance) report through the fault with flat CPU time
+      and garbage collection - the process is up
   - change: nothing recorded - no deploy, no configuration change, no restart; flagd reloads its
       own file and leaves no change record
-  - discriminator: a steady random tenth of requests failing with UNAVAILABLE and no description,
-      from a service that is up, fast and unstrained, with nothing in change history, is a
+  - discriminator: a steady random fraction of requests failing with UNAVAILABLE and no
+      description, from a service that is up and unstrained, with nothing in change history, is a
       deliberate branch - the flag's value is the change
 expected_remediation_class: config_revert
 rehearsed: true
@@ -52,5 +62,6 @@ alert_timeout_seconds: 900
 # world 2026-09-26, as the candidate list asks: Prometheus held 50 JVM runtime series for ad (14
 # families), and its Loki stream logged 24 to 30 lines a minute at rest. The first recording
 # confirmed both classes: 51 runtime series and 500 target log lines, and the recorder derived
-# [runtime, logs].
+# [runtime, logs]. The 2026-09-27 re-record captured 51 runtime series and 453 target log lines
+# and derived the same [runtime, logs].
 answers_idle_or_absent: [runtime, logs]

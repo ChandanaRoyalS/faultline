@@ -1,0 +1,88 @@
+{
+  "alerts_at_fire": [
+    "ServiceNoTraffic/accounting"
+  ],
+  "alerts_over_window": [
+    {
+      "alert": "ServiceNoTraffic",
+      "began_after_revert": false,
+      "first_seen": "2026-09-26T06:50:10+00:00",
+      "last_seen": "2026-09-26T06:55:55+00:00",
+      "minutes_firing": 6.0,
+      "service": "accounting"
+    }
+  ],
+  "baseline_clear_at": "2026-09-26T06:42:40+00:00",
+  "bundle_schema_version": 2,
+  "capture_set": 2,
+  "expected_remediation_class": "config_revert",
+  "fault_class": "bad_config",
+  "injection": {
+    "method": "v2-accounting-kafka-misconfig",
+    "params": {
+      "env_var": "KAFKA_ADDR",
+      "value": "kafka:9094"
+    },
+    "target": "accounting"
+  },
+  "origin": "scenario:v2-accounting-kafka-misconfig",
+  "reachability": {
+    "answers_idle_or_absent": [
+      "runtime",
+      "logs"
+    ],
+    "derived_from": "the bundle's own captures (T7.5)",
+    "none_can_answer": false,
+    "runtime_series": 42,
+    "target_log_lines": 484
+  },
+  "recorded_by": "evalharness.rehearse",
+  "recorder": {
+    "git_dirty": true,
+    "git_sha": "6d6f77540984a0a282cb9d737498d3c98ff693a9",
+    "tool": "evalharness.rehearse"
+  },
+  "scenario_fingerprint": "89cc61d5d2e609860c6a1a780b594a02240f730540334fd2ed4e0de30aa7397a",
+  "scenario_id": "v2-accounting-kafka-misconfig",
+  "seconds_of_steady_state": 300,
+  "seconds_to_alert": 467,
+  "seconds_to_settle": 61,
+  "split": "holdout",
+  "t_alert_firing": "2026-09-26T06:50:27+00:00",
+  "t_clear": "2026-09-26T06:56:28+00:00",
+  "t_inject": "2026-09-26T06:42:40+00:00",
+  "t_revert": "2026-09-26T06:55:27+00:00",
+  "title": "Accounting pointed at a Kafka port where nothing listens",
+  "window": {
+    "end": "2026-09-26T06:58:28+00:00",
+    "start": "2026-09-26T06:37:40+00:00"
+  },
+  "world": {
+    "compose_digest": "ae2fd2a20b5112e42d9606e123157365ce496effa1eb974e357f0430588222ff",
+    "docker_arch": "arm64",
+    "ffs_stub_image_id": "sha256:90f2fc6f5806a8914ef2740ff7c6348a1ddd4225bccc8f3398e58d03b3c1a512",
+    "ffs_stub_source_digest": null,
+    "host_platform": "Darwin/arm64",
+    "observability_digest": "7d6097ab0f00132d57993804ee4f4d9eff1abedfb71a273bdd7e553ef887637b",
+    "observability_files": {
+      "compose/otelcol-extras-v2.yml": "48cd277022d94eb34a9cedd743fab54efb1d78ce59258349b06360917495b443",
+      "compose/prometheus/alert-rules-v2.yml": "7f006a034167ffd3c1eacc17f9d952f73eeb22d1936aa17669626c442fa8f20b",
+      "compose/prometheus/alertmanager.yml": "cec8f9f623152c001d14a53c8c3a6930ad35665d5ee093117ff17cf0d09d61f1",
+      "compose/prometheus/prometheus-config-v2.yaml": "b2e8c9c59bcbfa5d7235748871db1852de74d59c43d89723a2d260c0aaf45867",
+      "compose/promtail-config.yml": "2d43bc91f78cf65504a1091e406a7e97bcece0a194dc5f27cf1fd4c49edb72ec",
+      "compose/tempo-v2.yaml": "8b0e0300b81ca9cd83a252ab0f6743c04fbb3adf3eb4c75a290d17978bb3c4fb",
+      "world-v2/src/otel-collector/otelcol-config.yml": "0a472a67088ca6fa1d5a222ce8c633aa26bbb75cd8d11558c2feaabdfc70141e"
+    },
+    "otel_demo_image": "ghcr.io/open-telemetry/demo:2.2.0-cart",
+    "otel_demo_image_digest": "ghcr.io/open-telemetry/demo@sha256:1adaf3b33fbf4d42e5a1fa68fec1ea1b645d50471881179bd7be0a0ce2656706",
+    "world_name": "v2"
+  },
+  "world_lock": {
+    "acquired": true,
+    "host": "chandanas-MacBook-Air.local",
+    "pid": 75828,
+    "reason": "rehearse v2-accounting-kafka-misconfig",
+    "since": "2026-09-26T06:42:35.272718+00:00",
+    "token": "75828-1790404955.272563"
+  }
+}

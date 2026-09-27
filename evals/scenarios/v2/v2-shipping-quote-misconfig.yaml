@@ -24,28 +24,41 @@ ground_truth:
   category: bad_config
 expected_evidence:
   # From v1's shipping-quote-misconfig (dev-only, T7.20/T7.22), adapted to v2's names, and checked
-  # against this scenario's bundle as recorded 2026-09-26 on the final world (Tempo 2.6.1, the
-  # 100M catalog; revert at +9:46). Two earlier recordings on older worlds are in superseded/: the
-  # first corrected the ground truth and the declaration, the second was recorded before Q102/Q104.
-  # The cart row's lesson was checked: shipping reads QUOTE_ADDR per request, and it stayed up
-  # (restarts 0).
-  - alerts: ServiceHighErrorRate on checkout and on shipping together (page 4m46s); ServiceNoTraffic
-      on quote, payment, email and accounting about three minutes later, with fraud-detection
-      errors; frontend and frontend-proxy errors about five minutes after the page (v1 paged
-      checkout alone). Nothing fires during recovery
-  - metrics: checkout's error ratio rises to about a quarter and holds, and its latency falls
-      (failing orders finish fast); shipping's error ratio is 100% while it keeps serving; quote's
-      request rate falls to zero, because the only service that calls it can no longer reach it
+  # against this scenario's bundle as re-recorded on the revised world on 2026-09-27 (raised
+  # memory limits; t_inject 2026-09-27T03:14:31+00:00, revert at +8:19) and the live read-back of
+  # its window. Three earlier recordings are in superseded/: the first corrected the ground truth
+  # and the declaration, the second was recorded before Q102/Q104, the third on 2026-09-26 paged
+  # checkout and shipping together. The cart row's lesson was checked: shipping reads QUOTE_ADDR
+  # per request, and it stayed up (restarts 0).
+  - alerts: ServiceHighErrorRate on shipping alone pages (+3:15 first seen, page 3m19s), with
+      ServiceHighErrorRate/checkout following a minute later (+4:15); fraud-detection
+      ServiceHighErrorRate at +6:15 and ServiceHighLatency with flagd ServiceHighLatency at +7:15;
+      ServiceNoTraffic on quote, payment, email and accounting at +8:15, seconds before the revert -
+      nine alerts on eight services (v1 paged checkout alone). frontend (5.3 %) and frontend-proxy
+      (5.7 %) cross 5 % only in the last minute and do not alert. Nothing fires during recovery;
+      clear 5m02s after the fix
+  - alerts: (dead end) fraud-detection's and flagd's alerts come from fraud-detection's
+      flagd.evaluation.v1.Service/EventStream stream (2 of 2 error traces), closed by flagd with
+      "stream closed due to server-side timeout" (routine ten-minute reconnect) while no paid
+      orders reach fraud-detection; flagd's EventStream spans are ten minutes long
+  - metrics: shipping's error ratio rises from +1:00 and is 100 % from +5:00 while its request rate
+      holds (~0.25-0.38/s); checkout's rises from +1:00 to about a quarter (25 %) and holds, and its
+      p95 falls (~40ms to ~30ms; failing orders finish fast); quote's request rate falls to zero at
+      +5:00, because the only service that calls it can no longer reach it, and resumes within a
+      minute of the fix
   - logs: shipping's and checkout's logs are not reachable on v2 (OTLP only, to a store no tool
-      reads); quote's log stops recording `POST /getquote` for the fault's length; frontend's log
-      carries checkout's error text
+      reads; the bundle's shipping selector matched no lines); frontend's log carries checkout's
+      error text `failed POST to email service` 142 times during the fault, 6-26 a minute, none
+      before or after; quote logs each POST /getquote (not re-counted on this recording)
   - traces: checkout's PlaceOrder error text calls the shipping quote failure a failed POST to the
-      email service (checkout's own mislabel); below it shipping's `POST quote-gone` client span
-      fails with `Name or service not known`, and the trace tool names it as the degrading hop
+      email service (checkout's own mislabel, 8 of 10 checkout error traces); below it shipping's
+      `POST quote-gone` client span fails to resolve (`Name or service not known`), and the trace
+      tool names it as the degrading hop (7x shipping//get-quote -> shipping/POST quote-gone)
   - change: QUOTE_ADDR on shipping changed to an address that does not resolve, coinciding with
       onset; change history asked of checkout returns nothing
-  - discriminator: shipping and checkout both page, but the service that went quiet (quote) is
-      healthy and nothing changed on checkout - the fault is in the address shipping holds for quote
+  - discriminator: shipping pages first and checkout follows, but the service that went quiet
+      (quote) is healthy and nothing changed on checkout - the fault is in the address shipping
+      holds for quote
 expected_remediation_class: config_revert
 rehearsed: true
 alert_timeout_seconds: 900
@@ -58,4 +71,6 @@ alert_timeout_seconds: 900
 # turn on whether shipping was idle or absent. It does not need to, because shipping pages on its
 # own error spans. The ground truth was corrected in the same change (shipping pages too on v2),
 # which moved the fingerprint, so the bundle is re-recorded.
+# The 2026-09-27 re-recording again held 0 target log lines (Loki's `service` label now lists
+# `shipping`, but matched no lines in the window) and 0 runtime series, and derived [].
 answers_idle_or_absent: []

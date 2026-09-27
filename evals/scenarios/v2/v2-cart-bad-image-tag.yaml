@@ -27,23 +27,30 @@ ground_truth:
   category: bad_deploy
 expected_evidence:
   # Carried from v1's design, written before the first recording and checked against it
-  # (2026-09-27, t_inject 00:10:12, revert at +9:47). The probe saw cart's container exited for the
-  # whole fault and back on 2.2.0-cart at the fix.
-  - alerts: ServiceHighErrorRate on checkout, frontend, frontend-proxy and load-generator together
-      (page 4m47s); at +7:30 ServiceNoTraffic on cart and on currency, quote, shipping, payment,
-      email, accounting and fraud-detection - twelve alerts by the fix and none after it
-  - metrics: cart's call rate falls to zero with no errors; checkout's error ratio holds at exactly
-      two thirds while its p95 falls from ~38ms to under 2ms; frontend 26-29%, frontend-proxy
-      25-28%, load-generator 14-15%; recommendation and ad keep their rates
+  # (2026-09-27, t_inject 00:10:12). Re-recorded on the revised world on 2026-09-27 (t_inject
+  # 06:31:29, revert at +8:17); the list below states that recording.
+  - alerts: ServiceHighErrorRate on checkout, frontend and frontend-proxy together (page 3m17s),
+      load-generator at +4:15; ServiceNoTraffic on cart, currency and shipping at +7:15 and on
+      quote, payment, email and accounting at +8:15 - eleven alerts by the fix; after it
+      ServiceHighErrorRate on fraud-detection (+9:15) and ServiceHighLatency on fraud-detection and
+      flagd (+10:15), all cleared by +11:00
+  - metrics: cart's call rate falls to zero with only a few tenths of a percent of errors from its
+      last seconds; checkout's error ratio holds at exactly two thirds from +6 while its p95 falls
+      from ~35ms to under 2ms (one 4.7s reading at +4:15); frontend 26-29%, frontend-proxy 27-29%,
+      load-generator 15-17%; recommendation and ad keep their rates, product-catalog ~4/5 of its
   - traces: checkout's PlaceOrder errors with `cart failure - failed to get user cart during
       checkout - rpc error - code = Unavailable desc = name resolver error - produced zero
-      addresses`, its GetCart failing in 0.0ms with no cart span beneath and nothing after it; the
-      frontend's AddItem fails in under a millisecond, also with nothing beneath
-  - logs: cart's log ends at onset with `Application is shutting down...` after 116-174 request
-      lines a minute and is silent until the fix; the frontend logs `Error - 14 UNAVAILABLE - No
-      connection established. Last error - connect EHOSTUNREACH` to cart's old address
-  - metrics: cart's 39 .NET runtime series hold their last values for five minutes (the lookback)
-      and vanish; a new instance's series begin after the fix
+      addresses`, its GetCart failing with no cart span beneath and nothing after it; the
+      frontend's AddItem and GetCart fail with nothing beneath
+  - logs: cart's log ends one second after onset with `Application is shutting down...` after ~90
+      request lines a minute and is silent until the fix (8m17s); the frontend logs `Error - 14
+      UNAVAILABLE - No connection established. Last error - connect EHOSTUNREACH` 624 times during
+      the fault (up to 94 a minute) and 82 more in the five minutes after the fix
+  - metrics: cart's 43 .NET runtime series hold their last values for five minutes (the lookback)
+      and vanish; a new instance's 35 series begin after the fix
+  - traces: fraud-detection's only error spans are its flagd EventStream client span, ended by
+      flagd with `stream closed due to server-side timeout` (a routine reconnect) - with no orders
+      it reads 100% errors and a 15 s p95, and flagd's p95 goes the same way; no order is involved
   - change: a change record at onset - `image reference updated on cart`, to
       ghcr.io/open-telemetry/demo:2.2.0-cart-hotfix.2, a tag the registry does not have
   - discriminator: the callers are loud and cart is silent - an erroring service still records
@@ -56,5 +63,7 @@ alert_timeout_seconds: 900
 # 2026-09-27: Prometheus held 39 .NET runtime series for cart and its Loki stream logged 114 to 222
 # lines a minute. Both are what the fault removes: they answer by going idle or absent. The first
 # recording confirmed both classes: 76 runtime series (the old instance and the new) and 500
-# target log lines, and the recorder derived [runtime, logs].
+# target log lines, and the recorder derived [runtime, logs]. The 2026-09-27 re-recording agrees:
+# 78 runtime series (43 for the old instance, 35 for the new), 500 target log lines, derived
+# [runtime, logs].
 answers_idle_or_absent: [runtime, logs]

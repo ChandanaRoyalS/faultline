@@ -23,24 +23,29 @@ ground_truth:
     holds for cart.
   category: bad_config
 expected_evidence:
-  # Written before the first recording and corrected against it (2026-09-26, t_inject 06:12:49).
-  # The recording added checkout to the page: the frontend cannot fill carts, so checkout reads
-  # empty ones and fails every order at shipping's quote.
-  - alerts: ServiceHighErrorRate on checkout, frontend and frontend-proxy together at 3m31s,
+  # Written before the first recording and corrected against it (2026-09-26). Re-recorded on the
+  # revised world on 2026-09-27 (t_inject 03:33:31, revert at +8m17s) and restated against that
+  # recording. Checkout is on the page: the frontend cannot fill carts, so checkout reads empty
+  # ones and fails every order at shipping's quote.
+  - alerts: ServiceHighErrorRate on checkout, frontend and frontend-proxy together at 3m17s,
       load-generator a minute later; ServiceNoTraffic on accounting, currency, email, payment and
-      quote about seven minutes in; cart never alerts
-  - metrics: frontend's error ratio settles at ~27% while its latency and request rate hold;
-      checkout's settles at exactly 0.5 (two of four spans in every order) while its latency
-      falls from ~28ms to under 5ms; cart's request rate falls from ~4.2/s to ~0.33/s, never to
-      zero, with zero errors and unchanged latency
+      quote at +7m15s; fraud-detection ServiceHighErrorRate at +7m15s and fraud-detection and
+      flagd ServiceHighLatency at +8m15s (flagd EventStream reconnect exposed by the stopped
+      orders, not a second fault); cart never alerts; nothing starts after the fix
+  - metrics: frontend's error ratio peaks at ~29% at +4m and eases to ~24% by the fix while its
+      latency (~42ms to ~37ms) and request rate (~12.4/s to ~10.5/s) hold; checkout's reaches
+      exactly 0.5 (two of four spans in every order) while its latency falls from ~35ms to ~8ms;
+      cart's request rate falls from ~4.5/s to ~0.3/s, never to zero, with zero errors
   - logs: the frontend, silent at rest, logs `14 UNAVAILABLE ... connect ECONNREFUSED ...:7071`
-      from its start until the fix, beside checkout's mislabelled error (`shipping quote failure`,
-      `failed POST to email service`, `expected 200, got 400`); cart's own log shows it serving GetCart
-      throughout
-  - traces: the frontend's grpc.oteldemo.CartService/GetCart client span errors with no cart span
-      beneath it (the degrading hop); checkout's PlaceOrder errors, and beneath it cart's GetCart
-      succeeds, no product or currency calls follow (the cart is empty), and shipping's get-quote
-      answers 400 without an error
+      from its start until the fix (552 lines, 22-112 a minute, none before or after), beside
+      checkout's mislabelled error (`shipping quote failure`, `failed POST to email service`,
+      `expected 200, got 400`); cart's own log shows GetCartAsync continuing (99 in the fault)
+      while AddItemAsync all but stops (19, against 166 in the five minutes before)
+  - traces: the frontend's grpc.oteldemo.CartService/AddItem client span under /api/cart errors
+      with no cart span beneath it (the degrading hop); checkout's PlaceOrder errors in every
+      sampled trace with the hop at prepareOrderItemsAndShippingQuoteFromCart to its HTTP POST
+      to shipping, no product or currency calls between (the cart is empty); fraud-detection's
+      only error spans are its flagd EventStream, closed by server-side timeout
   - metrics: the frontend's Node runtime series (75) report without a gap - the process is up and
       answering
   - change: CART_ADDR on frontend changed to cart:7071, coinciding with onset; nothing changed on
@@ -56,5 +61,6 @@ alert_timeout_seconds: 900
 # frontend (16 families, nodejs_eventloop_* and v8js_*), and the frontend's Loki stream exists but
 # logged 0 lines in 15 minutes at rest. Logs were declared because the fault should make it log.
 # The first recording confirmed both: 75 runtime series and 400 target log lines (the capture's
-# limit), and the recorder derived [runtime, logs].
+# limit), and the recorder derived [runtime, logs]. The 2026-09-27 re-record on the revised world
+# derived the same: 75 runtime series, 400 target log lines, [runtime, logs].
 answers_idle_or_absent: [runtime, logs]

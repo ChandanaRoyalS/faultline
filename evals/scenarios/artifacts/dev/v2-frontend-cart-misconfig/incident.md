@@ -2,9 +2,9 @@
 origin: scenario:v2-frontend-cart-misconfig
 split: dev
 fault_class: bad_config
-recorded_from: 2026-09-26T06:12:49+00:00
+recorded_from: 2026-09-27T03:33:31+00:00
 capability: cap:d2b243e0
-onset_to_page: 3m31s
+onset_to_page: 3m17s
 page_to_fix: 5m00s
 fix_to_all_clear: 4m02s
 ---
@@ -14,19 +14,21 @@ fix_to_all_clear: 4m02s
 ## What was observed
 
 The page was three alerts in the same moment, `ServiceHighErrorRate` on **checkout**, on
-**frontend** and on **frontend-proxy**, 3m31s after the trouble started. Load-generator joined them
-a minute later. Frontend's error ratio had been zero. It rose from about a minute in and settled
-at a little over a quarter of its spans. Frontend-proxy's followed it step for step. Checkout's
-settled at **exactly one half**.
+**frontend** and on **frontend-proxy**, 3m17s after the trouble started. Load-generator joined them
+a minute later. Frontend's error ratio had been zero. It rose from about a minute in, peaked at
+about 29% four minutes in, and eased to about a quarter of its spans by the fix. Frontend-proxy's
+followed it step for step. Checkout's reached **exactly one half** four minutes in and stayed there.
 
-Nothing got slower. Frontend's latency eased slightly, from about 38ms to about 32ms, and its
-request rate barely moved: the storefront was serving pages at close to its usual rate.
-Checkout's latency fell from about 28ms to under 5ms, because an order that fails early finishes
-fast.
+Nothing got slower. Frontend's latency eased slightly, from about 42ms to about 37ms, and its
+request rate dipped only modestly, from about 12.4 to about 10.5 a second: the storefront was still
+serving pages. Checkout's latency fell from about 35ms to about 8ms, because an order that fails
+early finishes fast.
 
 About seven minutes in, five services went quiet at once: `ServiceNoTraffic` on accounting,
-currency, email, payment and quote. **Cart**, the service the storefront's failures would turn out
-to name, never alerted. Its error ratio stayed at zero and its latency did not move.
+currency, email, payment and quote. In the same minute fraud-detection raised
+`ServiceHighErrorRate`, and a minute later, just before the fix, fraud-detection and **flagd** both
+raised `ServiceHighLatency`. **Cart**, the service the storefront's failures would turn out to name,
+never alerted. Its error ratio stayed at zero and its latency at a few milliseconds.
 
 ## What was checked
 
@@ -37,39 +39,39 @@ shipping answering with a non-200 status, and it names the email service by mist
 matters here is the `400`: shipping was not failing, it was refusing the request it was sent.
 
 **Checkout's traces, to see what it sent.** Every failing order had the same shape.
-`checkout/oteldemo.CheckoutService/PlaceOrder` errored with that message. Beneath it, checkout
-read the user's cart from cart, and cart answered normally, reading its store and returning in
-about a millisecond. Then checkout called shipping for a quote, and shipping's `get-quote` span
-ended in a tenth of a millisecond without an error. There was nothing between the two calls: no
-product lookups, no currency conversion. In a healthy order, checkout looks up every item in the
-cart at that point. It looked up none, because the cart it read was **empty**. Shipping rejected a
-quote request with nothing in it, and checkout reported that as the error above. Checkout was
-working. It was being handed empty carts.
+`checkout/oteldemo.CheckoutService/PlaceOrder` errored with that message, and the trace tool put
+the degrading hop at checkout's preparation step calling shipping over HTTP. Beneath the order,
+checkout read the user's cart from cart and cart answered normally. Then checkout called shipping
+for a quote, and shipping answered at once without an error of its own; its p95 fell from about
+9ms to under 2ms. There was nothing between the two calls: no product lookups, no currency
+conversion. In a healthy order, checkout looks up every item in the cart at that point. It looked
+up none, because the cart it read was **empty**. Checkout was working. It was being handed empty
+carts.
 
 **The one-half.** Each failed order is four checkout spans: the order, the preparation step, the
 cart read and the call to shipping. The order and the shipping call error, the other two do not.
 So an error ratio of exactly 0.5 means every order was failing, not half of them.
 
-**Why the carts were empty: the frontend's own errors.** The frontend's traces answered it.
-`load-generator/user_view_cart` failed at `frontend/GET /api/cart`, and the deepest span was the
-frontend's own client call, `frontend/grpc.oteldemo.CartService/GetCart`, in error after under a
-millisecond. There was **no cart span beneath it**: the call never reached cart. The trace tool
-named that call as the degrading hop. Adding to a cart goes through the same client. Nothing a
-shopper put in a cart got there, so when the order was placed, the cart was empty.
+**Why the carts were empty: the frontend's own errors.** The frontend's traces answered it. A
+request to `frontend/GET /api/cart` failed, and the deepest span was the frontend's own client
+call, `frontend/grpc.oteldemo.CartService/AddItem`, with no cart span beneath it: the call never
+reached cart. The trace tool named that call as the degrading hop. Reading a cart goes through the
+same client. Nothing a shopper put in a cart got there, so when the order was placed, it was empty.
 
 **The frontend's log.** At rest the frontend logs nothing. Within a second of the frontend coming
 up at the start, it logged `Error: 14 UNAVAILABLE: No connection established. Last error: connect
-ECONNREFUSED 172.18.0.17:7071`, and it kept logging it until the fix, between about 20 and 44
-refused cart calls a minute, with none before the change and none from a minute after the fix.
-Checkout's failures show up there too, 4 to 12 a minute. `ECONNREFUSED` means the host was reached
-and nothing was listening on that port: the frontend was calling cart's host on **7071**.
+ECONNREFUSED 172.18.0.17:7071`, and it kept logging it until the fix: 552 lines naming
+`ECONNREFUSED` over about nine minutes, 22 to 112 a minute (each refusal is logged on two lines),
+with none in the five minutes before and none in the five after. Checkout's failures show up there
+too. `ECONNREFUSED` means the host was reached and nothing was listening on that port: the frontend
+was calling cart's host on **7071**.
 
-**Whether cart was down.** It was not. Its error ratio was zero throughout, its latency held at
-about 2ms, and its own log recorded `GetCartAsync called` for every read, through the whole
-incident. Its request rate fell from about 4.2 a second to about 0.33, and never to zero: what was
-left was checkout's reads and cart's own flag lookups. The frontend's share of its traffic had
-vanished. A service that loses one caller's traffic while the other caller still reaches it is
-not the service that broke.
+**Whether cart was down.** It was not. Its error ratio was zero throughout and its p95 stayed at a
+few milliseconds. Its request rate fell from about 4.5 a second to about 0.3, and never to zero.
+Its own log told the rest: `GetCartAsync called` went on through the incident (99 times, against
+295 in the five minutes before), while `AddItemAsync called` all but stopped (19, against 166
+before). What was left was checkout's reads. A service that loses one caller's traffic while the
+other caller still reaches it is not the service that broke.
 
 **Whether the frontend was down or restarting.** It was not. Its Node runtime series, 75 of them,
 reported without a gap, and it kept serving at close to its usual rate and latency.
@@ -77,6 +79,14 @@ reported without a gap, and it kept serving at close to its usual rate and laten
 **The five quiet services.** Currency, quote, payment, email and accounting are only reached once
 an order has items and a shipping price. No order got that far, so they had nothing to do. Their
 silence was a consequence, not five more failures.
+
+**Fraud-detection and flagd: a dead end.** Fraud-detection's only error spans in the window were
+its subscription to the feature-flag service, `flagd.evaluation.v1.Service/EventStream`, ended by
+flagd with `stream closed due to server-side timeout`. That is the routine ten-minute reconnect,
+and flagd's own side of the stream is a span ten minutes long. With no orders reaching
+fraud-detection, those few long stream spans were nearly all either service reported, so
+fraud-detection's error ratio read 100% and both p95s sat at the histogram's ceiling. No order was
+involved. It was not a second fault.
 
 **What changed.** One record, at the start: `CART_ADDR updated on frontend`, to `cart:7071`. That is
 the address the refused calls were going to. Nothing had changed on cart, on checkout or on
@@ -95,25 +105,20 @@ wrong, and cart was not at fault. The fault was the address the frontend held fo
 ## Resolution
 
 `CART_ADDR` was set back to cart's address and the frontend was recreated with it. The refused
-calls stopped, carts filled again, orders completed, and the quiet services came back. The error
-ratios drained with their five-minute windows, and everything was quiet 4m02s after the fix.
-
-One alert started after the fix, and it belongs to neither the fault nor the fix. Fraud-detection's
-error alert began 44 seconds after the fix. The span behind it ended before the fix, while
-fraud-detection had no orders to read. It is fraud-detection's subscription to its feature-flag
-service, `flagd.evaluation.v1.Service/EventStream`, which the flag service closes every ten minutes
-(`stream closed due to server-side timeout`), and which is recorded as an error lasting ten
-minutes. With nothing else in its five-minute window, that one span was a 100% error ratio and a
-p95 at the latency histogram's ceiling. On a normal minute its orders drown it out.
+calls stopped, carts filled again, orders completed, and the quiet services came back within a
+minute. Fraud-detection's and flagd's alerts ended with them, as orders drowned out the stream
+spans again. The error ratios drained with their five-minute windows, and everything was quiet
+4m02s after the fix. No alert started after the fix.
 
 Class of fix: **config_revert**. One setting was wrong and it was set back.
 
 ## Detection notes
 
-- Onset to first page: **3m31s**. Services on the page: **three**, and one of them was the service
-  that changed. By the fix: **nine alerts across nine services**.
-- Alerts that fired only during recovery: **one** by its start time, fraud-detection's, and it was
-  its flag subscription's routine ten-minute reconnect, exposed by the quiet.
+- Onset to first page: **3m17s**. Services on the page: **three**, and one of them was the service
+  that changed. By the fix: **twelve alerts across eleven services**.
+- Alerts that fired only during recovery: **none**. Fraud-detection's and flagd's three began
+  while orders were stopped, and were its flag subscription's routine reconnect, exposed by the
+  quiet.
 - Did the loudest service turn out to be the culprit? **Partly.** The frontend paged, and it is the
   service whose setting was wrong. Checkout paged beside it and was only reporting what it had been
   handed.

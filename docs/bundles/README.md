@@ -1,6 +1,6 @@
 # The bundles, rendered
 
-Every recorded rehearsal in this repository as a readable page — 31 in all: **28 runnable** (21 dev, 7 holdout) and **3 that could not fire** (3 dev).
+Every recorded rehearsal in this repository as a readable page — 32 in all: **29 runnable** (22 dev, 7 holdout) and **3 that could not fire** (3 dev).
 
 A bundle is what one rehearsal left behind — the manifest, the Prometheus captures,
 a slice of one service's logs, the exact queries, and the narrative a responder wrote
@@ -36,17 +36,18 @@ benchmark** — see [RESULTS.md](../RESULTS.md).
 | [`shipping-quote-misconfig`](shipping-quote-misconfig.md) | `bad_config` | Checkout failed a quarter of its orders, and the service at fault reported nothing — 5 alerts over the window |
 | [`shipping-wrong-image`](shipping-wrong-image.md) | `bad_deploy` | Shipping service deployed with another service's image — 8 alerts over the window |
 | [`v2-accounting-bad-credential`](v2-accounting-bad-credential.md) | `bad_config` | Accounting's database password rotated to one the database does not accept — 1 alerts over the window |
+| [`v2-ad-bad-image-tag`](v2-ad-bad-image-tag.md) | `bad_deploy` | Ad deployed on an image tag that was never published — 4 alerts over the window |
 | [`v2-ad-flag-failure`](v2-ad-flag-failure.md) | `feature_flag` | A feature flag makes the ad service fail one request in ten — 1 alerts over the window |
-| [`v2-cart-bad-image-tag`](v2-cart-bad-image-tag.md) | `bad_deploy` | Cart deployed on an image tag that was never published — 12 alerts over the window |
+| [`v2-cart-bad-image-tag`](v2-cart-bad-image-tag.md) | `bad_deploy` | Cart deployed on an image tag that was never published — 14 alerts over the window |
 | [`v2-cart-flag-failure`](v2-cart-flag-failure.md) | `feature_flag` | A feature flag makes the cart fail to empty after an order — 1 alerts over the window |
 | [`v2-cart-valkey-misconfig`](v2-cart-valkey-misconfig.md) | `bad_config` | **⚠ nothing fired** — the fault could not bind |
 | [`v2-fraud-detection-flag-queue-lag`](v2-fraud-detection-flag-queue-lag.md) | `feature_flag` | A feature flag floods the orders queue, slows its consumer and breaks accounting — 1 alerts over the window |
-| [`v2-frontend-cart-misconfig`](v2-frontend-cart-misconfig.md) | `bad_config` | Frontend pointed at a cart port where nothing listens — 10 alerts over the window |
+| [`v2-frontend-cart-misconfig`](v2-frontend-cart-misconfig.md) | `bad_config` | Frontend pointed at a cart port where nothing listens — 12 alerts over the window |
 | [`v2-payment-telemetry-blackout`](v2-payment-telemetry-blackout.md) | `bad_config` | Payment service healthy, serving, and invisible in the traffic metric — 1 alerts over the window |
 | [`v2-product-catalog-flag-failure`](v2-product-catalog-flag-failure.md) | `feature_flag` | A feature flag makes the product catalog fail one product — 2 alerts over the window |
 | [`v2-product-catalog-freeze`](v2-product-catalog-freeze.md) | `process_freeze` | The product catalog process is frozen - its socket accepts and nothing answers — 20 alerts over the window |
-| [`v2-shipping-quote-misconfig`](v2-shipping-quote-misconfig.md) | `bad_config` | Shipping service pointed at a quote service that does not resolve — 10 alerts over the window |
-| [`v2-shipping-wrong-image`](v2-shipping-wrong-image.md) | `bad_deploy` | Shipping deployed with another service's image — 7 alerts over the window |
+| [`v2-shipping-quote-misconfig`](v2-shipping-quote-misconfig.md) | `bad_config` | Shipping service pointed at a quote service that does not resolve — 9 alerts over the window |
+| [`v2-shipping-wrong-image`](v2-shipping-wrong-image.md) | `bad_deploy` | Shipping deployed with another service's image — 8 alerts over the window |
 
 ## Holdout split
 
@@ -59,9 +60,9 @@ pre-registered entry.
 | [`productcatalog-dependency-latency`](productcatalog-dependency-latency.md) | `dependency_latency` | Product catalog network path acquires 300ms of delay, slowing every caller — 5 alerts over the window |
 | [`recommendation-memory-squeeze`](recommendation-memory-squeeze.md) | `resource_exhaustion` | Recommendation service memory limit cut below what its runtime needs to start — 3 alerts over the window |
 | [`v2-accounting-kafka-misconfig`](v2-accounting-kafka-misconfig.md) | `bad_config` | Accounting pointed at a Kafka port where nothing listens — 1 alerts over the window |
-| [`v2-checkout-currency-misconfig`](v2-checkout-currency-misconfig.md) | `bad_config` | Checkout pointed at a currency host that does not exist — 11 alerts over the window |
+| [`v2-checkout-currency-misconfig`](v2-checkout-currency-misconfig.md) | `bad_config` | Checkout pointed at a currency host that does not exist — 12 alerts over the window |
 | [`v2-email-flag-memory-leak`](v2-email-flag-memory-leak.md) | `feature_flag` | A feature flag makes the email service keep every confirmation it sends — 2 alerts over the window |
-| [`v2-payment-flag-unreachable`](v2-payment-flag-unreachable.md) | `feature_flag` | A feature flag makes checkout charge cards at an address that does not exist — 5 alerts over the window |
+| [`v2-payment-flag-unreachable`](v2-payment-flag-unreachable.md) | `feature_flag` | A feature flag makes checkout charge cards at an address that does not exist — 7 alerts over the window |
 
 ---
 

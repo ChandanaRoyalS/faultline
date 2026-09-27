@@ -27,29 +27,32 @@ ground_truth:
   category: bad_deploy
 expected_evidence:
   # Carried from v1's design, written before the first recording and checked against it
-  # (2026-09-27, t_inject 00:47:47, revert at +9:05). Probe every 20 s.
-  - alerts: ServiceHighErrorRate on checkout alone (page 4m05s); at +7:45 ServiceNoTraffic on
-      shipping, quote, payment, email and accounting; a one-minute ServiceHighErrorRate on
-      fraud-detection at +5:45 from its routine flag-service stream timeout while orders were gone -
-      seven alerts by the fix, none after it; frontend and frontend-proxy touch 5% without holding
+  # (2026-09-27, t_inject 00:47:47). Re-recorded on the revised world on 2026-09-27 (t_inject
+  # 06:50:26, revert at +9:33); the list below states that recording. Probe every 20 s.
+  - alerts: ServiceHighErrorRate on checkout alone (page 4m33s); at +7:15 ServiceNoTraffic on
+      shipping, quote, payment, email, accounting and fraud-detection (fraud-detection's for one
+      minute) - seven alerts by the fix; at +10:15, 42 s after the fix, a one-minute
+      ServiceHighErrorRate on fraud-detection from its routine flag-service stream timeout while
+      orders were still gone; frontend-proxy touches 5% once without holding
   - metrics: shipping's call rate falls to zero with no errors; checkout's error ratio holds at
-      24-26% while its p95 falls from ~35ms to ~22ms; cart, product-catalog and currency keep
-      their traffic
+      26-28% from +5 while its p95 falls from ~35ms to 15-24ms; frontend and frontend-proxy hover
+      at 4-5%; cart, product-catalog and currency keep their traffic
   - traces: checkout's cart read, product lookups and currency conversions succeed, then its
       HTTP POST for the shipping quote fails with nothing beneath it - `lookup shipping on
-      127.0.0.11 - no such host` - and nothing after the quote runs; no shipping traces at all
-  - logs: shipping, which logs nothing at rest, logs a Java process starting 17 times - `Picked up
-      JAVA_TOOL_OPTIONS`, a class-sharing warning, the OTel Java agent's version - three lines
-      each and nothing after, the gaps growing from ~3s to ~62s; the frontend carries checkout's
-      error as `no such host` and `connection refused` by turns
-  - metrics: shipping has no runtime series before or during the fault; read on the container
-      (not by the tools), each exit is 137 with OOMKilled set while it waits to restart, and its
-      restart count reaches 17
+      127.0.0.11 - no such host` - and nothing after the quote runs; no shipping traces at all;
+      fraud-detection's only error spans are its flagd EventStream, ended with `stream closed due
+      to server-side timeout`
+  - logs: shipping, which logs nothing at rest, logs a Java process starting 18 times from +3s -
+      `Picked up JAVA_TOOL_OPTIONS`, a class-sharing warning, the OTel Java agent's version - three
+      lines each and nothing after, the gaps growing from ~1s to ~62s, none after the fix; the
+      frontend carries checkout's error as `no such host` (138) and `connection refused` (12)
+  - metrics: shipping has no runtime series before or during the fault, so the tools hold no exit
+      code or memory reading; its limit is an unchanged 20M
   - change: a change record at onset - `image reference updated on shipping`, to
       ghcr.io/open-telemetry/demo:2.2.0-ad, the ad service's image
-  - discriminator: a service killed for memory at start over and over with its limit unchanged,
-      whose log is suddenly another runtime's, was given the wrong image - the change record names
-      it, and a memory-limit fault would show the limit lowered instead
+  - discriminator: a service killed at start over and over with its limit unchanged, whose log is
+      suddenly another runtime's, was given the wrong image - the change record names it, and a
+      memory-limit fault would show the limit lowered instead
 expected_remediation_class: rollback
 rehearsed: true
 alert_timeout_seconds: 900
@@ -57,5 +60,7 @@ alert_timeout_seconds: 900
 # 2026-09-27: no runtime series for shipping and no Loki stream (v2's shipping logs nothing to
 # stdout). The ad image's JVM writes its start-up lines to stdout, so the fault itself should give
 # the capture a talkative stream, as v1's did ([logs]). The first recording confirmed it: 0 runtime
-# series and 51 target log lines, all from the fault, and the recorder derived [logs].
+# series and 51 target log lines, all from the fault, and the recorder derived [logs]. The
+# 2026-09-27 re-recording agrees: 0 runtime series, 54 target log lines (18 starts of three lines,
+# all from the fault), derived [logs].
 answers_idle_or_absent: [logs]
