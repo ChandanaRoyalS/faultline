@@ -925,6 +925,29 @@ CATALOG: tuple[FaultDefinition, ...] = _validated(
             params={"memory": "80m"},
         ),
         FaultDefinition(
+            id="v2-recommendation-memory-squeeze",
+            fault_class=FaultClass.RESOURCE_EXHAUSTION,
+            target="recommendation",
+            world="v2",
+            description=(
+                "Shrink recommendation's memory limit below what its interpreter needs to finish "
+                "starting (v1's recommendation-memory-squeeze). The kernel kills it before it can "
+                "listen, over and over, and the storefront's recommendation requests fail; the "
+                "process leaves no log of its own, because nothing survives long enough to write."
+            ),
+            # Measured 2026-09-27 before authoring, on a cold process rather than the warm one -
+            # row 3's finding, where a limit measured from a running .NET process let a fresh one
+            # start and serve under it. A throwaway container from the same image, no network, no
+            # exporters, sampled once a second: it listens at +1.3 to +1.5 s, and the memory the
+            # kernel cannot reclaim at that moment (anon 34.0-35.9 MiB, kernel 3.1) is 37.1 and
+            # 39.0 MiB in two runs; file pages (5 to 37 MiB, the interpreter's files, cached or
+            # not) are reclaimed first and do not decide a kill. The rule, applied once:
+            # 16 x (ceil(need / 16) - 2), the largest multiple of 16 MiB at least one step below
+            # the need - 16m from either run. The warm process holds 46 MiB at rest. The
+            # interpreter cannot finish importing under 16m, so no instance ever listens.
+            params={"memory": "16m"},
+        ),
+        FaultDefinition(
             id="v2-cart-dependency-latency",
             fault_class=FaultClass.DEPENDENCY_LATENCY,
             target="cart",

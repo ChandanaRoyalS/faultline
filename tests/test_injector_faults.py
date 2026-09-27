@@ -413,6 +413,7 @@ def test_the_v2_old_mechanism_definitions_carry_v2_values_not_v1s() -> None:
         "v2-fraud-detection-memory-squeeze",
         "v2-cart-memory-squeeze",
         "v2-payment-memory-squeeze",
+        "v2-recommendation-memory-squeeze",
         "v2-cart-dependency-latency",
         "v2-valkey-cart-dependency-latency",
         "v2-payment-dependency-latency",
@@ -508,6 +509,12 @@ def test_the_v2_old_mechanism_definitions_carry_v2_values_not_v1s() -> None:
         "measured 2026-09-27 on a cold process: the unreclaimable memory a fresh Node process "
         "holds when it first listens peaks at 108.0 MiB (twice), and the rule "
         "16 x (ceil(need / 16) - 2) gives a limit no instance can finish starting under"
+    )
+    squeeze_rec = v2_old["v2-recommendation-memory-squeeze"].params
+    assert squeeze_rec == {"memory": "16m"}, (
+        "measured 2026-09-27 on a cold process (row 3's finding): the unreclaimable memory a fresh "
+        "interpreter holds when it first listens, 37.1 and 39.0 MiB in two runs, and the rule "
+        "16 x (ceil(need / 16) - 2) - a limit no instance can finish starting under"
     )
 
 
