@@ -454,8 +454,18 @@ class DependencyLatencyFault(Fault):
             image=self._settings.pumba_image,
             volumes=["/var/run/docker.sock:/var/run/docker.sock"],
             command=[
+                # `error`, not `info` (T7.1, 2026-09-27). At `info` pumba announces
+                # `running netem on container ... delay 300ms ... name=/<target>` on its
+                # stdout, promtail scrapes every container on the host, and the announcement
+                # sat in Loki for the whole fault, under a stream named after the scenario.
+                # The recorder's log capture picked it up as the target's log once
+                # (`v2-product-catalog-dependency-latency`, whose target has no stream), and
+                # an agent's `logql_query` could have read it in every latency scenario. At
+                # `error` the sidecar prints nothing while it works, so no stream forms, and a
+                # startup failure - the one thing `_require_sidecar_alive` reads its log for -
+                # is still printed.
                 "--log-level",
-                "info",
+                "error",
                 "netem",
                 "--duration",
                 duration,

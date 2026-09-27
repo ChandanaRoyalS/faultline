@@ -628,6 +628,24 @@ def test_latency_runs_pumba_with_a_pinned_tc_image(settings: InjectorSettings) -
     assert isinstance(outcome.restore, PumbaRestore)
 
 
+def test_latency_sidecar_logs_nothing_while_it_works(settings: InjectorSettings) -> None:
+    """**2026-09-27, `v2-product-catalog-dependency-latency`.** At `--log-level info` pumba
+    printed `running netem on container ... delay 300ms ... name=/product-catalog` at onset and
+    `stopping netem` at the revert. Promtail scrapes every container, so both lines sat in Loki
+    under a stream named after the scenario for the whole fault - and the recorder captured them
+    as the target's log, because the catalog has no stream of its own and the sidecar's name
+    contains the target's. At `error` the sidecar is silent while it works and still reports a
+    startup failure, which is the only thing the injector reads its log for."""
+    runner = FakeRunner(stdout=ALIVE)
+    DependencyLatencyFault(DockerCli(runner), settings).inject(
+        definition("cart-dependency-latency")
+    )
+
+    argv = runner.argv("run")
+    assert argv[argv.index("--log-level") + 1] == "error"
+    assert argv.index("--log-level") < argv.index("netem"), "a global flag, before the subcommand"
+
+
 def test_latency_clears_a_leftover_sidecar_before_starting(settings: InjectorSettings) -> None:
     runner = FakeRunner(stdout=ALIVE)
     DependencyLatencyFault(DockerCli(runner), settings).inject(

@@ -815,6 +815,43 @@ def _fake_loki(lines_per_minute: int, start: datetime, end: datetime) -> Any:
     return get_json
 
 
+def test_log_discovery_never_takes_the_injectors_own_helper_stream(monkeypatch) -> None:
+    """**v2-product-catalog-dependency-latency, 2026-09-27.** The catalog writes no log, so no
+    stream matches it exactly; the pumba sidecar is named `faultline-pumba-<scenario>`, which
+    contains `product-catalog`; and the closest-name fallback captured the sidecar's
+    `running netem on container ... delay 300ms` as the target's log, in a holdout bundle. A
+    helper's stream is never the target's, whatever its name contains."""
+    monkeypatch.setattr(rehearse, "loki_label_names", lambda: ["service", "stream"])
+    monkeypatch.setattr(
+        rehearse,
+        "loki_label_values",
+        lambda name: (
+            ["cart", "frontend", "faultline-pumba-v2-product-catalog-dependency-latency"]
+            if name == "service"
+            else ["stdout", "stderr"]
+        ),
+    )
+
+    source = rehearse.discover_log_source("product-catalog")
+
+    assert source.selector is None
+    assert any("injector's own helper" in note for note in source.notes)
+
+    # A genuine near-match is still taken, and a helper beside it is still ignored.
+    monkeypatch.setattr(
+        rehearse,
+        "loki_label_values",
+        lambda name: (
+            ["product-catalog-service", "faultline-pumba-v2-product-catalog-dependency-latency"]
+            if name == "service"
+            else []
+        ),
+    )
+    assert rehearse.discover_log_source("product-catalog").selector == (
+        '{service="product-catalog-service"}'
+    )
+
+
 def test_a_talkative_services_capture_holds_the_fault_not_only_the_minutes_before_it(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
