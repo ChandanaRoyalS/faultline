@@ -71,12 +71,18 @@ services:
   # #3860) and retries the tenant poll within the cycle. Accepted 2026-09-26: 0 of 120 probes of an
   # hour-old window empty, no empty minute in two 120-minute coverage runs, memory 45-55%. v1 keeps
   # 2.4.2: its bundles carry its digest, and its half of Q104 stays open.
+  # **1024M -> 1800M, and GOMEMLIMIT 768 -> 1350 MiB (75%), by the headroom rule** (2026-09-27,
+  # the world revision in `world-v2.override.yml`'s last block). Up 25 hours on 2.6.1 with no
+  # restart and no OOM kill, its eight-hour high was the full 1024 MiB - 15 one-minute samples at
+  # 85% or more, 30-minute maxima 640-1024 - and its cgroup reached `memory.max` 4,465 times; anon
+  # 686 MiB, file 48 MiB. The high is clipped at the old ceiling, as load-generator's once was, so
+  # 1024 / 0.6 -> 1800M is the rule's figure and not a measured need. GOMEMLIMIT keeps its 75%.
   tempo:
     image: grafana/tempo:2.6.1
     container_name: tempo
     command: -config.file=/etc/tempo/tempo.yaml
     environment:
-      GOMEMLIMIT: 768MiB
+      GOMEMLIMIT: 1350MiB
     volumes:
       - ../compose/tempo-v2.yaml:/etc/tempo/tempo.yaml:ro
     ports:
@@ -84,12 +90,23 @@ services:
     deploy:
       resources:
         limits:
-          memory: 1024M
+          memory: 1800M
 
+  # **grafana: the demo's 175M -> 300M by the headroom rule** (Q105, landed with the world
+  # revision of 2026-09-27). It refills its limit within about 40 minutes of a restart and twice
+  # blocked a recording. Q105's own question - cache or heap - was answered on the running
+  # container: anon 100 MiB, file 58 MiB, so mostly heap, which is the branch Q105 said to size by
+  # the rule and land with the next `compose_digest` move. Eight-hour high 175.0 MiB, clipped at the
+  # old limit, 69 one-minute samples at 85% or more, `memory.events max` 28, oom_kill 0; 175 / 0.6
+  # rounds up to 300M. Grafana is not in the demo's request path.
   grafana:
     volumes:
       - ../compose/grafana-loki-datasource.yml:/etc/grafana/provisioning/datasources/loki.yml:ro
       - ../compose/grafana-tempo-datasource.yml:/etc/grafana/provisioning/datasources/tempo.yml:ro
+    deploy:
+      resources:
+        limits:
+          memory: 300M
 
   alertmanager:
     image: prom/alertmanager:v0.27.0

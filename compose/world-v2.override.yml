@@ -269,3 +269,33 @@ services:
   # stops being the thing that decides.
   product-catalog:
     deploy: { resources: { limits: { memory: 100M } } }
+
+  # **The world revision of 2026-09-27: four rows by the same rule, in one digest move.** The
+  # recorder refused `v2-ad-bad-image-tag` three times before injecting: flagd at 96.0% and then
+  # 90.5% of 75M, fraud-detection at 90.5% and, five minutes after a restart, 94.2% of 300M. A
+  # restart does not help either of them - flagd's Go heap is a sawtooth that peaks at 90-96% every
+  # collection cycle (67.95 -> 35.4 MiB in one step, sampled every 10 s), and fraud-detection's
+  # JVM settles at or above the gate from a fresh start. So every container was measured against
+  # the rule's trigger over the same eight hours (about 17:58-01:58 UTC, one-minute
+  # `container_memory_usage_total_bytes`), and everything that qualified moves together:
+  #
+  #   container        8h high   >=85%  memory.events max  oom_kill  anon now   limit
+  #   fraud-detection  283.7 MiB  141         302             0      216 MiB    300M -> 500M
+  #   flagd             74.5 MiB   82         176             0       40 MiB     75M -> 200M
+  #   grafana          175.0 MiB   69          28             0      100 MiB    175M -> 300M
+  #   tempo           1024.0 MiB   15        4465             0      686 MiB   1024M -> 1800M
+  #
+  # **fraud-detection** sets no heap size, so its JVM takes a share of the container's limit and
+  # the raise lifts its heap ceiling too; the rule's 40% margin is what absorbs that, and its rest
+  # is re-read after the change. **flagd** keeps the demo's `GOMEMLIMIT=60MiB`: its collector aims
+  # at 60 MiB whatever the cgroup allows, and the raise gives the 68-72 MiB peaks room instead of
+  # letting a sample on a peak decide a recording (Q107). grafana and tempo are defined in
+  # `telemetry-v2.yml` and their rows sit there. **Not raised**: email's 100% is the
+  # `v2-email-flag-memory-leak` recording itself, the fault working as designed (50.8% at rest);
+  # product-reviews at 84.4% with no sample at 85% is under the trigger and watched;
+  # load-generator at 80.1% is its documented growth, recycled between batches.
+  fraud-detection:
+    deploy: { resources: { limits: { memory: 500M } } }
+
+  flagd:
+    deploy: { resources: { limits: { memory: 200M } } }
