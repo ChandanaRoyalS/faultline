@@ -4617,6 +4617,33 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-09-27: the seventeenth v2 scenario, `v2-email-wrong-image`, rehearsed and labeled - slot
+`v2/bad_deploy-4` (holdout), first recording. The `bad_deploy` row is full.***
+
+- **Probed before authoring, not guessed.** The quote image run for 45 s in a throwaway container
+  with email's exact environment: `php public/index.php` threw `Invalid URI "tcp://0.0.0.0:"`
+  and exited 255 in 190 ms, `OOMKilled` false. v1's shape - a crash loop whose log names the
+  cause - and the opposite corner of the row from row 2's memory kill.
+- **The page, and every prediction held.** `ServiceHighErrorRate` on checkout alone at 5m02s,
+  holding at 7.4-7.5%; `ServiceNoTraffic` on email at +7:45. Two alerts, none after the fix; all
+  clear 3m01s after it. All 85 orders completed; nothing else moved. The prediction called
+  checkout's page "likely and maybe marginal" from a 5-6% share; the recording puts the email
+  call at about one span in fourteen, so it paged squarely.
+- **The evidence.** 84 checkout error traces, one per order: `PlaceOrder` succeeds, every step
+  through the charge, shipment and cart succeeds, then the `HTTP POST` to email fails with
+  `lookup email ... no such host` in ~2ms and the order is still published. Email produced no
+  span. Its log: Sinatra's clean stop at onset, then the PHP fatal error seven lines at a time,
+  19 times, six in the first three seconds and then backing off to once a minute.
+- **Distinct from row 2** on (a) - there checkout paged with every order failing and six services
+  went quiet; here only email is quiet and every order completes - and **from the other holdout
+  on the same target, `v2-email-flag-memory-leak`,** on (a), (b) and (c): two holdouts with the
+  same surface, email restarting, that part on the record and the log. The change record is by
+  construction, as for every v2 recording.
+- **How it was recorded.** On AC power, under `caffeinate`, the world variable per command, every
+  container under 90% at the pre-check (grafana highest at 75%). The host did not sleep. Email
+  back on `2.2.0-email`, no restarts.
+- **Next: `dependency_latency`**, row 1.
+
 ***2026-09-27: every v2 bundle re-recorded on the revised world, and the sixteenth v2 scenario,
 `v2-ad-bad-image-tag`, rehearsed and labeled - slot `v2/bad_deploy-3` (dev), first recording.***
 

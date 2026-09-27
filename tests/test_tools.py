@@ -766,6 +766,12 @@ NARRATIVE_EVIDENCE_V2: dict[str, set[str]] = {
     # the frontend's logs UNAVAILABLE; GetAds ends with nothing beneath it; runtime stops; the
     # change record names the image.
     "v2-ad-bad-image-tag": {"metrics", "runtime_metrics", "logs", "traces", "changes"},
+    # Holdout. The callee dies at start in a loop and the caller completes anyway. Metrics carry
+    # checkout's ratio holding at one span's share and email's traffic going to zero; email's log
+    # is a PHP fatal error repeating where Sinatra's lines were; checkout's email call fails with
+    # nothing beneath under an order that succeeds; there are no runtime series to cite; the
+    # change record names the image.
+    "v2-email-wrong-image": {"metrics", "logs", "traces", "changes"},
     # Holdout. The page names the culprit and reads as down. Metrics carry its rate going to zero
     # and everyone else's holding; runtime shows it alive; its log names the address and the
     # refused connection, and fraud-detection's shows the topic still read; traces show none of
