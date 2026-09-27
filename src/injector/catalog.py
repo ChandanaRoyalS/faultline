@@ -901,6 +901,24 @@ CATALOG: tuple[FaultDefinition, ...] = _validated(
             # are 4.4% of its total, under the 5% a p95 needs. Not tuned: the row's 300ms.
             params={"delay_ms": 300, "jitter_ms": 0, "duration": "1h", "interface": "eth0"},
         ),
+        FaultDefinition(
+            id="v2-product-catalog-dependency-latency",
+            fault_class=FaultClass.DEPENDENCY_LATENCY,
+            target="product-catalog",
+            world="v2",
+            description=(
+                "Add 300ms of network delay to the product catalog (v1's "
+                "productcatalog-dependency-latency). It sits on the product listing, the "
+                "recommendations and the checkout path, so the slowdown shows up everywhere at "
+                "once and the shared dependency is the thing to find."
+            ),
+            # Measured 2026-09-27 before authoring: the catalog makes one sql.conn.query round
+            # trip per lookup, so the delay sits inside its own spans (unlike payment's), and its
+            # callers carry it at 23.3% (frontend), 14.8% (checkout) and 49.8% (recommendation)
+            # of their non-internal spans. Interface read with ip link from a helper in its
+            # network namespace (the image has no shell).
+            params={"delay_ms": 300, "jitter_ms": 0, "duration": "1h", "interface": "eth0"},
+        ),
     )
 )
 
