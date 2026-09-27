@@ -412,6 +412,7 @@ def test_the_v2_old_mechanism_definitions_carry_v2_values_not_v1s() -> None:
         "v2-ad-memory-squeeze",
         "v2-fraud-detection-memory-squeeze",
         "v2-cart-memory-squeeze",
+        "v2-payment-memory-squeeze",
         "v2-cart-dependency-latency",
         "v2-valkey-cart-dependency-latency",
         "v2-payment-dependency-latency",
@@ -501,6 +502,12 @@ def test_the_v2_old_mechanism_definitions_carry_v2_values_not_v1s() -> None:
         "the row's rule restated for .NET, measured 2026-09-27: the working set's eight-hour low "
         "less the GC's committed high (58.5 MiB), rounded down to 16 MiB - between v1's 32m, which "
         "alerted, and 200m, which came back before detection"
+    )
+    squeeze_payment = v2_old["v2-payment-memory-squeeze"].params
+    assert squeeze_payment == {"memory": "80m"}, (
+        "measured 2026-09-27 on a cold process: the unreclaimable memory a fresh Node process "
+        "holds when it first listens peaks at 108.0 MiB (twice), and the rule "
+        "16 x (ceil(need / 16) - 2) gives a limit no instance can finish starting under"
     )
 
 
