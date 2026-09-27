@@ -1,17 +1,84 @@
----
-origin: scenario:v2-valkey-cart-dependency-latency
-split: dev
-fault_class: dependency_latency
-recorded_from: 2026-09-27T09:16:49+00:00
-capability: cap:d2b243e0
-onset_to_page: 4m04s
-page_to_fix: 5m00s
-fix_to_all_clear: 5m02s
----
-
 # Cart is slow because its store is, and the store has no spans
 
-## What was observed
+## The scenario
+
+| | |
+|---|---|
+| scenario | `v2-valkey-cart-dependency-latency` |
+| fault class | **`dependency_latency`** |
+| expected remediation | `restart` |
+| split | `dev` |
+| injected at | `valkey-cart` via `v2-valkey-cart-dependency-latency` |
+| time to page | 4m04s |
+| steady state captured | 300s |
+| capture window | 2026-09-27T09:11:49+00:00 → 2026-09-27T09:32:55+00:00 |
+
+The clock below runs from the moment the fault went in.
+
+| | |
+|---|---|
+| `t_inject` | T+0m00s |
+| first alert firing | T+4m04s |
+| `t_revert` | T+9m04s |
+| all clear | T+14m06s |
+
+## What fired, and when
+
+| when | service | alert | firing for | |
+|---|---|---|---:|---|
+| T+3m45s | `cart` | ServiceHighLatency | 10.0 min | **paged** |
+| T+4m45s | `checkout` | ServiceHighLatency | 8.0 min | joined later |
+| T+4m45s | `frontend` | ServiceHighLatency | 8.0 min | joined later |
+| T+4m45s | `frontend-proxy` | ServiceHighLatency | 8.0 min | joined later |
+| T+4m45s | `load-generator` | ServiceHighLatency | 8.0 min | joined later |
+
+## What the bundle contains
+
+| capture | query |
+|---|---|
+| `metrics/alerts-firing.json` | `ALERTS{alertstate="firing"}` |
+| `metrics/call-rate.json` | `sum by(service_name) (rate(traces_span_metrics_calls_total[5m]))` |
+| `metrics/error-ratio.json` | `sum by(service_name) (rate(traces_span_metrics_calls_total{status_code="STATUS_CODE_ERROR"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total[5m]))` |
+| `metrics/latency-p95.json` | `histogram_quantile(0.95, sum by(service_name, le) (rate(traces_span_metrics_duration_milliseconds_bucket{span_kind!="SPAN_KIND_INTERNAL"}[5m])))` |
+| `metrics/runtime.json` | `{__name__=~"go_.*|dotnet_.*|jvm_.*|process_.*|v8js_.*|nodejs_.*",service_name="valkey-cart"}` |
+
+`logs/valkey-cart.txt` — 29 lines.
+
+## A look at the logs
+
+From `logs/valkey-cart.txt` (---- onset 2026-09-27T09:16:49+00:00 ----):
+
+```
+2026-09-27T09:13:13+00:00  1:M 27 Sep 2026 09:13:13.019 * 100 changes in 300 seconds. Saving...
+2026-09-27T09:13:13+00:00  1:M 27 Sep 2026 09:13:13.020 * Background saving started by pid 110499
+2026-09-27T09:13:13+00:00  110499:C 27 Sep 2026 09:13:13.024 * DB saved on disk
+2026-09-27T09:13:13+00:00  110499:C 27 Sep 2026 09:13:13.024 * Fork CoW for RDB: current 0 MB, peak 0 MB, average 0 MB
+2026-09-27T09:13:13+00:00  1:M 27 Sep 2026 09:13:13.121 * Background saving terminated with success
+2026-09-27T09:18:14+00:00  1:M 27 Sep 2026 09:18:14.066 * 100 changes in 300 seconds. Saving...
+2026-09-27T09:18:14+00:00  1:M 27 Sep 2026 09:18:14.067 * Background saving started by pid 110500
+2026-09-27T09:18:14+00:00  110500:C 27 Sep 2026 09:18:14.075 * DB saved on disk
+2026-09-27T09:18:14+00:00  110500:C 27 Sep 2026 09:18:14.075 * Fork CoW for RDB: current 0 MB, peak 0 MB, average 0 MB
+2026-09-27T09:18:14+00:00  1:M 27 Sep 2026 09:18:14.169 * Background saving terminated with success
+2026-09-27T09:23:15+00:00  1:M 27 Sep 2026 09:23:15.088 * 100 changes in 300 seconds. Saving...
+2026-09-27T09:23:15+00:00  1:M 27 Sep 2026 09:23:15.089 * Background saving started by pid 110501
+```
+
+_8 further lines are in the bundle._
+
+## The incident record
+
+Written from the responder's chair, by someone who did not know the fault class
+or that anything had been injected. This text is also corpus material, which is
+why it never names the injector.
+
+**It keeps its own clock.** The table above is measured from the injection, which
+is the only origin the manifest records; a narrative's `T+` offsets are the
+responder's own and start wherever that responder started counting — usually the
+page, sometimes the injection, sometimes an event in the logs. The same moment can
+therefore carry two different offsets on this page. The absolute timestamps in the
+bundle are the tiebreak.
+
+### What was observed
 
 The page was one alert, `ServiceHighLatency` on **cart**, 4m04s after the trouble started. A
 minute later `ServiceHighLatency` fired on all four of cart's callers at once: **checkout**,
@@ -32,7 +99,7 @@ waiting on a slow page make fewer requests; checkout's fell further, from about 
 and 1.75, and cart's from about 4.6 to between 2.75 and 3.6. Cart kept serving. Payment, the
 catalog, currency and shipping kept their usual few milliseconds. Orders were being placed, slowly.
 
-## What was checked
+### What was checked
 
 **The traces, because cart paged first and its callers followed.** Every slow trace touched cart,
 and inside cart the time was in one place. At rest, cart answered a `GetCart` in 0.3ms and its
@@ -95,7 +162,7 @@ service's metrics and no span; it appears in cart's environment, as the address 
 commands go to, and in change history. Every question asked about the services on the page came
 back empty. The change was on the one thing in the chain that is not a service.
 
-## Root cause
+### Root cause
 
 A traffic-shaping rule attached to valkey-cart's network namespace added 300ms of delay to every
 packet leaving the store, so every one of cart's store commands waited 300ms for its reply. Cart's
@@ -104,7 +171,7 @@ work: its replies were held on their way out. A cart read cost 300ms, an add 900
 and order that touched a cart waited on it. Nothing failed. The slow component has no spans and no
 metrics, and is named only in the change record and in cart's configuration.
 
-## Resolution
+### Resolution
 
 The shaping container was removed and the rule went with it: the rule lives in the store's network
 namespace and does not outlive what holds it, so recreating the store would have cleared it as
@@ -118,7 +185,7 @@ recreating that container is the operator's remedy, and removing the shaping con
 same fix from the other end. Nothing about cart, and nothing about the store's own configuration
 or data, needed to change.
 
-## Detection notes
+### Detection notes
 
 - Onset to first page: **4m04s**. Services on the page: **one**, cart, which was not at fault. By
   the fix: **five**, none of them the store, which has nothing to alert on.
@@ -143,3 +210,7 @@ or data, needed to change.
   read from its own log and its change record.
 - **The store's log answered "is it alive" and nothing else.** A save every five minutes, on time,
   says the process was fine. It says nothing about the network in front of it.
+
+---
+
+Rendered from [`evals/scenarios/artifacts/dev/v2-valkey-cart-dependency-latency/`](../../evals/scenarios/artifacts/dev/v2-valkey-cart-dependency-latency/) by `faultline-render`. [All bundles](README.md).

@@ -97,6 +97,11 @@ NO_RUNTIME_METRICS = frozenset(
         # T7.1 (2026-09-27): v2's email again (see v2-email-flag-memory-leak); the quote image's PHP
         # process died at start every time and exported nothing either.
         "v2-email-wrong-image",
+        # T7.1 (2026-09-27): the target is the store, valkey-cart, which exports nothing to
+        # Prometheus under any name - measured before authoring, and the capture was empty over
+        # the five healthy minutes before the fault too. The scenario declares
+        # `answers_idle_or_absent: [logs]`, on the store's five-minute save.
+        "v2-valkey-cart-dependency-latency",
     }
 )
 """Bundles whose target exports no runtime metrics, so an empty `runtime.json` is the world
