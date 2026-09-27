@@ -4617,6 +4617,40 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-09-27: the twenty-first v2 scenario, `v2-product-catalog-dependency-latency`, rehearsed
+and labeled - slot `v2/dependency_latency-4` (holdout), second recording. The `dependency_latency`
+row is full, and the injector's sidecar no longer announces the fault (Q111).***
+
+- **The first recording carried the answer in its evidence.** The catalog has no Loki stream; the
+  pumba sidecar is named after the scenario; and the recorder's closest-name fallback captured
+  the sidecar's `running netem on container ... delay 300ms ... name=/product-catalog` as the
+  target's log, in a holdout bundle. Promtail scrapes every container, so that line had sat in
+  Loki for the whole fault in all four latency recordings; the three dev bundles are clean
+  because their targets have streams of their own, but the live world carried the giveaway.
+- **Fixed the same day, in one patch, neither change digest-locked (Q111, closed).** The sidecar
+  runs at pumba's `error` log level - silent while it works, still reporting a startup failure,
+  which is all the injector reads its log for - so no stream forms; and the recorder's fallback
+  never selects a `faultline-*` stream, saying so in the capture's header. Tests for both,
+  written from the bundle. Not fixed in promtail, which would move `observability_digest`.
+  Decided: re-record the holdout on the fixed code after the clean-baseline check; the first
+  bundle is under `superseded/`. No scored run has been taken on v2, so nothing is invalidated.
+- **The recording, and every prediction held.** `ServiceHighLatency` on recommendation alone at
+  3m50s, then on frontend, frontend-proxy, load-generator, checkout and product-catalog together
+  at +4:30; six alerts, none after the fix; every error ratio zero; all clear 5m02s after the
+  fix. The capture's log header names the helper as excluded and captures nothing.
+- **Twice not predicted in size.** A `GetProduct` query paid the delay twice (600-605ms, two
+  exchanges with the database) and a `ListProducts` query once (301); and concurrent lookups
+  queued for the catalog's database connection - four at once came back 602, 1809, 1812, 1812 -
+  so the catalog's p95 read 1.8 s and the frontend's 4.2 against "about 300" and "several
+  hundred". The delay was 300ms and the queue was the rest; the narrative teaches both.
+- **Distinct from rows 1-3 on (a)** - six services with the culprit among them - and on (d) from
+  rows 2 and 3. The row as recorded: cart and its callers; the same five with the store
+  spanless; checkout alone with the culprit never paging; six with the culprit among them.
+- **How it was recorded.** On AC power, under `caffeinate`, the world variable per command, the
+  clean-baseline check before each run; the host did not sleep; the sidecar was gone after each
+  revert.
+- **Next: `resource_exhaustion`**, row 1.
+
 ***2026-09-27: the twentieth v2 scenario, `v2-payment-dependency-latency`, rehearsed and labeled -
 slot `v2/dependency_latency-3` (dev), second recording. A leaf's delay, seen only from its caller.***
 

@@ -31,48 +31,59 @@ ground_truth:
     bound to the container's network namespace.
   category: dependency_latency
 expected_evidence:
-  # Carried from v1's design and not recorded on v2 yet. Written before the first recording and
-  # checked against the bundle, as every v2 scenario's list has been, and corrected there.
-  # Measured at rest (2026-09-27): the catalog's p95 5.2ms; GetProduct 2.5 and ListProducts 0.19 a
-  # second, with one sql.conn.query beneath each; catalog calls are 23.3% of the frontend's
-  # non-internal spans, 14.8% of checkout's and 49.8% of recommendation's; 9 Go runtime series
-  # and no log stream. The comparators are the row's three recordings: cart (five alerts, cart
-  # and its callers), the store (the same five), payment (checkout alone).
-  - alerts: ServiceHighLatency on product-catalog and on every path that looks products up -
-      frontend, frontend-proxy, load-generator, checkout and recommendation - within a minute or
-      two of each other, three to five minutes in; six services, the culprit among them; no
-      ServiceHighErrorRate anywhere and nothing goes quiet
-  - metrics: the catalog's p95 steps from 5ms to about 300 (one query round trip per lookup);
-      the frontend's from ~40ms to several hundred, checkout's from ~31ms to a second or more (an
-      order looks up each of its items), recommendation's from ~7ms to about 600, frontend-proxy's
-      and load-generator's past the line with the frontend's; every error ratio stays at zero;
-      rates hold or ease as shoppers wait
-  - traces: every trace touching the catalog is slow at the catalog and nowhere else - its server
-      span holds the time, the sql.conn.query beneath it takes ~300ms instead of a fraction of one,
-      and the caller's client span exceeds the catalog's server span by another ~300ms; cart,
-      currency, shipping, payment and email answer in their usual milliseconds; no span errors;
-      the trace tool names the callers' lookups as the degrading hop
-  - logs: the catalog has no log stream at rest and none during the fault - its silence is what it
-      always is; postgresql's log shows nothing new; the frontend's log shows nothing new
-  - metrics: the catalog's 9 Go runtime series report without a gap, goroutines, heap and
-      collections flat, no restart - the process is up and unstrained
+  # Carried from v1's design, predicted before recording and checked against the recording on the
+  # revised world, 2026-09-27 (t_inject 11:59:06, revert at +8:50 - the second recording; the
+  # first, the same day, was recorded before Q111 and its log capture held the injector's
+  # sidecar's own announcement, so it is under superseded/ and this one was taken on the fixed
+  # code). Every prediction held: six services, the catalog among them, no errors, nothing quiet,
+  # the time inside the catalog's spans and again on its answers. Not predicted in size: a
+  # GetProduct query is two exchanges with the database, so it paid 600ms not 300, and concurrent
+  # lookups queued behind each other for the catalog's database connection, so the catalog's p95
+  # read 1.8 s and the frontend's 4.2. Not predicted in order: recommendation paged alone first.
+  - alerts: ServiceHighLatency on recommendation alone (page 3m50s), then on frontend,
+      frontend-proxy, load-generator, checkout and product-catalog together at +4:30 - six
+      alerts, all latency, none after the fix; no ServiceHighErrorRate anywhere and nothing goes
+      quiet; product-reviews, cart, payment and shipping, which do not look products up, never
+      move
+  - metrics: the catalog's p95 steps from 5-6ms to 791 at +2 and ~1.8 s from +4;
+      recommendation's from ~8ms to ~1.7 s; the frontend's from ~43ms to 1.9 s at +2 and ~4.2 s
+      from +4, frontend-proxy's and load-generator's with it; checkout's from ~38ms to 860 at +2
+      and 1.6-2.2 s from +5; every error ratio zero but the flag readers' routine sliver; rates
+      thin as shoppers wait - the frontend's from ~12 to ~10.5 a second, the catalog's from ~5.3 to
+      ~4.6
+  - traces: in 80 traces drawn under the fault every sql.conn.query beneath a GetProduct takes
+      600-605ms and the one beneath a ListProducts 301 (the delay paid twice by a two-exchange
+      query, once by a one-exchange one); each caller's span is another ~300ms longer than the
+      catalog's answer (the frontend's GetProduct 904 over 602, checkout's 902 over 601,
+      recommendation's ListProducts 603 over 301); a recommendations page's four concurrent
+      lookups come back 602, 1809, 1812, 1812 - each holding one 601ms query and the rest waiting;
+      no span errors; the trace tool names GetProduct to sql.conn.query as the degrading hop on
+      the catalog's and the frontend's traces
+  - logs: the catalog has no log stream at rest and none under the fault, and the capture says so
+      (the injector's sidecar stream that names the target is excluded by name); postgresql's log
+      shows its usual two lines every five minutes and nothing else; the frontend's log shows
+      nothing new
+  - metrics: the catalog's 9 Go runtime series report every 15 s without a gap - goroutines 44-46,
+      heap flat, allocations at their usual rate, no restart - the process is up and unstrained
   - change: a change record at onset under product-catalog's name that is none of the familiar
       kinds - not a deploy, an image, an environment variable or a limit - `traffic-shaping
       container attached to product-catalog's network namespace`, carrying `eth0 delay=300ms
-      jitter=0ms`
-  - discriminator: a service slow on every request with an unstrained process, its one dependency
-      call slow by a constant and its answers slow by the same constant, is a delay at its own
-      interface; a slow database would slow only the query and not the answer, and a slow caller
-      would slow only its own requests, where here every caller slowed by the same amount at the
-      same moment
+      jitter=0ms`; nothing on any of the six services that paged but the catalog, and nothing on
+      postgresql
+  - discriminator: the shared dependency of everything that slowed is the culprit - six services
+      slowed and all of them look products up, the ones that do not never moved; a constant paid
+      per exchange with the database (600 for two, 300 for one) and again on every answer is a
+      delay at the catalog's own interface, which a slow database (queries only) or a slow
+      handler (no constant) cannot produce; the queueing that turned 300ms into seconds is the
+      delay times concurrency, not a second fault
 # Carried from v1: the rule lives in the container's network namespace, so recreating the
 # container is what clears it - a restart, not a rollback or a config revert.
 expected_remediation_class: restart
-rehearsed: false
+rehearsed: true
 alert_timeout_seconds: 900
 # Declared before recording, checked against the bundle after (T7.5). Measured on the running world
 # 2026-09-27: the catalog holds 9 Go runtime series and has no Loki stream (as its flag scenario
 # found: it writes no log the tools can read). The fault slows it and removes neither, so runtime
-# stays populated and logs stay absent; the recorder derives the record from the capture, and if
-# it says otherwise the declaration is corrected against it, not argued with.
+# stays populated and logs stay absent. The recording (2026-09-27, the second) confirmed it: 9
+# runtime series, 0 target log lines, and the recorder derived [runtime].
 answers_idle_or_absent: [runtime]

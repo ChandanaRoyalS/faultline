@@ -787,6 +787,17 @@ NARRATIVE_EVIDENCE_V2: dict[str, set[str]] = {
     # 300ms after payment's span; payment's log goes on unchanged; runtime shows it idle; the
     # change record is under payment's name.
     "v2-payment-dependency-latency": {"metrics", "runtime_metrics", "logs", "traces", "changes"},
+    # Holdout. The shared dependency of everything that slowed. Metrics carry six p95s stepping up
+    # with every error ratio at zero; the traces put the delay on both sides of the catalog and
+    # show the queue it caused; runtime shows the catalog unstrained; the catalog has no log and
+    # postgresql's shows nothing new; the change record is under the catalog's name.
+    "v2-product-catalog-dependency-latency": {
+        "metrics",
+        "runtime_metrics",
+        "logs",
+        "traces",
+        "changes",
+    },
     # Holdout. The page names the culprit and reads as down. Metrics carry its rate going to zero
     # and everyone else's holding; runtime shows it alive; its log names the address and the
     # refused connection, and fraud-detection's shows the topic still read; traces show none of
