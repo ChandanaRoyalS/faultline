@@ -1,17 +1,80 @@
----
-origin: scenario:v2-fraud-detection-memory-squeeze
-split: dev
-fault_class: resource_exhaustion
-recorded_from: 2026-09-27T13:32:34+00:00
-capability: cap:d2b243e0
-onset_to_page: 7m15s
-page_to_fix: 5m00s
-fix_to_all_clear: 1m01s
----
-
 # Fraud detection memory limit cut below what its JVM needs to run
 
-## What was observed
+## The scenario
+
+| | |
+|---|---|
+| scenario | `v2-fraud-detection-memory-squeeze` |
+| fault class | **`resource_exhaustion`** |
+| expected remediation | `config_revert` |
+| split | `dev` |
+| injected at | `fraud-detection` via `v2-fraud-detection-memory-squeeze` |
+| time to page | 7m15s |
+| steady state captured | 300s |
+| capture window | 2026-09-27T13:27:34+00:00 → 2026-09-27T13:47:50+00:00 |
+
+The clock below runs from the moment the fault went in.
+
+| | |
+|---|---|
+| `t_inject` | T+0m00s |
+| first alert firing | T+7m15s |
+| `t_revert` | T+12m15s |
+| all clear | T+13m16s |
+
+## What fired, and when
+
+| when | service | alert | firing for | |
+|---|---|---|---:|---|
+| T+7m00s | `fraud-detection` | ServiceNoTraffic | 6.0 min | **paged** |
+
+## What the bundle contains
+
+| capture | query |
+|---|---|
+| `metrics/alerts-firing.json` | `ALERTS{alertstate="firing"}` |
+| `metrics/call-rate.json` | `sum by(service_name) (rate(traces_span_metrics_calls_total[5m]))` |
+| `metrics/error-ratio.json` | `sum by(service_name) (rate(traces_span_metrics_calls_total{status_code="STATUS_CODE_ERROR"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total[5m]))` |
+| `metrics/latency-p95.json` | `histogram_quantile(0.95, sum by(service_name, le) (rate(traces_span_metrics_duration_milliseconds_bucket{span_kind!="SPAN_KIND_INTERNAL"}[5m])))` |
+| `metrics/runtime.json` | `{__name__=~"go_.*|dotnet_.*|jvm_.*|process_.*|v8js_.*|nodejs_.*",service_name="fraud-detection"}` |
+
+`logs/fraud-detection.txt` — 284 lines.
+
+## A look at the logs
+
+From `logs/fraud-detection.txt` (---- onset 2026-09-27T13:32:34+00:00 ----):
+
+```
+2026-09-27T13:27:40+00:00  2026-09-27 13:27:40 - fraud-detection - Consumed record with orderId: 36a0bb04-ba77-11f1-8340-6ebe486271a3, and updated total count to: 12078 trace_id=d5dbb18559507c1bc646ab69e93442f8 span_id=340d8f87d0091a5b trace_flags=01
+2026-09-27T13:27:54+00:00  2026-09-27 13:27:54 - fraud-detection - Consumed record with orderId: 3eb34128-ba77-11f1-8340-6ebe486271a3, and updated total count to: 12079 trace_id=73175facef0d78711edb4304c5765097 span_id=02a6d10e94ba4da7 trace_flags=01
+2026-09-27T13:28:03+00:00  2026-09-27 13:28:03 - fraud-detection - Consumed record with orderId: 4448a0e7-ba77-11f1-8340-6ebe486271a3, and updated total count to: 12080 trace_id=01650bbfcb750e2de0326633381d462c span_id=afa959624f22eeaf trace_flags=01
+2026-09-27T13:28:03+00:00  2026-09-27 13:28:03 - fraud-detection - Consumed record with orderId: 446e438f-ba77-11f1-8340-6ebe486271a3, and updated total count to: 12081 trace_id=f866f610ba6b24fb8063c5eee1ab7a32 span_id=7c7d5785d3b44e94 trace_flags=01
+2026-09-27T13:28:18+00:00  2026-09-27 13:28:18 - fraud-detection - Consumed record with orderId: 4d3b629a-ba77-11f1-8340-6ebe486271a3, and updated total count to: 12082 trace_id=4ec68be3a71414626ddef295a54356d7 span_id=f500c820905858ac trace_flags=01
+2026-09-27T13:28:39+00:00  2026-09-27 13:28:39 - fraud-detection - Consumed record with orderId: 59691df4-ba77-11f1-8340-6ebe486271a3, and updated total count to: 12083 trace_id=9b4bad9b448f0787d1759b55e1bf4266 span_id=bbd71418ffabe617 trace_flags=01
+2026-09-27T13:28:39+00:00  2026-09-27 13:28:39 - fraud-detection - Consumed record with orderId: 59973b63-ba77-11f1-8340-6ebe486271a3, and updated total count to: 12084 trace_id=3db80934e9ff2362f45bb7d0fbbd46df span_id=acd934fbfd045dc3 trace_flags=01
+2026-09-27T13:28:42+00:00  2026-09-27 13:28:42 - fraud-detection - Consumed record with orderId: 5b98c6e5-ba77-11f1-8340-6ebe486271a3, and updated total count to: 12085 trace_id=84933dd097278334021b3f876111914f span_id=2ec2acea784e1ba3 trace_flags=01
+2026-09-27T13:29:09+00:00  2026-09-27 13:29:09 - fraud-detection - Consumed record with orderId: 6b9e44e9-ba77-11f1-8340-6ebe486271a3, and updated total count to: 12086 trace_id=620ae58ad005cb14a9157f69cf2ad319 span_id=93a108cf39bb6842 trace_flags=01
+2026-09-27T13:29:11+00:00  2026-09-27 13:29:11 - fraud-detection - Consumed record with orderId: 6cb6c4fb-ba77-11f1-8340-6ebe486271a3, and updated total count to: 12087 trace_id=8e131b3f0137787b6ddd8741b1e820dd span_id=363836f423f225b5 trace_flags=01
+2026-09-27T13:29:12+00:00  2026-09-27 13:29:12 - fraud-detection - Consumed record with orderId: 6d4559e5-ba77-11f1-8340-6ebe486271a3, and updated total count to: 12088 trace_id=b06a013a13bac07efa8ca517fcab68eb span_id=1217ebf674f4eb50 trace_flags=01
+2026-09-27T13:29:18+00:00  2026-09-27 13:29:18 - fraud-detection - Consumed record with orderId: 70edc087-ba77-11f1-8340-6ebe486271a3, and updated total count to: 12089 trace_id=3a49007a40dd069c37f9dabf6fd010c4 span_id=5785fa01d21733c9 trace_flags=01
+```
+
+_263 further lines are in the bundle._
+
+## The incident record
+
+Written from the responder's chair, by someone who did not know the fault class
+or that anything had been injected. This text is also corpus material, which is
+why it never names the injector.
+
+**It keeps its own clock.** The table above is measured from the injection, which
+is the only origin the manifest records; a narrative's `T+` offsets are the
+responder's own and start wherever that responder started counting — usually the
+page, sometimes the injection, sometimes an event in the logs. The same moment can
+therefore carry two different offsets on this page. The absolute timestamps in the
+bundle are the tiebreak.
+
+### What was observed
 
 One alert. `ServiceNoTraffic` on **fraud-detection**, 7m15s after the trouble started. Nothing
 else fired for the entire incident, and nothing fired after the fix.
@@ -29,7 +92,7 @@ of its own, no rise in latency.
 
 This is the slowest page on this world and the smallest.
 
-## What was checked
+### What was checked
 
 **Whether anyone was missing it.** No one. Nothing calls fraud-detection: it reads orders off the
 same Kafka topic accounting reads, and checkout publishes an order and moves on. So checkout had
@@ -74,7 +137,7 @@ flag service's routine ten-minute stream reconnect, which every flag reader show
 pages on. The only error traces in the fault were three of those stream closes, on ad,
 recommendation and product-reviews. Nothing near a line, and nothing to do with orders.
 
-## Root cause
+### Root cause
 
 The fraud detection container's memory limit was lowered from 500M to 160m, below the 256MB
 working set of its JVM and below what a fresh JVM needs to load its instrumentation agent and
@@ -84,7 +147,7 @@ runtime backing off to once a minute - so orders went unchecked for fraud for th
 Nothing calls fraud-detection, so nothing else noticed: the storefront, checkout and accounting
 were untouched, and the orders it missed waited for it in Kafka.
 
-## Resolution
+### Resolution
 
 The memory limit was restored to 500M. The next JVM start, 25 seconds after the fix, was the first
 in twelve minutes to run, and three seconds after that it began working through the backlog: dozens
@@ -97,7 +160,7 @@ Class of fix: **config_revert**. The container's resource limit was wrong and it
 Restarting fraud-detection was what the runtime had already been doing, nineteen times; rolling
 back its image would have changed nothing, because the image was never the problem.
 
-## Detection notes
+### Detection notes
 
 - Onset to first page: **7m15s**, the no-traffic window draining. Services on the page: **one**,
   fraud-detection, the culprit. By the fix: **one**.
@@ -120,3 +183,7 @@ back its image would have changed nothing, because the image was never the probl
 - **A consumer's missed work is not lost work.** The orders it missed were still on the topic, and
   it consumed them all in the first seconds back. Its rate after the fix was twice its usual: the
   size of the backlog, not a second fault.
+
+---
+
+Rendered from [`evals/scenarios/artifacts/dev/v2-fraud-detection-memory-squeeze/`](../../evals/scenarios/artifacts/dev/v2-fraud-detection-memory-squeeze/) by `faultline-render`. [All bundles](README.md).

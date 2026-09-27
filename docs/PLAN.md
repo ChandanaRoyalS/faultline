@@ -4617,6 +4617,31 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-09-27: the twenty-third v2 scenario, `v2-fraud-detection-memory-squeeze`, rehearsed and
+labeled - slot `v2/resource_exhaustion-2` (dev), first recording. The smallest page there is.***
+
+- **The value, by the row's rule under the revised limit.** Measured with the JVM running under
+  500M since the revision: 256 MiB in `docker stats`, heap ceiling 121.8 MiB - the same figure as
+  ad's against 300M, so the JVM's own setting and not a share of the limit; row 1's inference
+  withdrawn by addendum - non-heap 100, committed 168.1 at the eight-hour high, about 88 MiB
+  outside the JVM. Rounded down to 16 MiB: **160m**, under the ~190 MiB a restarted JVM needs.
+- **The page, and every prediction held.** `ServiceNoTraffic` on fraud-detection alone at 7m15s;
+  one alert, none after the fix; every other error ratio zero, every rate and latency unchanged,
+  accounting consuming the same orders; all clear 1m01s after the fix. Nineteen JVM starts, none
+  consuming; not one fraud-detection span in the fault; 51 series held four minutes and vanished.
+  The probe sampled `exit=137 oom=true` 68 times across restart counts 7 to 19.
+- **Not predicted, and taught.** The orders it missed waited on the topic, and the recovered JVM
+  consumed them all within seconds - 157 `Consumed record` lines in the five minutes after the fix
+  against 46 in a normal five, its rate at twice its usual. A consumer's outage is not lost work.
+- **Distinct from row 1 on (a)** - one alert on the target against two on the storefront - and
+  from the holdout `v2-accounting-kafka-misconfig` on (b) and (c). The change record is by
+  construction; the remediation class `config_revert`, as v1's.
+- **How it was recorded.** On AC power, under `caffeinate`, the world variable per command; the
+  clean-baseline check on fraud-detection's own span rate; the host did not sleep; the limit back
+  at 500M after the revert.
+- **Next: row 3**, `v2-cart-memory-squeeze` (`v2/resource_exhaustion-3`), a new design on .NET,
+  with T7.20's finding as the thing to predict against.
+
 ***2026-09-27: the twenty-second v2 scenario, `v2-ad-memory-squeeze`, rehearsed and labeled - slot
 `v2/resource_exhaustion-1` (dev), first recording. The `resource_exhaustion` row opens, with the
 limit re-measured rather than copied.***

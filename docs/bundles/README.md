@@ -1,6 +1,6 @@
 # The bundles, rendered
 
-Every recorded rehearsal in this repository as a readable page — 38 in all: **35 runnable** (26 dev, 9 holdout) and **3 that could not fire** (3 dev).
+Every recorded rehearsal in this repository as a readable page — 39 in all: **36 runnable** (27 dev, 9 holdout) and **3 that could not fire** (3 dev).
 
 A bundle is what one rehearsal left behind — the manifest, the Prometheus captures,
 a slice of one service's logs, the exact queries, and the narrative a responder wrote
@@ -44,6 +44,7 @@ benchmark** — see [RESULTS.md](../RESULTS.md).
 | [`v2-cart-flag-failure`](v2-cart-flag-failure.md) | `feature_flag` | A feature flag makes the cart fail to empty after an order — 1 alerts over the window |
 | [`v2-cart-valkey-misconfig`](v2-cart-valkey-misconfig.md) | `bad_config` | **⚠ nothing fired** — the fault could not bind |
 | [`v2-fraud-detection-flag-queue-lag`](v2-fraud-detection-flag-queue-lag.md) | `feature_flag` | A feature flag floods the orders queue, slows its consumer and breaks accounting — 1 alerts over the window |
+| [`v2-fraud-detection-memory-squeeze`](v2-fraud-detection-memory-squeeze.md) | `resource_exhaustion` | Fraud detection memory limit cut below what its JVM needs to run — 1 alerts over the window |
 | [`v2-frontend-cart-misconfig`](v2-frontend-cart-misconfig.md) | `bad_config` | Frontend pointed at a cart port where nothing listens — 12 alerts over the window |
 | [`v2-payment-dependency-latency`](v2-payment-dependency-latency.md) | `dependency_latency` | Payment's replies are late, and only checkout can tell — 1 alerts over the window |
 | [`v2-payment-telemetry-blackout`](v2-payment-telemetry-blackout.md) | `bad_config` | Payment service healthy, serving, and invisible in the traffic metric — 1 alerts over the window |
