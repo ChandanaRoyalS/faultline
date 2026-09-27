@@ -899,6 +899,28 @@ CATALOG: tuple[FaultDefinition, ...] = _validated(
             params={"memory": "48m"},
         ),
         FaultDefinition(
+            id="v2-payment-memory-squeeze",
+            fault_class=FaultClass.RESOURCE_EXHAUSTION,
+            target="payment",
+            world="v2",
+            description=(
+                "Shrink payment's memory limit below what its Node runtime needs to finish "
+                "starting. The kernel kills it before it can listen, over and over; every order "
+                "fails at its charge, and the services an order reaches only after it go quiet. "
+                "The reserve for v2/resource_exhaustion-3 after the cart design was blocked."
+            ),
+            # Measured 2026-09-27 before authoring, on a cold process (the row's rule since row
+            # 3): a throwaway container from the same image, no network, no exporters, read from
+            # a sidecar because the image has no shell. It listens at +1.3 s, and the memory the
+            # kernel cannot reclaim at that moment - anon 99.5 MiB, the heap's start-up garbage
+            # before V8's first collection, kernel 8.5 - peaks at 108.0 MiB in both runs; the
+            # settled process holds 68 anon (the warm one 94 in its 140M). The rule, applied
+            # once: 16 x (ceil(need / 16) - 2) - 80m, 28 MiB under the start-up peak, so no
+            # instance can reach a listening state, and under the warm process, so it dies at
+            # once.
+            params={"memory": "80m"},
+        ),
+        FaultDefinition(
             id="v2-cart-dependency-latency",
             fault_class=FaultClass.DEPENDENCY_LATENCY,
             target="cart",

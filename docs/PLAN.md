@@ -4617,6 +4617,24 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-09-27: `v2/resource_exhaustion-3` cannot stay empty - the row gains a reserve,
+`v2-payment-memory-squeeze`, authored ahead of the holdout.***
+
+- **The correction.** The block entry below says the slot stays empty. v2's slots are a contiguous
+  prefix (ADR-0008, and the guard that enforces it), so the holdout row 4 in `-4` cannot record
+  with `-3` free; the candidate list's own rule is that a holdout-only design waits and a reserve
+  fills the slot it cannot take. The row had no reserve listed. Now it has one, chosen before
+  authoring as `bad_deploy-3`'s was: payment, the order path the blocked cart design was for.
+- **The limit, on a cold process.** 108.0 MiB unreclaimable at the moment a fresh Node process
+  listens, in two runs from a sidecar (the image has no shell); the rule
+  `16 x (ceil(need / 16) - 2)` gives **80m**, 28 MiB under the start-up peak.
+- **The page, computed.** Checkout alone at 14.7 % on the hour's order rate, the storefront on the
+  line; no-traffic on payment, email and accounting as their windows drain. The twin of the
+  holdout `v2-payment-flag-unreachable`'s page with payment absent rather than idle - the
+  `answers_idle_or_absent` question, stated as such in the candidate list.
+- **Order from here.** Payment recorded and labelled; then `v2-recommendation-memory-squeeze`,
+  already authored at 16m on the same cold rule, lands in `-4`.
+
 ***2026-09-27: `v2-cart-memory-squeeze` recorded once and blocked; `v2/resource_exhaustion-3` stays
 empty. The first v2 design to record no page.***
 

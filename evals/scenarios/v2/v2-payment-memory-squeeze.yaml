@@ -1,0 +1,91 @@
+# v2/resource_exhaustion-3 (dev) - see SPLIT-V2.md. Slot allocated before authoring; do not move.
+# Candidate order and eligibility: docs/design/t7.1-candidates.md, resource_exhaustion reserve -
+# new, added 2026-09-27 when row 3 (v2-cart-memory-squeeze) was blocked and the slot could not
+# stay empty: slots are a contiguous prefix, and the holdout row 4 waits behind this one. The
+# limit is measured on a cold process, the row's rule since row 3, before recording.
+id: v2-payment-memory-squeeze
+title: Payment service memory limit cut below what its runtime needs to start
+fault_class: resource_exhaustion
+split: dev
+slot: v2/resource_exhaustion-3
+world: v2
+injection:
+  target: payment
+  method: v2-payment-memory-squeeze
+  params:
+    # The memory a fresh Node process holds, and the kernel cannot reclaim, at the moment it
+    # first listens: 108.0 MiB in two cold runs of the same image (anon 99.5, the heap's start-up
+    # garbage before V8 collects it, kernel 8.5), settling to about 75 afterwards. The rule
+    # 16 x (ceil(need / 16) - 2): 80m, 28 MiB under the start-up peak, so no instance can reach a
+    # listening state; under the 101 MiB the warm process holds, so the running one dies at once.
+    # Not tuned after recording: a page of any shape is the scenario, and no page blocks it.
+    memory: "80m"
+ground_truth:
+  root_cause: >
+    The payment service container's memory limit was lowered to 80m, below what its Node runtime
+    allocates while starting. The kernel kills it before it can listen, the restart policy
+    brings it back, and every new process is killed the same way, so payment is never available:
+    every order fails at its charge, and nothing an order reaches after the charge - shipping's
+    dispatch, the confirmation email, the order record accounting and fraud detection consume -
+    happens at all. Nothing about payment's image, code or configuration changed; restoring the
+    limit fixes it.
+  category: resource_exhaustion
+expected_evidence:
+  # A new design: predicted before recording and checked against the bundle, as every v2
+  # scenario's list has been, and corrected there. Measured at rest (2026-09-27): payment at
+  # 103 MiB of 140M; checkout its only caller, one Charge per order, 0.14 to 0.3 orders a second
+  # by the hour; a failed Charge errors two checkout spans, four frontend spans, two on the proxy
+  # and one on the load generator - 14.7 %, 4.9 %, 5.3 % and 2.9 % of their whole span rates at
+  # the lower order rate. The comparator for the page's shape is v2-payment-flag-unreachable
+  # (feature_flag, holdout): checkout alone at 4m16s, then no-traffic on payment, email and
+  # accounting at +8:00 - the same absence of orders after the charge, with payment idle there
+  # and absent here. Distinct on (b), a limit against no record; on (c), a process killed and
+  # started over and over against one that runs and is not called; on (d), a refused connection
+  # in checkout's Charge span against a flag's own error.
+  - alerts: ServiceHighErrorRate on checkout, four to five minutes in, alone or nearly so - the
+      frontend and frontend-proxy sit at the line on the order rate of the hour and may cross it,
+      the load generator stays under; ServiceNoTraffic on payment, email and accounting together
+      about eight minutes in as their windows drain, fraud-detection's with them or a minute later
+      (v2-payment-flag-unreachable saw its rate go to errors first); the flag readers' routine
+      stream reconnect possible and not a page; nothing on cart, the catalog or currency
+  - metrics: payment's call rate falls from its 0.15 to 0.3 a second to nothing by +5 with no
+      error ratio of its own, and from then its error ratio and p95 have no value; checkout's
+      error ratio climbs to 10 to 20 % as every order fails at its charge, the frontend's to about
+      5 %, frontend-proxy's the same, the load generator's to about 3 %; email's, accounting's and
+      fraud-detection's rates fall to zero, shipping's by its dispatches and not its quotes; no
+      latency moves, a refused connection costing nothing; cart, the catalog and currency hold
+  - traces: every checkout error trace is PlaceOrder failing at its Charge client span
+      (grpc.oteldemo.PaymentService/Charge) with a connection refused or a name that resolves to nothing at payment's address and no
+      payment span beneath - the cart read, the catalog lookups, the currency conversions and the
+      shipping quote before it complete; nothing after it runs; not one payment server span in
+      the fault; the frontend's error traces are the same orders, from `user_checkout` roots
+  - logs: payment's log ends at onset - its last `Charge request received.` seconds before -
+      with no shutdown line and no error; whether the runtime's start-up output (the telemetry
+      SDK's resource dump, 35 lines on a cold start) appears once per attempt or not at all
+      depends on whether the kill comes before it, and is not predicted; no `payment gRPC
+      server started` line under the fault; checkout logs the failed charge for every order;
+      after the fix, the start-up output once and then `Charge request received.` again
+  - metrics: payment's 75 Node runtime series (event loop, V8 heap by space, garbage collection)
+      hold their last values for the store's lookback and vanish, and no new instance's series
+      appear before the fix - a process killed while allocating its start-up heap never exports;
+      a merely idle process keeps exporting, which is what v2-payment-flag-unreachable's payment did
+  - container: exit code 137 with OOMKilled set between every kill and the next start, the state
+      `restarting` for most of the fault as the runtime backs off toward one start a minute, the
+      restart count climbing past fifteen, the limit at 80m (not agent-visible; the probe samples it)
+  - change: a change record at onset - `memory limit lowered on payment`, carrying `memory=80m` -
+      and no deploy, no image change, no environment change, no flag
+  - discriminator: a leaf on the order path that goes absent with its image unchanged, no error of
+      its own, and a change record that is its memory limit, was starved; the flag that makes
+      checkout's charge fail (v2-payment-flag-unreachable, the same page) leaves no record and a
+      payment that keeps exporting, idle; a bad deploy shows an image in the record and another
+      program in the log; a slow payment (v2-payment-dependency-latency) shows checkout's latency
+      with payment present, where here nothing is slow and payment is gone
+expected_remediation_class: config_revert
+rehearsed: false
+alert_timeout_seconds: 900
+# Declared before recording, checked against the bundle after (T7.5). Measured on the running world
+# 2026-09-27: payment holds 75 Node runtime series and logs 180 to 1,170 lines a minute (each
+# charge is a multi-line record). Both are what the fault removes entirely: they answer by going
+# absent. A process killed while starting never initialises the exporter, so no new instance's
+# series appear under the fault; the runtime capture holds the old instance's series only.
+answers_idle_or_absent: [runtime, logs]
