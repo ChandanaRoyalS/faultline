@@ -832,6 +832,13 @@ NARRATIVE_EVIDENCE_V2: dict[str, set[str]] = {
     # the traces hold the open cart call under every timed-out request; the change history is
     # empty, which is the answer.
     "v2-cart-freeze": {"metrics", "runtime_metrics", "logs", "traces", "changes"},
+    # The target is paused and has nothing of its own - no log, no runtime series. Metrics carry a
+    # starved consumer's thin error ratio (the page), six services going quiet, and checkout
+    # keeping a pulse of two fast spans an order; the traces hold one Convert open for the length
+    # of the freeze under every order; the frontend's log carries nothing, which is the point; the
+    # change history is empty. The narrative does not need the target's logs or runtime, and
+    # reads the absence of both as such.
+    "v2-currency-freeze": {"metrics", "logs", "traces", "changes"},
     # Holdout. The page names the culprit and reads as down. Metrics carry its rate going to zero
     # and everyone else's holding; runtime shows it alive; its log names the address and the
     # refused connection, and fraud-detection's shows the topic still read; traces show none of

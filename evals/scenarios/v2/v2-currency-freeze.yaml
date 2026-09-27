@@ -25,49 +25,53 @@ ground_truth:
   category: process_freeze
 expected_evidence:
   # A new design: predicted before recording from the freeze's mechanism and rows 1 and 2, and
-  # checked against the bundle. Measured at rest (2026-09-27): 7 of 141 requests in a minute
-  # touch currency, all of them checkouts (5.0 %); checkout calls it 0.4 times a second, two or
-  # three Convert calls an order, the first after GetCart and GetProduct and before the shipping
-  # quote; no other service calls it; the proxy's timeout is 15 s and checkout sets none; currency
-  # has no Loki stream and no runtime series in the recorder's families. The comparators are the
-  # two freezes before it: the catalog's (browse path, sixteen alerts) and cart's (order and cart
-  # paths, fourteen). Distinct on (a) by construction - the storefront's rates and ratios barely
-  # move, since one request in twenty hangs - and on (d) by the open span, checkout's Convert.
-  - alerts: the page is most likely the silence itself - ServiceNoTraffic at about +8 on the
-      order path together, currency, checkout, shipping, quote, payment, email, accounting and
-      fraud-detection, as their five-minute windows drain - because the callers' alerts sit on
-      the line - a twentieth of requests hanging puts the proxy's and the load generator's error
-      ratio at about 5 %, exactly the rule's threshold, and their p95 at the histogram's ceiling
-      only if the hung share reaches the 95th percentile; ServiceHighErrorRate or
-      ServiceHighLatency on frontend-proxy and load-generator may fire first, or not at all; the
-      frontend's error ratio zero and its p95 unmoved (one span in seventy at 15 s); nothing on
-      cart, product-catalog, ad or recommendation; if nothing fires inside 900 s the design is
-      blocked
-  - alerts: (dead end) with orders stopped, fraud-detection's, flagd's, ad's and recommendation's
-      routine flag-stream reconnects show as error ratios on thin rates, as in rows 1 and 2
-  - metrics: currency's rate falls from 0.4 a second to nothing by +4 with no error ratio of its
-      own, and from then no ratio or p95; checkout's rate falls to nothing in the same minutes (a
-      PlaceOrder that hangs exports no span), shipping's, quote's, payment's, email's,
-      accounting's and fraud-detection's with it; cart's rate falls by checkout's share of it
-      (about 0.27 of 3.4 a second) and no more; the frontend's rate falls by the hung checkouts
-      and the users they block, a few percent; the proxy's error ratio climbs toward 5 % over the
-      first five minutes and holds near it; every latency on the browse path unmoved
-  - metrics: currency exports no runtime series on this world, so there is nothing to stop; the
-      store has no series to hold or drop
-  - traces: every proxy error trace is a checkout ending at its 15 s deadline; beneath it the
-      frontend's POST /api/checkout stays open for minutes on its PlaceOrder call, and
-      checkout's PlaceOrder stays open at oteldemo.CurrencyService/Convert under
-      prepareOrderItemsAndShippingQuoteFromCart - after a completed GetCart and GetProduct, before
-      the shipping quote - with nothing after it; currency has no spans during the freeze and its
-      spans appear only after the resume
-  - logs: currency writes nothing, before, during or after - it has no log stream on this world -
-      so silence is not evidence here; the frontend logs no checkout error while the fault holds;
-      at the resume the woken orders complete or fail and the frontend logs the failures
-  - recovery: at the unpause every held order wakes together - the held Convert calls return, the
-      orders go on to their quotes and charges, minutes after they were placed; checkout's p95
-      reads at the ceiling for the store's window as the held spans close and its error ratio
-      rises if held orders fail downstream; recovery-only alerts on checkout possible, as cart's
-      freeze had two; about six minutes from unpause to quiet
+  # checked against the first recording, on the revised world, 2026-09-27 (t_inject 22:11:13,
+  # revert at +10:30). The prediction's core held - the page is the silence, the callers' rules
+  # stay under their lines, the frontend does not move - and two things it hedged went the way it
+  # said they might: the proxy's and the load generator's error ratios peaked at 3 %, and their
+  # p95s touched the ceiling for two minutes and fell back before the rule's three. Not predicted:
+  # the first alert was the dead end itself - fraud-detection's error ratio at 100 % on one
+  # stream span, then its latency - a minute before the no-traffic wave; checkout never went
+  # quiet, because the cart read and the catalog lookup before its hung conversion complete and
+  # export; the woken orders all completed; and the recording's window closed before the
+  # recovery's latencies could hold three minutes. The list below states the recording.
+  - alerts: ServiceHighErrorRate on fraud-detection (page 5m30s) - its one span in five minutes,
+      the routine flag-stream reconnect, on a rate of 0.004 - and ServiceHighLatency on it at
+      +6:30; ServiceNoTraffic at +7:30 on six services at once - currency, payment, shipping,
+      quote, email and accounting - and on fraud-detection at +10:30; nine alerts on seven
+      services by the fix, none after it, all clear 1m01s after the resume; no alert on
+      checkout, the frontend, frontend-proxy or the load generator; nothing on cart,
+      product-catalog, ad or recommendation
+  - metrics: currency's rate from 0.36 a second to nothing by +4 with no error ratio of its own,
+      and from then no ratio or p95; checkout's rate from 1.7 to about 0.2 and no lower - the
+      cart read and catalog lookup before the hung conversion still export, two spans an order -
+      and its p95 down from 38 ms to 4 on those two; payment's, shipping's, quote's, email's and
+      accounting's rates to zero by +4, fraud-detection's to 0.004 (its stream span) and then
+      zero; the frontend's error ratio zero and its p95 41 to 44 ms throughout, its rate from 11.7
+      to about 9 as blocked users wait; the proxy's error ratio peaking at 2.9 % and the load
+      generator's at 3.0 %, their p95s at the histogram's ceiling at +5 and +6 only; cart at two
+      thirds of its rate and its usual 3 ms; product-catalog, ad and recommendation serving
+  - metrics: currency exports no runtime series on this world; the capture holds none and the
+      recorder derives []
+  - traces: every proxy error trace (70 - 35 user_checkout_single, 35 user_checkout_multi) ends at
+      its 15 s deadline; beneath it the frontend's POST /api/checkout stays open for the length of
+      the freeze (600, 602 and 615 s in the three drawn) on its PlaceOrder call, and checkout's
+      PlaceOrder stays open at oteldemo.CurrencyService/Convert under
+      prepareOrderItemsAndShippingQuoteFromCart - after a GetCart and a GetProduct of a
+      millisecond each - for 599,887, 601,703 and 615,073 ms, with everything after it done in
+      milliseconds once it returns; currency has no spans during the freeze and its spans appear
+      only after the resume; no error trace on checkout, the frontend or currency at any point
+  - logs: currency has no log stream on this world - the capture is empty because there is nothing
+      to capture - so its silence is not evidence; the frontend logs no checkout error before,
+      during or after; cart's request lines run at two thirds of their usual rate
+  - recovery: at the unpause every held order wakes together and completes - 110 orders, each
+      conversion returning in two milliseconds after waiting up to ten minutes, none failing;
+      the six no-traffic alerts clear 45 s after the resume and the world is all clear at 1m01s;
+      the wave is in the numbers - checkout's and the frontend's p95 at the ceiling from +11 as
+      ten-minute spans close, the proxy's and the load generator's back to it, the order path at
+      two to three times its rate, currency's p95 359 ms on the burst - and not in the alerts on
+      record - the window closes two minutes after the all-clear, before a latency rule could
+      hold its three
   - change: nothing recorded - no deploy, no config change, no limit, no flag; the change history
       is empty for the whole window
   - discriminator: a partition of currency would look identical, and on this target the class's
@@ -82,10 +86,12 @@ expected_remediation_class: restart
 # The freeze resolves when the process is unfrozen; where an operator cannot `unpause`, a restart
 # is what does it (knowledge/runbooks/class-process-freeze.md). Nothing was changed, so nothing
 # is reverted.
-rehearsed: false
+rehearsed: true
 alert_timeout_seconds: 900
 # Declared before recording, checked against the bundle after (T7.5). Measured on the running world
 # 2026-09-27: currency holds no runtime series in the recorder's families and has no Loki stream -
 # a zero-class target, like shipping in v2-shipping-quote-misconfig, kept deliberately: the fault
-# is read entirely off its callers.
+# is read entirely off its callers. The first recording (2026-09-27) held 0 runtime series and 0
+# target log lines (no Loki label carries a value matching `currency`), and the recorder derived
+# [] with none_can_answer set.
 answers_idle_or_absent: []

@@ -4617,6 +4617,30 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-09-27: the twenty-seventh v2 scenario, `v2-currency-freeze`, rehearsed and labeled - slot
+`v2/process_freeze-3` (dev), first recording. The smallest freeze pages by the dead end.***
+
+- **The design, corrected by measurement.** The list called currency "every page that renders a
+  price"; on this world only checkout converts, so the freeze is every order and nothing else -
+  one request in twenty - on a target with no log and no runtime series (`[]`, the second
+  zero-class scenario after shipping's).
+- **The page.** `ServiceHighErrorRate` on fraud-detection at 5m30s - a starved consumer's one
+  stream span at 100 % - then its latency, then `ServiceNoTraffic` at +7:30 on currency, payment,
+  shipping, quote, email and accounting; nine alerts on seven services, none after the fix, all
+  clear 1m01s after the resume. The callers' rules stayed under their lines (the proxy at 2.9 %,
+  its p95 at the ceiling for two minutes and back); the frontend did not move; every proxy error
+  trace holds checkout's `Convert` open for the length of the freeze after a cart read and a
+  catalog lookup of a millisecond each.
+- **Not predicted.** The dead end paged first, a minute ahead of the silence. Checkout never went
+  quiet: the two spans before its hung call export, so it kept a pulse and its p95 fell to 4 ms.
+  All 110 held orders completed at the resume, and the recorder's all-clear at 1m01s came before
+  the recovery's ten-minute spans, closing at the ceiling, could hold a latency rule's three
+  minutes - whether that wave paged is not on record. A recorder blind spot in Q106's family,
+  for the class whose recovery is a wave; raised in the candidate list for a decision.
+- **Distinct** from rows 1 and 2 on (a) - nothing on the storefront edge fires - and on (d). 28
+  of 44 slots filled.
+- **Next: row 4**, the holdout `v2-payment-freeze` (`v2/process_freeze-4`), checkout only.
+
 ***2026-09-27: the twenty-sixth v2 scenario, `v2-cart-freeze`, rehearsed and labeled - slot
 `v2/process_freeze-2` (dev), first recording. The freeze on the order path.***
 

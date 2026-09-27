@@ -1,6 +1,6 @@
 # The bundles, rendered
 
-Every recorded rehearsal in this repository as a readable page — 43 in all: **39 runnable** (29 dev, 10 holdout) and **4 that could not fire** (4 dev).
+Every recorded rehearsal in this repository as a readable page — 44 in all: **40 runnable** (30 dev, 10 holdout) and **4 that could not fire** (4 dev).
 
 A bundle is what one rehearsal left behind — the manifest, the Prometheus captures,
 a slice of one service's logs, the exact queries, and the narrative a responder wrote
@@ -45,6 +45,7 @@ benchmark** — see [RESULTS.md](../RESULTS.md).
 | [`v2-cart-freeze`](v2-cart-freeze.md) | `process_freeze` | The cart process is frozen - its socket accepts and nothing answers — 16 alerts over the window |
 | [`v2-cart-memory-squeeze`](v2-cart-memory-squeeze.md) | `resource_exhaustion` | **⚠ nothing fired** — the fault could not bind |
 | [`v2-cart-valkey-misconfig`](v2-cart-valkey-misconfig.md) | `bad_config` | **⚠ nothing fired** — the fault could not bind |
+| [`v2-currency-freeze`](v2-currency-freeze.md) | `process_freeze` | The currency process is frozen - its socket accepts and nothing answers — 9 alerts over the window |
 | [`v2-fraud-detection-flag-queue-lag`](v2-fraud-detection-flag-queue-lag.md) | `feature_flag` | A feature flag floods the orders queue, slows its consumer and breaks accounting — 1 alerts over the window |
 | [`v2-fraud-detection-memory-squeeze`](v2-fraud-detection-memory-squeeze.md) | `resource_exhaustion` | Fraud detection memory limit cut below what its JVM needs to run — 1 alerts over the window |
 | [`v2-frontend-cart-misconfig`](v2-frontend-cart-misconfig.md) | `bad_config` | Frontend pointed at a cart port where nothing listens — 12 alerts over the window |
