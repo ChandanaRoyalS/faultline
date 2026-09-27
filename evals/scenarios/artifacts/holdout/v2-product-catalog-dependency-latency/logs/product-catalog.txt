@@ -1,0 +1,11 @@
+# target container: product-catalog
+# loki labels: service, stream
+# no exact service value for 'product-catalog'; closest is 'faultline-pumba-v2-product-catalog-dependency-latency'
+# selector: {service="faultline-pumba-v2-product-catalog-dependency-latency"}
+# 2 lines
+# before onset (2026-09-27T11:13:40+00:00): 0 lines, the newest kept
+# from onset: 2 lines, the oldest kept
+
+# ---- onset 2026-09-27T11:13:40+00:00 ----
+2026-09-27T11:13:41+00:00  time="2026-09-27T11:13:41Z" level=info msg="running netem on container" command="[delay 300ms 20.00]" dports="[]" dryrun=false duration=1h0m0s id=29fabf0ecd0894bab023e8ad60970f90547263ee200cad521a327a1a77a001f9 ips="[]" name=/product-catalog pull=true sports="[]" tc-image="gaiadocker/iproute2:latest"
+2026-09-27T11:23:00+00:00  time="2026-09-27T11:23:00Z" level=info msg="stopping netem on container" IPs="[]" dports="[]" dryrun=false id=29fabf0ecd0894bab023e8ad60970f90547263ee200cad521a327a1a77a001f9 iface=eth0 name=/product-catalog pull=true sports="[]" tc-image="gaiadocker/iproute2:latest"
