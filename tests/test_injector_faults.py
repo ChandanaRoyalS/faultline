@@ -411,6 +411,7 @@ def test_the_v2_old_mechanism_definitions_carry_v2_values_not_v1s() -> None:
         "v2-email-wrong-image",
         "v2-ad-memory-squeeze",
         "v2-fraud-detection-memory-squeeze",
+        "v2-cart-memory-squeeze",
         "v2-cart-dependency-latency",
         "v2-valkey-cart-dependency-latency",
         "v2-payment-dependency-latency",
@@ -494,6 +495,12 @@ def test_the_v2_old_mechanism_definitions_carry_v2_values_not_v1s() -> None:
     assert squeeze_fd == {"memory": "160m"}, (
         "the same rule as ad's, measured 2026-09-27 under the revised 500M limit: committed "
         "168.1 MiB at the eight-hour high, rounded down to 16 MiB"
+    )
+    squeeze_cart = v2_old["v2-cart-memory-squeeze"].params
+    assert squeeze_cart == {"memory": "48m"}, (
+        "the row's rule restated for .NET, measured 2026-09-27: the working set's eight-hour low "
+        "less the GC's committed high (58.5 MiB), rounded down to 16 MiB - between v1's 32m, which "
+        "alerted, and 200m, which came back before detection"
     )
 
 
