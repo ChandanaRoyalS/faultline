@@ -165,7 +165,8 @@ def test_holdout_origins_are_read_from_the_committed_bundles() -> None:
     `v2-payment-flag-unreachable` and `v2-email-flag-memory-leak`, that evening; v2's fifth,
     `v2-email-wrong-image`, on 2026-09-27, and v2's sixth, `v2-product-catalog-dependency-latency`,
     the same day; v2's seventh, `v2-recommendation-memory-squeeze`, that evening, and its eighth,
-    `v2-payment-freeze`, the same night."""
+    `v2-payment-freeze`, the same night; v2's ninth, `v2-recommendation-partition`, on
+    2026-09-28."""
     origins = freeze.holdout_origins()
     assert origins == [
         "scenario:email-wrong-image",
@@ -179,6 +180,7 @@ def test_holdout_origins_are_read_from_the_committed_bundles() -> None:
         "scenario:v2-payment-freeze",
         "scenario:v2-product-catalog-dependency-latency",
         "scenario:v2-recommendation-memory-squeeze",
+        "scenario:v2-recommendation-partition",
     ]
 
 

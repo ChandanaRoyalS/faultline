@@ -865,6 +865,14 @@ NARRATIVE_EVIDENCE_V2: dict[str, set[str]] = {
     # failures in the same second; the traces show it absent during the cut and its backlog as one
     # batch after it; the change history is empty.
     "v2-fraud-detection-partition": {"metrics", "runtime_metrics", "logs", "traces", "changes"},
+    # Holdout. The target is cut from its network, and it is the one service only the frontend
+    # calls for recommendations. Metrics carry the edge's p95 at the ceiling on a hung share under
+    # its error line, the frontend unmoved, recommendation's silence and the catalog's halved
+    # rate; recommendation's runtime series stop at the cut and return after the reconnect; its
+    # log, thin at rest, drops its request lines and takes up the SDK's export failures; the
+    # traces hold ListRecommendations open for the length of the cut and failing at the
+    # reconnect; the change history is empty.
+    "v2-recommendation-partition": {"metrics", "runtime_metrics", "logs", "traces", "changes"},
     # Holdout. The page names the culprit and reads as down. Metrics carry its rate going to zero
     # and everyone else's holding; runtime shows it alive; its log names the address and the
     # refused connection, and fraud-detection's shows the topic still read; traces show none of
