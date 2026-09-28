@@ -1,0 +1,508 @@
+# target container: ad
+# loki labels: service, stream
+# selector: {service="ad"}
+# 500 lines
+# before onset (2026-09-28T08:38:09+00:00): 100 lines, the newest kept (limit reached: earlier lines were not captured)
+# from onset: 400 lines, the oldest kept (limit reached: later lines were not captured)
+
+2026-09-28T08:33:25+00:00  2026-09-28 08:33:25 - oteldemo.AdService - no baggage found in context trace_id=2f7e0919e6d6c40f6d3d62514ce50eb8 span_id=93d60079c9ca8200 trace_flags=01 
+2026-09-28T08:33:25+00:00  2026-09-28 08:33:25 - oteldemo.AdService - Targeted ad request received for [assembly] trace_id=2f7e0919e6d6c40f6d3d62514ce50eb8 span_id=93d60079c9ca8200 trace_flags=01 
+2026-09-28T08:33:28+00:00  2026-09-28 08:33:28 - oteldemo.AdService - no baggage found in context trace_id=7912bf46ab8b6956a52bde67884ed34b span_id=881a0a475592a597 trace_flags=01 
+2026-09-28T08:33:28+00:00  2026-09-28 08:33:28 - oteldemo.AdService - Targeted ad request received for [telescopes] trace_id=7912bf46ab8b6956a52bde67884ed34b span_id=881a0a475592a597 trace_flags=01 
+2026-09-28T08:33:35+00:00  2026-09-28 08:33:35 - oteldemo.AdService - no baggage found in context trace_id=bd8d9208e1c33079f28569e6d032455c span_id=ba4435289819bbae trace_flags=01 
+2026-09-28T08:33:35+00:00  2026-09-28 08:33:35 - oteldemo.AdService - Targeted ad request received for [books] trace_id=bd8d9208e1c33079f28569e6d032455c span_id=ba4435289819bbae trace_flags=01 
+2026-09-28T08:33:56+00:00  2026-09-28 08:33:56 - oteldemo.AdService - no baggage found in context trace_id=de61b1330098f58f3305ea8009b7569d span_id=6a4e744a953af16a trace_flags=01 
+2026-09-28T08:33:56+00:00  2026-09-28 08:33:56 - oteldemo.AdService - Targeted ad request received for [assembly] trace_id=de61b1330098f58f3305ea8009b7569d span_id=6a4e744a953af16a trace_flags=01 
+2026-09-28T08:34:01+00:00  2026-09-28 08:34:01 - oteldemo.AdService - no baggage found in context trace_id=c3c4422883d73aca1cae6d33bed6df1e span_id=1c5ad4fa84949817 trace_flags=01 
+2026-09-28T08:34:01+00:00  2026-09-28 08:34:01 - oteldemo.AdService - Targeted ad request received for [telescopes] trace_id=c3c4422883d73aca1cae6d33bed6df1e span_id=1c5ad4fa84949817 trace_flags=01 
+2026-09-28T08:34:10+00:00  2026-09-28 08:34:10 - oteldemo.AdService - no baggage found in context trace_id=e926f223ca580f7f165dbf4e6c8b9157 span_id=b0fa7ce0bc926926 trace_flags=01 
+2026-09-28T08:34:10+00:00  2026-09-28 08:34:10 - oteldemo.AdService - Targeted ad request received for [books] trace_id=e926f223ca580f7f165dbf4e6c8b9157 span_id=b0fa7ce0bc926926 trace_flags=01 
+2026-09-28T08:34:15+00:00  2026-09-28 08:34:15 - oteldemo.AdService - no baggage found in context trace_id=ff029fcb7dca0c7adb8ffc3f10e7e6a8 span_id=12b2bb2eb492d34b trace_flags=01 
+2026-09-28T08:34:15+00:00  2026-09-28 08:34:15 - oteldemo.AdService - Targeted ad request received for [travel] trace_id=ff029fcb7dca0c7adb8ffc3f10e7e6a8 span_id=12b2bb2eb492d34b trace_flags=01 
+2026-09-28T08:34:20+00:00  2026-09-28 08:34:20 - oteldemo.AdService - no baggage found in context trace_id=f2043646a671aa4c2180d38efd1a1736 span_id=019a5939e8f1ebe3 trace_flags=01 
+2026-09-28T08:34:20+00:00  2026-09-28 08:34:20 - oteldemo.AdService - Targeted ad request received for [accessories] trace_id=f2043646a671aa4c2180d38efd1a1736 span_id=019a5939e8f1ebe3 trace_flags=01 
+2026-09-28T08:34:21+00:00  2026-09-28 08:34:21 - oteldemo.AdService - no baggage found in context trace_id=c4cd7f5dce656b669d9122b162c24b3d span_id=71a2e77d13c0930e trace_flags=01 
+2026-09-28T08:34:21+00:00  2026-09-28 08:34:21 - oteldemo.AdService - Targeted ad request received for [travel] trace_id=c4cd7f5dce656b669d9122b162c24b3d span_id=71a2e77d13c0930e trace_flags=01 
+2026-09-28T08:34:35+00:00  2026-09-28 08:34:35 - oteldemo.AdService - no baggage found in context trace_id=c6b06f6f9ef211c3bf9a1dab9592a8c3 span_id=7ef91d6b27279e76 trace_flags=01 
+2026-09-28T08:34:35+00:00  2026-09-28 08:34:35 - oteldemo.AdService - Targeted ad request received for [assembly] trace_id=c6b06f6f9ef211c3bf9a1dab9592a8c3 span_id=7ef91d6b27279e76 trace_flags=01 
+2026-09-28T08:34:36+00:00  2026-09-28 08:34:36 - oteldemo.AdService - no baggage found in context trace_id=1c04eb89769655538d239edd4356305f span_id=14091858c0f662a2 trace_flags=01 
+2026-09-28T08:34:36+00:00  2026-09-28 08:34:36 - oteldemo.AdService - Targeted ad request received for [assembly] trace_id=1c04eb89769655538d239edd4356305f span_id=14091858c0f662a2 trace_flags=01 
+2026-09-28T08:34:37+00:00  2026-09-28 08:34:37 - oteldemo.AdService - no baggage found in context trace_id=7767bcf84b6f501e0d5353f39ab1f6a0 span_id=ef1ced5da3d81556 trace_flags=01 
+2026-09-28T08:34:37+00:00  2026-09-28 08:34:37 - oteldemo.AdService - Targeted ad request received for [assembly] trace_id=7767bcf84b6f501e0d5353f39ab1f6a0 span_id=ef1ced5da3d81556 trace_flags=01 
+2026-09-28T08:34:37+00:00  2026-09-28 08:34:37 - oteldemo.AdService - no baggage found in context trace_id=a8dd9b0549017e8ec74f65932e91341d span_id=b89c9694eb20bbf3 trace_flags=01 
+2026-09-28T08:34:37+00:00  2026-09-28 08:34:37 - oteldemo.AdService - Targeted ad request received for [travel] trace_id=a8dd9b0549017e8ec74f65932e91341d span_id=b89c9694eb20bbf3 trace_flags=01 
+2026-09-28T08:34:46+00:00  2026-09-28 08:34:46 - oteldemo.AdService - no baggage found in context trace_id=2878886d6dfff403fd98d991e0608962 span_id=f2add70b5b75f9de trace_flags=01 
+2026-09-28T08:34:46+00:00  2026-09-28 08:34:46 - oteldemo.AdService - Targeted ad request received for [accessories] trace_id=2878886d6dfff403fd98d991e0608962 span_id=f2add70b5b75f9de trace_flags=01 
+2026-09-28T08:34:49+00:00  2026-09-28 08:34:49 - oteldemo.AdService - no baggage found in context trace_id=d6d06d17e03405a72104f7df44a3839e span_id=c5cb665f17604241 trace_flags=01 
+2026-09-28T08:34:49+00:00  2026-09-28 08:34:49 - oteldemo.AdService - Targeted ad request received for [travel] trace_id=d6d06d17e03405a72104f7df44a3839e span_id=c5cb665f17604241 trace_flags=01 
+2026-09-28T08:34:51+00:00  2026-09-28 08:34:51 - oteldemo.AdService - no baggage found in context trace_id=91ab8c9f1d476a687e08fd176a7d351b span_id=27e04ccc9e0700f6 trace_flags=01 
+2026-09-28T08:34:51+00:00  2026-09-28 08:34:51 - oteldemo.AdService - Targeted ad request received for [accessories] trace_id=91ab8c9f1d476a687e08fd176a7d351b span_id=27e04ccc9e0700f6 trace_flags=01 
+2026-09-28T08:35:11+00:00  2026-09-28 08:35:11 - oteldemo.AdService - no baggage found in context trace_id=316282b92451cb0402b6cae0dd4ebbd0 span_id=c886feaeb6311cf8 trace_flags=01 
+2026-09-28T08:35:11+00:00  2026-09-28 08:35:11 - oteldemo.AdService - Targeted ad request received for [accessories] trace_id=316282b92451cb0402b6cae0dd4ebbd0 span_id=c886feaeb6311cf8 trace_flags=01 
+2026-09-28T08:35:34+00:00  2026-09-28 08:35:34 - oteldemo.AdService - no baggage found in context trace_id=83177483aeaccee8de8152178b76c14e span_id=8b4174236cf32011 trace_flags=01 
+2026-09-28T08:35:34+00:00  2026-09-28 08:35:34 - oteldemo.AdService - Targeted ad request received for [travel] trace_id=83177483aeaccee8de8152178b76c14e span_id=8b4174236cf32011 trace_flags=01 
+2026-09-28T08:35:36+00:00  2026-09-28 08:35:36 - oteldemo.AdService - no baggage found in context trace_id=f689bbb725a2b9fe7a70e0827af70db7 span_id=a200f201332735c2 trace_flags=01 
+2026-09-28T08:35:36+00:00  2026-09-28 08:35:36 - oteldemo.AdService - Targeted ad request received for [assembly] trace_id=f689bbb725a2b9fe7a70e0827af70db7 span_id=a200f201332735c2 trace_flags=01 
+2026-09-28T08:35:40+00:00  2026-09-28 08:35:40 - oteldemo.AdService - no baggage found in context trace_id=850da0329ad5c7480975dd8b55fc6af4 span_id=8e0750e8e949624d trace_flags=01 
+2026-09-28T08:35:40+00:00  2026-09-28 08:35:40 - oteldemo.AdService - Targeted ad request received for [telescopes] trace_id=850da0329ad5c7480975dd8b55fc6af4 span_id=8e0750e8e949624d trace_flags=01 
+2026-09-28T08:35:43+00:00  2026-09-28 08:35:43 - oteldemo.AdService - no baggage found in context trace_id=4f825522a1b4639c6ba77f4888855b0e span_id=9521096565e2639a trace_flags=01 
+2026-09-28T08:35:43+00:00  2026-09-28 08:35:43 - oteldemo.AdService - Targeted ad request received for [telescopes] trace_id=4f825522a1b4639c6ba77f4888855b0e span_id=9521096565e2639a trace_flags=01 
+2026-09-28T08:35:53+00:00  2026-09-28 08:35:53 - oteldemo.AdService - no baggage found in context trace_id=da94af7046cee8ee5fc146730c0973a3 span_id=af59e54efb605fb0 trace_flags=01 
+2026-09-28T08:35:53+00:00  2026-09-28 08:35:53 - oteldemo.AdService - Targeted ad request received for [assembly] trace_id=da94af7046cee8ee5fc146730c0973a3 span_id=af59e54efb605fb0 trace_flags=01 
+2026-09-28T08:36:06+00:00  2026-09-28 08:36:06 - oteldemo.AdService - no baggage found in context trace_id=32ee3a0bea4b2cfd8c2587b8f4eedc0a span_id=269ff90ccfe00a22 trace_flags=01 
+2026-09-28T08:36:06+00:00  2026-09-28 08:36:06 - oteldemo.AdService - Targeted ad request received for [telescopes] trace_id=32ee3a0bea4b2cfd8c2587b8f4eedc0a span_id=269ff90ccfe00a22 trace_flags=01 
+2026-09-28T08:36:08+00:00  2026-09-28 08:36:08 - oteldemo.AdService - no baggage found in context trace_id=5d7c0423c840c5b95589652a292c5562 span_id=2e9da3175c4fe6da trace_flags=01 
+2026-09-28T08:36:08+00:00  2026-09-28 08:36:08 - oteldemo.AdService - Targeted ad request received for [telescopes] trace_id=5d7c0423c840c5b95589652a292c5562 span_id=2e9da3175c4fe6da trace_flags=01 
+2026-09-28T08:36:12+00:00  2026-09-28 08:36:12 - oteldemo.AdService - no baggage found in context trace_id=526ffb35be4f3060ef271a883357b7db span_id=10e6bfc9911f0348 trace_flags=01 
+2026-09-28T08:36:12+00:00  2026-09-28 08:36:12 - oteldemo.AdService - Targeted ad request received for [accessories] trace_id=526ffb35be4f3060ef271a883357b7db span_id=10e6bfc9911f0348 trace_flags=01 
+2026-09-28T08:36:12+00:00  2026-09-28 08:36:12 - oteldemo.AdService - no baggage found in context trace_id=c09eef6fe5ea60f87e68308ad8c59942 span_id=bc29544481e623d9 trace_flags=01 
+2026-09-28T08:36:12+00:00  2026-09-28 08:36:12 - oteldemo.AdService - Targeted ad request received for [books] trace_id=c09eef6fe5ea60f87e68308ad8c59942 span_id=bc29544481e623d9 trace_flags=01 
+2026-09-28T08:36:16+00:00  2026-09-28 08:36:16 - oteldemo.AdService - no baggage found in context trace_id=259bad60d399a11f03570311d719f718 span_id=a83c864eb1820d21 trace_flags=01 
+2026-09-28T08:36:16+00:00  2026-09-28 08:36:16 - oteldemo.AdService - Targeted ad request received for [accessories] trace_id=259bad60d399a11f03570311d719f718 span_id=a83c864eb1820d21 trace_flags=01 
+2026-09-28T08:36:18+00:00  2026-09-28 08:36:18 - oteldemo.AdService - no baggage found in context trace_id=6a337531447c26ef87250ec7f8f97dd5 span_id=e9bddf5d36bc03b6 trace_flags=01 
+2026-09-28T08:36:18+00:00  2026-09-28 08:36:18 - oteldemo.AdService - Targeted ad request received for [travel] trace_id=6a337531447c26ef87250ec7f8f97dd5 span_id=e9bddf5d36bc03b6 trace_flags=01 
+2026-09-28T08:36:27+00:00  2026-09-28 08:36:27 - oteldemo.AdService - no baggage found in context trace_id=ee70e9de20cd335a4958b39257041def span_id=fb767e59b1f930f9 trace_flags=01 
+2026-09-28T08:36:27+00:00  2026-09-28 08:36:27 - oteldemo.AdService - Targeted ad request received for [binoculars] trace_id=ee70e9de20cd335a4958b39257041def span_id=fb767e59b1f930f9 trace_flags=01 
+2026-09-28T08:36:36+00:00  2026-09-28 08:36:36 - oteldemo.AdService - no baggage found in context trace_id=c3616d2da97c705aa0f25126e247246e span_id=f9de45888d7ade40 trace_flags=01 
+2026-09-28T08:36:36+00:00  2026-09-28 08:36:36 - oteldemo.AdService - Targeted ad request received for [assembly] trace_id=c3616d2da97c705aa0f25126e247246e span_id=f9de45888d7ade40 trace_flags=01 
+2026-09-28T08:36:38+00:00  2026-09-28 08:36:38 - oteldemo.AdService - no baggage found in context trace_id=9cf5e8261b5997c50edc1896db1feb51 span_id=aff4ea63e9035a0d trace_flags=01 
+2026-09-28T08:36:38+00:00  2026-09-28 08:36:38 - oteldemo.AdService - Targeted ad request received for [travel] trace_id=9cf5e8261b5997c50edc1896db1feb51 span_id=aff4ea63e9035a0d trace_flags=01 
+2026-09-28T08:36:43+00:00  2026-09-28 08:36:43 - oteldemo.AdService - no baggage found in context trace_id=7cb7ae47ddc3998c0b7d707feace2d97 span_id=39f202fe22f7214e trace_flags=01 
+2026-09-28T08:36:43+00:00  2026-09-28 08:36:43 - oteldemo.AdService - Targeted ad request received for [accessories] trace_id=7cb7ae47ddc3998c0b7d707feace2d97 span_id=39f202fe22f7214e trace_flags=01 
+2026-09-28T08:36:46+00:00  2026-09-28 08:36:46 - oteldemo.AdService - no baggage found in context trace_id=6bb6118e625fb63b1c07f128d9e09ce3 span_id=f550eecd27a94b42 trace_flags=01 
+2026-09-28T08:36:46+00:00  2026-09-28 08:36:46 - oteldemo.AdService - Targeted ad request received for [telescopes] trace_id=6bb6118e625fb63b1c07f128d9e09ce3 span_id=f550eecd27a94b42 trace_flags=01 
+2026-09-28T08:36:51+00:00  2026-09-28 08:36:51 - oteldemo.AdService - no baggage found in context trace_id=e0959f4a8e279a4db15c5c8151555e65 span_id=6f3a7751f4db3efe trace_flags=01 
+2026-09-28T08:36:51+00:00  2026-09-28 08:36:51 - oteldemo.AdService - Targeted ad request received for [travel] trace_id=e0959f4a8e279a4db15c5c8151555e65 span_id=6f3a7751f4db3efe trace_flags=01 
+2026-09-28T08:36:58+00:00  2026-09-28 08:36:58 - oteldemo.AdService - no baggage found in context trace_id=a128db1a819f6e3e6e2531e543961562 span_id=063888a4629c8709 trace_flags=01 
+2026-09-28T08:36:58+00:00  2026-09-28 08:36:58 - oteldemo.AdService - Targeted ad request received for [books] trace_id=a128db1a819f6e3e6e2531e543961562 span_id=063888a4629c8709 trace_flags=01 
+2026-09-28T08:37:03+00:00  2026-09-28 08:37:03 - oteldemo.AdService - no baggage found in context trace_id=8f914467dc5c7239a04df0d92124a3e5 span_id=cde979a0451bc620 trace_flags=01 
+2026-09-28T08:37:03+00:00  2026-09-28 08:37:03 - oteldemo.AdService - Targeted ad request received for [assembly] trace_id=8f914467dc5c7239a04df0d92124a3e5 span_id=cde979a0451bc620 trace_flags=01 
+2026-09-28T08:37:10+00:00  2026-09-28 08:37:10 - oteldemo.AdService - no baggage found in context trace_id=53254409b17b5500d4a392815c6c3df7 span_id=b00d08eaaddd7153 trace_flags=01 
+2026-09-28T08:37:10+00:00  2026-09-28 08:37:10 - oteldemo.AdService - Targeted ad request received for [books] trace_id=53254409b17b5500d4a392815c6c3df7 span_id=b00d08eaaddd7153 trace_flags=01 
+2026-09-28T08:37:10+00:00  2026-09-28 08:37:10 - oteldemo.AdService - no baggage found in context trace_id=367d438f9c2c2fb7d785a10498940891 span_id=32c55e4374868110 trace_flags=01 
+2026-09-28T08:37:10+00:00  2026-09-28 08:37:10 - oteldemo.AdService - Targeted ad request received for [travel] trace_id=367d438f9c2c2fb7d785a10498940891 span_id=32c55e4374868110 trace_flags=01 
+2026-09-28T08:37:11+00:00  2026-09-28 08:37:11 - oteldemo.AdService - no baggage found in context trace_id=a761d846cb9f967030f454fab33b1703 span_id=5eab0846f4eb9d0d trace_flags=01 
+2026-09-28T08:37:11+00:00  2026-09-28 08:37:11 - oteldemo.AdService - Targeted ad request received for [telescopes] trace_id=a761d846cb9f967030f454fab33b1703 span_id=5eab0846f4eb9d0d trace_flags=01 
+2026-09-28T08:37:14+00:00  2026-09-28 08:37:14 - oteldemo.AdService - no baggage found in context trace_id=ead47ddb8795294fd921417b5a3a9bbb span_id=97ef94af72f36002 trace_flags=01 
+2026-09-28T08:37:14+00:00  2026-09-28 08:37:14 - oteldemo.AdService - Targeted ad request received for [travel] trace_id=ead47ddb8795294fd921417b5a3a9bbb span_id=97ef94af72f36002 trace_flags=01 
+2026-09-28T08:37:14+00:00  2026-09-28 08:37:14 - oteldemo.AdService - no baggage found in context trace_id=cd854e1267c29d25268321289edbf542 span_id=2d4d3ac608a9ce4e trace_flags=01 
+2026-09-28T08:37:14+00:00  2026-09-28 08:37:14 - oteldemo.AdService - Targeted ad request received for [books] trace_id=cd854e1267c29d25268321289edbf542 span_id=2d4d3ac608a9ce4e trace_flags=01 
+2026-09-28T08:37:21+00:00  2026-09-28 08:37:21 - oteldemo.AdService - no baggage found in context trace_id=d1b611515754e634c957c4646d10ba57 span_id=538688147c971028 trace_flags=01 
+2026-09-28T08:37:21+00:00  2026-09-28 08:37:21 - oteldemo.AdService - Targeted ad request received for [telescopes] trace_id=d1b611515754e634c957c4646d10ba57 span_id=538688147c971028 trace_flags=01 
+2026-09-28T08:37:22+00:00  2026-09-28 08:37:22 - oteldemo.AdService - no baggage found in context trace_id=b5565aec030f48c17445b7873d228e82 span_id=c3636dc37f254744 trace_flags=01 
+2026-09-28T08:37:22+00:00  2026-09-28 08:37:22 - oteldemo.AdService - Targeted ad request received for [assembly] trace_id=b5565aec030f48c17445b7873d228e82 span_id=c3636dc37f254744 trace_flags=01 
+2026-09-28T08:37:25+00:00  2026-09-28 08:37:25 - oteldemo.AdService - no baggage found in context trace_id=4ee6d363ccd9090092fb73b7dffd60f2 span_id=08c66ce4fba848f5 trace_flags=01 
+2026-09-28T08:37:25+00:00  2026-09-28 08:37:25 - oteldemo.AdService - Targeted ad request received for [travel] trace_id=4ee6d363ccd9090092fb73b7dffd60f2 span_id=08c66ce4fba848f5 trace_flags=01 
+2026-09-28T08:37:28+00:00  2026-09-28 08:37:28 - oteldemo.AdService - no baggage found in context trace_id=d82b87820611cba0a8299460dfa0cfcb span_id=69d5dd74cd809460 trace_flags=01 
+2026-09-28T08:37:28+00:00  2026-09-28 08:37:28 - oteldemo.AdService - Targeted ad request received for [assembly] trace_id=d82b87820611cba0a8299460dfa0cfcb span_id=69d5dd74cd809460 trace_flags=01 
+2026-09-28T08:37:33+00:00  2026-09-28 08:37:33 - oteldemo.AdService - no baggage found in context trace_id=151a8377774dc968aea3ee1d57929aeb span_id=d2ecfa983237afb9 trace_flags=01 
+2026-09-28T08:37:33+00:00  2026-09-28 08:37:33 - oteldemo.AdService - Targeted ad request received for [books] trace_id=151a8377774dc968aea3ee1d57929aeb span_id=d2ecfa983237afb9 trace_flags=01 
+2026-09-28T08:37:35+00:00  2026-09-28 08:37:35 - oteldemo.AdService - no baggage found in context trace_id=945aed952f4547b3b43afa19abb1b87d span_id=22062f74ef83b468 trace_flags=01 
+2026-09-28T08:37:35+00:00  2026-09-28 08:37:35 - oteldemo.AdService - Targeted ad request received for [travel] trace_id=945aed952f4547b3b43afa19abb1b87d span_id=22062f74ef83b468 trace_flags=01 
+2026-09-28T08:37:52+00:00  2026-09-28 08:37:52 - oteldemo.AdService - no baggage found in context trace_id=8478b46fbf00746e9ee4d4e7e0f418e3 span_id=c4f7c748dd6d631b trace_flags=01 
+2026-09-28T08:37:52+00:00  2026-09-28 08:37:52 - oteldemo.AdService - Targeted ad request received for [telescopes] trace_id=8478b46fbf00746e9ee4d4e7e0f418e3 span_id=c4f7c748dd6d631b trace_flags=01 
+2026-09-28T08:37:57+00:00  2026-09-28 08:37:57 - oteldemo.AdService - no baggage found in context trace_id=915bb08313d423f2e1aab675ad55f3d1 span_id=c0d593deacd0b643 trace_flags=01 
+2026-09-28T08:37:57+00:00  2026-09-28 08:37:57 - oteldemo.AdService - Targeted ad request received for [assembly] trace_id=915bb08313d423f2e1aab675ad55f3d1 span_id=c0d593deacd0b643 trace_flags=01 
+2026-09-28T08:38:07+00:00  2026-09-28 08:38:07 - oteldemo.AdService - no baggage found in context trace_id=ca0cb24f294aa7bda18a8a247b5f2555 span_id=d12147f73aa6db4d trace_flags=01 
+2026-09-28T08:38:07+00:00  2026-09-28 08:38:07 - oteldemo.AdService - Targeted ad request received for [travel] trace_id=ca0cb24f294aa7bda18a8a247b5f2555 span_id=d12147f73aa6db4d trace_flags=01 
+# ---- onset 2026-09-28T08:38:09+00:00 ----
+2026-09-28T08:38:21+00:00  [otel.javaagent 2026-09-28 08:38:21:198 +0000] [OkHttp http://otel-collector:4318/...] ERROR io.opentelemetry.exporter.internal.http.HttpExporter - Failed to export spans. The request could not be executed. Full error message: timeout
+2026-09-28T08:38:21+00:00  java.io.InterruptedIOException: timeout
+2026-09-28T08:38:21+00:00  	at okhttp3.internal.connection.RealCall.timeoutExit(RealCall.kt:461)
+2026-09-28T08:38:21+00:00  	at okhttp3.internal.connection.RealCall.callDone(RealCall.kt:423)
+2026-09-28T08:38:21+00:00  	at okhttp3.internal.connection.RealCall.noMoreExchanges$okhttp(RealCall.kt:381)
+2026-09-28T08:38:21+00:00  	at okhttp3.internal.connection.RealCall.getResponseWithInterceptorChain$okhttp(RealCall.kt:234)
+2026-09-28T08:38:21+00:00  	at okhttp3.internal.connection.RealCall$AsyncCall.run(RealCall.kt:574)
+2026-09-28T08:38:21+00:00  	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(Unknown Source)
+2026-09-28T08:38:21+00:00  	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(Unknown Source)
+2026-09-28T08:38:21+00:00  	at java.base/java.lang.Thread.run(Unknown Source)
+2026-09-28T08:38:21+00:00  Caused by: java.io.IOException: Canceled
+2026-09-28T08:38:21+00:00  	at okhttp3.internal.http.RetryAndFollowUpInterceptor.intercept(RetryAndFollowUpInterceptor.kt:70)
+2026-09-28T08:38:21+00:00  	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:126)
+2026-09-28T08:38:21+00:00  	at io.opentelemetry.exporter.sender.okhttp.internal.RetryInterceptor.intercept(RetryInterceptor.java:96)
+2026-09-28T08:38:21+00:00  	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:126)
+2026-09-28T08:38:21+00:00  	at okhttp3.internal.connection.RealCall.getResponseWithInterceptorChain$okhttp(RealCall.kt:226)
+2026-09-28T08:38:21+00:00  	... 4 more
+2026-09-28T08:38:47+00:00  [otel.javaagent 2026-09-28 08:38:47:491 +0000] [OkHttp http://otel-collector:4318/...] ERROR io.opentelemetry.exporter.internal.http.HttpExporter - Failed to export metrics. The request could not be executed. Full error message: timeout
+2026-09-28T08:38:47+00:00  java.io.InterruptedIOException: timeout
+2026-09-28T08:38:47+00:00  	at okhttp3.internal.connection.RealCall.timeoutExit(RealCall.kt:461)
+2026-09-28T08:38:47+00:00  	at okhttp3.internal.connection.RealCall.callDone(RealCall.kt:423)
+2026-09-28T08:38:47+00:00  	at okhttp3.internal.connection.RealCall.noMoreExchanges$okhttp(RealCall.kt:381)
+2026-09-28T08:38:47+00:00  	at okhttp3.internal.connection.RealCall.getResponseWithInterceptorChain$okhttp(RealCall.kt:234)
+2026-09-28T08:38:47+00:00  	at okhttp3.internal.connection.RealCall$AsyncCall.run(RealCall.kt:574)
+2026-09-28T08:38:47+00:00  	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(Unknown Source)
+2026-09-28T08:38:47+00:00  	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(Unknown Source)
+2026-09-28T08:38:47+00:00  	at java.base/java.lang.Thread.run(Unknown Source)
+2026-09-28T08:38:47+00:00  Caused by: java.io.IOException: Canceled
+2026-09-28T08:38:47+00:00  	at okhttp3.internal.http.RetryAndFollowUpInterceptor.intercept(RetryAndFollowUpInterceptor.kt:70)
+2026-09-28T08:38:47+00:00  	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:126)
+2026-09-28T08:38:47+00:00  	at io.opentelemetry.exporter.sender.okhttp.internal.RetryInterceptor.intercept(RetryInterceptor.java:96)
+2026-09-28T08:38:47+00:00  	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:126)
+2026-09-28T08:38:47+00:00  	at okhttp3.internal.connection.RealCall.getResponseWithInterceptorChain$okhttp(RealCall.kt:226)
+2026-09-28T08:38:47+00:00  	... 4 more
+2026-09-28T08:39:46+00:00  [otel.javaagent 2026-09-28 08:39:46:298 +0000] [OkHttp http://otel-collector:4318/...] ERROR io.opentelemetry.exporter.internal.http.HttpExporter - Failed to export metrics. The request could not be executed. Full error message: otel-collector
+2026-09-28T08:39:46+00:00  java.net.UnknownHostException: otel-collector
+2026-09-28T08:39:46+00:00  	at java.base/java.net.InetAddress$CachedLookup.get(Unknown Source)
+2026-09-28T08:39:46+00:00  	at java.base/java.net.InetAddress.getAllByName0(Unknown Source)
+2026-09-28T08:39:46+00:00  	at java.base/java.net.InetAddress.getAllByName(Unknown Source)
+2026-09-28T08:39:46+00:00  	at okhttp3.Dns$Companion$DnsSystem.lookup(Dns.kt:50)
+2026-09-28T08:39:46+00:00  	at okhttp3.internal.connection.RouteSelector.resetNextInetSocketAddress(RouteSelector.kt:170)
+2026-09-28T08:39:46+00:00  	at okhttp3.internal.connection.RouteSelector.nextProxy(RouteSelector.kt:132)
+2026-09-28T08:39:46+00:00  	at okhttp3.internal.connection.RouteSelector.next(RouteSelector.kt:70)
+2026-09-28T08:39:46+00:00  	at okhttp3.internal.connection.RealRoutePlanner.planConnect$okhttp(RealRoutePlanner.kt:164)
+2026-09-28T08:39:46+00:00  	at okhttp3.internal.connection.RealRoutePlanner.plan(RealRoutePlanner.kt:75)
+2026-09-28T08:39:46+00:00  	at okhttp3.internal.connection.FastFallbackExchangeFinder.launchTcpConnect(FastFallbackExchangeFinder.kt:119)
+2026-09-28T08:39:46+00:00  	at okhttp3.internal.connection.FastFallbackExchangeFinder.find(FastFallbackExchangeFinder.kt:62)
+2026-09-28T08:39:46+00:00  	at okhttp3.internal.connection.RealCall.initExchange$okhttp(RealCall.kt:298)
+2026-09-28T08:39:46+00:00  	at okhttp3.internal.connection.ConnectInterceptor.intercept(ConnectInterceptor.kt:32)
+2026-09-28T08:39:46+00:00  	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:126)
+2026-09-28T08:39:46+00:00  	at okhttp3.internal.cache.CacheInterceptor.intercept(CacheInterceptor.kt:101)
+2026-09-28T08:39:46+00:00  	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:126)
+2026-09-28T08:39:46+00:00  	at okhttp3.internal.http.BridgeInterceptor.intercept(BridgeInterceptor.kt:85)
+2026-09-28T08:39:46+00:00  	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:126)
+2026-09-28T08:39:46+00:00  	at okhttp3.internal.http.RetryAndFollowUpInterceptor.intercept(RetryAndFollowUpInterceptor.kt:74)
+2026-09-28T08:39:46+00:00  	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:126)
+2026-09-28T08:39:46+00:00  	at io.opentelemetry.exporter.sender.okhttp.internal.RetryInterceptor.intercept(RetryInterceptor.java:96)
+2026-09-28T08:39:46+00:00  	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:126)
+2026-09-28T08:39:46+00:00  	at okhttp3.internal.connection.RealCall.getResponseWithInterceptorChain$okhttp(RealCall.kt:226)
+2026-09-28T08:39:46+00:00  	at okhttp3.internal.connection.RealCall$AsyncCall.run(RealCall.kt:574)
+2026-09-28T08:39:46+00:00  	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(Unknown Source)
+2026-09-28T08:39:46+00:00  	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(Unknown Source)
+2026-09-28T08:39:46+00:00  	at java.base/java.lang.Thread.run(Unknown Source)
+2026-09-28T08:40:45+00:00  [otel.javaagent 2026-09-28 08:40:45:671 +0000] [OkHttp http://otel-collector:4318/...] ERROR io.opentelemetry.exporter.internal.http.HttpExporter - Failed to export metrics. The request could not be executed. Full error message: otel-collector
+2026-09-28T08:40:45+00:00  java.net.UnknownHostException: otel-collector
+2026-09-28T08:40:45+00:00  	at java.base/java.net.InetAddress$CachedLookup.get(Unknown Source)
+2026-09-28T08:40:45+00:00  	at java.base/java.net.InetAddress.getAllByName0(Unknown Source)
+2026-09-28T08:40:45+00:00  	at java.base/java.net.InetAddress.getAllByName(Unknown Source)
+2026-09-28T08:40:45+00:00  	at okhttp3.Dns$Companion$DnsSystem.lookup(Dns.kt:50)
+2026-09-28T08:40:45+00:00  	at okhttp3.internal.connection.RouteSelector.resetNextInetSocketAddress(RouteSelector.kt:170)
+2026-09-28T08:40:45+00:00  	at okhttp3.internal.connection.RouteSelector.nextProxy(RouteSelector.kt:132)
+2026-09-28T08:40:45+00:00  	at okhttp3.internal.connection.RouteSelector.next(RouteSelector.kt:70)
+2026-09-28T08:40:45+00:00  	at okhttp3.internal.connection.RealRoutePlanner.planConnect$okhttp(RealRoutePlanner.kt:164)
+2026-09-28T08:40:45+00:00  	at okhttp3.internal.connection.RealRoutePlanner.plan(RealRoutePlanner.kt:75)
+2026-09-28T08:40:45+00:00  	at okhttp3.internal.connection.FastFallbackExchangeFinder.launchTcpConnect(FastFallbackExchangeFinder.kt:119)
+2026-09-28T08:40:45+00:00  	at okhttp3.internal.connection.FastFallbackExchangeFinder.find(FastFallbackExchangeFinder.kt:62)
+2026-09-28T08:40:45+00:00  	at okhttp3.internal.connection.RealCall.initExchange$okhttp(RealCall.kt:298)
+2026-09-28T08:40:45+00:00  	at okhttp3.internal.connection.ConnectInterceptor.intercept(ConnectInterceptor.kt:32)
+2026-09-28T08:40:45+00:00  	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:126)
+2026-09-28T08:40:45+00:00  	at okhttp3.internal.cache.CacheInterceptor.intercept(CacheInterceptor.kt:101)
+2026-09-28T08:40:45+00:00  	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:126)
+2026-09-28T08:40:45+00:00  	at okhttp3.internal.http.BridgeInterceptor.intercept(BridgeInterceptor.kt:85)
+2026-09-28T08:40:45+00:00  	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:126)
+2026-09-28T08:40:45+00:00  	at okhttp3.internal.http.RetryAndFollowUpInterceptor.intercept(RetryAndFollowUpInterceptor.kt:74)
+2026-09-28T08:40:45+00:00  	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:126)
+2026-09-28T08:40:45+00:00  	at io.opentelemetry.exporter.sender.okhttp.internal.RetryInterceptor.intercept(RetryInterceptor.java:96)
+2026-09-28T08:40:45+00:00  	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:126)
+2026-09-28T08:40:45+00:00  	at okhttp3.internal.connection.RealCall.getResponseWithInterceptorChain$okhttp(RealCall.kt:226)
+2026-09-28T08:40:45+00:00  	at okhttp3.internal.connection.RealCall$AsyncCall.run(RealCall.kt:574)
+2026-09-28T08:40:45+00:00  	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(Unknown Source)
+2026-09-28T08:40:45+00:00  	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(Unknown Source)
+2026-09-28T08:40:45+00:00  	at java.base/java.lang.Thread.run(Unknown Source)
+2026-09-28T08:41:46+00:00  [otel.javaagent 2026-09-28 08:41:46:159 +0000] [OkHttp http://otel-collector:4318/...] ERROR io.opentelemetry.exporter.internal.http.HttpExporter - Failed to export metrics. The request could not be executed. Full error message: otel-collector
+2026-09-28T08:41:46+00:00  java.net.UnknownHostException: otel-collector
+2026-09-28T08:41:46+00:00  	at java.base/java.net.InetAddress$CachedLookup.get(Unknown Source)
+2026-09-28T08:41:46+00:00  	at java.base/java.net.InetAddress.getAllByName0(Unknown Source)
+2026-09-28T08:41:46+00:00  	at java.base/java.net.InetAddress.getAllByName(Unknown Source)
+2026-09-28T08:41:46+00:00  	at okhttp3.Dns$Companion$DnsSystem.lookup(Dns.kt:50)
+2026-09-28T08:41:46+00:00  	at okhttp3.internal.connection.RouteSelector.resetNextInetSocketAddress(RouteSelector.kt:170)
+2026-09-28T08:41:46+00:00  	at okhttp3.internal.connection.RouteSelector.nextProxy(RouteSelector.kt:132)
+2026-09-28T08:41:46+00:00  	at okhttp3.internal.connection.RouteSelector.next(RouteSelector.kt:70)
+2026-09-28T08:41:46+00:00  	at okhttp3.internal.connection.RealRoutePlanner.planConnect$okhttp(RealRoutePlanner.kt:164)
+2026-09-28T08:41:46+00:00  	at okhttp3.internal.connection.RealRoutePlanner.plan(RealRoutePlanner.kt:75)
+2026-09-28T08:41:46+00:00  	at okhttp3.internal.connection.FastFallbackExchangeFinder.launchTcpConnect(FastFallbackExchangeFinder.kt:119)
+2026-09-28T08:41:46+00:00  	at okhttp3.internal.connection.FastFallbackExchangeFinder.find(FastFallbackExchangeFinder.kt:62)
+2026-09-28T08:41:46+00:00  	at okhttp3.internal.connection.RealCall.initExchange$okhttp(RealCall.kt:298)
+2026-09-28T08:41:46+00:00  	at okhttp3.internal.connection.ConnectInterceptor.intercept(ConnectInterceptor.kt:32)
+2026-09-28T08:41:46+00:00  	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:126)
+2026-09-28T08:41:46+00:00  	at okhttp3.internal.cache.CacheInterceptor.intercept(CacheInterceptor.kt:101)
+2026-09-28T08:41:46+00:00  	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:126)
+2026-09-28T08:41:46+00:00  	at okhttp3.internal.http.BridgeInterceptor.intercept(BridgeInterceptor.kt:85)
+2026-09-28T08:41:46+00:00  	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:126)
+2026-09-28T08:41:46+00:00  	at okhttp3.internal.http.RetryAndFollowUpInterceptor.intercept(RetryAndFollowUpInterceptor.kt:74)
+2026-09-28T08:41:46+00:00  	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:126)
+2026-09-28T08:41:46+00:00  	at io.opentelemetry.exporter.sender.okhttp.internal.RetryInterceptor.intercept(RetryInterceptor.java:96)
+2026-09-28T08:41:46+00:00  	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:126)
+2026-09-28T08:41:46+00:00  	at okhttp3.internal.connection.RealCall.getResponseWithInterceptorChain$okhttp(RealCall.kt:226)
+2026-09-28T08:41:46+00:00  	at okhttp3.internal.connection.RealCall$AsyncCall.run(RealCall.kt:574)
+2026-09-28T08:41:46+00:00  	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(Unknown Source)
+2026-09-28T08:41:46+00:00  	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(Unknown Source)
+2026-09-28T08:41:46+00:00  	at java.base/java.lang.Thread.run(Unknown Source)
+2026-09-28T08:42:45+00:00  [otel.javaagent 2026-09-28 08:42:45:734 +0000] [OkHttp http://otel-collector:4318/...] ERROR io.opentelemetry.exporter.internal.http.HttpExporter - Failed to export metrics. The request could not be executed. Full error message: otel-collector
+2026-09-28T08:42:45+00:00  java.net.UnknownHostException: otel-collector
+2026-09-28T08:42:45+00:00  	at java.base/java.net.InetAddress$CachedLookup.get(Unknown Source)
+2026-09-28T08:42:45+00:00  	at java.base/java.net.InetAddress.getAllByName0(Unknown Source)
+2026-09-28T08:42:45+00:00  	at java.base/java.net.InetAddress.getAllByName(Unknown Source)
+2026-09-28T08:42:45+00:00  	at okhttp3.Dns$Companion$DnsSystem.lookup(Dns.kt:50)
+2026-09-28T08:42:45+00:00  	at okhttp3.internal.connection.RouteSelector.resetNextInetSocketAddress(RouteSelector.kt:170)
+2026-09-28T08:42:45+00:00  	at okhttp3.internal.connection.RouteSelector.nextProxy(RouteSelector.kt:132)
+2026-09-28T08:42:45+00:00  	at okhttp3.internal.connection.RouteSelector.next(RouteSelector.kt:70)
+2026-09-28T08:42:45+00:00  	at okhttp3.internal.connection.RealRoutePlanner.planConnect$okhttp(RealRoutePlanner.kt:164)
+2026-09-28T08:42:45+00:00  	at okhttp3.internal.connection.RealRoutePlanner.plan(RealRoutePlanner.kt:75)
+2026-09-28T08:42:45+00:00  	at okhttp3.internal.connection.FastFallbackExchangeFinder.launchTcpConnect(FastFallbackExchangeFinder.kt:119)
+2026-09-28T08:42:45+00:00  	at okhttp3.internal.connection.FastFallbackExchangeFinder.find(FastFallbackExchangeFinder.kt:62)
+2026-09-28T08:42:45+00:00  	at okhttp3.internal.connection.RealCall.initExchange$okhttp(RealCall.kt:298)
+2026-09-28T08:42:45+00:00  	at okhttp3.internal.connection.ConnectInterceptor.intercept(ConnectInterceptor.kt:32)
+2026-09-28T08:42:45+00:00  	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:126)
+2026-09-28T08:42:45+00:00  	at okhttp3.internal.cache.CacheInterceptor.intercept(CacheInterceptor.kt:101)
+2026-09-28T08:42:45+00:00  	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:126)
+2026-09-28T08:42:45+00:00  	at okhttp3.internal.http.BridgeInterceptor.intercept(BridgeInterceptor.kt:85)
+2026-09-28T08:42:45+00:00  	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:126)
+2026-09-28T08:42:45+00:00  	at okhttp3.internal.http.RetryAndFollowUpInterceptor.intercept(RetryAndFollowUpInterceptor.kt:74)
+2026-09-28T08:42:45+00:00  	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:126)
+2026-09-28T08:42:45+00:00  	at io.opentelemetry.exporter.sender.okhttp.internal.RetryInterceptor.intercept(RetryInterceptor.java:96)
+2026-09-28T08:42:45+00:00  	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:126)
+2026-09-28T08:42:45+00:00  	at okhttp3.internal.connection.RealCall.getResponseWithInterceptorChain$okhttp(RealCall.kt:226)
+2026-09-28T08:42:45+00:00  	at okhttp3.internal.connection.RealCall$AsyncCall.run(RealCall.kt:574)
+2026-09-28T08:42:45+00:00  	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(Unknown Source)
+2026-09-28T08:42:45+00:00  	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(Unknown Source)
+2026-09-28T08:42:45+00:00  	at java.base/java.lang.Thread.run(Unknown Source)
+2026-09-28T08:42:49+00:00  [otel.javaagent 2026-09-28 08:42:49:036 +0000] [OkHttp http://otel-collector:4318/...] ERROR io.opentelemetry.exporter.internal.http.HttpExporter - Failed to export spans. The request could not be executed. Full error message: otel-collector: Temporary failure in name resolution
+2026-09-28T08:42:49+00:00  java.net.UnknownHostException: otel-collector: Temporary failure in name resolution
+2026-09-28T08:42:49+00:00  	at java.base/java.net.Inet6AddressImpl.lookupAllHostAddr(Native Method)
+2026-09-28T08:42:49+00:00  	at java.base/java.net.Inet6AddressImpl.lookupAllHostAddr(Unknown Source)
+2026-09-28T08:42:49+00:00  	at java.base/java.net.InetAddress$PlatformResolver.lookupByName(Unknown Source)
+2026-09-28T08:42:49+00:00  	at java.base/java.net.InetAddress.getAddressesFromNameService(Unknown Source)
+2026-09-28T08:42:49+00:00  	at java.base/java.net.InetAddress$NameServiceAddresses.get(Unknown Source)
+2026-09-28T08:42:49+00:00  	at java.base/java.net.InetAddress.getAllByName0(Unknown Source)
+2026-09-28T08:42:49+00:00  	at java.base/java.net.InetAddress.getAllByName(Unknown Source)
+2026-09-28T08:42:49+00:00  	at okhttp3.Dns$Companion$DnsSystem.lookup(Dns.kt:50)
+2026-09-28T08:42:49+00:00  	at okhttp3.internal.connection.RouteSelector.resetNextInetSocketAddress(RouteSelector.kt:170)
+2026-09-28T08:42:49+00:00  	at okhttp3.internal.connection.RouteSelector.nextProxy(RouteSelector.kt:132)
+2026-09-28T08:42:49+00:00  	at okhttp3.internal.connection.RouteSelector.next(RouteSelector.kt:70)
+2026-09-28T08:42:49+00:00  	at okhttp3.internal.connection.RealRoutePlanner.planConnect$okhttp(RealRoutePlanner.kt:164)
+2026-09-28T08:42:49+00:00  	at okhttp3.internal.connection.RealRoutePlanner.plan(RealRoutePlanner.kt:75)
+2026-09-28T08:42:49+00:00  	at okhttp3.internal.connection.FastFallbackExchangeFinder.launchTcpConnect(FastFallbackExchangeFinder.kt:119)
+2026-09-28T08:42:49+00:00  	at okhttp3.internal.connection.FastFallbackExchangeFinder.find(FastFallbackExchangeFinder.kt:62)
+2026-09-28T08:42:49+00:00  	at okhttp3.internal.connection.RealCall.initExchange$okhttp(RealCall.kt:298)
+2026-09-28T08:42:49+00:00  	at okhttp3.internal.connection.ConnectInterceptor.intercept(ConnectInterceptor.kt:32)
+2026-09-28T08:42:49+00:00  	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:126)
+2026-09-28T08:42:49+00:00  	at okhttp3.internal.cache.CacheInterceptor.intercept(CacheInterceptor.kt:101)
+2026-09-28T08:42:49+00:00  	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:126)
+2026-09-28T08:42:49+00:00  	at okhttp3.internal.http.BridgeInterceptor.intercept(BridgeInterceptor.kt:85)
+2026-09-28T08:42:49+00:00  	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:126)
+2026-09-28T08:42:49+00:00  	at okhttp3.internal.http.RetryAndFollowUpInterceptor.intercept(RetryAndFollowUpInterceptor.kt:74)
+2026-09-28T08:42:49+00:00  	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:126)
+2026-09-28T08:42:49+00:00  	at io.opentelemetry.exporter.sender.okhttp.internal.RetryInterceptor.intercept(RetryInterceptor.java:96)
+2026-09-28T08:42:49+00:00  	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:126)
+2026-09-28T08:42:49+00:00  	at okhttp3.internal.connection.RealCall.getResponseWithInterceptorChain$okhttp(RealCall.kt:226)
+2026-09-28T08:42:49+00:00  	at okhttp3.internal.connection.RealCall$AsyncCall.run(RealCall.kt:574)
+2026-09-28T08:42:49+00:00  	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(Unknown Source)
+2026-09-28T08:42:49+00:00  	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(Unknown Source)
+2026-09-28T08:42:49+00:00  	at java.base/java.lang.Thread.run(Unknown Source)
+2026-09-28T08:43:45+00:00  [otel.javaagent 2026-09-28 08:43:45:924 +0000] [OkHttp http://otel-collector:4318/...] ERROR io.opentelemetry.exporter.internal.http.HttpExporter - Failed to export metrics. The request could not be executed. Full error message: otel-collector
+2026-09-28T08:43:45+00:00  java.net.UnknownHostException: otel-collector
+2026-09-28T08:43:45+00:00  	at java.base/java.net.InetAddress$CachedLookup.get(Unknown Source)
+2026-09-28T08:43:45+00:00  	at java.base/java.net.InetAddress.getAllByName0(Unknown Source)
+2026-09-28T08:43:45+00:00  	at java.base/java.net.InetAddress.getAllByName(Unknown Source)
+2026-09-28T08:43:45+00:00  	at okhttp3.Dns$Companion$DnsSystem.lookup(Dns.kt:50)
+2026-09-28T08:43:45+00:00  	at okhttp3.internal.connection.RouteSelector.resetNextInetSocketAddress(RouteSelector.kt:170)
+2026-09-28T08:43:45+00:00  	at okhttp3.internal.connection.RouteSelector.nextProxy(RouteSelector.kt:132)
+2026-09-28T08:43:45+00:00  	at okhttp3.internal.connection.RouteSelector.next(RouteSelector.kt:70)
+2026-09-28T08:43:45+00:00  	at okhttp3.internal.connection.RealRoutePlanner.planConnect$okhttp(RealRoutePlanner.kt:164)
+2026-09-28T08:43:45+00:00  	at okhttp3.internal.connection.RealRoutePlanner.plan(RealRoutePlanner.kt:75)
+2026-09-28T08:43:45+00:00  	at okhttp3.internal.connection.FastFallbackExchangeFinder.launchTcpConnect(FastFallbackExchangeFinder.kt:119)
+2026-09-28T08:43:45+00:00  	at okhttp3.internal.connection.FastFallbackExchangeFinder.find(FastFallbackExchangeFinder.kt:62)
+2026-09-28T08:43:45+00:00  	at okhttp3.internal.connection.RealCall.initExchange$okhttp(RealCall.kt:298)
+2026-09-28T08:43:45+00:00  	at okhttp3.internal.connection.ConnectInterceptor.intercept(ConnectInterceptor.kt:32)
+2026-09-28T08:43:45+00:00  	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:126)
+2026-09-28T08:43:45+00:00  	at okhttp3.internal.cache.CacheInterceptor.intercept(CacheInterceptor.kt:101)
+2026-09-28T08:43:45+00:00  	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:126)
+2026-09-28T08:43:45+00:00  	at okhttp3.internal.http.BridgeInterceptor.intercept(BridgeInterceptor.kt:85)
+2026-09-28T08:43:45+00:00  	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:126)
+2026-09-28T08:43:45+00:00  	at okhttp3.internal.http.RetryAndFollowUpInterceptor.intercept(RetryAndFollowUpInterceptor.kt:74)
+2026-09-28T08:43:45+00:00  	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:126)
+2026-09-28T08:43:45+00:00  	at io.opentelemetry.exporter.sender.okhttp.internal.RetryInterceptor.intercept(RetryInterceptor.java:96)
+2026-09-28T08:43:45+00:00  	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:126)
+2026-09-28T08:43:45+00:00  	at okhttp3.internal.connection.RealCall.getResponseWithInterceptorChain$okhttp(RealCall.kt:226)
+2026-09-28T08:43:45+00:00  	at okhttp3.internal.connection.RealCall$AsyncCall.run(RealCall.kt:574)
+2026-09-28T08:43:45+00:00  	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(Unknown Source)
+2026-09-28T08:43:45+00:00  	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(Unknown Source)
+2026-09-28T08:43:45+00:00  	at java.base/java.lang.Thread.run(Unknown Source)
+2026-09-28T08:44:45+00:00  [otel.javaagent 2026-09-28 08:44:45:641 +0000] [OkHttp http://otel-collector:4318/...] ERROR io.opentelemetry.exporter.internal.http.HttpExporter - Failed to export metrics. The request could not be executed. Full error message: otel-collector
+2026-09-28T08:44:45+00:00  java.net.UnknownHostException: otel-collector
+2026-09-28T08:44:45+00:00  	at java.base/java.net.InetAddress$CachedLookup.get(Unknown Source)
+2026-09-28T08:44:45+00:00  	at java.base/java.net.InetAddress.getAllByName0(Unknown Source)
+2026-09-28T08:44:45+00:00  	at java.base/java.net.InetAddress.getAllByName(Unknown Source)
+2026-09-28T08:44:45+00:00  	at okhttp3.Dns$Companion$DnsSystem.lookup(Dns.kt:50)
+2026-09-28T08:44:45+00:00  	at okhttp3.internal.connection.RouteSelector.resetNextInetSocketAddress(RouteSelector.kt:170)
+2026-09-28T08:44:45+00:00  	at okhttp3.internal.connection.RouteSelector.nextProxy(RouteSelector.kt:132)
+2026-09-28T08:44:45+00:00  	at okhttp3.internal.connection.RouteSelector.next(RouteSelector.kt:70)
+2026-09-28T08:44:45+00:00  	at okhttp3.internal.connection.RealRoutePlanner.planConnect$okhttp(RealRoutePlanner.kt:164)
+2026-09-28T08:44:45+00:00  	at okhttp3.internal.connection.RealRoutePlanner.plan(RealRoutePlanner.kt:75)
+2026-09-28T08:44:45+00:00  	at okhttp3.internal.connection.FastFallbackExchangeFinder.launchTcpConnect(FastFallbackExchangeFinder.kt:119)
+2026-09-28T08:44:45+00:00  	at okhttp3.internal.connection.FastFallbackExchangeFinder.find(FastFallbackExchangeFinder.kt:62)
+2026-09-28T08:44:45+00:00  	at okhttp3.internal.connection.RealCall.initExchange$okhttp(RealCall.kt:298)
+2026-09-28T08:44:45+00:00  	at okhttp3.internal.connection.ConnectInterceptor.intercept(ConnectInterceptor.kt:32)
+2026-09-28T08:44:45+00:00  	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:126)
+2026-09-28T08:44:45+00:00  	at okhttp3.internal.cache.CacheInterceptor.intercept(CacheInterceptor.kt:101)
+2026-09-28T08:44:45+00:00  	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:126)
+2026-09-28T08:44:45+00:00  	at okhttp3.internal.http.BridgeInterceptor.intercept(BridgeInterceptor.kt:85)
+2026-09-28T08:44:45+00:00  	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:126)
+2026-09-28T08:44:45+00:00  	at okhttp3.internal.http.RetryAndFollowUpInterceptor.intercept(RetryAndFollowUpInterceptor.kt:74)
+2026-09-28T08:44:45+00:00  	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:126)
+2026-09-28T08:44:45+00:00  	at io.opentelemetry.exporter.sender.okhttp.internal.RetryInterceptor.intercept(RetryInterceptor.java:96)
+2026-09-28T08:44:45+00:00  	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:126)
+2026-09-28T08:44:45+00:00  	at okhttp3.internal.connection.RealCall.getResponseWithInterceptorChain$okhttp(RealCall.kt:226)
+2026-09-28T08:44:45+00:00  	at okhttp3.internal.connection.RealCall$AsyncCall.run(RealCall.kt:574)
+2026-09-28T08:44:45+00:00  	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(Unknown Source)
+2026-09-28T08:44:45+00:00  	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(Unknown Source)
+2026-09-28T08:44:45+00:00  	at java.base/java.lang.Thread.run(Unknown Source)
+2026-09-28T08:45:45+00:00  [otel.javaagent 2026-09-28 08:45:45:755 +0000] [OkHttp http://otel-collector:4318/...] ERROR io.opentelemetry.exporter.internal.http.HttpExporter - Failed to export metrics. The request could not be executed. Full error message: otel-collector
+2026-09-28T08:45:45+00:00  java.net.UnknownHostException: otel-collector
+2026-09-28T08:45:45+00:00  	at java.base/java.net.InetAddress$CachedLookup.get(Unknown Source)
+2026-09-28T08:45:45+00:00  	at java.base/java.net.InetAddress.getAllByName0(Unknown Source)
+2026-09-28T08:45:45+00:00  	at java.base/java.net.InetAddress.getAllByName(Unknown Source)
+2026-09-28T08:45:45+00:00  	at okhttp3.Dns$Companion$DnsSystem.lookup(Dns.kt:50)
+2026-09-28T08:45:45+00:00  	at okhttp3.internal.connection.RouteSelector.resetNextInetSocketAddress(RouteSelector.kt:170)
+2026-09-28T08:45:45+00:00  	at okhttp3.internal.connection.RouteSelector.nextProxy(RouteSelector.kt:132)
+2026-09-28T08:45:45+00:00  	at okhttp3.internal.connection.RouteSelector.next(RouteSelector.kt:70)
+2026-09-28T08:45:45+00:00  	at okhttp3.internal.connection.RealRoutePlanner.planConnect$okhttp(RealRoutePlanner.kt:164)
+2026-09-28T08:45:45+00:00  	at okhttp3.internal.connection.RealRoutePlanner.plan(RealRoutePlanner.kt:75)
+2026-09-28T08:45:45+00:00  	at okhttp3.internal.connection.FastFallbackExchangeFinder.launchTcpConnect(FastFallbackExchangeFinder.kt:119)
+2026-09-28T08:45:45+00:00  	at okhttp3.internal.connection.FastFallbackExchangeFinder.find(FastFallbackExchangeFinder.kt:62)
+2026-09-28T08:45:45+00:00  	at okhttp3.internal.connection.RealCall.initExchange$okhttp(RealCall.kt:298)
+2026-09-28T08:45:45+00:00  	at okhttp3.internal.connection.ConnectInterceptor.intercept(ConnectInterceptor.kt:32)
+2026-09-28T08:45:45+00:00  	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:126)
+2026-09-28T08:45:45+00:00  	at okhttp3.internal.cache.CacheInterceptor.intercept(CacheInterceptor.kt:101)
+2026-09-28T08:45:45+00:00  	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:126)
+2026-09-28T08:45:45+00:00  	at okhttp3.internal.http.BridgeInterceptor.intercept(BridgeInterceptor.kt:85)
+2026-09-28T08:45:45+00:00  	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:126)
+2026-09-28T08:45:45+00:00  	at okhttp3.internal.http.RetryAndFollowUpInterceptor.intercept(RetryAndFollowUpInterceptor.kt:74)
+2026-09-28T08:45:45+00:00  	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:126)
+2026-09-28T08:45:45+00:00  	at io.opentelemetry.exporter.sender.okhttp.internal.RetryInterceptor.intercept(RetryInterceptor.java:96)
+2026-09-28T08:45:45+00:00  	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:126)
+2026-09-28T08:45:45+00:00  	at okhttp3.internal.connection.RealCall.getResponseWithInterceptorChain$okhttp(RealCall.kt:226)
+2026-09-28T08:45:45+00:00  	at okhttp3.internal.connection.RealCall$AsyncCall.run(RealCall.kt:574)
+2026-09-28T08:45:45+00:00  	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(Unknown Source)
+2026-09-28T08:45:45+00:00  	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(Unknown Source)
+2026-09-28T08:45:45+00:00  	at java.base/java.lang.Thread.run(Unknown Source)
+2026-09-28T08:46:46+00:00  [otel.javaagent 2026-09-28 08:46:46:217 +0000] [OkHttp http://otel-collector:4318/...] ERROR io.opentelemetry.exporter.internal.http.HttpExporter - Failed to export metrics. The request could not be executed. Full error message: otel-collector
+2026-09-28T08:46:46+00:00  java.net.UnknownHostException: otel-collector
+2026-09-28T08:46:46+00:00  	at java.base/java.net.InetAddress$CachedLookup.get(Unknown Source)
+2026-09-28T08:46:46+00:00  	at java.base/java.net.InetAddress.getAllByName0(Unknown Source)
+2026-09-28T08:46:46+00:00  	at java.base/java.net.InetAddress.getAllByName(Unknown Source)
+2026-09-28T08:46:46+00:00  	at okhttp3.Dns$Companion$DnsSystem.lookup(Dns.kt:50)
+2026-09-28T08:46:46+00:00  	at okhttp3.internal.connection.RouteSelector.resetNextInetSocketAddress(RouteSelector.kt:170)
+2026-09-28T08:46:46+00:00  	at okhttp3.internal.connection.RouteSelector.nextProxy(RouteSelector.kt:132)
+2026-09-28T08:46:46+00:00  	at okhttp3.internal.connection.RouteSelector.next(RouteSelector.kt:70)
+2026-09-28T08:46:46+00:00  	at okhttp3.internal.connection.RealRoutePlanner.planConnect$okhttp(RealRoutePlanner.kt:164)
+2026-09-28T08:46:46+00:00  	at okhttp3.internal.connection.RealRoutePlanner.plan(RealRoutePlanner.kt:75)
+2026-09-28T08:46:46+00:00  	at okhttp3.internal.connection.FastFallbackExchangeFinder.launchTcpConnect(FastFallbackExchangeFinder.kt:119)
+2026-09-28T08:46:46+00:00  	at okhttp3.internal.connection.FastFallbackExchangeFinder.find(FastFallbackExchangeFinder.kt:62)
+2026-09-28T08:46:46+00:00  	at okhttp3.internal.connection.RealCall.initExchange$okhttp(RealCall.kt:298)
+2026-09-28T08:46:46+00:00  	at okhttp3.internal.connection.ConnectInterceptor.intercept(ConnectInterceptor.kt:32)
+2026-09-28T08:46:46+00:00  	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:126)
+2026-09-28T08:46:46+00:00  	at okhttp3.internal.cache.CacheInterceptor.intercept(CacheInterceptor.kt:101)
+2026-09-28T08:46:46+00:00  	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:126)
+2026-09-28T08:46:46+00:00  	at okhttp3.internal.http.BridgeInterceptor.intercept(BridgeInterceptor.kt:85)
+2026-09-28T08:46:46+00:00  	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:126)
+2026-09-28T08:46:46+00:00  	at okhttp3.internal.http.RetryAndFollowUpInterceptor.intercept(RetryAndFollowUpInterceptor.kt:74)
+2026-09-28T08:46:46+00:00  	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:126)
+2026-09-28T08:46:46+00:00  	at io.opentelemetry.exporter.sender.okhttp.internal.RetryInterceptor.intercept(RetryInterceptor.java:96)
+2026-09-28T08:46:46+00:00  	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:126)
+2026-09-28T08:46:46+00:00  	at okhttp3.internal.connection.RealCall.getResponseWithInterceptorChain$okhttp(RealCall.kt:226)
+2026-09-28T08:46:46+00:00  	at okhttp3.internal.connection.RealCall$AsyncCall.run(RealCall.kt:574)
+2026-09-28T08:46:46+00:00  	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(Unknown Source)
+2026-09-28T08:46:46+00:00  	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(Unknown Source)
+2026-09-28T08:46:46+00:00  	at java.base/java.lang.Thread.run(Unknown Source)
+2026-09-28T08:47:46+00:00  [otel.javaagent 2026-09-28 08:47:46:040 +0000] [OkHttp http://otel-collector:4318/...] ERROR io.opentelemetry.exporter.internal.http.HttpExporter - Failed to export metrics. The request could not be executed. Full error message: otel-collector
+2026-09-28T08:47:46+00:00  java.net.UnknownHostException: otel-collector
+2026-09-28T08:47:46+00:00  	at java.base/java.net.InetAddress$CachedLookup.get(Unknown Source)
+2026-09-28T08:47:46+00:00  	at java.base/java.net.InetAddress.getAllByName0(Unknown Source)
+2026-09-28T08:47:46+00:00  	at java.base/java.net.InetAddress.getAllByName(Unknown Source)
+2026-09-28T08:47:46+00:00  	at okhttp3.Dns$Companion$DnsSystem.lookup(Dns.kt:50)
+2026-09-28T08:47:46+00:00  	at okhttp3.internal.connection.RouteSelector.resetNextInetSocketAddress(RouteSelector.kt:170)
+2026-09-28T08:47:46+00:00  	at okhttp3.internal.connection.RouteSelector.nextProxy(RouteSelector.kt:132)
+2026-09-28T08:47:46+00:00  	at okhttp3.internal.connection.RouteSelector.next(RouteSelector.kt:70)
+2026-09-28T08:47:46+00:00  	at okhttp3.internal.connection.RealRoutePlanner.planConnect$okhttp(RealRoutePlanner.kt:164)
+2026-09-28T08:47:46+00:00  	at okhttp3.internal.connection.RealRoutePlanner.plan(RealRoutePlanner.kt:75)
+2026-09-28T08:47:46+00:00  	at okhttp3.internal.connection.FastFallbackExchangeFinder.launchTcpConnect(FastFallbackExchangeFinder.kt:119)
+2026-09-28T08:47:46+00:00  	at okhttp3.internal.connection.FastFallbackExchangeFinder.find(FastFallbackExchangeFinder.kt:62)
+2026-09-28T08:47:46+00:00  	at okhttp3.internal.connection.RealCall.initExchange$okhttp(RealCall.kt:298)
+2026-09-28T08:47:46+00:00  	at okhttp3.internal.connection.ConnectInterceptor.intercept(ConnectInterceptor.kt:32)
+2026-09-28T08:47:46+00:00  	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:126)
+2026-09-28T08:47:46+00:00  	at okhttp3.internal.cache.CacheInterceptor.intercept(CacheInterceptor.kt:101)
+2026-09-28T08:47:46+00:00  	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:126)
+2026-09-28T08:47:46+00:00  	at okhttp3.internal.http.BridgeInterceptor.intercept(BridgeInterceptor.kt:85)
+2026-09-28T08:47:46+00:00  	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:126)
+2026-09-28T08:47:46+00:00  	at okhttp3.internal.http.RetryAndFollowUpInterceptor.intercept(RetryAndFollowUpInterceptor.kt:74)
+2026-09-28T08:47:46+00:00  	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:126)
+2026-09-28T08:47:46+00:00  	at io.opentelemetry.exporter.sender.okhttp.internal.RetryInterceptor.intercept(RetryInterceptor.java:96)
+2026-09-28T08:47:46+00:00  	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:126)
+2026-09-28T08:47:46+00:00  	at okhttp3.internal.connection.RealCall.getResponseWithInterceptorChain$okhttp(RealCall.kt:226)
+2026-09-28T08:47:46+00:00  	at okhttp3.internal.connection.RealCall$AsyncCall.run(RealCall.kt:574)
+2026-09-28T08:47:46+00:00  	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(Unknown Source)
+2026-09-28T08:47:46+00:00  	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(Unknown Source)
+2026-09-28T08:47:46+00:00  	at java.base/java.lang.Thread.run(Unknown Source)
+2026-09-28T08:48:45+00:00  [otel.javaagent 2026-09-28 08:48:45:557 +0000] [OkHttp http://otel-collector:4318/...] ERROR io.opentelemetry.exporter.internal.http.HttpExporter - Failed to export metrics. The request could not be executed. Full error message: otel-collector
+2026-09-28T08:48:45+00:00  java.net.UnknownHostException: otel-collector
+2026-09-28T08:48:45+00:00  	at java.base/java.net.InetAddress$CachedLookup.get(Unknown Source)
+2026-09-28T08:48:45+00:00  	at java.base/java.net.InetAddress.getAllByName0(Unknown Source)
+2026-09-28T08:48:45+00:00  	at java.base/java.net.InetAddress.getAllByName(Unknown Source)
+2026-09-28T08:48:45+00:00  	at okhttp3.Dns$Companion$DnsSystem.lookup(Dns.kt:50)
+2026-09-28T08:48:45+00:00  	at okhttp3.internal.connection.RouteSelector.resetNextInetSocketAddress(RouteSelector.kt:170)
+2026-09-28T08:48:45+00:00  	at okhttp3.internal.connection.RouteSelector.nextProxy(RouteSelector.kt:132)
+2026-09-28T08:48:45+00:00  	at okhttp3.internal.connection.RouteSelector.next(RouteSelector.kt:70)
+2026-09-28T08:48:45+00:00  	at okhttp3.internal.connection.RealRoutePlanner.planConnect$okhttp(RealRoutePlanner.kt:164)
+2026-09-28T08:48:45+00:00  	at okhttp3.internal.connection.RealRoutePlanner.plan(RealRoutePlanner.kt:75)
+2026-09-28T08:48:45+00:00  	at okhttp3.internal.connection.FastFallbackExchangeFinder.launchTcpConnect(FastFallbackExchangeFinder.kt:119)
+2026-09-28T08:48:45+00:00  	at okhttp3.internal.connection.FastFallbackExchangeFinder.find(FastFallbackExchangeFinder.kt:62)
+2026-09-28T08:48:45+00:00  	at okhttp3.internal.connection.RealCall.initExchange$okhttp(RealCall.kt:298)
+2026-09-28T08:48:45+00:00  	at okhttp3.internal.connection.ConnectInterceptor.intercept(ConnectInterceptor.kt:32)
+2026-09-28T08:48:45+00:00  	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:126)
+2026-09-28T08:48:45+00:00  	at okhttp3.internal.cache.CacheInterceptor.intercept(CacheInterceptor.kt:101)
+2026-09-28T08:48:45+00:00  	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:126)
+2026-09-28T08:48:45+00:00  	at okhttp3.internal.http.BridgeInterceptor.intercept(BridgeInterceptor.kt:85)
+2026-09-28T08:48:45+00:00  	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:126)
+2026-09-28T08:48:45+00:00  	at okhttp3.internal.http.RetryAndFollowUpInterceptor.intercept(RetryAndFollowUpInterceptor.kt:74)
+2026-09-28T08:48:45+00:00  	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:126)
+2026-09-28T08:48:45+00:00  	at io.opentelemetry.exporter.sender.okhttp.internal.RetryInterceptor.intercept(RetryInterceptor.java:96)
+2026-09-28T08:48:45+00:00  	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:126)
+2026-09-28T08:48:45+00:00  	at okhttp3.internal.connection.RealCall.getResponseWithInterceptorChain$okhttp(RealCall.kt:226)
+2026-09-28T08:48:45+00:00  	at okhttp3.internal.connection.RealCall$AsyncCall.run(RealCall.kt:574)
+2026-09-28T08:48:45+00:00  	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(Unknown Source)
+2026-09-28T08:48:45+00:00  	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(Unknown Source)
+2026-09-28T08:48:45+00:00  	at java.base/java.lang.Thread.run(Unknown Source)
+2026-09-28T08:49:45+00:00  [otel.javaagent 2026-09-28 08:49:45:661 +0000] [OkHttp http://otel-collector:4318/...] ERROR io.opentelemetry.exporter.internal.http.HttpExporter - Failed to export metrics. The request could not be executed. Full error message: otel-collector
+2026-09-28T08:49:45+00:00  java.net.UnknownHostException: otel-collector
+2026-09-28T08:49:45+00:00  	at java.base/java.net.InetAddress$CachedLookup.get(Unknown Source)
+2026-09-28T08:49:45+00:00  	at java.base/java.net.InetAddress.getAllByName0(Unknown Source)
+2026-09-28T08:49:45+00:00  	at java.base/java.net.InetAddress.getAllByName(Unknown Source)
+2026-09-28T08:49:45+00:00  	at okhttp3.Dns$Companion$DnsSystem.lookup(Dns.kt:50)
+2026-09-28T08:49:45+00:00  	at okhttp3.internal.connection.RouteSelector.resetNextInetSocketAddress(RouteSelector.kt:170)
+2026-09-28T08:49:45+00:00  	at okhttp3.internal.connection.RouteSelector.nextProxy(RouteSelector.kt:132)
+2026-09-28T08:49:45+00:00  	at okhttp3.internal.connection.RouteSelector.next(RouteSelector.kt:70)
+2026-09-28T08:49:45+00:00  	at okhttp3.internal.connection.RealRoutePlanner.planConnect$okhttp(RealRoutePlanner.kt:164)
+2026-09-28T08:49:45+00:00  	at okhttp3.internal.connection.RealRoutePlanner.plan(RealRoutePlanner.kt:75)
+2026-09-28T08:49:45+00:00  	at okhttp3.internal.connection.FastFallbackExchangeFinder.launchTcpConnect(FastFallbackExchangeFinder.kt:119)
+2026-09-28T08:49:45+00:00  	at okhttp3.internal.connection.FastFallbackExchangeFinder.find(FastFallbackExchangeFinder.kt:62)
+2026-09-28T08:49:45+00:00  	at okhttp3.internal.connection.RealCall.initExchange$okhttp(RealCall.kt:298)
+2026-09-28T08:49:45+00:00  	at okhttp3.internal.connection.ConnectInterceptor.intercept(ConnectInterceptor.kt:32)
+2026-09-28T08:49:45+00:00  	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:126)
+2026-09-28T08:49:45+00:00  	at okhttp3.internal.cache.CacheInterceptor.intercept(CacheInterceptor.kt:101)
+2026-09-28T08:49:45+00:00  	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:126)
+2026-09-28T08:49:45+00:00  	at okhttp3.internal.http.BridgeInterceptor.intercept(BridgeInterceptor.kt:85)
+2026-09-28T08:49:45+00:00  	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:126)
+2026-09-28T08:49:45+00:00  	at okhttp3.internal.http.RetryAndFollowUpInterceptor.intercept(RetryAndFollowUpInterceptor.kt:74)
+2026-09-28T08:49:45+00:00  	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:126)
+2026-09-28T08:49:45+00:00  	at io.opentelemetry.exporter.sender.okhttp.internal.RetryInterceptor.intercept(RetryInterceptor.java:96)
+2026-09-28T08:49:45+00:00  	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:126)
+2026-09-28T08:49:45+00:00  	at okhttp3.internal.connection.RealCall.getResponseWithInterceptorChain$okhttp(RealCall.kt:226)
+2026-09-28T08:49:45+00:00  	at okhttp3.internal.connection.RealCall$AsyncCall.run(RealCall.kt:574)
+2026-09-28T08:49:45+00:00  	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(Unknown Source)
+2026-09-28T08:49:45+00:00  	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(Unknown Source)
+2026-09-28T08:49:45+00:00  	at java.base/java.lang.Thread.run(Unknown Source)
+2026-09-28T08:50:40+00:00  2026-09-28 08:50:40 - oteldemo.AdService - no baggage found in context trace_id=bb1a7f08b930ba9734b21a35507f7b64 span_id=59fa4d07e30b3e2c trace_flags=01 
+2026-09-28T08:50:40+00:00  2026-09-28 08:50:40 - oteldemo.AdService - Targeted ad request received for [travel] trace_id=bb1a7f08b930ba9734b21a35507f7b64 span_id=59fa4d07e30b3e2c trace_flags=01 
+2026-09-28T08:50:40+00:00  2026-09-28 08:50:40 - oteldemo.AdService - no baggage found in context trace_id=0aa9a6418f1e45b2701396d309be4460 span_id=e75f5f4eac3d2962 trace_flags=01 
+2026-09-28T08:50:40+00:00  2026-09-28 08:50:40 - oteldemo.AdService - no baggage found in context trace_id=6f21643aa7e1cf7d1626f6d4c916e03b span_id=55dfef86e3d1feac trace_flags=01 
+2026-09-28T08:50:40+00:00  2026-09-28 08:50:40 - oteldemo.AdService - no baggage found in context trace_id=0c63210846493f4900275316c30f82b6 span_id=685df95ad18dcf8d trace_flags=01 
+2026-09-28T08:50:40+00:00  2026-09-28 08:50:40 - oteldemo.AdService - no baggage found in context trace_id=316aecdd7a4d8f649e14c4f913a33cfb span_id=9cf2f43c7c6cad8a trace_flags=01 
+2026-09-28T08:50:40+00:00  2026-09-28 08:50:40 - oteldemo.AdService - Targeted ad request received for [books] trace_id=0c63210846493f4900275316c30f82b6 span_id=685df95ad18dcf8d trace_flags=01 
+2026-09-28T08:50:40+00:00  2026-09-28 08:50:40 - oteldemo.AdService - Targeted ad request received for [books] trace_id=316aecdd7a4d8f649e14c4f913a33cfb span_id=9cf2f43c7c6cad8a trace_flags=01 
+2026-09-28T08:50:40+00:00  2026-09-28 08:50:40 - oteldemo.AdService - Targeted ad request received for [assembly] trace_id=6f21643aa7e1cf7d1626f6d4c916e03b span_id=55dfef86e3d1feac trace_flags=01 
+2026-09-28T08:50:40+00:00  2026-09-28 08:50:40 - oteldemo.AdService - no baggage found in context trace_id=2dda6cc5dd91603adf592bf2fa0fa6eb span_id=5a3d305b2f2e6993 trace_flags=01 
+2026-09-28T08:50:40+00:00  2026-09-28 08:50:40 - oteldemo.AdService - no baggage found in context trace_id=e42d6da31e34e4398b77549d70408c1c span_id=9c2af7680484bb59 trace_flags=01 
+2026-09-28T08:50:40+00:00  2026-09-28 08:50:40 - oteldemo.AdService - Targeted ad request received for [books] trace_id=e42d6da31e34e4398b77549d70408c1c span_id=9c2af7680484bb59 trace_flags=01 
+2026-09-28T08:50:40+00:00  2026-09-28 08:50:40 - oteldemo.AdService - no baggage found in context trace_id=ab53dcd560d6399ae943a9e9e07c21bb span_id=29c1c04da3897cd1 trace_flags=01 
+2026-09-28T08:50:40+00:00  2026-09-28 08:50:40 - oteldemo.AdService - Targeted ad request received for [books] trace_id=2dda6cc5dd91603adf592bf2fa0fa6eb span_id=5a3d305b2f2e6993 trace_flags=01 
