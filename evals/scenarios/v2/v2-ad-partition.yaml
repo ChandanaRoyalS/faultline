@@ -1,0 +1,101 @@
+# v2/network_partition-2 (dev) - see SPLIT-V2.md. Slot allocated before authoring; do not move.
+# Candidate order and eligibility: docs/design/t7.1-candidates.md, network_partition reserves -
+# new: the first reserve, taking the slot rows 2 to 4 released (cart, payment and shipping all
+# write nothing while cut off, measured 2026-09-28). Measured before authoring (2026-09-28): ad
+# is on `opentelemetry-demo` alone with aliases `ad` (twice); only the frontend calls it, 0.26
+# GetAds a second, 3.2 % of its non-internal spans, every one from the load generator's ads task
+# through /api/data; ad holds 51 JVM runtime series and writes about ten lines a minute at rest;
+# under a ten-minute cut it wrote 345 lines, every one the Java agent's, and paged at +410 s.
+id: v2-ad-partition
+title: The ad service is cut from the network - its process runs and reaches nothing
+fault_class: network_partition
+split: dev
+slot: v2/network_partition-2
+world: v2
+injection:
+  target: ad
+  method: v2-ad-partition
+  params:
+    network: opentelemetry-demo
+ground_truth:
+  root_cause: >
+    The ad container was disconnected from the demo network (docker network disconnect): the
+    process kept running, its port stayed open on an address nothing could reach, packets on its
+    established connections were dropped rather than reset, and nothing it tried to reach
+    answered. Only the frontend calls it, once per ad request and with no deadline, so every ad
+    request hangs until the proxy cuts it at fifteen seconds while the rest of the storefront and
+    every order run as before. Ad itself is alive and says so - its agent logs each failed
+    telemetry export, three in the first half minute and then once a minute for as long as it is
+    cut off - while its own request lines stop, because nothing reaches it.
+  category: network_partition
+expected_evidence:
+  # A new design: predicted before recording from the row's mechanism, the catalog's recording
+  # (row 1) and a ten-minute measurement cut of ad on 2026-09-28 (nothing recorded), and checked
+  # against the bundle after. The measured cut is the basis for the numbers here: its page was
+  # thin and late, and the recording's is predicted to be the same - one request in about twenty
+  # hangs, which puts the storefront edge's ratios at their 5 % line rather than over it and its
+  # p95s at the ceiling only once the window fills. The log is the design.
+  - alerts: the page is predicted marginal and from the storefront edge - ServiceHighLatency on
+      frontend-proxy and load-generator between +5 and +8, with ServiceHighErrorRate on the load
+      generator beside them if its ratio is over the line that minute (in the measured cut it
+      fired at +410 s and cleared a minute later; the proxy's never crossed); ServiceNoTraffic on
+      ad at about +7:45, the culprit named on the page as silence; nothing on the frontend
+      (its ad calls are 3 % of its spans) and nothing on the order path, which is untouched, so
+      no fraud-detection dead end; three to five alerts on two or three services by the fix
+  - metrics: frontend-proxy's and load-generator's p95 at the histogram's ceiling (15000 ms)
+      from about +4, once enough 15 s spans are in the window, and their error ratios at the
+      line - the load generator's touching 5 % and falling back, the proxy's under it; the
+      frontend's error ratio zero for the length of the cut, its p95 unmoved (ad's share is
+      under the 5 % a p95 needs), its rate down by the blocked users' share
+  - metrics: ad's request rate to zero by about +4 and from then to the reconnect no error ratio
+      and no p95 - not zero errors, no samples; every other service's rate holding, orders
+      completing throughout
+  - metrics: ad's 51 JVM runtime series stop at the cut - the agent cannot reach the collector,
+      its last report the one before onset - hold for the store's lookback and drop out of
+      queries at about +5; back within two minutes of the reconnect (the first export after it
+      lands on the agent's next minute)
+  - logs: THE DESIGN - ad's agent writes each failed export to its console at ERROR, and the
+      lines are the fault's - none in the five minutes before onset. Three inside the first half
+      minute, one per signal, each on a request that timed out over the connection it already
+      held - "Failed to export logs" at about +12 s, spans at about +15, metrics at about +25 -
+      and then "Failed to export metrics" once a minute for as long as it is cut off, the cause
+      changed to "UnknownHostException" naming the collector, because the container's resolver
+      answers only for networks it is attached to and it is attached to none; each with its
+      stack trace, 29 lines a minute, about 345 over ten minutes; no further span or log export
+      fails because nothing reaches ad and it has nothing to send. Ad's own request lines
+      ("Targeted ad request received", "no baggage found in context"), about ten a minute at
+      rest, stop at the cut and return within a minute of the reconnect
+  - traces: every proxy error trace ends at its 15 s deadline and every one is an ads request
+      (load-generator user_get_ads - GET /api/data); below it frontend's call into ad
+      (grpc.oteldemo.AdService/GetAds) stays open for the length of the cut; ad has no spans
+      during the cut and its spans appear only after the reconnect; no error trace on the
+      frontend during the cut - its spans have not ended
+  - recovery: at the reconnect ad is back under its captured aliases, predicted on the same
+      address, and the connections the frontend held open through the cut are predicted to be
+      reset rather than answered, as the catalog's were (row 1) - the held ads requests failing
+      together at the fix, the frontend's error ratio rising for a minute or two and possibly
+      paging (ServiceHighErrorRate/frontend, recovery-only), the proxy's and the load
+      generator's alerts clearing as the 15 s spans age out; all clear within about five
+      minutes of the reconnect; no restart of ad or of flagd
+  - change: nothing recorded - no deploy, no config, no flag; the history is empty for the
+      whole window (the injector records no change for this class)
+  - discriminator: a freeze of ad would look the same on alerts, metrics, runtime series and
+      traces for the length of the fault; the partition is the one whose target keeps running
+      and logs its failed exports once a minute, where a frozen target logs nothing - here from
+      the agent's own logger, in a log that is talkative at rest and goes quiet on requests at
+      the same moment it starts on exports; against the other faults on this target -
+      v2-ad-flag-failure shows ad's own GetAds errors with ad serving and exporting,
+      v2-ad-bad-image-tag shows a container that never starts and an image line in the change
+      record, v2-ad-memory-squeeze shows restarts and start-up lines repeating - here ad serves
+      nothing, errors nothing, restarts never, and nothing was changed
+expected_remediation_class: restart
+# The partition resolves when the container is put back on its network; where an operator cannot
+# reconnect it with its aliases, recreating or restarting the container does it
+# (knowledge/runbooks/class-network-partition.md). Nothing was changed, so nothing is reverted.
+rehearsed: false
+alert_timeout_seconds: 900
+# Declared before recording, checked against the bundle after (T7.5). Measured on the running world
+# 2026-09-28: ad holds 51 JVM runtime series and writes about ten lines a minute at rest, so both
+# classes can answer here in the derivation's own reading - runtime by going absent at the cut,
+# the log by changing what it says: request lines stop, export failures begin.
+answers_idle_or_absent: [runtime, logs]

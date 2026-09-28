@@ -629,6 +629,20 @@ CATALOG: tuple[FaultDefinition, ...] = _validated(
             params={"network": "opentelemetry-demo"},
         ),
         FaultDefinition(
+            id="v2-ad-partition",
+            fault_class=FaultClass.NETWORK_PARTITION,
+            target="ad",
+            world="v2",
+            description=(
+                "Cut the ad service from the demo network. Only the frontend calls it, for the "
+                "ads a product page loads - one request in about twenty on this load - so the "
+                "storefront edge sits at its lines while every ad request hangs to the proxy's "
+                "15 s. Told apart from a freeze by the Java agent's own log: every failed export "
+                "at ERROR, once a minute once cut off (measured 2026-09-28)."
+            ),
+            params={"network": "opentelemetry-demo"},
+        ),
+        FaultDefinition(
             id="v2-cart-store-corruption",
             fault_class=FaultClass.DATASTORE_CORRUPTION,
             target="valkey-cart",
