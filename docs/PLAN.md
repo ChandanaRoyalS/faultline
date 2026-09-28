@@ -4617,6 +4617,18 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-09-28: `v2-email-partition` measured before authoring and blocked - the prediction wrong;
+`v2-recommendation-partition` is the row's last reserve.***
+
+- **The measurement.** The same ten-minute cut, nothing recorded. Email wrote nothing while cut
+  off; its order lines resumed 0.2 s after the reconnect. The prediction - the Ruby SDK's
+  start-up lines reach the console, so its export failures would too - did not hold; the
+  mechanism is not established and is not needed. Blocked as pre-registered; no slot, no line.
+- **Seen in passing.** Checkout's error ratio paged alone at +360 s, its confirmation call
+  failing rather than hanging, then email's silence; recorded, not acted on.
+- **Next.** `v2-recommendation-partition` for the holdout -4, predicted from its own bundle to
+  write; if it blocks, the row needs a decision on a further reserve or an empty holdout slot.
+
 ***2026-09-28: the thirty-first v2 scenario, `v2-fraud-detection-partition`, rehearsed and labeled -
 slot `v2/network_partition-3` (dev), first recording. The partition with no caller.***
 
