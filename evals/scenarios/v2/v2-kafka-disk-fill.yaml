@@ -10,7 +10,7 @@
 # accounting (0.19 consumer spans a second, 58 lines per five minutes) and fraud-detection (0.37,
 # 29 lines) read; checkout writes no log lines at all (its logger routes into OTLP).
 id: v2-kafka-disk-fill
-title: The broker's only disk is full - it halts and restarts, halts again, and every order hangs
+title: The broker's only disk is full - it halts, cannot start again, and every order hangs
 fault_class: disk_fill
 split: dev
 slot: v2/disk_fill-1
@@ -23,16 +23,25 @@ injection:
     directory: /tmp/kafka-logs
     restart_after: accounting,fraud-detection,checkout
 ground_truth:
+  # Corrected 2026-09-28 (evening) and re-recorded, on v2-payment-memory-squeeze's precedent: the
+  # first recording's ground truth, written before it, said the supervisor restarts the broker
+  # "against the same full directory" and that "every order ... fails". Neither held - the
+  # directory's tmpfs is created fresh and unwritable on each in-place start (Q114), and checkout
+  # returns an order as placed when its publish fails. docs/design/t7.1-candidates.md, disk_fill.
   root_cause: >
     Kafka's only log directory filled to capacity: a file written into /tmp/kafka-logs until the
     device had no space left. A broker whose every log directory has failed halts itself within
-    seconds, and its supervisor restarts it against the same full directory, so it crashloops for
-    the length of the fault, each start ending in the same storage failure. Checkout produces
-    every order to that broker with no fallback, so every order hangs on its produce until the
-    client's delivery timeout and then fails; the two consumers of the orders topic, accounting
-    and fraud-detection, have nothing to read and go silent. Nothing was deployed, configured or
-    flagged; the broker's address, image and configuration were right all along, and its disk was
-    full.
+    seconds. Its supervisor restarts it in place, and on this world the directory is recreated
+    empty on each start and is not writable by the broker's user, so every restart fails on its
+    storage-format step with access denied and the broker stays down until the container is
+    recreated. Checkout publishes every order to that broker as the last step of placing it,
+    after the card is charged and the confirmation sent: the publish hangs for tens of seconds
+    and fails, checkout logs the failure and returns the order as placed, so no order fails, and
+    the checkouts that outlast the proxy's fifteen-second timeout are reported to the customer as
+    failed. The two consumers of the orders topic, accounting and fraud-detection, have nothing
+    to read and go silent. Nothing was deployed, configured or flagged; the broker's address,
+    image and configuration were right all along. Its disk was full, and a halted broker on this
+    world does not come back without being recreated.
   category: disk_fill
 expected_evidence:
   # Pre-registered from A8b (by hand, 2026-09-24) and R5 (through the injector, the same day) on
