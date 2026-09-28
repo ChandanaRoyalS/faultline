@@ -1,17 +1,85 @@
----
-origin: scenario:v2-kafka-disk-fill
-split: dev
-fault_class: disk_fill
-recorded_from: 2026-09-28T13:54:45+00:00
-capability: cap:91279a09
-onset_to_page: 5m31s
-page_to_fix: 5m00s
-fix_to_all_clear: 3m02s
----
-
 # The broker's only disk is full - it halts and restarts, halts again, and every order hangs
 
-## What was observed
+## The scenario
+
+| | |
+|---|---|
+| scenario | `v2-kafka-disk-fill` |
+| fault class | **`disk_fill`** |
+| expected remediation | `free_storage` |
+| split | `dev` |
+| injected at | `kafka` via `v2-kafka-disk-fill` |
+| time to page | 5m31s |
+| steady state captured | 300s |
+| capture window | 2026-09-28T13:49:45+00:00 → 2026-09-28T14:10:18+00:00 |
+
+The clock below runs from the moment the fault went in.
+
+| | |
+|---|---|
+| `t_inject` | T+0m00s |
+| first alert firing | T+5m31s |
+| `t_revert` | T+10m31s |
+| all clear | T+13m33s |
+
+## What fired, and when
+
+| when | service | alert | firing for | |
+|---|---|---|---:|---|
+| T+5m30s | `fraud-detection` | ServiceHighErrorRate | 2.0 min | **paged** |
+| T+6m15s | `checkout` | ServiceHighErrorRate | 6.2 min | joined later |
+| T+6m30s | `checkout` | ServiceHighLatency | 7.0 min | joined later |
+| T+6m30s | `fraud-detection` | ServiceHighLatency | 1.0 min | joined later |
+| T+7m30s | `accounting` | ServiceNoTraffic | 4.0 min | joined later |
+| T+10m30s | `fraud-detection` | ServiceNoTraffic | 1.0 min | joined later |
+
+## What the bundle contains
+
+| capture | query |
+|---|---|
+| `metrics/alerts-firing.json` | `ALERTS{alertstate="firing"}` |
+| `metrics/call-rate.json` | `sum by(service_name) (rate(traces_span_metrics_calls_total[5m]))` |
+| `metrics/error-ratio.json` | `sum by(service_name) (rate(traces_span_metrics_calls_total{status_code="STATUS_CODE_ERROR"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total[5m]))` |
+| `metrics/latency-p95.json` | `histogram_quantile(0.95, sum by(service_name, le) (rate(traces_span_metrics_duration_milliseconds_bucket{span_kind!="SPAN_KIND_INTERNAL"}[5m])))` |
+| `metrics/runtime.json` | `{__name__=~"go_.*|dotnet_.*|jvm_.*|process_.*|v8js_.*|nodejs_.*",service_name="kafka"}` |
+
+`logs/kafka.txt` — 1241 lines.
+
+## A look at the logs
+
+From `logs/kafka.txt` (---- onset 2026-09-28T13:54:45+00:00 ----):
+
+```
+2026-09-28T13:52:26+00:00  [2026-09-28 13:52:26,038] INFO [UnifiedLog partition=__cluster_metadata-0, dir=/tmp/kafka-logs] Incremented log start offset to 465061 due to snapshot generated (kafka.log.UnifiedLog)
+2026-09-28T13:52:26+00:00  [2026-09-28 13:52:26,038] INFO [UnifiedLog partition=__cluster_metadata-0, dir=/tmp/kafka-logs] Deleting segments due to log start offset 465061 breach: LogSegment(baseOffset=465000, size=2160, lastModifiedTime=1790603482052, largestRecordTimestamp=1790603482028),LogSegment(baseOffset=465030, size=2160, lastModifiedTime=1790603497070, largestRecordTimestamp=1790603497045) (kafka.log.UnifiedLog)
+2026-09-28T13:52:26+00:00  [2026-09-28 13:52:26,040] INFO [MetadataLog partition=__cluster_metadata-0, nodeId=1] Marking snapshot OffsetAndEpoch(offset=465022, epoch=1) for deletion because its timestamp (1790603478025) is now (1790603546038) older than the
+2026-09-28T13:52:26+00:00  retention (60000) (kafka.raft.KafkaMetadataLog)
+2026-09-28T13:52:36+00:00  [2026-09-28 13:52:36,127] INFO [SnapshotGenerator id=1] Creating new KRaft snapshot file snapshot 00000000000000465178-0000000001 because we have replayed at least 2800 bytes. (org.apache.kafka.image.publisher.SnapshotGenerator)
+2026-09-28T13:52:36+00:00  [2026-09-28 13:52:36,128] INFO [SnapshotEmitter id=1] Successfully wrote snapshot 00000000000000465178-0000000001 (org.apache.kafka.image.publisher.SnapshotEmitter)
+2026-09-28T13:52:37+00:00  [2026-09-28 13:52:37,630] INFO [LocalLog partition=__cluster_metadata-0, dir=/tmp/kafka-logs] Rolled new log segment at offset 465180 in 0 ms. (kafka.log.LocalLog)
+2026-09-28T13:52:37+00:00  [2026-09-28 13:52:37,630] INFO [ProducerStateManager partition=__cluster_metadata-0] Wrote producer snapshot at offset 465180 with 0 producer ids in 0 ms. (org.apache.kafka.storage.internals.log.ProducerStateManager)
+2026-09-28T13:52:52+00:00  [2026-09-28 13:52:52,643] INFO [LocalLog partition=__cluster_metadata-0, dir=/tmp/kafka-logs] Rolled new log segment at offset 465210 in 0 ms. (kafka.log.LocalLog)
+2026-09-28T13:52:52+00:00  [2026-09-28 13:52:52,643] INFO [ProducerStateManager partition=__cluster_metadata-0] Wrote producer snapshot at offset 465210 with 0 producer ids in 0 ms. (org.apache.kafka.storage.internals.log.ProducerStateManager)
+2026-09-28T13:52:55+00:00  [2026-09-28 13:52:55,645] INFO [SnapshotGenerator id=1] Creating new KRaft snapshot file snapshot 00000000000000465217-0000000001 because we have replayed at least 2800 bytes. (org.apache.kafka.image.publisher.SnapshotGenerator)
+2026-09-28T13:52:55+00:00  [2026-09-28 13:52:55,646] INFO [SnapshotEmitter id=1] Successfully wrote snapshot 00000000000000465217-0000000001 (org.apache.kafka.image.publisher.SnapshotEmitter)
+```
+
+_1220 further lines are in the bundle._
+
+## The incident record
+
+Written from the responder's chair, by someone who did not know the fault class
+or that anything had been injected. This text is also corpus material, which is
+why it never names the injector.
+
+**It keeps its own clock.** The table above is measured from the injection, which
+is the only origin the manifest records; a narrative's `T+` offsets are the
+responder's own and start wherever that responder started counting — usually the
+page, sometimes the injection, sometimes an event in the logs. The same moment can
+therefore carry two different offsets on this page. The absolute timestamps in the
+bundle are the tiebreak.
+
+### What was observed
 
 The page came 5m31s after onset and it named the wrong service: `ServiceHighErrorRate` on
 **fraud-detection**, a consumer of orders that nobody calls. Forty-five seconds later
@@ -35,7 +103,7 @@ after checkout had gone quiet: accounting's rate to zero by T+4 with no error of
 samples, not zero errors - and fraud-detection's error ratio to **100%** from T+4, then to
 nothing at all from T+7.
 
-## What was checked
+### What was checked
 
 **Fraud-detection, because it paged first.** It has no callers; it reads orders off a topic. Its
 error ratio at 100% meant every span it produced was failing, and from T+7 it produced none. Its
@@ -97,7 +165,7 @@ before and at 100% from the onset to the fix, with one file in it that had not b
 checkout, on either consumer or on anything else. The change history for the window is empty. A
 disk filling is not a change anything records.
 
-## Root cause
+### Root cause
 
 Kafka's only log directory filled to capacity. A broker whose every log directory has failed
 halts itself within seconds - this one did at six, naming the file it could not write and the
@@ -113,7 +181,7 @@ failed every fetch in its spans and said nothing in its log, accounting's said e
 log and produced no spans at all. Nothing was deployed, configured or flagged; the broker's
 address, image and configuration were right all along. Its disk was full.
 
-## Resolution
+### Resolution
 
 The fill could not be removed in place - the container was never up long enough for a command
 to land - so the broker was recreated on an empty directory, and then accounting, fraud-detection
@@ -139,7 +207,7 @@ checkout calls it had held through the fault that ended in error when they final
 after 17 to 91 seconds, and its p95 read 3150ms for one minute on the same, under its line.
 Neither consumer restarted again; postgresql was untouched.
 
-## Detection notes
+### Detection notes
 
 - Onset to first page: **5m31s** - fraud-detection's error ratio at 100% for the rule's two
   minutes. The broker halted at T+6s; the world noticed five and a half minutes later.
@@ -176,3 +244,7 @@ Neither consumer restarted again; postgresql was untouched.
   by its supervisor and nothing was misconfigured. Free the directory - or recreate the service
   on an empty one - and then restart what stopped consuming, because they will not come back on
   their own.
+
+---
+
+Rendered from [`evals/scenarios/artifacts/dev/v2-kafka-disk-fill/`](../../evals/scenarios/artifacts/dev/v2-kafka-disk-fill/) by `faultline-render`. [All bundles](README.md).

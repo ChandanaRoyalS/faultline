@@ -35,90 +35,99 @@ ground_truth:
     full.
   category: disk_fill
 expected_evidence:
-  # From A8b (by hand, 2026-09-24) and R5 (through the injector, the same day), both on the world
-  # before its revision; predicted before recording and checked against the bundle. The class's
-  # shape, measured twice: a halted broker presents as a checkout hang, then as checkout errors,
-  # then as two consumers gone quiet - the freeze's shape from a dependency that is up, reachable,
-  # restarting, and cannot write.
-  - alerts: ServiceHighLatency on checkout FIRST, at five and a half to six and a half minutes
-      (A8b +6:31, R5 +5:36) - the producer blocks to its delivery timeout, so the p95 crosses
-      before any error lands; ServiceHighErrorRate on checkout a minute after (+7:01, +7:06);
-      ServiceNoTraffic on accounting at seven and a half to eight and a half (+8:31, +7:36); a
-      brief ServiceHighErrorRate on fraud-detection as its fetches fail loudly before its rate
-      drains (A8b +6:31, R5 +8:36), then its latency rule, then its own ServiceNoTraffic late
-      (A8b +11:31, R5 after the window) - inside this recording's window only if the hold
-      reaches it; the frontend and the proxy under their lines (R5 proxy 2.95 %, load generator
-      3.42 %); no alert on kafka, which has no rule of its own. Four to six alerts on three
-      services by the fix, the culprit on none of them
-  - metrics: checkout's p95 at the histogram ceiling, 15000 ms, from about +3 and its error
-      ratio 6 to 7 % from about +6 (A8b 6.49 %, R5 6.42 %), its rate about halved as hung orders
-      hold its capacity; accounting's and fraud-detection's rates to zero by about +4 - no
-      samples, not zero errors - and staying there; the frontend's throughput down with zero
-      errors and its p95 unmoved (the hang holds its capacity, it does not fail); the proxy's
-      and the load generator's p95s at or near the ceiling on the hung checkouts, their error
-      ratios under 5 %; nothing else moving
-  - metrics: kafka's 52 JVM runtime series STOP at the onset and stay absent for the fault -
-      each restarted JVM lives seconds, less than one export interval, so nothing it starts
-      reaches the collector - and resume after the recreate; the consumers' and checkout's
-      runtime series continue through the fault (they are alive and starved) and restart at
-      the fix, when all three are restarted. Predicted, not measured - restated if the halting
-      broker flushes on the way down
-  - logs: THE CULPRIT NAMES ITS OWN FAULT IN SECONDS - kafka's log, 28 lines a minute at rest
-      (segment rolls, snapshots, all INFO), writes within five seconds of the onset (A8b +2 s,
-      R5 +5 s) "Error while writing to checkpoint file" naming
-      /tmp/kafka-logs/replication-offset-checkpoint, with "java.io.IOException - No space left on
-      device" beneath it, and then "Shutdown
-      broker because all log dirs in /tmp/kafka-logs have failed"; then a start-up banner every
-      five to sixty seconds for the length of the fault (the supervisor's backoff), each ending
-      in a storage error naming /tmp/kafka-logs (R5 read AccessDeniedException on
-      meta.properties; the exact line is restated from the capture); a few thousand lines over
-      the fault, under the capture's 20,000-line ceiling (Q113 landed for this recording);
-      accounting's Order details lines and fraud-detection's Consumed record lines stop by
-      about +1 and their clients write broker-down lines instead (accounting's rdkafka "brokers
-      are down" naming kafka:9094, fraud-detection's client "Broker may not be available");
-      checkout's log carries nothing, because it writes nothing
-  - traces: checkout's PlaceOrder traces hold the producer span "orders publish" open for tens
-      of seconds and ending in error (R5 49 to 78 s) - the degrading hop, the culprit's operation
-      named in the hop line - under an order that had already prepared, quoted, charged and
-      shipped; the proxy cuts the request at its fifteen-second timeout above it, so the error
-      traces are longer than fifteen seconds edge to end; no consumer spans from either
-      consumer for the length of the fault; nothing anywhere else slow
-  - recovery: the restore removes the fill where it can and, where the crashloop is too fast for
-      an exec to land (A8b and R5 both), recreates the broker on an empty directory and then
-      restarts accounting, fraud-detection and checkout, which do not reconnect on their own;
-      all clear in four to four and a half minutes (A8b +4:04, R5 +4:30); NO duplicate-key wave
-      on accounting - an empty broker has nothing to redeliver (recycle_effect v2, measured
-      twice); the three restarted services' runtime series restart; kafka's 52 series return.
-      The other branch, pre-registered - if the rm lands in a moment the broker is up between
-      restarts, the broker keeps its data and comes up on its own, and the consumers' restart
-      replays whatever offsets were uncommitted, about four minutes of duplicate-key errors on
-      accounting (A8's first revert). Q111 applies - the window closes two minutes after the
-      all-clear
+  # Pre-registered from A8b (by hand, 2026-09-24) and R5 (through the injector, the same day) on
+  # the world before its revision; restated after the recording of 2026-09-28 to what the bundle
+  # and the read-back hold, with the predictions that were wrong kept as such. The class's shape
+  # held - a halted broker as a hang on the producer and a silence on the consumers, the broker's
+  # own log naming its disk in seconds, the recovery by the registered fallback, clean - and
+  # three things did not: who paged first, whether an order fails, and what a restart writes.
+  - alerts: ServiceHighErrorRate on FRAUD-DETECTION first, at 5m31s - its error ratio at 100 %
+      from +4 as every span it produced failed (predicted checkout's latency first, with
+      fraud-detection erroring briefly - the consumer beat the producer by 45 s); then
+      ServiceHighErrorRate on checkout at +6:15 and ServiceHighLatency on checkout and on
+      fraud-detection at +6:30; ServiceNoTraffic on accounting at +7:30 and on fraud-detection
+      at +10:30, one second before the fix; six alerts on three services by the fix, the broker
+      on none - it has no rule; the frontend at 0 %, the proxy at 2.4 % and the load generator
+      at 2.8 %, under their lines, on 64 checkouts cut at the fifteen-second timeout
+  - metrics: checkout's p95 at the ceiling, 15000 ms, from +3 to the fix, its error ratio 2.7 %
+      at +2, 5.7 % at +4, a 7.7 % peak at +5 and 6 to 7 % to the fix (as predicted), its span
+      rate from 2.5 a second to 1.1-1.5 (about halved, as predicted); accounting's rate to zero
+      by +4 with no error at all - no samples, not zero errors; fraud-detection's ratio 5.9 %
+      at +3 and 100 % from +4 to +6, then no samples from +7; the frontend's error ratio zero
+      and its p95 36 to 47 ms for the whole fault, its rate 13 to 10 a second; the proxy's and
+      the load generator's p95s NOT at the ceiling (48 and 50 ms - predicted at or near it; 64
+      timeouts in ten minutes are two percent of their traffic), their ratios under 3 %
+  - metrics: kafka's 52 JVM runtime series STOP at the halt - the last report is from the six
+      seconds before it, held for the lookback and gone from queries at +4:30 - and behind
+      them NINETEEN NEW INSTANCE IDS, one per restart, each reporting seven series once and
+      never again (the agent flushes one report as the JVM dies - predicted absent, and the
+      absence has a trail); the recreated broker's 52 series return under a twentieth id from
+      +11:45; 237 series in the capture where the target holds 52 at rest
+  - logs: THE CULPRIT NAMES ITS OWN DISK IN SECONDS - kafka's log, about fifty lines a minute at
+      rest (all INFO, every line naming dir=/tmp/kafka-logs), writes at +5 s "ERROR Error while
+      writing to checkpoint file /tmp/kafka-logs/replication-offset-checkpoint" with
+      "java.io.IOException - No space left on device" and its stack, "Stopping serving replicas
+      in dir /tmp/kafka-logs", and "ERROR Shutdown broker because all log dirs in
+      /tmp/kafka-logs have failed" (as predicted, A8b +2 s, R5 +5 s); then SEVENTEEN RESTARTS
+      THAT WRITE NINE LINES EACH AND NOTHING OF THE BROKER'S OWN - the container's entrypoint
+      and the JVM's one warning, no "Kafka Server started", no error (predicted a banner of a
+      hundred lines ending in a storage error, as R5 read - wrong) - at 6, 9, 11, 14, 18, 23,
+      32, 47 s and then about once a minute on the supervisor's backoff; 1,132 lines from onset
+      in the capture, 897 of them the recreated broker's start, far under the ceiling;
+      accounting's client writes 723 lines in ten minutes - "1/1 brokers are down", "Connection
+      refused", "Failed to resolve kafka:9092 - Name or service not known" - while its Order
+      details lines stop; fraud-detection's Consumed record lines stop and it writes NOTHING
+      else for the length of the fault (predicted a broker-unavailable line - none); checkout
+      writes nothing, as at rest
+  - traces: NO ORDER FAILED - 115 PlaceOrder server spans in the fault, none in error, every
+      order charged, shipped and emailed (A8b's uncertainty resolved the other way on this
+      world's load - checkout logs a failed publish and returns the order as placed); 60 orders
+      whose "orders publish" producer span held for 2.8 to 89 s and ended in error with the
+      producer's own text - "kafka - client has run out of available brokers to talk to, dial
+      tcp lookup kafka on 127.0.0.11:53, no such host", then "circuit breaker is open" once the
+      client gave up - the degrading hop, the culprit's operation named (as predicted); 64 of
+      them cut above by the proxy's fifteen-second timeout, the customer told the checkout
+      failed for an order that had gone through; twelve frontend calls into checkout held
+      through the fault and ending in error at 17 to 91 s; no consumer span from either
+      consumer for the length of the fault; nothing else slow anywhere
+  - recovery: the registered fallback, as A8b and R5 - "could not reach kafka to delete the
+      fill; recreated kafka", then accounting, fraud-detection and checkout restarted; "Kafka
+      Server started" 7 s after the fix; accounting's first fetch at 7.5 s got "Subscribed topic
+      not available - orders - Unknown topic or partition" (an empty broker has no topic until
+      the first order), its first order line and fraud-detection's at 21 s; both rates back
+      through the third and fourth minutes; NO duplicate-key wave (as predicted, an empty
+      broker redelivers nothing) - accounting at 3.3 % in its second minute back on the
+      no-topic fetches, then under 2 %; the alerts cleared in order - both no-traffic at 44 s,
+      checkout's error rate at 1m44s, its latency at 2m44s - all clear 3m02s (predicted four to
+      four and a half; R5 4m30s); the frontend at 1.4 to 1.8 % errors and a 3150 ms p95 for a
+      minute on its twelve held calls closing, under its lines; one publish held 99 s across
+      the fix; no alert fired only in recovery; postgresql untouched; the tmpfs at 1 % after
   - change: nothing recorded - no deploy, no config, no flag; the change history is empty for
-      the whole window (a disk filling is not a change anything records)
+      the whole window (a disk filling is not a change anything records). Held on the recording
   - discriminator: against v2-accounting-kafka-misconfig (one consumer with a wrong address -
       the broker healthy, the other consumer consuming, checkout unaffected, an address in the
       change record), against a wrong KAFKA_ADDR on checkout (the consumers starve but the
       broker's log is clean and checkout's client names the address it cannot reach), against a
       frozen broker (nothing answers and nothing is written - the log stops rather than
-      repeats) - here the broker's own log names the storage failure in seconds and then
-      repeats a start-up every backoff, its restart count climbs, its runtime series are absent,
-      both consumers are silent and checkout hangs on its produce; the fix is neither a revert
-      nor a restart of the broker as it stands - a restarted broker halts again on the same full
-      disk - but freeing the directory, and then restarting what stopped consuming
+      repeats) - here the broker's own log named the storage failure at +5 s and then repeated
+      a nine-line start every backoff, its restart count climbed to 19, its runtime series
+      stopped and nineteen one-shot instance ids appeared behind them, both consumers were
+      silent in their spans and checkout hung on its publish; the fix is neither a revert nor a
+      restart of the broker as it stands - its supervisor restarted it seventeen times to no
+      effect - but freeing the directory, and then restarting what stopped consuming. Held on
+      the recording
 expected_remediation_class: free_storage
 # The wrong thing is a full disk, so the fix is to free it (knowledge/runbooks/class-disk-fill.md):
 # remove what filled it, or recreate the broker on an empty directory. Restarting the broker as it
 # stands changes nothing - it halts again in seconds; reverting configuration changes nothing -
 # nothing was configured. The consumers are restarted after, as the runbook's second step, because
 # in this world they do not reconnect to a broker that went away.
-rehearsed: false
+rehearsed: true
 alert_timeout_seconds: 900
 # Declared before recording, checked against the bundle after (T7.5). The target is the broker,
-# which holds 52 JVM runtime series and writes about 28 lines a minute at rest, so the recorder is
-# predicted to derive [runtime, logs]: the runtime class because the series exist (and are
-# predicted to stop under the fault - a halted broker's JVM lives less than an export interval),
-# the logs class because the capture's window holds far more than the derivation's ten lines
-# before the onset and thousands from it. Restated to the measurement if the recorder derives
-# otherwise.
+# which holds 52 JVM runtime series and writes about fifty lines a minute at rest, so the recorder
+# was predicted to derive [runtime, logs]. It did: the 2026-09-28 recording captured 237 runtime
+# series (the broker's 52, a one-shot seven for each of nineteen restarted JVMs, and the recreated
+# broker's 52) and 1,232 log lines (100 before the onset, 1,132 from it, under the 20,000-line
+# ceiling Q113 set for this recording), and derived [runtime, logs], as declared.
 answers_idle_or_absent: [runtime, logs]
