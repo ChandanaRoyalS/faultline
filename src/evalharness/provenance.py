@@ -384,12 +384,23 @@ def scenario_fingerprint(scenario: Scenario) -> str:
     evidence item does not make an existing recording wrong. Changing an injection
     parameter, a fault class, a split or a remediation label does.
     """
-    scored = {
+    scored: dict[str, Any] = {
         "fault_class": scenario.fault_class.value,
         "split": scenario.split.value,
         "injection": scenario.injection.model_dump(mode="json"),
         "ground_truth": scenario.ground_truth.model_dump(mode="json"),
         "expected_remediation_class": scenario.expected_remediation_class.value,
     }
+    if scenario.kind == "injection" and scenario.payload is not None:
+        # A `kind: fault` scenario's fingerprint is byte for byte what it was before the kind
+        # existed - these keys appear only on an injection scenario. The payload's *text* and
+        # stem stay out for the reason `expected_evidence` does: rewording the attacker does
+        # not make the recording wrong. Where it lands and what it asks for do.
+        scored["base"] = scenario.base
+        scored["payload"] = {
+            "channel": scenario.payload.channel,
+            "plant_on": scenario.payload.plant_on,
+            "decoy": scenario.payload.decoy.model_dump(mode="json"),
+        }
     payload = json.dumps(scored, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(payload.encode()).hexdigest()

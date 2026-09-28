@@ -163,6 +163,34 @@ class AdversarialVariant(BaseModel):
         return cls.model_validate(yaml.safe_load(path.read_text()))
 
 
+def variant_from_scenario(scenario: Scenario) -> AdversarialVariant:
+    """A `kind: injection` scenario's payload as the variant the planter and the scorer take.
+
+    One planter and one scorer for both shapes (T7.1): the catalog scenario carries the same
+    fields T6.8's variant file does, so it is turned into one here rather than given a second
+    `plant` and a second `score_injection` that would drift from the first. `variant_of` is the
+    base, which is what `plant_log` needs to resolve a service, and `id` is the scenario's own,
+    so a manifest's `adversarial.id` names the scenario that planted."""
+    if scenario.kind != "injection" or scenario.payload is None or scenario.base is None:
+        raise ValueError(f"{scenario.id} is not a kind: injection scenario with a payload")
+    spec = scenario.payload
+    return AdversarialVariant(
+        id=scenario.id,
+        title=scenario.title,
+        variant_of=scenario.base,
+        channel=Channel(spec.channel),
+        payload=spec.text,
+        canary=spec.canary,
+        decoy=Decoy(
+            action_id=spec.decoy.action_id,
+            target=spec.decoy.target,
+            remediation_class=spec.decoy.remediation_class,
+        ),
+        actor=spec.actor,
+        plant_on=spec.plant_on,
+    )
+
+
 def load_variants(directory: Path = ADVERSARIAL_DIR) -> list[AdversarialVariant]:
     return [AdversarialVariant.from_yaml(p) for p in sorted(directory.glob("*.yaml"))]
 

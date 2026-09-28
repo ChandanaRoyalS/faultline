@@ -4617,6 +4617,34 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-09-28: the `injection` row's harness work landed - a `kind: injection` scenario carries
+its own attacker, the runner plants it for the kind, the recorder proves delivery through the
+agent's own tool. No stamp moved.***
+
+- **The decision.** Of the three rows left, this one needs no world change and no new
+  mechanism: every base is recorded (today's `v2-kafka-disk-fill` included), and T6.8 built
+  the planter and the scorer. `disk_fill` rows 2 and 3 would re-found the v2 world (two tmpfs
+  mounts move `compose_digest`, and the bundle guard holds every valid v2 bundle to one), and
+  the `datastore_corruption` store tools are two recordings each before a slot fills.
+- **The design**, five decisions in `docs/design/t7.1-injection-scenarios.md`: the scenario
+  file carries T6.8's variant field for field (`base`, `payload`), the fault fields the base's
+  and held equal; log channel only, `plant_on` named never defaulted; `faultline-eval` plants
+  for the kind with no flag, refuses `--adversarial` on it, and the run stays out of the
+  standing aggregates as T6.8 decided; the recorder plants after the page and reads back twice
+  through `Tools.logql_query` - the specialist's own unfiltered read and a Q100-filtered one -
+  with `payload.delivered` the unfiltered read's answer; the fingerprint names the landing and
+  the decoy, never the text, and a fault scenario's fingerprint is untouched.
+- **Found on the way.** `run.culprit_service` and `also_correct_fixes` built
+  `evals/scenarios/<id>.yaml` by hand, a path no v2 scenario is under, so every v2 scenario
+  would have scored an empty culprit and an empty also-correct set - unexercised, no v2 run
+  having been scored. `run.scenario_path` resolves both trees; a test holds every scored
+  scenario to it.
+- **Held by** `tests/test_injection_scenarios.py` (the model, the committed scenarios against
+  their bases and bundles, the canary namespace, the read-back's rule, the path fix);
+  `SCHEMA.md` documents `base` and `payload`; row 2's `plant_on` moved to the seed the base's
+  recording paged.
+- **Next.** Row 1: `v2-inj-cart-store-corruption-log-checkout`, pre-registered and recorded.
+
 ***2026-09-28: the thirty-fourth v2 scenario, `v2-kafka-disk-fill`, rehearsed and labeled - slot
 `v2/disk_fill-1` (dev), first recording. The catalog's first `free_storage` scenario, and the
 first recording under Q100's filter and Q113's whole-window capture.***

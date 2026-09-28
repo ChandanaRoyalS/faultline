@@ -678,6 +678,23 @@ def confirm_recovery() -> gate.GateReading:
     return reading
 
 
+def scenario_path(scenario_id: str) -> Path | None:
+    """Where a scenario's YAML lives: the v1 root or the `v2/` tree (T7.1, 2026-09-28).
+
+    Three readers here built `evals/scenarios/<id>.yaml` by hand, which is where the eighteen
+    v1 files are and where no v2 file is, so on a v2 scenario `culprit_service` returned the
+    empty string, `also_correct_fixes` an empty set, and the adversarial plant would have raised
+    - none of it exercised, since no v2 run has been scored. Found while giving the runner
+    `kind: injection` scenarios, whose payload it reads from the same file."""
+    for candidate in (
+        REPO_ROOT / "evals/scenarios" / f"{scenario_id}.yaml",
+        REPO_ROOT / "evals/scenarios/v2" / f"{scenario_id}.yaml",
+    ):
+        if candidate.exists():
+            return candidate
+    return None
+
+
 def bundle_for(scenario_id: str) -> dict[str, Any]:
     for split in ("dev", "holdout"):
         path = REPO_ROOT / "evals/scenarios/artifacts" / split / scenario_id / "manifest.json"
@@ -697,8 +714,8 @@ def also_correct_fixes(scenario_id: str) -> frozenset[str]:
     The applied set is written into the scored output, so a report says which one it used rather
     than leaving a reader to infer it from the catalog as it stands today.
     """
-    path = REPO_ROOT / "evals/scenarios" / f"{scenario_id}.yaml"
-    if not path.exists():
+    path = scenario_path(scenario_id)
+    if path is None:
         return frozenset()
     from evalharness.scenario import Scenario
 
@@ -717,8 +734,8 @@ def culprit_service(scenario_id: str) -> str:
     names an OTel `service.name` (`adservice`). ADR-0017 makes that one identity; comparing the
     two raw strings would score every correct answer wrong.
     """
-    path = REPO_ROOT / "evals/scenarios" / f"{scenario_id}.yaml"
-    if not path.exists():
+    path = scenario_path(scenario_id)
+    if path is None:
         return ""
     from evalharness.scenario import Scenario
     from injector.world import canonical_service
@@ -1332,6 +1349,22 @@ def main(argv: list[str] | None = None) -> int:
         print(f"REFUSED: {args.scenario_id} is a holdout scenario; pass --holdout to mean it")
         return 3
     variant = None
+    scenario_file = scenario_path(args.scenario_id)
+    if scenario_file is not None:
+        from evalharness import adversarial
+        from evalharness.scenario import Scenario
+
+        catalog_scenario = Scenario.from_yaml(scenario_file)
+        if catalog_scenario.kind == "injection":
+            # **The scenario carries its own attacker** (T7.1, the `injection` row). It is planted
+            # for this kind with no flag, and a flag on top would plant two - so it is refused.
+            if args.adversarial:
+                print(
+                    f"REFUSED: {args.scenario_id} is a kind: injection scenario and carries its "
+                    "own payload; --adversarial cannot be combined with it"
+                )
+                return 3
+            variant = adversarial.variant_from_scenario(catalog_scenario)
     if args.adversarial:
         from evalharness import adversarial
 
@@ -1574,9 +1607,7 @@ def main(argv: list[str] | None = None) -> int:
                     print(f"planting {variant.id} ({variant.channel})...")
                     planted = adversarial.plant(
                         variant,
-                        Scenario.from_yaml(
-                            REPO_ROOT / "evals/scenarios" / f"{args.scenario_id}.yaml"
-                        ),
+                        Scenario.from_yaml(scenario_path(args.scenario_id) or Path()),
                         dsn=dsn,
                         loki_url=ToolSettings().loki_url,
                     )
@@ -1675,7 +1706,7 @@ def main(argv: list[str] | None = None) -> int:
                 dsn,
                 trajectory_id,
                 variant,
-                Scenario.from_yaml(REPO_ROOT / "evals/scenarios" / f"{args.scenario_id}.yaml"),
+                Scenario.from_yaml(scenario_path(args.scenario_id) or Path()),
                 run.manifest["adversarial"]["canary"],
             )
             run.manifest["adversarial"]["outcome"] = outcome.as_dict()
