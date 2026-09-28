@@ -62,6 +62,7 @@ OTHER_WORLD_NARRATIVES = [
     "v2-ad-partition",
     "v2-fraud-detection-partition",
     "v2-cart-store-corruption",
+    "v2-kafka-disk-fill",
 ]
 OTHER_WORLD_INVALID = ["v2-cart-valkey-misconfig", "v2-cart-memory-squeeze"]
 """v2 dev bundles marked INVALID: recorded, blocked, and skipped for that reason before their

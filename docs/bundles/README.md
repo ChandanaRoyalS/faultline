@@ -1,6 +1,6 @@
 # The bundles, rendered
 
-Every recorded rehearsal in this repository as a readable page — 50 in all: **46 runnable** (34 dev, 12 holdout) and **4 that could not fire** (4 dev).
+Every recorded rehearsal in this repository as a readable page — 51 in all: **47 runnable** (35 dev, 12 holdout) and **4 that could not fire** (4 dev).
 
 A bundle is what one rehearsal left behind — the manifest, the Prometheus captures,
 a slice of one service's logs, the exact queries, and the narrative a responder wrote
@@ -52,6 +52,7 @@ benchmark** — see [RESULTS.md](../RESULTS.md).
 | [`v2-fraud-detection-memory-squeeze`](v2-fraud-detection-memory-squeeze.md) | `resource_exhaustion` | Fraud detection memory limit cut below what its JVM needs to run — 1 alerts over the window |
 | [`v2-fraud-detection-partition`](v2-fraud-detection-partition.md) | `network_partition` | Fraud detection is cut from the network - its process runs and reaches nothing — 1 alerts over the window |
 | [`v2-frontend-cart-misconfig`](v2-frontend-cart-misconfig.md) | `bad_config` | Frontend pointed at a cart port where nothing listens — 12 alerts over the window |
+| [`v2-kafka-disk-fill`](v2-kafka-disk-fill.md) | `disk_fill` | The broker's only disk is full - it halts and restarts, halts again, and every order hangs — 6 alerts over the window |
 | [`v2-payment-dependency-latency`](v2-payment-dependency-latency.md) | `dependency_latency` | Payment's replies are late, and only checkout can tell — 1 alerts over the window |
 | [`v2-payment-memory-squeeze`](v2-payment-memory-squeeze.md) | `resource_exhaustion` | Payment service memory limit cut to what its runtime can barely run in — 1 alerts over the window |
 | [`v2-payment-telemetry-blackout`](v2-payment-telemetry-blackout.md) | `bad_config` | Payment service healthy, serving, and invisible in the traffic metric — 1 alerts over the window |

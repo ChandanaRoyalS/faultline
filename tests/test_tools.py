@@ -969,6 +969,13 @@ NARRATIVE_EVIDENCE_V2: dict[str, set[str]] = {
     # traces hold cart's own span in error in under a millisecond under every failed order; the
     # change history is empty.
     "v2-cart-store-corruption": {"metrics", "runtime_metrics", "logs", "traces", "changes"},
+    # The target is the broker, halted on a full disk and restarted against it every backoff.
+    # Metrics carry the producer's p95 at the ceiling with its orders succeeding, one consumer at
+    # 100 % errors and the other at zero rate; the broker's runtime series stop and nineteen
+    # one-shot instance ids appear behind them; its log names the disk in the sixth second and
+    # then writes nine lines a restart; the traces hold the publish under every completed order;
+    # the change history is empty.
+    "v2-kafka-disk-fill": {"metrics", "runtime_metrics", "logs", "traces", "changes"},
     # Holdout. The page names the culprit and reads as down. Metrics carry its rate going to zero
     # and everyone else's holding; runtime shows it alive; its log names the address and the
     # refused connection, and fraud-detection's shows the topic still read; traces show none of

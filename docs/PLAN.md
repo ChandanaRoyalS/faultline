@@ -4617,6 +4617,35 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-09-28: the thirty-fourth v2 scenario, `v2-kafka-disk-fill`, rehearsed and labeled - slot
+`v2/disk_fill-1` (dev), first recording. The catalog's first `free_storage` scenario, and the
+first recording under Q100's filter and Q113's whole-window capture.***
+
+- **The design.** A8b's and R5's `dd` into kafka's only log directory, the 256 MiB tmpfs at the
+  path the broker names on every line; restore by the registered fallback, recreate and
+  restart the three that do not reconnect.
+- **The page, not as predicted.** `ServiceHighErrorRate` on fraud-detection at 5m31s - the
+  Java consumer's failing fetches at 100 % beat checkout's latency by a minute; six alerts on
+  three services, the broker on none. **No order failed**: checkout logs a failed publish and
+  returns the order as placed, so 115 orders were charged and confirmed and the only
+  customer-facing failures were the proxy's 64 timeouts. The seventeen restarts wrote nine
+  entrypoint lines each and nothing of the broker's own - no banner, no error.
+- **The fingerprint, as predicted, and one finding on top.** The halt's lines at +5 s naming
+  the file, the error and the directory; `orders publish` held under every completed order
+  with the producer's own text; two readers of one topic, one loud in spans and silent in its
+  log, the other the reverse. The broker's 52 runtime series stopped at the halt and
+  **nineteen one-shot instance ids** appeared behind them, one per restarted JVM: a crashloop
+  under an agent has a signature a stopped process does not.
+- **The recovery, clean.** Started at +7 s, consuming at +21 s, no duplicate-key wave, all clear
+  3m02s.
+- **The lists.** `NARRATIVE_EVIDENCE_V2`, `OTHER_WORLD_NARRATIVES`, the SPLIT-V2 line, the
+  candidates note with two loose ends (a `count_over_time` versus log-read disagreement in the
+  read-back, not chased; twelve frontend calls in error the narrative reports without
+  explaining).
+- **35 of 44 slots filled; seven classes complete.** `disk_fill` rows 2 and 3 need a tmpfs
+  precondition each; row 4 has no candidate. `datastore_corruption` 2 to 4 need store tools.
+  `injection` needs the harness work its row names.
+
 ***2026-09-28: Q113 decided and landed - the target-log capture from onset is the whole window,
 read in Loki's pages; 400 lines becomes a 20,000-line ceiling.***
 
