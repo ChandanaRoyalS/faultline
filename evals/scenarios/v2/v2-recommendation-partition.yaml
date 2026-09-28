@@ -1,0 +1,112 @@
+# v2/network_partition-4 (HOLDOUT) - see SPLIT-V2.md. Nothing may be tuned against this scenario.
+# Slot allocated before authoring; do not move. Candidate order and eligibility:
+# docs/design/t7.1-candidates.md, network_partition reserves - new: the row's last reserve, taking
+# the holdout slot after cart, payment, shipping, checkout and email were each measured silent while
+# cut off and blocked. Measured before authoring (2026-09-28): recommendation is on
+# `opentelemetry-demo` alone with aliases `recommendation` (twice); only the frontend calls it,
+# 0.18 ListRecommendations a second, 2.0 % of its non-internal spans, every one the load
+# generator's recommendations task through /api/recommendations (the frontend's gateway sets no
+# deadline); on every call it lists the catalog; 20 Python runtime series; about two log lines a
+# minute at rest, one per request; under a ten-minute cut it wrote ten lines, every one the SDK's,
+# and paged at +440 s.
+id: v2-recommendation-partition
+title: The recommendation service is cut from the network - its process runs and reaches nothing
+fault_class: network_partition
+split: holdout
+slot: v2/network_partition-4
+world: v2
+injection:
+  target: recommendation
+  method: v2-recommendation-partition
+  params:
+    network: opentelemetry-demo
+ground_truth:
+  root_cause: >
+    The recommendation container was disconnected from the demo network (docker network
+    disconnect): the process kept running, its port stayed open on an address nothing could reach,
+    packets on its established connections were dropped rather than reset, and nothing it tried to
+    reach answered. Only the frontend calls it, once per recommendations request and with no
+    deadline, so every recommendations request hangs until the proxy cuts it at fifteen seconds -
+    the smallest share of requests on this row - while the rest of the storefront and every order
+    run as before; recommendation's own call into the catalog, made on every request, hangs the
+    same way from its side. Recommendation itself is alive and says so - its SDK logs each failed
+    telemetry export, once a minute for as long as it is cut off - while its own request lines
+    stop, because nothing reaches it.
+  category: network_partition
+expected_evidence:
+  # A new design: predicted before recording from the row's mechanism, the ad recording (row -2,
+  # the same shape on the edge), the catalog recording (row 1, the other side of this target's
+  # recovery) and a ten-minute measurement cut of recommendation on 2026-09-28 (nothing
+  # recorded), and checked against the bundle after. The measured cut is the basis for the
+  # numbers here. The page is predicted marginal and thin, as ad's was and for the same reason -
+  # a share of requests near the edge's 5 % line - and the log is the design; the recovery is
+  # predicted from the measurement to be row 1's, seen from the caller's side.
+  - alerts: the page is predicted thin and from the storefront edge - ServiceHighLatency on
+      frontend-proxy and load-generator between +5 and +8, once enough 15 s spans are in the
+      window, with ServiceNoTraffic on recommendation in the same minute or the next (in the
+      measured cut all three were first seen at +440 s); no error-ratio alert - the hung share is
+      under the 5 % line; nothing on the frontend (its recommendation calls are 2 % of its
+      spans) and nothing on the order path, which is untouched, so no fraud-detection dead end;
+      three alerts on three services by the fix
+  - metrics: frontend-proxy's and load-generator's p95 at the histogram's ceiling (15000 ms)
+      from about +4 and their error ratios under the line - 2 to 4 %, the smallest share on the
+      row; the frontend's error ratio zero for the length of the cut, its p95 unmoved, its rate
+      down by the blocked users' share
+  - metrics: recommendation's request rate to zero by about +4 and from then to the reconnect
+      no error ratio and no p95 - not zero errors, no samples; product-catalog's rate down by
+      recommendation's share of its calls (about half its calls come from recommendation at
+      rest) and otherwise serving; every other service's rate holding, orders completing
+      throughout
+  - metrics: recommendation's 20 Python runtime series stop at the cut - the SDK cannot reach
+      the collector, its last report the one before onset - hold for the store's lookback and
+      drop out of queries at about +5; back within about two minutes of the reconnect
+  - logs: THE DESIGN - recommendation's SDK writes each failed export to its console at ERROR,
+      in the service's own log format, and the lines are the fault's - none in the five minutes
+      before onset. "Failed to export metrics to otel-collector:4317" at about +16 s and then
+      once every seventy seconds for as long as it is cut off - the reader's minute plus the
+      export's ten-second timeout - and "Failed to export traces" once, at about +75 s, when the
+      span batch it held could not be sent; one line per failure, no stack trace, about ten lines
+      over ten minutes. Its own request lines ("Receive ListRecommendations"), about two a minute
+      at rest, stop at the cut and return with the reconnect
+  - traces: every proxy error trace ends at its 15 s deadline and every one is a
+      recommendations request (load-generator user_get_recommendations - GET
+      /api/recommendations); below it the frontend's call into recommendation
+      (grpc.oteldemo.RecommendationService/ListRecommendations) stays open for the length of the
+      cut; recommendation has no spans during the cut - nothing reaches it, and what it sends
+      reaches nothing - and its spans appear only after the reconnect; no error trace on the
+      frontend during the cut
+  - recovery: ROW 1's, FROM THE CALLER'S SIDE - at the reconnect recommendation is back under
+      its captured aliases, predicted on the same address; its own calls into the catalog, held
+      open through the cut, are predicted to fail at the reconnect with "connection reset by
+      peer" - the catalog's Go server reset its callers in row 1, and did so to recommendation in
+      the measured cut, 37 s after the reconnect, its log carrying the traceback - so the held
+      recommendations requests fail rather than complete, the frontend's and recommendation's
+      error ratios rise for a minute or two, and recovery-only error alerts on recommendation
+      and possibly the frontend are predicted; then recommendation serves normally; the proxy's
+      and the load generator's alerts clear as the 15 s spans age out; no restart of
+      recommendation or of product-catalog
+  - change: nothing recorded - no deploy, no config, no flag; the history is empty for the
+      whole window (the injector records no change for this class)
+  - discriminator: a freeze of recommendation would look the same on alerts, metrics, runtime
+      series and traces for the length of the fault; the partition is the one whose target keeps
+      running and logs its failed exports once a minute, where a frozen target logs nothing -
+      here from the Python SDK's own logger, in a log that is quiet at rest (two lines a minute)
+      and goes quiet on requests at the same moment it starts on exports; against the other
+      fault on this target - v2-recommendation-memory-squeeze shows a container killed at once
+      and restarting, its start-up lines repeating - here recommendation serves nothing, errors
+      nothing during the fault, restarts never, and nothing was changed
+expected_remediation_class: restart
+# The partition resolves when the container is put back on its network; where an operator cannot
+# reconnect it with its aliases, recreating or restarting the container does it
+# (knowledge/runbooks/class-network-partition.md). Nothing was changed, so nothing is reverted.
+rehearsed: false
+alert_timeout_seconds: 900
+# Declared before recording, checked against the bundle after (T7.5). Measured on the running world
+# 2026-09-28: recommendation holds 20 Python runtime series and writes about two lines a minute at
+# rest - a thin log, and one that under the cut adds one line per failed export, about ten over
+# ten minutes, and a burst of request lines after the reconnect; the derivation counts lines in
+# the capture against its threshold of ten, and the capture's window (five minutes before onset,
+# the fault, two minutes past the all-clear) is predicted to hold more than that. Declared
+# [runtime, logs] on that prediction; restated to the measurement if the recorder derives
+# otherwise, as the gate requires.
+answers_idle_or_absent: [runtime, logs]

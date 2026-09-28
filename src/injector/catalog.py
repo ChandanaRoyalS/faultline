@@ -657,6 +657,22 @@ CATALOG: tuple[FaultDefinition, ...] = _validated(
             params={"network": "opentelemetry-demo"},
         ),
         FaultDefinition(
+            id="v2-recommendation-partition",
+            fault_class=FaultClass.NETWORK_PARTITION,
+            target="recommendation",
+            world="v2",
+            description=(
+                "Cut the recommendation service from the demo network. Only the frontend calls "
+                "it, for the recommendations request, one request in about twenty-five on this "
+                "load - the smallest share on the row - so the storefront edge sits at its lines "
+                "while every recommendations request hangs to the proxy's 15 s; recommendation's "
+                "own calls into the catalog hang with it. Told apart from a freeze by the Python "
+                "SDK's own log: every failed export at ERROR, once a minute once cut off "
+                "(measured 2026-09-28)."
+            ),
+            params={"network": "opentelemetry-demo"},
+        ),
+        FaultDefinition(
             id="v2-cart-store-corruption",
             fault_class=FaultClass.DATASTORE_CORRUPTION,
             target="valkey-cart",
