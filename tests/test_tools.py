@@ -859,6 +859,12 @@ NARRATIVE_EVIDENCE_V2: dict[str, set[str]] = {
     # agent's export failures in the same second; the traces hold GetAds open for the length of
     # the cut, answered at the reconnect; the change history is empty.
     "v2-ad-partition": {"metrics", "runtime_metrics", "logs", "traces", "changes"},
+    # The target is cut from its network, and nothing calls it - it consumes orders from Kafka.
+    # Metrics carry one silence and nothing else moving; its runtime series stop at the cut and
+    # return after the reconnect; its log drops its order lines and takes up the agent's export
+    # failures in the same second; the traces show it absent during the cut and its backlog as one
+    # batch after it; the change history is empty.
+    "v2-fraud-detection-partition": {"metrics", "runtime_metrics", "logs", "traces", "changes"},
     # Holdout. The page names the culprit and reads as down. Metrics carry its rate going to zero
     # and everyone else's holding; runtime shows it alive; its log names the address and the
     # refused connection, and fraud-detection's shows the topic still read; traces show none of

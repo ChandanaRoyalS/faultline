@@ -1,6 +1,6 @@
 # The bundles, rendered
 
-Every recorded rehearsal in this repository as a readable page — 47 in all: **43 runnable** (32 dev, 11 holdout) and **4 that could not fire** (4 dev).
+Every recorded rehearsal in this repository as a readable page — 48 in all: **44 runnable** (33 dev, 11 holdout) and **4 that could not fire** (4 dev).
 
 A bundle is what one rehearsal left behind — the manifest, the Prometheus captures,
 a slice of one service's logs, the exact queries, and the narrative a responder wrote
@@ -49,6 +49,7 @@ benchmark** — see [RESULTS.md](../RESULTS.md).
 | [`v2-currency-freeze`](v2-currency-freeze.md) | `process_freeze` | The currency process is frozen - its socket accepts and nothing answers — 9 alerts over the window |
 | [`v2-fraud-detection-flag-queue-lag`](v2-fraud-detection-flag-queue-lag.md) | `feature_flag` | A feature flag floods the orders queue, slows its consumer and breaks accounting — 1 alerts over the window |
 | [`v2-fraud-detection-memory-squeeze`](v2-fraud-detection-memory-squeeze.md) | `resource_exhaustion` | Fraud detection memory limit cut below what its JVM needs to run — 1 alerts over the window |
+| [`v2-fraud-detection-partition`](v2-fraud-detection-partition.md) | `network_partition` | Fraud detection is cut from the network - its process runs and reaches nothing — 1 alerts over the window |
 | [`v2-frontend-cart-misconfig`](v2-frontend-cart-misconfig.md) | `bad_config` | Frontend pointed at a cart port where nothing listens — 12 alerts over the window |
 | [`v2-payment-dependency-latency`](v2-payment-dependency-latency.md) | `dependency_latency` | Payment's replies are late, and only checkout can tell — 1 alerts over the window |
 | [`v2-payment-memory-squeeze`](v2-payment-memory-squeeze.md) | `resource_exhaustion` | Payment service memory limit cut to what its runtime can barely run in — 1 alerts over the window |

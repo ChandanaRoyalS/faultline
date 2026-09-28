@@ -33,45 +33,56 @@ ground_truth:
 expected_evidence:
   # A new design: predicted before recording from the row's mechanism, the ad recording (row -2,
   # the same agent) and a ten-minute measurement cut of fraud-detection on 2026-09-28 (nothing
-  # recorded), and checked against the bundle after. The measured cut is the basis for the
-  # numbers here. The fault has no cascade at all - no caller, no hung request, no latency, no
-  # error - and its page is the smallest a page can be: the culprit's own silence, alone. The
-  # log is the design; the discriminator against a freeze of the same service is nothing else.
-  - alerts: one alert, on the culprit - ServiceNoTraffic on fraud-detection at about +7:45,
-      once its 5m rate has read zero for the rule's three minutes; nothing before it and nothing
+  # recorded), and checked against the first recording, on the revised world, 2026-09-28
+  # (t_inject 09:56:37, revert at +12:46). The prediction held in full on the fault: one alert,
+  # on the culprit, at 7m46s, nothing before or beside it, nothing else in the world moving; the
+  # log the design, in the agent's shape; the runtime gap. The recovery went further than the
+  # "possible" latency alert hedged for: the backlog came back as one 19 s receive span whose
+  # first sixty-odd records each failed their flag resolve at a 500 ms deadline - the flagd
+  # provider's connection had gone stale in the cut and recovered only after them - so
+  # fraud-detection's error ratio read 33 % and its p95 780 ms from the fix to the window's end,
+  # and no alert on either is on record. The list below states the recording.
+  - alerts: one alert, on the culprit - ServiceNoTraffic on fraud-detection (page 7m46s), once
+      its 5m rate had read zero for the rule's three minutes; nothing before it and nothing
       beside it - no alert on the frontend, the edge, checkout or any other service, because
-      nothing waits on fraud-detection; one alert on one service by the fix; a recovery-only
-      ServiceHighLatency on fraud-detection is possible after the reconnect, when the backlog is
-      consumed as one batch under one receive span
+      nothing waits on fraud-detection; one alert on one service by the fix, none after it, the
+      alert clearing 29 s after the reconnect and the world all clear at 1m00s
   - metrics: fraud-detection's span rate (orders receive, orders process, its flag resolves)
-      from about 0.3 a second to zero by about +4 and nothing from then to the reconnect - no
+      from about 0.3 a second to 0.08 at +3 and zero from +4, and from +4 to the reconnect no
       error ratio, no p95, no samples; every other service's rate, error ratio and p95 within
-      its usual range for the whole window, orders completing throughout, accounting's rate
+      its usual range for the whole window - checkout at 2.0 to 2.5 a second, the frontend's
+      ratio zero, its p95 41 to 45 ms - 119 orders completing during the cut, accounting's rate
       unchanged (it reads the same topic and is not cut)
-  - metrics: fraud-detection's 51 JVM runtime series stop at the cut - the agent cannot reach
+  - metrics: fraud-detection's 52 JVM runtime series stop at the cut - the agent cannot reach
       the collector, its last successful report the one before onset - hold for the store's
-      lookback and drop out of queries at about +4:30; back within a minute of the reconnect
+      lookback and drop out of queries at +4:00; back 29 s after the reconnect
   - logs: THE DESIGN - fraud-detection's agent writes each failed export to its console at
       ERROR, and the lines are the fault's - none in the five minutes before onset. "Failed to
-      export spans" at about +15 s and "Failed to export metrics" at about +24 s, each on a
-      request that timed out over the connection it already held; then "Failed to export
-      metrics" once a minute at :46 for as long as it is cut off, the cause changed to
+      export metrics" at +12 s on a request that timed out over the connection it already held,
+      then once a minute at :46 for as long as it is cut off, the cause changed to
       "UnknownHostException" naming the collector, because the container's resolver answers only
-      for networks it is attached to and it is attached to none; each with its stack trace, about
-      30 lines a minute, about 330 over ten minutes; one further spans failure when a span
-      closes mid-cut. Its own order lines ("Consumed record with orderId ... updated total count
-      to"), about ten a minute at rest, stop at the cut and return within ten seconds of the
-      reconnect, the backlog consumed in a burst
+      for networks it is attached to and it is attached to none; and two spans failures, at +76 s
+      and +672 s, when a span closed mid-cut; fifteen failures, each with its stack trace, 32
+      agent lines in all. Its own order lines ("Consumed record with orderId ... updated total
+      count to"), about ten a minute at rest, stop 9 s before the cut and return 2.6 s after the
+      reconnect, the backlog consumed in a burst. The recorder kept only the first 400 lines from
+      onset and the stack traces fill them by about +10:30, so the fault's last four failures and
+      the whole burst after the reconnect are outside the capture
   - traces: fraud-detection has no spans during the cut - no order reaches it and what it sends
       reaches nothing - and its spans appear only after the reconnect; no hung call anywhere in
       the world names it, because nothing calls it; checkout's PlaceOrder traces complete as
-      usual, their Kafka publish unaffected; no error trace on any service from the fault
-  - recovery: at the reconnect fraud-detection is back under its captured aliases and resumes
-      reading its topic within ten seconds - the orders it missed, held in Kafka, consumed in
-      one batch under one receive span, its counter jumping by their number - and its runtime
-      reports and order lines return; the no-traffic alert clears within about two minutes; a
-      recovery-only latency alert on fraud-detection is possible on the batch's receive span;
-      no restart of fraud-detection or of kafka
+      usual; no error trace on the edge, the frontend or checkout at any point
+  - recovery: NOT AS HEDGED - at the reconnect fraud-detection is back under its captured
+      aliases and reads its topic 2.6 s later; the orders it missed, held in Kafka, come back
+      as one batch under one "orders receive" span of 19.2 s, its counter jumping by their
+      number - and inside it the first sixty-odd "orders process" spans each take 500 ms and
+      end in error, their flag resolve (flagd.evaluation.v1.Service/ResolveInt) failing at its
+      deadline with flagd answering in under a millisecond, until the provider recovers and the
+      rest process in 0.1 ms with no resolve at all; so fraud-detection's error ratio reads 33 %
+      and its p95 780 ms from +13 to the window's end at +15:46, and no alert on either is on
+      record - the no-traffic alert cleared 29 s after the reconnect and the recorder's window
+      closed two minutes after the all-clear, before an error-ratio rule's two minutes or a
+      latency rule's three could be seen to hold; no restart of fraud-detection or of kafka
   - change: nothing recorded - no deploy, no config, no flag; the history is empty for the
       whole window (the injector records no change for this class)
   - discriminator: a freeze of fraud-detection would look the same on alerts, metrics, runtime
@@ -88,10 +99,12 @@ expected_remediation_class: restart
 # The partition resolves when the container is put back on its network; where an operator cannot
 # reconnect it with its aliases, recreating or restarting the container does it
 # (knowledge/runbooks/class-network-partition.md). Nothing was changed, so nothing is reverted.
-rehearsed: false
+rehearsed: true
 alert_timeout_seconds: 900
 # Declared before recording, checked against the bundle after (T7.5). Measured on the running world
 # 2026-09-28: fraud-detection holds 51 JVM runtime series and writes about ten lines a minute at
 # rest, so both classes can answer here in the derivation's own reading - runtime by going absent
-# at the cut, the log by changing what it says: order lines stop, export failures begin.
+# at the cut, the log by changing what it says: order lines stop, export failures begin. The first
+# recording (2026-09-28) held 52 runtime series (gapped from +4:00 to 29 s after the reconnect)
+# and 440 target log lines at the capture's limit; the recorder derived [runtime, logs].
 answers_idle_or_absent: [runtime, logs]

@@ -1,0 +1,87 @@
+{
+  "alerts_at_fire": [
+    "ServiceNoTraffic/fraud-detection"
+  ],
+  "alerts_over_window": [
+    {
+      "alert": "ServiceNoTraffic",
+      "began_after_revert": false,
+      "first_seen": "2026-09-28T10:04:07+00:00",
+      "last_seen": "2026-09-28T10:09:52+00:00",
+      "minutes_firing": 6.0,
+      "service": "fraud-detection"
+    }
+  ],
+  "baseline_clear_at": "2026-09-28T09:56:37+00:00",
+  "bundle_schema_version": 2,
+  "capture_set": 2,
+  "expected_remediation_class": "restart",
+  "fault_class": "network_partition",
+  "injection": {
+    "method": "v2-fraud-detection-partition",
+    "params": {
+      "network": "opentelemetry-demo"
+    },
+    "target": "fraud-detection"
+  },
+  "origin": "scenario:v2-fraud-detection-partition",
+  "reachability": {
+    "answers_idle_or_absent": [
+      "runtime",
+      "logs"
+    ],
+    "derived_from": "the bundle's own captures (T7.5)",
+    "none_can_answer": false,
+    "runtime_series": 52,
+    "target_log_lines": 440
+  },
+  "recorded_by": "evalharness.rehearse",
+  "recorder": {
+    "git_dirty": true,
+    "git_sha": "280937a8245c829d2eb6f9c1fa6956acb8c43736",
+    "tool": "evalharness.rehearse"
+  },
+  "scenario_fingerprint": "d1287349d50cb62244f0eceb2a25774db7cf18b25020dc6c02cb129a749a81a2",
+  "scenario_id": "v2-fraud-detection-partition",
+  "seconds_of_steady_state": 300,
+  "seconds_to_alert": 466,
+  "seconds_to_settle": 60,
+  "split": "dev",
+  "t_alert_firing": "2026-09-28T10:04:23+00:00",
+  "t_clear": "2026-09-28T10:10:23+00:00",
+  "t_inject": "2026-09-28T09:56:37+00:00",
+  "t_revert": "2026-09-28T10:09:23+00:00",
+  "title": "Fraud detection is cut from the network - its process runs and reaches nothing",
+  "window": {
+    "end": "2026-09-28T10:12:23+00:00",
+    "start": "2026-09-28T09:51:37+00:00"
+  },
+  "world": {
+    "compose_digest": "5a2bc6d912f922a03874ab2824d9362541362386fbcab7e0c2f99aa760f567df",
+    "docker_arch": "arm64",
+    "ffs_stub_image_id": "sha256:90f2fc6f5806a8914ef2740ff7c6348a1ddd4225bccc8f3398e58d03b3c1a512",
+    "ffs_stub_source_digest": null,
+    "host_platform": "Darwin/arm64",
+    "observability_digest": "7d6097ab0f00132d57993804ee4f4d9eff1abedfb71a273bdd7e553ef887637b",
+    "observability_files": {
+      "compose/otelcol-extras-v2.yml": "48cd277022d94eb34a9cedd743fab54efb1d78ce59258349b06360917495b443",
+      "compose/prometheus/alert-rules-v2.yml": "7f006a034167ffd3c1eacc17f9d952f73eeb22d1936aa17669626c442fa8f20b",
+      "compose/prometheus/alertmanager.yml": "cec8f9f623152c001d14a53c8c3a6930ad35665d5ee093117ff17cf0d09d61f1",
+      "compose/prometheus/prometheus-config-v2.yaml": "b2e8c9c59bcbfa5d7235748871db1852de74d59c43d89723a2d260c0aaf45867",
+      "compose/promtail-config.yml": "2d43bc91f78cf65504a1091e406a7e97bcece0a194dc5f27cf1fd4c49edb72ec",
+      "compose/tempo-v2.yaml": "8b0e0300b81ca9cd83a252ab0f6743c04fbb3adf3eb4c75a290d17978bb3c4fb",
+      "world-v2/src/otel-collector/otelcol-config.yml": "0a472a67088ca6fa1d5a222ce8c633aa26bbb75cd8d11558c2feaabdfc70141e"
+    },
+    "otel_demo_image": "ghcr.io/open-telemetry/demo:2.2.0-cart",
+    "otel_demo_image_digest": "ghcr.io/open-telemetry/demo@sha256:1adaf3b33fbf4d42e5a1fa68fec1ea1b645d50471881179bd7be0a0ce2656706",
+    "world_name": "v2"
+  },
+  "world_lock": {
+    "acquired": true,
+    "host": "chandanas-MacBook-Air.local",
+    "pid": 62066,
+    "reason": "rehearse v2-fraud-detection-partition",
+    "since": "2026-09-28T09:56:31.542474+00:00",
+    "token": "62066-1790589391.542098"
+  }
+}
