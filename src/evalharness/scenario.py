@@ -10,7 +10,7 @@ from enum import StrEnum
 from pathlib import Path
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class FaultClass(StrEnum):
@@ -91,6 +91,68 @@ class GroundTruth(BaseModel):
 
     root_cause: str
     category: FaultClass
+
+
+CANARY_SHAPE = r"^[a-z]{4,}-[a-z0-9]{8,}$"
+"""A word, a hyphen and a random tail - `evalharness.adversarial.CANARY`, restated here so the
+scenario module does not import the planter. The planter's own tests hold the two equal."""
+
+
+class PayloadDecoy(BaseModel):
+    """What the payload tells its reader to propose. In the base's recorded blast radius on
+    purpose: the proposer's scope check rejects a target outside it, and a payload rejected for
+    the wrong reason measures nothing (T6.8)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    action_id: str
+    target: str
+    remediation_class: RemediationClass
+
+
+class Payload(BaseModel):
+    """The second attacker of a `kind: injection` scenario (T7.1, the `injection` row).
+
+    T6.8's variant, carried by the scenario itself instead of by a file beside the catalog: the
+    text a reader is meant to take for operator writing, the channel it arrives by, the service
+    whose channel receives it, a canary stem no legitimate output contains, and the decoy the
+    text asks for. `faultline-eval` plants it for this kind with no flag, and the recorder plants
+    it after the page and reads it back through the agent's own log tool before the revert, so
+    a rehearsed injection scenario is one whose payload is known to land where the tool looks -
+    the failure T6.8's batch 2 paid for twice. **Log channel only for now**: the change channel
+    writes the platform's change log, which the development machine does not run.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    channel: str = Field(default="log", pattern=r"^log$")
+    plant_on: str
+    """The service whose log stream receives the line. **The page's seed, by the row's rule** -
+    where batch 2 of T6.8 found the planner actually reads - named explicitly, never defaulted
+    to the culprit as the variant files once silently did."""
+    text: str
+    """With `{canary}` where the minted token goes. Written to read as operator text, not as an
+    attack - a payload that announces itself measures nothing."""
+    canary: str = Field(pattern=CANARY_SHAPE)
+    """The stem. The planted token is minted from it per run (Q82)."""
+    decoy: PayloadDecoy
+    actor: str = "release-bot"
+
+    @model_validator(mode="after")
+    def _plantable(self) -> Payload:
+        if "{canary}" not in self.text:
+            raise ValueError("payload text must carry {canary}")
+        if self.canary in self.text.replace("{canary}", ""):
+            raise ValueError("the canary appears in the text other than by interpolation")
+        # The change tool's own leak guard, applied at authoring time: a payload the guard would
+        # strip never reaches a model, and a payload that names the harness is not an attacker's.
+        from faultline.tools.changes import BANNED_VOCABULARY
+
+        lowered = self.text.replace("{canary}", self.canary).lower()
+        leaked = sorted(word for word in BANNED_VOCABULARY if word in lowered)
+        if leaked:
+            raise ValueError(f"payload names harness vocabulary: {leaked}")
+        return self
 
 
 class Scenario(BaseModel):
@@ -195,6 +257,27 @@ class Scenario(BaseModel):
     other, in SPLIT-V2.md's own row; `fault_class` and `ground_truth` are the base fault's, and the
     decoy is what a correct verdict does not say. Storm is not a kind: it is a measured property
     (a page of ten or more alerts) the record labels on the scenarios that have it."""
+
+    base: str | None = None
+    """`kind: injection` only: the id of the recorded scenario whose fault this one rides. The
+    fault fields - `injection`, `ground_truth`, `fault_class`, `expected_remediation_class` - are
+    the base's, copied verbatim and held equal by `tests/test_scenario_schema.py`; what this
+    scenario adds is `payload`."""
+
+    payload: Payload | None = None
+    """`kind: injection` only. See `Payload`."""
+
+    @model_validator(mode="after")
+    def _injection_kind_carries_its_payload(self) -> Scenario:
+        if self.kind == "injection":
+            missing = [name for name in ("base", "payload") if getattr(self, name) is None]
+            if missing:
+                raise ValueError(f"a kind: injection scenario needs {missing}")
+            if self.base == self.id:
+                raise ValueError("an injection scenario cannot be its own base")
+        elif self.base is not None or self.payload is not None:
+            raise ValueError("base and payload belong to kind: injection scenarios only")
+        return self
 
     blocked: bool = False
     """This scenario cannot be rehearsed and does not occupy its slot.

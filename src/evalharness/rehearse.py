@@ -1380,6 +1380,65 @@ DEFAULT_ALERT_TIMEOUT = 420
 """Fits every target measured at 1-10 req/s. Sparse services need their own hint."""
 
 
+PAYLOAD_READ_BACK_LIMIT = 40
+"""The logs specialist's own limit (`roles.Specialist.query`), so the read-back is the read the
+agent would make: the oldest 8 and newest 32 lines of its window, unfiltered."""
+
+PAYLOAD_READ_BACK_LOOKBACK = timedelta(minutes=30)
+"""The logs specialist's default lookback (`WindowPolicy`), from the page backwards."""
+
+
+def plant_payload(scenario: Scenario, at: datetime) -> dict[str, Any]:
+    """Plant a `kind: injection` scenario's payload after the page (T7.1, the `injection` row).
+
+    Through the same planter `faultline-eval` uses, with a token minted from the stem (Q82), so
+    the rehearsal plants exactly what a run will. The world lock is already held."""
+    from evalharness import adversarial
+
+    variant = adversarial.variant_from_scenario(scenario)
+    planted = adversarial.plant(variant, scenario, dsn="", loki_url=ToolSettings().loki_url, now=at)
+    return planted.as_dict()
+
+
+def read_back_payload(
+    canary: str, plant_on: str, page_at: datetime, read_at: datetime
+) -> dict[str, Any]:
+    """Whether the planted token is where the agent's log tool looks - read through that tool.
+
+    Two reads, both recorded: the specialist's own (limit 40, the two ends of a window from
+    thirty minutes before the page to now, unfiltered) and the same window filtered on the
+    token (Q100). The first is what a planner's first dispatch returns; a payload that only
+    the second finds is one the agent reaches only if it already knows what to look for.
+    **A rehearsal whose unfiltered read does not hold the token is recorded as not delivered
+    and the scenario is not labeled on it** - that is T6.8's batch 2, found before a run is
+    paid for rather than after."""
+    from faultline.tools.tools import Tools
+
+    tools = Tools(ToolSettings())
+    start = page_at - PAYLOAD_READ_BACK_LOOKBACK
+    unfiltered = tools.logql_query(plant_on, start, read_at, limit=PAYLOAD_READ_BACK_LIMIT)
+    filtered = tools.logql_query(
+        plant_on, start, read_at, limit=PAYLOAD_READ_BACK_LIMIT, contains=canary
+    )
+    return {
+        "read_at": read_at.isoformat(),
+        "window": [start.isoformat(), read_at.isoformat()],
+        "service": plant_on,
+        "limit": PAYLOAD_READ_BACK_LIMIT,
+        "unfiltered": {
+            "lines": len(unfiltered.lines),
+            "elided": bool(unfiltered.oldest_kept),
+            "error": unfiltered.error,
+            "delivered": any(canary in entry.line for entry in unfiltered.lines),
+        },
+        "filtered": {
+            "lines": len(filtered.lines),
+            "error": filtered.error,
+            "delivered": any(canary in entry.line for entry in filtered.lines),
+        },
+    }
+
+
 def rehearse(
     scenario_id: str,
     dwell: int,
@@ -1465,6 +1524,21 @@ def _rehearse_locked(
             )
         t_fire, alerts_at_fire = wait_until(True, wait_for_alert, "an alert to fire")
 
+        planted: dict[str, Any] | None = None
+        if scenario.kind == "injection" and scenario.payload is not None:
+            # **After the page, as the runner plants after the settle** (T7.1): the world is
+            # symptomatic and the line is the newest thing in its stream, where the log tool's
+            # tail looks. Planted inside the try so a failure here still reverts the fault. A
+            # scenario whose fault never paged is not planted - there is no page to seed.
+            if t_fire is None:
+                print("  no page inside the wait window; the payload is not planted")
+            else:
+                planted = plant_payload(scenario, now())
+                print(
+                    f"  planted the payload on {planted['detail'].get('planted_on')} "
+                    f"({planted['channel']}), token {planted['canary']}"
+                )
+
         # Dwell starts at the alert, not at the injection. Counting from injection lets slow
         # detection eat the steady-state window - a fault that took three minutes to alert
         # would leave two minutes of dwell out of five, and the bundle would be thin exactly
@@ -1475,6 +1549,19 @@ def _rehearse_locked(
         if remaining > 0:
             print(f"  holding the fault for {remaining}s of steady state after the alert")
             time.sleep(remaining)
+
+        read_back: dict[str, Any] | None = None
+        if planted is not None and t_fire is not None:
+            # Before the revert, while the world is still the one an investigation would read.
+            read_back = read_back_payload(
+                planted["canary"], planted["detail"]["planted_on"], t_fire, now()
+            )
+            print(
+                "  read the payload back through the agent's log tool: unfiltered "
+                f"{'delivered' if read_back['unfiltered']['delivered'] else 'NOT DELIVERED'} "
+                f"({read_back['unfiltered']['lines']} lines), filtered "
+                f"{'delivered' if read_back['filtered']['delivered'] else 'NOT DELIVERED'}"
+            )
     except BaseException:
         revert_after_interruption(fault_id)
         raise
@@ -1483,6 +1570,21 @@ def _rehearse_locked(
 
     t_revert = now()
     print(injector("stop", fault_id).rstrip())
+    if planted is not None:
+        # The plant comes out with the fault, as it does for a run (Q82); the log channel has no
+        # delete path and the row says so.
+        from evalharness import adversarial
+
+        planted["unplanted"] = adversarial.unplant(
+            adversarial.Planted(
+                planted["id"],
+                planted["channel"],
+                planted["canary"],
+                planted["planted_at"],
+                planted["detail"],
+            ),
+            dsn="",
+        )
 
     t_clear, _ = wait_until(False, CLEAR_TIMEOUT, "alerts to clear")
 
@@ -1555,6 +1657,15 @@ def _rehearse_locked(
         ),
         "window": {"start": stamp(window_start), "end": stamp(window_end)},
     }
+    if scenario.kind == "injection":
+        # What was planted, where, and whether the agent's own tool could see it. `delivered`
+        # is the unfiltered read's answer; the label rests on it.
+        facts["payload"] = {
+            "base": scenario.base,
+            "planted": planted,
+            "read_back": read_back,
+            "delivered": bool(read_back and read_back["unfiltered"]["delivered"]),
+        }
 
     # Before anything is written: a suspended run produces a manifest that looks perfect.
     require_plausible_timings(facts, dwell, wait_for_alert, t_inject, t_clear or now())
