@@ -31,71 +31,85 @@ ground_truth:
 expected_evidence:
   # A new design: predicted before recording from the row's mechanism, the catalog's recording
   # (row 1) and a ten-minute measurement cut of ad on 2026-09-28 (nothing recorded), and checked
-  # against the bundle after. The measured cut is the basis for the numbers here: its page was
-  # thin and late, and the recording's is predicted to be the same - one request in about twenty
-  # hangs, which puts the storefront edge's ratios at their 5 % line rather than over it and its
-  # p95s at the ceiling only once the window fills. The log is the design.
-  - alerts: the page is predicted marginal and from the storefront edge - ServiceHighLatency on
-      frontend-proxy and load-generator between +5 and +8, with ServiceHighErrorRate on the load
-      generator beside them if its ratio is over the line that minute (in the measured cut it
-      fired at +410 s and cleared a minute later; the proxy's never crossed); ServiceNoTraffic on
-      ad at about +7:45, the culprit named on the page as silence; nothing on the frontend
-      (its ad calls are 3 % of its spans) and nothing on the order path, which is untouched, so
-      no fraud-detection dead end; three to five alerts on two or three services by the fix
+  # against the first recording, on the revised world, 2026-09-28 (t_inject 08:38:09, revert at
+  # +12:01). The prediction held on the page - marginal, late, from the storefront edge's
+  # latency alone at 7m01s, the culprit named as silence a minute later, nothing on the frontend
+  # or the order path, three alerts on three services - and on the log, the design, with one
+  # opening difference (no failed logs export this time; spans first). Not predicted, and the
+  # opposite of row 1: the recovery was the freeze's. Every held GetAds was answered when ad
+  # came back, in 11 to 15 ms after 300 to 745 s of waiting; nothing was reset, no error trace
+  # anywhere, no recovery-only alert. The class has no one recovery shape: the Go server reset
+  # its callers, the Java one answered them. The list below states the recording.
+  - alerts: the page is thin and late - ServiceHighLatency on frontend-proxy and load-generator
+      together (page 7m01s), their p95s at the ceiling from +4 on the ads requests that hang
+      and hold; no error-ratio alert - the load generator's ratio touched 5.1 % for one minute
+      and fell back, the proxy's peaked at 4.5 %; ServiceNoTraffic on ad at +8:00, the culprit
+      named on the page as silence; three alerts on three services by the fix, none after it,
+      all clear 3m00s after the reconnect; nothing on the frontend, nothing on the order path,
+      no dead end - orders ran throughout, so fraud-detection and flagd had nothing to reconnect
   - metrics: frontend-proxy's and load-generator's p95 at the histogram's ceiling (15000 ms)
-      from about +4, once enough 15 s spans are in the window, and their error ratios at the
-      line - the load generator's touching 5 % and falling back, the proxy's under it; the
-      frontend's error ratio zero for the length of the cut, its p95 unmoved (ad's share is
-      under the 5 % a p95 needs), its rate down by the blocked users' share
-  - metrics: ad's request rate to zero by about +4 and from then to the reconnect no error ratio
-      and no p95 - not zero errors, no samples; every other service's rate holding, orders
-      completing throughout
+      from +4 (85 ms at +3, once enough 15 s spans are in the window) to the fix and two minutes
+      past it, and their error ratios at the line - the load generator's 4.1 to 5.1 %, the
+      proxy's 3.6 to 4.5 %; the frontend's error ratio zero for the whole window and its p95 42
+      to 49 ms for the length of the cut - ad's share is under the 5 % a p95 needs - its rate
+      from 11.6 a second to 8.2 as the blocked users wait
+  - metrics: ad's request rate from 0.4 a second to 0.02 by +4 and nothing from +5 to the
+      reconnect, and from +5 no error ratio and no p95 - not zero errors, no samples; every
+      other service's rate holding within its usual range, 82 orders completing during the cut
   - metrics: ad's 51 JVM runtime series stop at the cut - the agent cannot reach the collector,
-      its last report the one before onset - hold for the store's lookback and drop out of
-      queries at about +5; back within two minutes of the reconnect (the first export after it
-      lands on the agent's next minute)
+      its last successful report the one before onset - hold for the store's lookback and drop
+      out of queries at +4:15; back 29 s after the reconnect
   - logs: THE DESIGN - ad's agent writes each failed export to its console at ERROR, and the
-      lines are the fault's - none in the five minutes before onset. Three inside the first half
-      minute, one per signal, each on a request that timed out over the connection it already
-      held - "Failed to export logs" at about +12 s, spans at about +15, metrics at about +25 -
-      and then "Failed to export metrics" once a minute for as long as it is cut off, the cause
-      changed to "UnknownHostException" naming the collector, because the container's resolver
-      answers only for networks it is attached to and it is attached to none; each with its
-      stack trace, 29 lines a minute, about 345 over ten minutes; no further span or log export
-      fails because nothing reaches ad and it has nothing to send. Ad's own request lines
-      ("Targeted ad request received", "no baggage found in context"), about ten a minute at
-      rest, stop at the cut and return within a minute of the reconnect
+      lines are the fault's - none in the five minutes before onset. "Failed to export spans" at
+      +12 s and "Failed to export metrics" at +38 s, each on a request that timed out over the
+      connection it already held; then "Failed to export metrics" once a minute at :45 for as
+      long as it is cut off, the cause changed to "UnknownHostException" naming the collector,
+      because the container's resolver answers only for networks it is attached to and it is
+      attached to none; and one more spans failure at +280 s, when ad's ten-minute flag stream
+      ended and it had a span to send; fourteen failures, each with its stack trace, thirty
+      agent lines in all. Ad's own request lines ("Targeted ad request received", "no baggage
+      found in context"), about ten a minute at rest, stop 2 s before the cut - and the recorder
+      kept only the first 400 lines from onset, so the burst after the reconnect (140 request
+      lines in its first minute) is partly outside the capture
   - traces: every proxy error trace ends at its 15 s deadline and every one is an ads request
-      (load-generator user_get_ads - GET /api/data); below it frontend's call into ad
-      (grpc.oteldemo.AdService/GetAds) stays open for the length of the cut; ad has no spans
-      during the cut and its spans appear only after the reconnect; no error trace on the
-      frontend during the cut - its spans have not ended
-  - recovery: at the reconnect ad is back under its captured aliases, predicted on the same
-      address, and the connections the frontend held open through the cut are predicted to be
-      reset rather than answered, as the catalog's were (row 1) - the held ads requests failing
-      together at the fix, the frontend's error ratio rising for a minute or two and possibly
-      paging (ServiceHighErrorRate/frontend, recovery-only), the proxy's and the load
-      generator's alerts clearing as the 15 s spans age out; all clear within about five
-      minutes of the reconnect; no restart of ad or of flagd
+      (125 - load-generator user_get_ads, GET /api/data; each carrying a two-millisecond ingress
+      span beside the 15 s one, the redirect from the trailing slash that precedes the request
+      that hangs); below it the frontend's GET /api/data and its grpc.oteldemo.AdService/GetAds
+      stay open for the length of the cut - 300, 537 and 745 s in the three drawn; ad's own
+      GetAds span under each is 11 to 15 ms and was written after the reconnect, when the held
+      call was answered; no error trace on the frontend or on ad at any point
+  - recovery: NOT ROW 1's - at the reconnect ad is back under its captured aliases on the same
+      address, and the connections the frontend held open through the cut resume rather than
+      reset - every held GetAds is answered in 11 to 15 ms after up to 745 s of waiting, the
+      frontend logs no error, ad's rate runs at three times its usual for four minutes on the
+      backlog with its p95 at 48 ms against 8 to 12; the no-traffic alert clears 2m35s after the
+      reconnect and the two latency alerts 4m35s after, as the 15 s spans age out; all clear
+      3m00s after the fix; no recovery-only alert on record - the frontend's p95 read the
+      ceiling from +13 to the window's end as the held spans closed at their minutes-long
+      lengths, and whether a latency rule held on it is not recorded, the window closing two
+      minutes after the all-clear; no restart of ad or of flagd
   - change: nothing recorded - no deploy, no config, no flag; the history is empty for the
       whole window (the injector records no change for this class)
   - discriminator: a freeze of ad would look the same on alerts, metrics, runtime series and
-      traces for the length of the fault; the partition is the one whose target keeps running
-      and logs its failed exports once a minute, where a frozen target logs nothing - here from
-      the agent's own logger, in a log that is talkative at rest and goes quiet on requests at
-      the same moment it starts on exports; against the other faults on this target -
-      v2-ad-flag-failure shows ad's own GetAds errors with ad serving and exporting,
-      v2-ad-bad-image-tag shows a container that never starts and an image line in the change
-      record, v2-ad-memory-squeeze shows restarts and start-up lines repeating - here ad serves
-      nothing, errors nothing, restarts never, and nothing was changed
+      traces for the length of the fault and - on this target - in its recovery too; the
+      partition is the one whose target keeps running and logs its failed exports once a
+      minute, where a frozen target logs nothing - here from the agent's own logger, in a log
+      that is talkative at rest and goes quiet on requests at the same moment it starts on
+      exports; against the other faults on this target - v2-ad-flag-failure shows ad's own
+      GetAds errors with ad serving and exporting, v2-ad-bad-image-tag shows a container that
+      never starts and an image line in the change record, v2-ad-memory-squeeze shows restarts
+      and start-up lines repeating - here ad serves nothing, errors nothing, restarts never, and
+      nothing was changed
 expected_remediation_class: restart
 # The partition resolves when the container is put back on its network; where an operator cannot
 # reconnect it with its aliases, recreating or restarting the container does it
 # (knowledge/runbooks/class-network-partition.md). Nothing was changed, so nothing is reverted.
-rehearsed: false
+rehearsed: true
 alert_timeout_seconds: 900
 # Declared before recording, checked against the bundle after (T7.5). Measured on the running world
 # 2026-09-28: ad holds 51 JVM runtime series and writes about ten lines a minute at rest, so both
 # classes can answer here in the derivation's own reading - runtime by going absent at the cut,
-# the log by changing what it says: request lines stop, export failures begin.
+# the log by changing what it says: request lines stop, export failures begin. The first recording
+# (2026-09-28) held 51 runtime series (gapped from +4:15 to 29 s after the reconnect) and 500
+# target log lines at the capture's limit; the recorder derived [runtime, logs].
 answers_idle_or_absent: [runtime, logs]

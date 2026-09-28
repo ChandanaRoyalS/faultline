@@ -1,6 +1,6 @@
 # The bundles, rendered
 
-Every recorded rehearsal in this repository as a readable page — 46 in all: **42 runnable** (31 dev, 11 holdout) and **4 that could not fire** (4 dev).
+Every recorded rehearsal in this repository as a readable page — 47 in all: **43 runnable** (32 dev, 11 holdout) and **4 that could not fire** (4 dev).
 
 A bundle is what one rehearsal left behind — the manifest, the Prometheus captures,
 a slice of one service's logs, the exact queries, and the narrative a responder wrote
@@ -39,6 +39,7 @@ benchmark** — see [RESULTS.md](../RESULTS.md).
 | [`v2-ad-bad-image-tag`](v2-ad-bad-image-tag.md) | `bad_deploy` | Ad deployed on an image tag that was never published — 4 alerts over the window |
 | [`v2-ad-flag-failure`](v2-ad-flag-failure.md) | `feature_flag` | A feature flag makes the ad service fail one request in ten — 1 alerts over the window |
 | [`v2-ad-memory-squeeze`](v2-ad-memory-squeeze.md) | `resource_exhaustion` | Ad service memory limit cut below what its JVM needs to run — 3 alerts over the window |
+| [`v2-ad-partition`](v2-ad-partition.md) | `network_partition` | The ad service is cut from the network - its process runs and reaches nothing — 3 alerts over the window |
 | [`v2-cart-bad-image-tag`](v2-cart-bad-image-tag.md) | `bad_deploy` | Cart deployed on an image tag that was never published — 14 alerts over the window |
 | [`v2-cart-dependency-latency`](v2-cart-dependency-latency.md) | `dependency_latency` | Cart service network path acquires 300ms of delay — 5 alerts over the window |
 | [`v2-cart-flag-failure`](v2-cart-flag-failure.md) | `feature_flag` | A feature flag makes the cart fail to empty after an order — 1 alerts over the window |
