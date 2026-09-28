@@ -4617,6 +4617,33 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-09-28: the thirty-third v2 scenario, `v2-cart-store-corruption`, rehearsed and labeled -
+slot `v2/datastore_corruption-1` (dev), first recording. The catalog's first `restore_data`
+scenario.***
+
+- **The design.** A4b's and R4b's Lua sweep through the injector: every hash's `cart` field
+  overwritten every 50 ms inside valkey-cart, the store up and fast and answering with bytes
+  cart cannot decode; restore stops the loop and flushes the store. The one design in the row
+  the injector can run; rows 2 to 4 each need a store tool first.
+- **The page, half as predicted.** `ServiceHighErrorRate` on checkout at 6m16s - and on cart in
+  the same evaluation, where the pre-registration had cart under its line: `AddItem` reads the
+  cart before it adds, so the storefront's add-to-cart failures counted against cart too. Both
+  ratios ran at 4 to 7 % on the revised world's load, one order in four failing, and **both
+  alerts cleared on their own 2m16s before the fix with the sweep still running** - the ninth
+  minute held no failure and the five-minute ratios fell under the line. Recorded as it
+  happened: `fix_to_all_clear: 1s`, and a detection note on a ratio that clears while its
+  fault runs.
+- **The fingerprint, as predicted.** Cart's own span in error at 0.5 to 1.0 ms under every
+  failed order, `FailedPrecondition` with the decoder's message; nothing hanging, no p95
+  moved; cart's log naming the parse failure 53 times and never before or after; cart's 44
+  runtime series unbroken; the store's own log saving every minute on ten thousand changes
+  where at rest it saves every five on a hundred. Recovery clean; Q111 watched, no wave.
+- **The lists.** `NARRATIVE_EVIDENCE_V2`, `OTHER_WORLD_NARRATIVES`, `NO_RUNTIME_METRICS` (the
+  store exports nothing under any runtime name), the SPLIT-V2 line, the candidates note.
+- **34 of 44 slots filled; seven classes complete.** `datastore_corruption` stays at one until a
+  Kafka or a SQL store tool is built and rehearsed (the T7.0 bar); `disk_fill` (Q100 first) and
+  `injection` remain.
+
 ***2026-09-28: three recorder observations from the freeze and partition rows registered - Q111,
 Q112, Q113 - each with its evidence and its question, none decided.***
 

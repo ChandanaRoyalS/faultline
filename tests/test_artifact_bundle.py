@@ -107,6 +107,11 @@ NO_RUNTIME_METRICS = frozenset(
         # the five healthy minutes before the fault too. It has no Loki stream either. The scenario
         # declares `answers_idle_or_absent: []`, the second zero-class scenario after shipping's.
         "v2-currency-freeze",
+        # T7.1 (2026-09-28): the target is the store, valkey-cart, again (see
+        # v2-valkey-cart-dependency-latency): nothing under any runtime name, before the fault or
+        # during it. The scenario declares `answers_idle_or_absent: [logs]`, on the store's saves,
+        # which the sweep's writes bring to one a minute.
+        "v2-cart-store-corruption",
     }
 )
 """Bundles whose target exports no runtime metrics, so an empty `runtime.json` is the world

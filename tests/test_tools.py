@@ -873,6 +873,13 @@ NARRATIVE_EVIDENCE_V2: dict[str, set[str]] = {
     # traces hold ListRecommendations open for the length of the cut and failing at the
     # reconnect; the change history is empty.
     "v2-recommendation-partition": {"metrics", "runtime_metrics", "logs", "traces", "changes"},
+    # The target is the store, whose contents are overwritten under it. Metrics carry two ratios
+    # near their line - cart's and checkout's - with every p95 unmoved and nothing silent; cart's
+    # runtime series continue, which is what says the service is healthy; cart's log names the
+    # decoder, and the store's own log names a write volume its clients do not produce; the
+    # traces hold cart's own span in error in under a millisecond under every failed order; the
+    # change history is empty.
+    "v2-cart-store-corruption": {"metrics", "runtime_metrics", "logs", "traces", "changes"},
     # Holdout. The page names the culprit and reads as down. Metrics carry its rate going to zero
     # and everyone else's holding; runtime shows it alive; its log names the address and the
     # refused connection, and fraud-detection's shows the topic still read; traces show none of

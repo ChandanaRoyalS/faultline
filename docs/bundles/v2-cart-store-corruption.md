@@ -1,17 +1,81 @@
----
-origin: scenario:v2-cart-store-corruption
-split: dev
-fault_class: datastore_corruption
-recorded_from: 2026-09-28T12:41:00+00:00
-capability: cap:d2b243e0
-onset_to_page: 6m16s
-page_to_fix: 5m00s
-fix_to_all_clear: 1s
----
-
 # Every cart in the store is unreadable - the store answers, and what it holds cannot be parsed
 
-## What was observed
+## The scenario
+
+| | |
+|---|---|
+| scenario | `v2-cart-store-corruption` |
+| fault class | **`datastore_corruption`** |
+| expected remediation | `restore_data` |
+| split | `dev` |
+| injected at | `valkey-cart` via `v2-cart-store-corruption` |
+| time to page | 6m16s |
+| steady state captured | 300s |
+| capture window | 2026-09-28T12:36:00+00:00 → 2026-09-28T12:54:17+00:00 |
+
+The clock below runs from the moment the fault went in.
+
+| | |
+|---|---|
+| `t_inject` | T+0m00s |
+| first alert firing | T+6m16s |
+| `t_revert` | T+11m16s |
+| all clear | T+11m17s |
+
+## What fired, and when
+
+| when | service | alert | firing for | |
+|---|---|---|---:|---|
+| T+6m15s | `cart` | ServiceHighErrorRate | 3.0 min | **paged** |
+| T+6m15s | `checkout` | ServiceHighErrorRate | 3.0 min | **paged** |
+
+## What the bundle contains
+
+| capture | query |
+|---|---|
+| `metrics/alerts-firing.json` | `ALERTS{alertstate="firing"}` |
+| `metrics/call-rate.json` | `sum by(service_name) (rate(traces_span_metrics_calls_total[5m]))` |
+| `metrics/error-ratio.json` | `sum by(service_name) (rate(traces_span_metrics_calls_total{status_code="STATUS_CODE_ERROR"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total[5m]))` |
+| `metrics/latency-p95.json` | `histogram_quantile(0.95, sum by(service_name, le) (rate(traces_span_metrics_duration_milliseconds_bucket{span_kind!="SPAN_KIND_INTERNAL"}[5m])))` |
+| `metrics/runtime.json` | `{__name__=~"go_.*|dotnet_.*|jvm_.*|process_.*|v8js_.*|nodejs_.*",service_name="valkey-cart"}` |
+
+`logs/valkey-cart.txt` — 74 lines.
+
+## A look at the logs
+
+From `logs/valkey-cart.txt` (---- onset 2026-09-28T12:41:00+00:00 ----):
+
+```
+2026-09-28T12:37:17+00:00  1:M 28 Sep 2026 12:37:17.030 * 100 changes in 300 seconds. Saving...
+2026-09-28T12:37:17+00:00  1:M 28 Sep 2026 12:37:17.031 * Background saving started by pid 110800
+2026-09-28T12:37:17+00:00  110800:C 28 Sep 2026 12:37:17.042 * DB saved on disk
+2026-09-28T12:37:17+00:00  110800:C 28 Sep 2026 12:37:17.043 * Fork CoW for RDB: current 0 MB, peak 0 MB, average 0 MB
+2026-09-28T12:37:17+00:00  1:M 28 Sep 2026 12:37:17.131 * Background saving terminated with success
+2026-09-28T12:41:01+00:00  1:M 28 Sep 2026 12:41:01.711 * 10000 changes in 60 seconds. Saving...
+2026-09-28T12:41:01+00:00  1:M 28 Sep 2026 12:41:01.711 * Background saving started by pid 110884
+2026-09-28T12:41:01+00:00  110884:C 28 Sep 2026 12:41:01.718 * DB saved on disk
+2026-09-28T12:41:01+00:00  110884:C 28 Sep 2026 12:41:01.718 * Fork CoW for RDB: current 0 MB, peak 0 MB, average 0 MB
+2026-09-28T12:41:01+00:00  1:M 28 Sep 2026 12:41:01.812 * Background saving terminated with success
+2026-09-28T12:42:02+00:00  1:M 28 Sep 2026 12:42:02.029 * 10000 changes in 60 seconds. Saving...
+2026-09-28T12:42:02+00:00  1:M 28 Sep 2026 12:42:02.030 * Background saving started by pid 113467
+```
+
+_53 further lines are in the bundle._
+
+## The incident record
+
+Written from the responder's chair, by someone who did not know the fault class
+or that anything had been injected. This text is also corpus material, which is
+why it never names the injector.
+
+**It keeps its own clock.** The table above is measured from the injection, which
+is the only origin the manifest records; a narrative's `T+` offsets are the
+responder's own and start wherever that responder started counting — usually the
+page, sometimes the injection, sometimes an event in the logs. The same moment can
+therefore carry two different offsets on this page. The absolute timestamps in the
+bundle are the tiebreak.
+
+### What was observed
 
 The page came 6m16s after the first failed request, and it was two lines that fired in the same
 evaluation: `ServiceHighErrorRate` on **checkout** and `ServiceHighErrorRate` on **cart**. Nothing
@@ -36,7 +100,7 @@ that completed. Cart's ratio ran a minute ahead of checkout's and a point above 
 hung, slowed, restarted or went silent; something was failing at once, a few times a minute, on a
 service whose store is the fastest thing in the system.
 
-## What was checked
+### What was checked
 
 **The page, and what its two names have in common.** Checkout reads the cart once per order and
 fails the order if that read fails; cart serves the cart. The two alerts naming them together, at
@@ -87,7 +151,7 @@ being a healthy store, was faithfully saving the result.
 **What changed.** Nothing. No deploy, no image, no configuration, no limit, no flag, on cart, on
 checkout, on the store or on anything else. The change history for the window is empty.
 
-## Root cause
+### Root cause
 
 The contents of the cart store were being overwritten. A loop running inside the valkey-cart
 container rewrote the `cart` field of every hash in the store about eighteen times a second, on a
@@ -103,7 +167,7 @@ failures a minute, enough to hold cart's and checkout's ratios near their 5% lin
 to keep them over it. Nothing was deployed, configured or flagged; the address, the connection and
 the process were right all along.
 
-## Resolution
+### Resolution
 
 The loop was stopped and the store flushed: every cart discarded, so that each user's next
 request created a fresh one the loop was no longer touching. Class of fix: **restore_data**. There
@@ -119,7 +183,7 @@ with it, and no second wave followed from that: an empty cart is a state the sto
 every day. Neither cart nor the store restarted. The alerts themselves had cleared 2m16s before
 the fix, while the fault held, which is why the record's fix-to-all-clear reads one second.
 
-## Detection notes
+### Detection notes
 
 - Onset to first page: **6m16s** - the ratios crossed at T+4 and the rule's two-minute hold ran
   from there. First failure at T+20s.
@@ -149,3 +213,7 @@ the fix, while the fault held, which is why the record's fix-to-all-clear reads 
 - **The fix for a corrupted store is neither a restart nor a revert.** Nothing was deployed and
   nothing was misconfigured; the wrong thing was the data. Discarding or restoring the store's
   contents was the fix, and restarting the service that read them would have read them again.
+
+---
+
+Rendered from [`evals/scenarios/artifacts/dev/v2-cart-store-corruption/`](../../evals/scenarios/artifacts/dev/v2-cart-store-corruption/) by `faultline-render`. [All bundles](README.md).
