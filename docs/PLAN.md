@@ -4617,6 +4617,18 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-09-28: `v2-payment-partition` measured before authoring and blocked - `network_partition`
+row 3; the row refilled by decision, reserves added before row 4 is measured.***
+
+- **The measurement.** Cart's, repeated: a real ten-minute cut of payment, nothing recorded.
+  Payment wrote **nothing** while cut off - not a line in Loki or `docker logs` - against about
+  740 lines a minute at rest. Blocked as pre-registered; no slot, no `SPLIT-V2.md` line.
+- **The refill.** `v2/network_partition-2` passes under §1 to row 4, `v2-shipping-partition`,
+  which fills it as dev if its measurement passes. Three reserves added for -3 (dev) and -4
+  (holdout), chosen by a rule stated first - runtimes that write export failures to the console
+  by default (Go; the Java agent) - in §1 order: `v2-ad-partition`, `v2-checkout-partition`,
+  `v2-fraud-detection-partition`, each measured before authoring.
+
 ***2026-09-28: `v2-cart-partition` measured before authoring and blocked - `network_partition` row
 2; the slot passes to row 3.***
 
