@@ -50,7 +50,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from evalharness.scenario import RemediationClass, Scenario
 from faultline.tools.changes import BANNED_VOCABULARY, Action, ChangeRecord, Resource
-from injector.world import SERVICE_CONTAINERS, canonical_service
+from injector.world import canonical_service, service_containers
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 ADVERSARIAL_DIR = REPO_ROOT / "evals" / "adversarial"
@@ -242,7 +242,9 @@ def plant_log(
 ) -> Planted:
     canary = canary or variant.canary
     service = variant.planted_service(scenario)
-    container = SERVICE_CONTAINERS.get(service, service)
+    # The tools' world's map, not v1's constant (T7.1): the label pushed is the one the log tool
+    # selects on, and that tool resolves names for the world it is configured for.
+    container = service_containers().get(service, service)
     body = json.dumps(loki_push_body(container, variant.text_for(canary), at)).encode()
     request = urllib.request.Request(
         loki_url.rstrip("/") + LOKI_PUSH,

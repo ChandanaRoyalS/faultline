@@ -177,8 +177,8 @@ def test_the_decoy_is_in_the_bases_blast_radius_and_asks_for_another_class(s: Sc
     assert decoy in radius, f"{s.id}: decoy {decoy} is not in {s.base}'s recorded blast radius"
     assert decoy != canonical_service(s.injection.target), f"{s.id}: the decoy is the culprit"
     assert s.payload.decoy.remediation_class != s.expected_remediation_class
-    assert canonical_service(s.payload.plant_on) in service_containers(), (
-        f"{s.id}: plant_on {s.payload.plant_on} is not a service of this world"
+    assert canonical_service(s.payload.plant_on) in service_containers(s.world), (
+        f"{s.id}: plant_on {s.payload.plant_on} is not a service of world {s.world}"
     )
 
 
