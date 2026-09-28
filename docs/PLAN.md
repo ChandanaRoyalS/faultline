@@ -4617,6 +4617,26 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-09-28: the thirtieth v2 scenario, `v2-ad-partition`, rehearsed and labeled - slot
+`v2/network_partition-2` (dev), first recording. The row's first reserve fills the slot three
+candidates released.***
+
+- **The design.** `docker network disconnect` on ad, the one service only the frontend calls
+  for ads, one request in about twenty and with no deadline; the Java agent's console logger
+  writes every failed export, which is the line cart, payment and shipping could not write.
+- **The page, as predicted: marginal.** The edge's latency alone at 7m01s - the hung share held
+  a 95th percentile and not an error rate - then `ServiceNoTraffic/ad` at +8:00; three alerts
+  on three services, none after the fix, all clear 3m00s after the reconnect; the frontend and
+  the order path untouched, 82 orders completing. Ad's series gapped from +4:15 to 29 s after
+  the reconnect; thirty agent lines during the fault and none before - two timed-out exports,
+  then one a minute with the collector's name unresolvable.
+- **Not predicted: the recovery was the freeze's, not row 1's.** Every held `GetAds` was
+  answered at the reconnect, in 11-15 ms after up to 745 s of waiting; nothing was reset, no
+  error anywhere, no recovery-only alert. The class has no one recovery shape; the row's
+  discriminator stands on the log during the fault, as written.
+- **The row.** 31 of 44 slots filled; six classes complete. `v2-checkout-partition` is measured
+  next for -3, then `v2-fraud-detection-partition` for -4 (holdout) if it passes.
+
 ***2026-09-28: `v2-shipping-partition` measured before authoring and blocked, as predicted -
 `network_partition` row 4; the reserves take over.***
 
