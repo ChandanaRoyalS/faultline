@@ -1,0 +1,97 @@
+# v2/network_partition-3 (dev) - see SPLIT-V2.md. Slot allocated before authoring; do not move.
+# Candidate order and eligibility: docs/design/t7.1-candidates.md, network_partition reserves -
+# new: the third reserve, taking the slot after cart, payment, shipping and checkout were each
+# measured silent while cut off and blocked. Measured before authoring (2026-09-28):
+# fraud-detection is on `opentelemetry-demo` alone with aliases `fraud-detection` (twice);
+# nothing calls it - no client span in the world names it - it reads orders from Kafka (consumer
+# spans `orders process` 0.22 a second and `orders receive` 0.06) and resolves a flag from flagd;
+# 51 JVM runtime series; about ten log lines a minute at rest, one per order consumed; under a
+# ten-minute cut it wrote 334 lines, every one the Java agent's, and the world's only alert was
+# ServiceNoTraffic on fraud-detection itself, at +470 s.
+id: v2-fraud-detection-partition
+title: Fraud detection is cut from the network - its process runs and reaches nothing
+fault_class: network_partition
+split: dev
+slot: v2/network_partition-3
+world: v2
+injection:
+  target: fraud-detection
+  method: v2-fraud-detection-partition
+  params:
+    network: opentelemetry-demo
+ground_truth:
+  root_cause: >
+    The fraud-detection container was disconnected from the demo network (docker network
+    disconnect): the process kept running, on an address nothing could reach, and nothing it tried
+    to reach answered. Nothing calls fraud-detection - it consumes orders from Kafka - so no
+    request anywhere hangs or fails: the storefront serves, every order completes, accounting
+    reads the same topic as before, and the only change in the world is that one consumer stops
+    consuming and stops reporting. Fraud-detection itself is alive and says so - its agent logs
+    each failed telemetry export, two in the first half minute and then once a minute for as
+    long as it is cut off - while its own order lines stop, because no order reaches it.
+  category: network_partition
+expected_evidence:
+  # A new design: predicted before recording from the row's mechanism, the ad recording (row -2,
+  # the same agent) and a ten-minute measurement cut of fraud-detection on 2026-09-28 (nothing
+  # recorded), and checked against the bundle after. The measured cut is the basis for the
+  # numbers here. The fault has no cascade at all - no caller, no hung request, no latency, no
+  # error - and its page is the smallest a page can be: the culprit's own silence, alone. The
+  # log is the design; the discriminator against a freeze of the same service is nothing else.
+  - alerts: one alert, on the culprit - ServiceNoTraffic on fraud-detection at about +7:45,
+      once its 5m rate has read zero for the rule's three minutes; nothing before it and nothing
+      beside it - no alert on the frontend, the edge, checkout or any other service, because
+      nothing waits on fraud-detection; one alert on one service by the fix; a recovery-only
+      ServiceHighLatency on fraud-detection is possible after the reconnect, when the backlog is
+      consumed as one batch under one receive span
+  - metrics: fraud-detection's span rate (orders receive, orders process, its flag resolves)
+      from about 0.3 a second to zero by about +4 and nothing from then to the reconnect - no
+      error ratio, no p95, no samples; every other service's rate, error ratio and p95 within
+      its usual range for the whole window, orders completing throughout, accounting's rate
+      unchanged (it reads the same topic and is not cut)
+  - metrics: fraud-detection's 51 JVM runtime series stop at the cut - the agent cannot reach
+      the collector, its last successful report the one before onset - hold for the store's
+      lookback and drop out of queries at about +4:30; back within a minute of the reconnect
+  - logs: THE DESIGN - fraud-detection's agent writes each failed export to its console at
+      ERROR, and the lines are the fault's - none in the five minutes before onset. "Failed to
+      export spans" at about +15 s and "Failed to export metrics" at about +24 s, each on a
+      request that timed out over the connection it already held; then "Failed to export
+      metrics" once a minute at :46 for as long as it is cut off, the cause changed to
+      "UnknownHostException" naming the collector, because the container's resolver answers only
+      for networks it is attached to and it is attached to none; each with its stack trace, about
+      30 lines a minute, about 330 over ten minutes; one further spans failure when a span
+      closes mid-cut. Its own order lines ("Consumed record with orderId ... updated total count
+      to"), about ten a minute at rest, stop at the cut and return within ten seconds of the
+      reconnect, the backlog consumed in a burst
+  - traces: fraud-detection has no spans during the cut - no order reaches it and what it sends
+      reaches nothing - and its spans appear only after the reconnect; no hung call anywhere in
+      the world names it, because nothing calls it; checkout's PlaceOrder traces complete as
+      usual, their Kafka publish unaffected; no error trace on any service from the fault
+  - recovery: at the reconnect fraud-detection is back under its captured aliases and resumes
+      reading its topic within ten seconds - the orders it missed, held in Kafka, consumed in
+      one batch under one receive span, its counter jumping by their number - and its runtime
+      reports and order lines return; the no-traffic alert clears within about two minutes; a
+      recovery-only latency alert on fraud-detection is possible on the batch's receive span;
+      no restart of fraud-detection or of kafka
+  - change: nothing recorded - no deploy, no config, no flag; the history is empty for the
+      whole window (the injector records no change for this class)
+  - discriminator: a freeze of fraud-detection would look the same on alerts, metrics, runtime
+      series and traces - one silence, nothing else - and a consumer nobody feeds looks the same
+      on its span metrics; the partition is the one whose target keeps running and logs its
+      failed exports once a minute, from the agent's own logger, in a log that goes quiet on
+      orders at the same moment it starts on exports - and here that log is the only evidence
+      there is beyond the silence itself; against the other faults on this target -
+      v2-fraud-detection-memory-squeeze shows restarts and start-up lines repeating,
+      v2-fraud-detection-flag-queue-lag shows it consuming slowly with its spans present and a
+      flag in the change record - here it consumes nothing, exports nothing, restarts never, and
+      nothing was changed
+expected_remediation_class: restart
+# The partition resolves when the container is put back on its network; where an operator cannot
+# reconnect it with its aliases, recreating or restarting the container does it
+# (knowledge/runbooks/class-network-partition.md). Nothing was changed, so nothing is reverted.
+rehearsed: false
+alert_timeout_seconds: 900
+# Declared before recording, checked against the bundle after (T7.5). Measured on the running world
+# 2026-09-28: fraud-detection holds 51 JVM runtime series and writes about ten lines a minute at
+# rest, so both classes can answer here in the derivation's own reading - runtime by going absent
+# at the cut, the log by changing what it says: order lines stop, export failures begin.
+answers_idle_or_absent: [runtime, logs]
