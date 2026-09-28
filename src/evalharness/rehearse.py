@@ -474,6 +474,29 @@ def container_memory_usage() -> list[tuple[str, float, str]]:
     return usage
 
 
+HEADROOM_EXEMPT: dict[str, str] = {
+    "grafana": (
+        "no capture reads it: the tools query Prometheus, Loki and Tempo directly, the recorder "
+        "captures from the same three, and Grafana's only role in the harness is the deep-link "
+        "target for citations (faultline.api.view). Measured 2026-09-28 on v2: with no requests at "
+        "all it grew from 196 to 211 MiB in the five minutes after a restart, about 3 MiB a "
+        "minute, and reached 272 MiB at five minutes and 288 MiB (96% of 300M) after that - it "
+        "crosses the 90% line inside any 25-minute recording, and a restart buys only the settle "
+        "window. Its 175M -> 300M raise on 2026-09-27 did not change that. An OOM of grafana "
+        "mid-run lands in no bundle."
+    ),
+}
+"""Containers the headroom guard reports but does not refuse on, each with the reason.
+
+**Named one at a time, with a measurement, never by pattern.** The guard exists because a
+container that OOMs partway through a rehearsal writes an unrelated incident into the bundle;
+that holds for every container a capture can see - which is every application service (its
+spans, its log, its runtime series), the collector, Prometheus, Loki and Tempo. A container
+that no capture can see cannot do it, and refusing on one blocks recordings for nothing. The
+digest-neutral alternative to raising its limit, which would invalidate every recorded bundle
+(ADR-0014) for a container the recordings never read."""
+
+
 def require_memory_headroom(threshold: float = MEMORY_HEADROOM_PERCENT) -> list[str]:
     """Refuse to inject into a world where something is about to OOM on its own.
 
@@ -494,7 +517,14 @@ def require_memory_headroom(threshold: float = MEMORY_HEADROOM_PERCENT) -> list[
     grow without bound into whatever ceiling they are given, so a raise buys hours anyway.
     Cycling is the lever that is actually available until T7.1 re-records the catalog.
     """
-    hot = [(n, pct, h) for n, pct, h in container_memory_usage() if pct >= threshold]
+    usage = container_memory_usage()
+    hot = [(n, pct, h) for n, pct, h in usage if pct >= threshold and n not in HEADROOM_EXEMPT]
+    exempt_hot = [(n, pct, h) for n, pct, h in usage if pct >= threshold and n in HEADROOM_EXEMPT]
+    for n, pct, h in exempt_hot:
+        print(
+            f"  note: {n} is at {h} ({pct:.1f}% of its limit) and is exempt from the headroom "
+            "guard - no capture reads it (HEADROOM_EXEMPT); an OOM there lands in no bundle."
+        )
     if hot:
         detail = "\n".join(f"  {n}: {h} ({pct:.1f}% of its limit)" for n, pct, h in sorted(hot))
         cycle = " ".join(sorted(n for n, _, _ in hot))
@@ -513,7 +543,7 @@ def require_memory_headroom(threshold: float = MEMORY_HEADROOM_PERCENT) -> list[
             f"    docker restart {cycle}{kafka_note}\n"
             + HEADROOM_ADVICE_BY_WORLD.get(ToolSettings().world, HEADROOM_ADVICE_BY_WORLD["v1"])
         )
-    return [f"{n}: {pct:.1f}%" for n, pct, _ in container_memory_usage()]
+    return [f"{n}: {pct:.1f}%" for n, pct, _ in usage]
 
 
 def require_no_active_faults() -> str:

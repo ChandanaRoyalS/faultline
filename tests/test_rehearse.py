@@ -408,6 +408,42 @@ def test_a_container_near_its_memory_limit_aborts_and_is_named(
     assert "aborting before injection" in message
 
 
+def test_a_container_no_capture_reads_is_reported_but_not_refused(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """grafana re-occupies its limit on its own (measured 2026-09-28: 3 MiB a minute at rest, 96%
+    within a run) and no capture reads it, so it is named in HEADROOM_EXEMPT: still reported in
+    the usage list, still noted when hot, never a refusal. Anything not named still refuses."""
+    monkeypatch.setattr(
+        rehearse,
+        "container_memory_usage",
+        lambda: [("grafana", 96.2, "288.5MiB / 300MiB"), ("frontend", 11.5, "57MiB / 500MiB")],
+    )
+
+    assert rehearse.require_memory_headroom() == ["grafana: 96.2%", "frontend: 11.5%"]
+    printed = capsys.readouterr().out
+    assert "grafana" in printed and "exempt" in printed, "hot but exempt is said, not hidden"
+
+    monkeypatch.setattr(
+        rehearse,
+        "container_memory_usage",
+        lambda: [("grafana", 96.2, "288.5MiB / 300MiB"), ("kafka", 99.3, "1.164GiB / 1.172GiB")],
+    )
+    with pytest.raises(rehearse.RehearsalError) as caught:
+        rehearse.require_memory_headroom()
+    message = str(caught.value)
+    assert "kafka" in message
+    assert "grafana" not in message.split("Cycle them")[1], "the exempt one is not cycled"
+
+
+def test_every_headroom_exemption_names_a_reason_and_a_measurement() -> None:
+    """An exemption is a claim that no capture reads the container; it is written down, not
+    assumed, and it carries the date it was measured."""
+    for name, reason in rehearse.HEADROOM_EXEMPT.items():
+        assert "no capture reads it" in reason, name
+        assert "Measured 20" in reason, name
+
+
 def test_the_memory_gate_stops_a_rehearsal_before_anything_is_injected(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
