@@ -4617,6 +4617,24 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-09-28: the recorder's memory-headroom guard gains a named exemption - grafana - because no
+capture reads it and it re-occupies its limit on its own.***
+
+- **What happened.** The recorder refused `v2-recommendation-partition` three times before
+  injecting: grafana at 96%, then 91% five minutes after a restart. Measured with nothing
+  touching it: 196 to 211 MiB in five minutes, about 3 MiB a minute, 288 MiB (96%) within a
+  run's length. The 2026-09-27 raise to 300M did not change it. A recycle buys only the
+  settle window; another raise moves `compose_digest` and invalidates every v2 bundle
+  (ADR-0014) - for a container the recordings never read.
+- **The change.** `HEADROOM_EXEMPT` in `evalharness.rehearse`: containers the guard reports but
+  does not refuse on, one at a time, each with its reason and measurement. grafana is the
+  only entry: the tools query Prometheus, Loki and Tempo directly, the recorder captures from
+  the same three, and Grafana's only role is the citation deep link. When hot it is said in
+  the preflight output, not hidden. Two tests: exempt-but-hot passes and is printed while
+  anything unnamed still refuses; every exemption carries its reason and date. Digest-neutral.
+- **Not changed.** The guard's threshold, the settle window, and `gate.headroom_for`, which
+  projects kafka and only kafka.
+
 ***2026-09-28: `v2-email-partition` measured before authoring and blocked - the prediction wrong;
 `v2-recommendation-partition` is the row's last reserve.***
 
