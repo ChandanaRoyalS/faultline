@@ -4617,6 +4617,19 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-09-28: `v2-cart-partition` measured before authoring and blocked - `network_partition` row
+2; the slot passes to row 3.***
+
+- **The rule, fixed before the measurement.** The row stands on (c) alone, so a partition
+  candidate must show a line of its own - the SDK's or its own code's - while it is cut off.
+- **The measurement.** A real ten-minute cut of the running cart through the injector's alias
+  capture and restore, under the world lock, nothing recorded. Cart wrote **nothing** while cut
+  off: no SDK export failure (predicted) and no Valkey connection failure (predicted at about
+  three minutes; it came 5.7 s after the reconnect instead). Silence under the cut is the
+  freeze's; the line after the fix separates them only once the fix is in.
+- **Blocked, as pre-registered.** Never authored, so no slot and no `SPLIT-V2.md` line;
+  `v2/network_partition-2` passes to `v2-payment-partition`, measured the same way next.
+
 ***2026-09-28: the twenty-ninth v2 scenario, `v2-product-catalog-partition`, rehearsed and labeled -
 slot `v2/network_partition-1` (dev), first recording. The `network_partition` row opens.***
 
