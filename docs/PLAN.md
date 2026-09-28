@@ -4617,6 +4617,26 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-09-28: the thirty-second v2 scenario, `v2-recommendation-partition`, rehearsed and labeled -
+slot `v2/network_partition-4` (holdout), first recording. The `network_partition` row is full.***
+
+- **The design.** `docker network disconnect` on recommendation, the one service only the
+  frontend calls for recommendations, one request in about twenty-five - the row's smallest
+  share; the Python SDK writes every failed export to its console, the row's line.
+- **The page, as predicted.** The edge's latency alone at 6m46s, no error-ratio alert, the
+  culprit named as silence at +7:30; three alerts on three services, the frontend and the order
+  path untouched, 75 orders completing, the catalog's rate halved in recommendation's shadow.
+  The runtime series gapped from +4:15 to 14 s after the reconnect; eleven SDK lines during
+  the fault and none before.
+- **The recovery, as predicted: row 1's from the caller's side.** The held requests failed
+  together at the reconnect; recommendation's own calls into the catalog were reset and its
+  flag resolves timed out on a stale connection; four recovery-only alerts, all clear 6m01s
+  after the fix, the wave on record.
+- **Holdout.** Under `artifacts/holdout/`, pinned in `tests/test_freeze.py`, in no corpus.
+- **The row, closed: four partitions from eleven measurements, five blocks recorded with their
+  reasons.** The class's discriminator held on every recording. 33 of 44 slots filled; seven
+  classes complete. `datastore_corruption`, `disk_fill` (Q100 first) and `injection` remain.
+
 ***2026-09-28: the recorder's memory-headroom guard gains a named exemption - grafana - because no
 capture reads it and it re-occupies its limit on its own.***
 
