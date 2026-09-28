@@ -25,8 +25,9 @@ shows is `20260907T103142Z-cart-redis-misconfig`: `bad_config` against `bad_conf
 
 ## Results at a glance
 
-**Culprit service 0 / 0, fault class 0 / 0, no runs yet at `prompts:8dda4a19da2f`** — the stamp
-this repository ships since T7.0 added five fault classes and three remediation classes on
+**Culprit service 0 / 0, fault class 0 / 0, no runs yet at `prompts:9ce16b66bbcc`** — the stamp
+this repository ships since Q100 gave the planner a log-line filter on 2026-09-28, one move after
+T7.0 added five fault classes and three remediation classes on
 2026-09-24 (nine and eight; each new class attempted live on the v2 world under a pre-registration,
 `evals/attempts/`). A prompt change is a different pipeline ([ADR-0022](docs/adr/0022-evaluation-harness.md)),
 so the table below shows zeros at this stamp until the first sweep runs at it, and the last
@@ -104,7 +105,7 @@ Ablation runs are excluded from the table above because they are a different pip
 way the B0 arm is.
 
 <!-- scenario-table:begin -->
-Per scenario. The first four columns are at `prompts:8dda4a19da2f`, the stamp this
+Per scenario. The first four columns are at `prompts:9ce16b66bbcc`, the stamp this
 repository ships, on the current world (`90e9f29e578e`): scored runs only, demos, the B0
 arm and ablation arms excluded. `class` and `service` are correct / answered;
 abstentions are counted in `abst`, not as wrong. The last two columns pool every stamp

@@ -3,7 +3,7 @@ origin: scenario:v2-checkout-currency-misconfig
 split: holdout
 fault_class: bad_config
 recorded_from: 2026-09-27T04:22:29+00:00
-capability: cap:d2b243e0
+capability: cap:91279a09
 onset_to_page: 4m17s
 page_to_fix: 5m00s
 fix_to_all_clear: 3m01s

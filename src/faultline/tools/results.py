@@ -149,6 +149,11 @@ class LogResult(ToolResult):
     tool: Literal["logql_query"] = "logql_query"
     source: Literal["loki"] = "loki"
     selector: str = ""
+    """The LogQL sent: the stream selector, and the line filter after it when one was asked for
+    (Q100) - so the evidence board records the question as Loki received it."""
+    contains: str = ""
+    """The text every returned line had to contain, or empty when the query was unfiltered.
+    Defaulted so a stored envelope from before Q100 still parses."""
     lines: list[LogLine] = Field(default_factory=list)
 
     oldest_kept: int = 0
@@ -162,6 +167,8 @@ class LogResult(ToolResult):
         if self.oldest_kept:
             attributes["oldest_kept"] = str(self.oldest_kept)
             attributes["newest_kept"] = str(self.newest_kept)
+        if self.contains:
+            attributes["contains"] = self.contains
         return attributes
 
     def body(self) -> str:

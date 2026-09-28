@@ -90,8 +90,41 @@ def two_ended_split(cap: int) -> tuple[int, int]:
     return oldest, cap - oldest
 
 
-TOOL_BEHAVIOUR_REVISION = 4
+CONTAINS_MAX_CHARS = 200
+"""The longest line filter `logql_query` accepts. A filter is a few words a responder expects to
+find in a line - an exception's name, a status, a path - and two hundred characters is far past
+any of those; a longer one is a mistake, not a question."""
+
+
+def logql_string(text: str) -> str:
+    """`text` as a LogQL double-quoted string literal, so it can only ever be a string.
+
+    The filter is interpolated into the query Loki receives, and the text comes from a model. A
+    LogQL string literal ends at the first unescaped `"`, so the escaping here is what keeps the
+    text inside the literal: backslashes first, then quotes, then the two control characters a
+    log line can plausibly carry. Every other control character is dropped rather than escaped -
+    none belongs in a line filter, and passing one through in some escaped form would be
+    guessing at Loki's grammar rather than following it.
+    """
+    kept = "".join(ch for ch in text if ch >= " " or ch in "\n\t")
+    escaped = (
+        kept.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n").replace("\t", "\\t")
+    )
+    return f'"{escaped}"'
+
+
+TOOL_BEHAVIOUR_REVISION = 5
 """Bumped when a tool returns materially different evidence without changing the tool set.
+
+**Bumped to 5 at Q100 (T7.1)**: `logql_query` takes a line filter, `contains`, sent to Loki as
+`|= "<text>"` after the selector, and the planner can set one per logs dispatch
+(`Dispatch.log_filter`). Measured twice before this: the tool keeps the oldest 3 to 8 and newest
+12 to 32 lines of a window and the lines that name a fault sat in the elided middle both times -
+kafka's *No space left on device* under its restart banners on R5, and every `28P01` stack trace
+on `v2-accounting-bad-credential`, where a whole-window read returned only healthy lines. The
+planner may not narrow a window (Q17), so without a filter those lines were reachable by nobody.
+An unfiltered query returns exactly what revision 4 returned; the review the move required is
+`docs/design/q100-capability-review.md`.
 
 **Bumped to 4 at Q94 (T7.1)**: `trace_query` renders to the world's depth (v1 6, v2 16) and
 prints an ERROR span's status message. The degrading hop gains rule 0: the call still waiting
@@ -355,20 +388,38 @@ class Tools:
     # --- logql ----------------------------------------------------------------
 
     def logql_query(
-        self, service: str, start: datetime, end: datetime, limit: int | None = None
+        self,
+        service: str,
+        start: datetime,
+        end: datetime,
+        limit: int | None = None,
+        contains: str | None = None,
     ) -> LogResult:
         """Logs for one service. The window may open before onset, and usually should.
 
         Three narratives read logs from before the incident and `shipping-wrong-image` says
         the pre-onset stream "is where it breaks open" - a JVM banner in a service whose logs
         had never contained one. A tool that only looked forward from the alert would miss it.
+
+        **`contains` keeps only the lines holding that exact text (Q100).** The two-ended cap
+        then applies to the lines that match, so a filter is how a responder reaches the middle
+        of a long window: the failure lines that sit between the oldest sample and the newest
+        page, which no width of window could otherwise surface. Case-sensitive, a substring, no
+        pattern language - the text goes to Loki as a string literal and nothing else.
         """
         container = service_containers().get(canonical_service(service), service)
         selector = f'{{service="{container}"}}'
+        contains = (contains or "").strip()
+        if len(contains) > CONTAINS_MAX_CHARS:
+            contains = contains[:CONTAINS_MAX_CHARS]
+        if contains:
+            selector = f"{selector} |= {logql_string(contains)}"
         window = Window(start=start, end=end)
         refusal = self._check_window("logql_query", selector, start, end)
         if refusal is not None:
-            return LogResult(selector=selector, window=window, error=refusal, empty=True)
+            return LogResult(
+                selector=selector, contains=contains, window=window, error=refusal, empty=True
+            )
 
         cap = limit or self._settings.max_log_lines
         head, tail = two_ended_split(cap)
@@ -405,7 +456,9 @@ class Tools:
             newest = fetch("backward", tail)[-tail:]
             oldest = fetch("forward", head)[:head] if head else []
         except Exception as exc:
-            return LogResult(selector=selector, window=window, error=str(exc), empty=True)
+            return LogResult(
+                selector=selector, contains=contains, window=window, error=str(exc), empty=True
+            )
 
         seen = {(entry.at, entry.line) for entry in newest}
         oldest = [entry for entry in oldest if (entry.at, entry.line) not in seen]
@@ -416,6 +469,7 @@ class Tools:
             oldest = []
         return LogResult(
             selector=selector,
+            contains=contains,
             window=window,
             lines=oldest + newest,
             empty=not newest and not oldest,

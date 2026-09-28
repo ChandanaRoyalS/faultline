@@ -3,7 +3,7 @@ origin: scenario:v2-product-catalog-freeze
 split: dev
 fault_class: process_freeze
 recorded_from: 2026-09-27T02:15:42+00:00
-capability: cap:d2b243e0
+capability: cap:91279a09
 onset_to_page: 4m15s
 page_to_fix: 5m00s
 fix_to_all_clear: 5m01s

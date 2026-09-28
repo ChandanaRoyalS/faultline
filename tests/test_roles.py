@@ -1793,6 +1793,75 @@ def test_a_planner_widening_reaches_the_tool_and_the_record():  # type: ignore[n
     assert request["window"][0] == (ANCHOR - timedelta(hours=10)).isoformat()
 
 
+def test_a_planner_log_filter_reaches_loki_and_the_record(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Q100 end to end: `log_filter` on a logs dispatch becomes the `|=` literal Loki runs, and
+    the envelope the trajectory stores carries it as an attribute, so a filtered read is visible
+    as a *choice* and an empty one cannot be mistaken for an empty unfiltered read.
+
+    On a `changes` dispatch the same field does nothing, because no other tool takes text."""
+    from faultline import telemetry
+
+    queries: list[str] = []
+
+    def record(base: str, path: str, params: dict[str, str]) -> dict[str, Any]:
+        queries.append(params.get("query", ""))
+        return {"data": {"result": []}}
+
+    monkeypatch.setattr(telemetry, "get_json", record)
+    plan = plan_reply(
+        [
+            {
+                "specialist": "logs",
+                "service": "cartservice",
+                "question": "q",
+                "reason": "r",
+                "log_filter": "No space left on device",
+            },
+            {
+                "specialist": "changes",
+                "service": "cartservice",
+                "question": "q",
+                "reason": "r",
+                "log_filter": "No space left on device",
+            },
+        ],
+        [],
+    )
+    model = ScriptedModel({"planner": [plan]})
+    engine, _ = investigation(model, Budget(max_dispatch_rounds=1))
+
+    result = engine.run("incident-filtered", triage_of("cartservice"), ANCHOR)
+
+    # Two reads per query - the newest page and the oldest sample - and both carry the filter.
+    assert queries == ['{service="cart-service"} |= "No space left on device"'] * 2
+    calls = [s.tool_call for s in result.trajectory.steps if s.tool_call]
+    logs = next(c for c in calls if c.tool == "logql_query")
+    assert 'contains="No space left on device"' in logs.envelope
+    assert logs.request["selector"] == '{service="cart-service"} |= "No space left on device"'
+    changes = next(c for c in calls if c.tool == "change_history")
+    assert "No space left" not in changes.envelope and "No space left" not in str(changes.request)
+
+
+def test_a_log_filter_past_the_schema_cap_is_a_re_ask_not_a_query() -> None:
+    """The contract's cap is the schema's; the tool has its own. A planner that writes a
+    paragraph into the field gets a validation error, which is a re-ask, before any query."""
+    with pytest.raises(ValidationError):
+        DispatchPlan.model_validate_json(
+            plan_reply(
+                [
+                    {
+                        "specialist": "logs",
+                        "service": "cartservice",
+                        "question": "q",
+                        "reason": "r",
+                        "log_filter": "x" * 201,
+                    }
+                ],
+                [],
+            )
+        )
+
+
 def test_a_retrieval_records_how_many_chunks_the_exclusion_removed(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -1988,8 +2057,9 @@ def test_the_prompt_digest_is_unmoved_by_the_rejection_loop() -> None:
     RESULTS.md was measured under `prompts:06f24e827915`; a T6.3 that moved it would strand them
     all, and the failure mode is silent - a changed stamp looks like a new agent, not like a bug.
 
-    The literal moved once since, on purpose and on record: T7.0's nine classes
-    (`test_harness_run.T70_DIGEST`, 2026-09-24). The rejection loop still moves nothing."""
+    The literal moved twice since, on purpose and on record: T7.0's nine classes
+    (`test_harness_run.T70_DIGEST`, 2026-09-24) and Q100's log filter
+    (`test_harness_run.Q100_DIGEST`, 2026-09-28). The rejection loop still moves nothing."""
     from faultline.agents.stamp import prompt_digest
 
-    assert prompt_digest() == "8dda4a19da2f"
+    assert prompt_digest() == "9ce16b66bbcc"

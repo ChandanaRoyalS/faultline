@@ -3,7 +3,7 @@ origin: scenario:v2-recommendation-partition
 split: holdout
 fault_class: network_partition
 recorded_from: 2026-09-28T11:46:36+00:00
-capability: cap:d2b243e0
+capability: cap:91279a09
 onset_to_page: 6m46s
 page_to_fix: 5m00s
 fix_to_all_clear: 6m01s

@@ -3,7 +3,7 @@ origin: scenario:v2-payment-dependency-latency
 split: dev
 fault_class: dependency_latency
 recorded_from: 2026-09-27T10:27:19+00:00
-capability: cap:d2b243e0
+capability: cap:91279a09
 onset_to_page: 5m35s
 page_to_fix: 5m00s
 fix_to_all_clear: 4m02s

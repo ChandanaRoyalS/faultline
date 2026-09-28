@@ -170,7 +170,9 @@ value was wrong, and it was set back.
 - **A log read over the whole incident shows its ends, not its middle.** Here the newest lines
   happened to be the bottom of a failing stack trace, and the label and the exception's name were
   in the middle the tool does not return. Where the ends are healthy, the failures can all be in
-  that middle. Narrow the window to the start before concluding that a service's log is clean.
+  that middle. Narrow the window to the start, or read the log again filtered on the text the
+  ends gave you - `28P01`, `PostgresException` - before concluding that a service's log is clean;
+  a filtered read keeps both ends of the lines that match, which is the middle.
 - **Authentication refused is not connection refused.** A wrong host or port fails at the socket,
   with no Postgres error code. `28P01` means the database was reached and said no, which points
   at the credential and away from the network.

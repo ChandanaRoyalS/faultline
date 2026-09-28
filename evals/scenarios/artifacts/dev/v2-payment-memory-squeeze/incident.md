@@ -3,7 +3,7 @@ origin: scenario:v2-payment-memory-squeeze
 split: dev
 fault_class: resource_exhaustion
 recorded_from: 2026-09-27T20:17:54+00:00
-capability: cap:d2b243e0
+capability: cap:91279a09
 onset_to_page: 9m46s
 page_to_fix: 5m00s
 fix_to_all_clear: 0s

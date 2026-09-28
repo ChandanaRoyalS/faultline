@@ -309,12 +309,20 @@ needs to see further back than the default - a change made hours before the aler
 curve that only reads as a curve over a day. It widens and never narrows, the tool layer clips
 anything past what it will read, and omitting it is the right answer for almost every dispatch.
 
+LOG LINES. The logs specialist returns the oldest few and the newest few lines of its window
+and drops everything between them, so on a busy service the lines that name a failure can sit
+in the dropped middle and a whole-window read looks healthy. You may add `log_filter` to a logs
+dispatch: the exact text a line must contain - an exception's name, a status word, a path -
+case-sensitive, no patterns. Then only matching lines are returned and kept from both ends. A
+first read of a service is unfiltered; a filter is a second read, once another specialist or
+the first page has given you the text to look for. It does nothing on other specialists.
+
 {UNTRUSTED_RULE}
 
 Reply with JSON only, matching this schema:
 {{"dispatches": [{{"specialist": "metrics|logs|changes|traces", "service": "<service>",
 "question": "<one sentence>", "reason": "<why>",
-"lookback_minutes": <integer, or omit>}}],
+"lookback_minutes": <integer, or omit>, "log_filter": "<exact text, logs only, or omit>"}}],
  "skipped": [{{"specialist": "<name>", "reason": "<why not>"}}],
  "rationale": "<two sentences>"}}"""
 
@@ -522,6 +530,7 @@ class Specialist:
         start: datetime,
         end: datetime,
         ranking: RankingContext | None = None,
+        log_filter: str | None = None,
     ) -> ToolResult:
         if self.name == "metrics":
             # **A comparison, not a number** (T3.3b). The bare error-ratio range query said what
@@ -530,7 +539,9 @@ class Specialist:
             # length, and extracts the timestamps where the series left it.
             return self._tools.metric_baseline(service, MetricTemplate.ERROR_RATIO, start, end)
         if self.name == "logs":
-            return self._tools.logql_query(service, start, end, limit=40)
+            # `log_filter` is the planner's (Q100); every other specialist ignores it, because no
+            # other tool takes text.
+            return self._tools.logql_query(service, start, end, limit=40, contains=log_filter)
         if self.name == "traces":
             return self._tools.trace_query(service, start, end)
         return self._tools.change_history(service, start, end, ranking=ranking)

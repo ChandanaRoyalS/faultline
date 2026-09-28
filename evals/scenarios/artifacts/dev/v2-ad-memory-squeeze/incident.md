@@ -3,7 +3,7 @@ origin: scenario:v2-ad-memory-squeeze
 split: dev
 fault_class: resource_exhaustion
 recorded_from: 2026-09-27T12:39:52+00:00
-capability: cap:d2b243e0
+capability: cap:91279a09
 onset_to_page: 5m01s
 page_to_fix: 5m00s
 fix_to_all_clear: 3m01s

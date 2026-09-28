@@ -4617,6 +4617,41 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-09-28: Q100 decided and landed - the planner gets a log-line filter, both stamps move
+once, fifty narratives reviewed. `cap:d2b243e0` → `cap:91279a09`, `prompts:8dda4a19da2f` →
+`9ce16b66bbcc`.***
+
+- **The decision.** Of the row's three answers - a text filter, a change to how the two ends
+  are kept, or a known reach - the filter: it is what a responder does in Loki, it adds reach
+  without changing what an unfiltered read returns, and the review it needs is one question.
+  The two-ended split is unchanged.
+- **The premise was understated.** The row said the agent reached the elided middle by
+  narrowing the window to seconds. It could not: the logs specialist reads a fixed window at
+  limit 40 and `Dispatch.lookback_minutes` widens and never narrows (Q17). R5's thirty-second
+  read was a human at the CLI. So the "known reach" answer would have left the first
+  `disk_fill` narrative resting on a line the agent had no way to read, and the filter had to
+  reach the planner, not just the tool.
+- **What landed.** `Tools.logql_query(..., contains=)`, sent as `|= "<text>"` after the
+  selector through `logql_string`, which holds the text to one string literal (a hostile filter
+  with quotes, a pipeline stage and a second selector is tested to stay inside it); capped at
+  200 characters; the result carries the filter in its selector, its `contains` field and an
+  envelope attribute, so a filtered read is a recorded choice and an empty filtered read cannot
+  pass for an empty unfiltered one. `Dispatch.log_filter`, logs dispatches only, ignored
+  elsewhere; `Specialist.query` passes it; the planner's prompt gains a LOG LINES paragraph
+  and the schema line. `TOOL_BEHAVIOUR_REVISION` 4 → 5, because `capability_version` reads
+  tool names and a parameter is not a name.
+- **The review.** `docs/design/q100-capability-review.md`: fifty narratives searched for
+  reach claims about the log tool; none falsified; two given one sentence each where "narrow
+  the window" was now incomplete advice (`v2-accounting-bad-credential`,
+  `v2-accounting-kafka-misconfig`); all fifty re-stamped. `Q100_DIGEST` joins the ledger in
+  `tests/test_harness_run.py` as HEAD, the four digest pins move, README's headline and
+  RESULTS's lineage sentence move with them.
+- **What it strands: nothing.** No scored run exists at `8dda4a19da2f` or at `cap:d2b243e0` on
+  any world (README's own first line). A move after T7.2's first v2 sweep would have stranded
+  it, which is why the row's trigger was "before the first `disk_fill` scenario" and why this
+  lands before it rather than after.
+- **Next.** `v2-kafka-disk-fill`, slot `v2/disk_fill-1`, with the existing tool (A8b, R5).
+
 ***2026-09-28: the thirty-third v2 scenario, `v2-cart-store-corruption`, rehearsed and labeled -
 slot `v2/datastore_corruption-1` (dev), first recording. The catalog's first `restore_data`
 scenario.***

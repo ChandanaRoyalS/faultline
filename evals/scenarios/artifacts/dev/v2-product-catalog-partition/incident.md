@@ -3,7 +3,7 @@ origin: scenario:v2-product-catalog-partition
 split: dev
 fault_class: network_partition
 recorded_from: 2026-09-28T00:01:58+00:00
-capability: cap:d2b243e0
+capability: cap:91279a09
 onset_to_page: 4m46s
 page_to_fix: 5m00s
 fix_to_all_clear: 5m01s

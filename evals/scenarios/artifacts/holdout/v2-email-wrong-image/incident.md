@@ -3,7 +3,7 @@ origin: scenario:v2-email-wrong-image
 split: holdout
 fault_class: bad_deploy
 recorded_from: 2026-09-27T08:06:47+00:00
-capability: cap:d2b243e0
+capability: cap:91279a09
 onset_to_page: 5m02s
 page_to_fix: 5m00s
 fix_to_all_clear: 3m01s

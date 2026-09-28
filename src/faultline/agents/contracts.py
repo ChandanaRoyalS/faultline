@@ -148,6 +148,29 @@ class Dispatch(BaseModel):
     applies, which is what almost every dispatch should say. A default of `30` here would make
     the policy's number look like the planner's choice in every recorded plan."""
 
+    log_filter: str | None = Field(
+        default=None,
+        max_length=200,
+        description=(
+            "For the logs specialist only: keep only log lines containing this exact text "
+            "(case-sensitive substring, no patterns). Omit to read the window unfiltered."
+        ),
+    )
+    """The planner's line filter for one logs dispatch (**Q100**, T7.1).
+
+    The logs tool keeps the two ends of a window and drops the middle, and the planner may not
+    narrow a window (Q17). Measured twice, the lines that named the fault were in the dropped
+    middle - kafka's *No space left on device* under its restart banners, accounting's `28P01`
+    stack traces between healthy order lines - so a whole-window read said the service was
+    fine. The filter is the one way to ask for the middle: it reaches `Tools.logql_query` as
+    `contains` and goes to Loki as a string literal, and the two-ended cap then applies to the
+    lines that match. Ignored on any other specialist, since no other tool takes text.
+
+    **`None` is not the empty string.** It means the planner asked for the whole stream, which
+    is the right first read of any service; a filter is a second read, once the planner knows
+    what text it is looking for - from a trace's status message, a metric's name, a first
+    unfiltered page."""
+
 
 class SkippedSpecialist(BaseModel):
     model_config = REQUESTED
