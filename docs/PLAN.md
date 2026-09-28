@@ -4617,6 +4617,18 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-09-28: `v2-shipping-partition` measured before authoring and blocked, as predicted -
+`network_partition` row 4; the reserves take over.***
+
+- **The measurement.** The same ten-minute cut, nothing recorded. Shipping wrote nothing before,
+  during or after: its log leaves by OTLP alone. Blocked as pre-registered; no slot, no line.
+- **Seen in passing.** The shape was not the freeze's: checkout's error ratio paged alone at
+  +220 s - its quote call into a cut-off shipping fails rather than hangs - before the silence
+  wave. Recorded in the candidate list for whoever authors a shipping fault, not acted on.
+- **The row.** One design against three slots; the reserves are measured in order, `ad` first,
+  predicted from the Java agent's console logger to be the first target since the catalog to
+  write its line.
+
 ***2026-09-28: `v2-payment-partition` measured before authoring and blocked - `network_partition`
 row 3; the row refilled by decision, reserves added before row 4 is measured.***
 
