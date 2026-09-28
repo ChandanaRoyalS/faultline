@@ -4617,6 +4617,25 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-09-28: the thirty-first v2 scenario, `v2-fraud-detection-partition`, rehearsed and labeled -
+slot `v2/network_partition-3` (dev), first recording. The partition with no caller.***
+
+- **The design.** `docker network disconnect` on fraud-detection, which nothing calls - it
+  consumes orders from Kafka - so the cut has no cascade at all; the Java agent's console
+  logger writes every failed export, the row's line.
+- **The page, as predicted.** One alert, on the culprit: `ServiceNoTraffic/fraud-detection` at
+  7m46s, nothing before, beside or after it; the world all clear 1m00s after the reconnect.
+  Nothing else moved - 119 orders completed, accounting read the same topic throughout. The
+  runtime series gapped from +4:00 to 29 s after the reconnect; 32 agent lines during the
+  fault and none before.
+- **Past the hedge: the recovery.** The backlog returned as one 19 s receive span whose first
+  sixty-odd records failed their flag resolve at a 500 ms deadline on a stale connection to
+  flagd - the culprit at 33 % errors and a 780 ms p95 from the fix to the window's end, with no
+  alert on record; the recorder's blind spot, now seen under this row too.
+- **The row.** 32 of 44 slots filled; six classes complete. Three designs against four slots;
+  `v2-email-partition` is measured next for the holdout -4, recommendation after it if it
+  blocks.
+
 ***2026-09-28: `v2-checkout-partition` measured before authoring and blocked - the prediction wrong,
 the reason found in source; two reserves added for `network_partition`.***
 
