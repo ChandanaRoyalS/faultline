@@ -643,6 +643,20 @@ CATALOG: tuple[FaultDefinition, ...] = _validated(
             params={"network": "opentelemetry-demo"},
         ),
         FaultDefinition(
+            id="v2-fraud-detection-partition",
+            fault_class=FaultClass.NETWORK_PARTITION,
+            target="fraud-detection",
+            world="v2",
+            description=(
+                "Cut fraud-detection from the demo network. Nothing calls it - it reads orders "
+                "from Kafka - so no caller hangs and nothing else moves: the only thing the "
+                "world sees is one consumer going quiet, and the page is ServiceNoTraffic on "
+                "the culprit itself. Told apart from a freeze by the Java agent's own log: "
+                "every failed export at ERROR, once a minute once cut off (measured 2026-09-28)."
+            ),
+            params={"network": "opentelemetry-demo"},
+        ),
+        FaultDefinition(
             id="v2-cart-store-corruption",
             fault_class=FaultClass.DATASTORE_CORRUPTION,
             target="valkey-cart",
