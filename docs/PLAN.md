@@ -4617,6 +4617,31 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-09-28: the twenty-ninth v2 scenario, `v2-product-catalog-partition`, rehearsed and labeled -
+slot `v2/network_partition-1` (dev), first recording. The `network_partition` row opens.***
+
+- **The design.** `docker network disconnect` on the catalog with its aliases captured: R3's
+  design, the freeze's look-alike on alerts, metrics, runtime series and traces, separated on
+  the target's own log - the cut-off process writing its export failures once a minute where
+  the frozen one wrote nothing. Authored on 2026-09-27 against the measured world (#554).
+- **The page, and the prediction held.** The freeze's four alerts at 4m46s (errors and latency
+  on frontend-proxy and load-generator), the frontend's latency and fraud-detection's ratio at
+  +5:45, `ServiceNoTraffic` on the catalog and six starved services at +7:45, seventeen alerts
+  on thirteen services by the fix. The frontend's ratio zero and its rate down four fifths; the
+  catalog's series gapped from +5:00 to +11:15; **eleven lines in its log during the fault**,
+  at :08 of every minute, and nothing in the five minutes before.
+- **Not predicted: the recovery is a second separation.** Back on the same address, the
+  catalog reset the connections its callers had held open through the cut - 26 of 39 orders
+  begun during it failed at their catalog lookup, the frontend at 48 % errors for a minute -
+  where the freeze's held calls completed at the resume. Six recovery-only alerts, all clear
+  5m01s after the reconnect; the recovery's wave is on record this time.
+- **A derivation question, for a Q number.** The recorder counted the catalog's twelve fault-
+  time lines as a `logs` class (threshold ten) on a reading that assumes a log talkative at rest;
+  this log is silent at rest and speaks only under the fault. The scenario file is restated to
+  the measurement, as the gate requires; the candidate list's note carries the question.
+- **The row.** 30 of 44 slots filled; six classes complete. Row 2 (`v2-cart-partition`) waits
+  on the measurement the row's rule requires: whether .NET's SDK writes the line.
+
 ***2026-09-27: the twenty-eighth v2 scenario, `v2-payment-freeze`, rehearsed and labeled - slot
 `v2/process_freeze-4` (holdout), first recording. The `process_freeze` row is full.***
 

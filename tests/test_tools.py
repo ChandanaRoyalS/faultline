@@ -845,6 +845,13 @@ NARRATIVE_EVIDENCE_V2: dict[str, set[str]] = {
     # Charge open for the length of the freeze under every order after a completed preparation;
     # the change history is empty.
     "v2-payment-freeze": {"metrics", "runtime_metrics", "logs", "traces", "changes"},
+    # The target is cut from its network. Metrics carry the freeze's shape - the edge's ratio and
+    # ceiling, the frontend's zero, the catalog's and the order path's silence; the target's
+    # runtime series stop at the cut and return after the reconnect; its log, empty at rest,
+    # carries the export failures once a minute that separate the cut from a freeze; the traces
+    # hold GetProduct open for the length of the cut and reset at the reconnect; the change
+    # history is empty.
+    "v2-product-catalog-partition": {"metrics", "runtime_metrics", "logs", "traces", "changes"},
     # Holdout. The page names the culprit and reads as down. Metrics carry its rate going to zero
     # and everyone else's holding; runtime shows it alive; its log names the address and the
     # refused connection, and fraud-detection's shows the topic still read; traces show none of

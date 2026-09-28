@@ -28,67 +28,101 @@ ground_truth:
     long as it is cut off.
   category: network_partition
 expected_evidence:
-  # From A3 (by hand) and R3 (through the injector, 2026-09-24), and the freeze's recordings on the
-  # same target (row 1 of process_freeze, re-recorded on the revised world 2026-09-27); predicted
-  # before recording and checked against the bundle. Everything below except the log is the
-  # freeze's, and is predicted to match its current recording to within a minute; the log is the
-  # design.
-  - alerts: the callers page, not the culprit - ServiceHighErrorRate on frontend-proxy and
-      load-generator (R3 +4:38, A3 +4:36; the freeze 4m15s), their latency alerts a minute
-      later, ServiceHighLatency/frontend at about +6:38; ServiceNoTraffic on product-catalog at
-      about +7:38 with the starved services beside it - accounting, currency, email, payment,
-      quote, shipping, and checkout if its every span hangs; fourteen to sixteen alerts on
-      thirteen services by the revert
-  - alerts: (dead end) with orders stopped, fraud-detection's and flagd's routine
-      flagd.evaluation.v1.Service/EventStream reconnect raises error and latency alerts on them,
-      and recommendation's error ratio can read 100 % on one request in five minutes before its
-      traffic goes to zero, as in the freeze; none of it is a second fault
-  - metrics: frontend-proxy's p95 at the histogram's ceiling (15000 ms) from about +2 and
-      frontend's from about +3, while frontend's error ratio reads zero - not one span ends in
-      error - and its request rate falls by about four fifths; the errors surface one hop up, at
-      frontend-proxy (25 to 30 %) and load-generator, as Envoy's upstream timeouts
-  - metrics: product-catalog's request rate goes to zero within a minute of the page and stays
-      there, and from then on its error ratio and latency have no value at all - not zero
-      errors, no samples
-  - metrics: product-catalog's 9 Go runtime series stop moving at the cut - the SDK cannot reach
-      the collector, so its last report lands in the minute before onset - hold for the store's
-      lookback and drop out of queries by about +5; back within a minute of the reconnect. The
-      freeze cuts them too, so this separates cut-off-or-frozen from idle, not partition from
-      freeze
+  # From A3 (by hand) and R3 (through the injector, 2026-09-24) and the freeze's recordings on
+  # the same target, predicted before recording and checked against the first recording, on the
+  # revised world, 2026-09-28 (t_inject 00:01:58, revert at +9:46). The prediction held on its
+  # core - the freeze's page shape at 4m46s, the frontend's error ratio at zero while its rate
+  # fell four fifths, the no-traffic wave, the catalog's series stopping, and the log, which is
+  # the design, written from the twelfth second and once a minute after - with one alert over
+  # the predicted range and two things earlier than predicted (the frontend's latency and the
+  # dead end, both at +5:45). Not predicted: the recovery. Under the freeze the held calls were
+  # answered at the resume; here they were reset at the reconnect, so the woken backlog failed -
+  # errors on checkout, the frontend and recommendation among six recovery-only alerts - and the
+  # frontend's log, quiet through the fault but for its timeouts, carried its burst after the
+  # fix. The list below states the recording.
+  - alerts: the callers page, not the culprit - ServiceHighErrorRate and ServiceHighLatency on
+      frontend-proxy and load-generator together (page 4m46s; R3 +4:38, A3 +4:36, the freeze
+      4m15s); ServiceHighLatency/frontend and ServiceHighErrorRate/fraud-detection at +5:45;
+      ServiceNoTraffic at +7:45 on product-catalog and six starved services with it -
+      accounting, currency, email, payment, quote, shipping - and ServiceHighErrorRate on
+      recommendation the same minute; ServiceHighLatency on flagd and recommendation at +8:45;
+      ServiceNoTraffic/fraud-detection at +9:45; seventeen alerts on thirteen services by the
+      fix (predicted fourteen to sixteen); checkout, cart, ad and the frontend's error ratio
+      never on it during the fault
+  - alerts: (dead end) with orders stopped, the routine flag-stream reconnect puts
+      fraud-detection's and flagd's p95s at the ceiling and fraud-detection's error ratio at
+      100 % on one span in five minutes; recommendation's error ratio reads 100 % from +5 on its
+      one request before its traffic goes to zero, and its p95 the ceiling; ad's p95 reads the
+      ceiling from +7 on a rate cut to a third and pages on latency at +10:45, a minute after
+      the fix - on the shape of it the same stream span; none of it is a second fault
+  - metrics: frontend-proxy's p95 at the histogram's ceiling (15000 ms) from +1 and frontend's
+      from +2, while frontend's error ratio reads zero for the length of the cut - not one span
+      ends in error - and its request rate falls from 11.9 to 2.4 a second; the errors surface
+      one hop up, at frontend-proxy (23 to 25 %) and load-generator (27 to 28 %), as Envoy's
+      upstream timeouts
+  - metrics: product-catalog's request rate goes to zero by +4 and stays there, and from then to
+      the reconnect its error ratio and latency have no value at all - not zero errors, no
+      samples; recommendation's rate to zero with it (every recommendation call lists the catalog),
+      the order path's - checkout to 0.03 a second on the cart read before its hung lookup, and
+      currency, shipping, quote, payment, email, accounting to nothing
+  - metrics: product-catalog's 9 Go runtime series stop at the cut - the SDK cannot reach the
+      collector, so its last report is the one before onset - hold for the store's lookback and
+      drop out of queries at +5:00; back at +11:15, 89 s after the reconnect. The freeze cuts
+      them too, so this separates cut-off-or-frozen from idle, not partition from freeze
   - logs: THE DESIGN - product-catalog, which writes nothing when healthy and nothing when
-      frozen, writes under the partition - a line ending in "context deadline exceeded" within
-      seconds of the cut, one naming the traces export with the same ending, and then, at :58 of
-      every minute for as long as it is cut off, "failed to upload metrics" ending in
-      "DeadlineExceeded" (R3 - fifteen lines over a thirteen-minute fault); a Loki stream for
-      product-catalog exists only because of them; the frontend logs its own timeouts as the
-      freeze had them
-  - traces: the proxy's spans end at its 15 s deadline; below it frontend's call into the
-      catalog (grpc.oteldemo.ProductCatalogService/GetProduct) stays open until the reconnect,
-      and checkout's GetProduct under prepareOrderItemsAndShippingQuoteFromCart likewise; the
-      catalog has no spans during the cut (nothing reaches it, and what it sends reaches nothing)
-      and its spans appear only after the reconnect
-  - recovery: at the reconnect the catalog is back on the network under its captured aliases at
-      a new address, and the woken backlog hits it at once - the freeze's current recording
-      (2026-09-27) saw `Product Not Found` for products that exist, 77 frontend error lines in
-      the minute of the resume, and four recovery-only alerts (errors on the frontend, latency on
-      checkout, product-catalog and recommendation); R3 saw the same second wave on checkout,
-      frontend, product-catalog and recommendation and all clear 5m12s after the reconnect;
-      Postgres at 256M since Q96, so no restart is expected and the count is checked
+      frozen, writes under the partition - at the twelfth second a line ending in "context
+      deadline exceeded" and one naming the traces export with the same ending, then "failed to
+      upload metrics" ending in "DeadlineExceeded" once a minute at :08 for as long as it is cut
+      off, eleven lines during the fault and a twelfth 24 s after the reconnect from the export
+      that had begun six seconds before it (R3 - fifteen lines over a thirteen-minute fault; the
+      minute mark is the process's export timer, not the clock's); the Loki stream for
+      product-catalog exists only because of them - nothing in the five minutes before onset;
+      the frontend logs 26 error lines during the cut, its own timeouts, and 289 in the minute
+      of the reconnect
+  - traces: every proxy error trace ends at its 15 s deadline (300 drawn, none under 14 s - 143
+      product pages, 88 add-to-carts, 43 recommendation calls, 26 checkouts); below it
+      frontend's call into the catalog (grpc.oteldemo.ProductCatalogService/GetProduct) stays
+      open for the length of the cut, 200 to 430 s in those drawn, and ends in error at the
+      reconnect; checkout's GetProduct under prepareOrderItemsAndShippingQuoteFromCart, after a
+      GetCart of a millisecond, stays open 300 to 530 s and ends with "connection reset by
+      peer" naming the catalog's address, and recommendation's ListProducts likewise at 550 to
+      600 s; the catalog has no spans during the cut (nothing reaches it, and what it sends
+      reaches nothing) and its spans appear only after the reconnect
+  - recovery: NOT THE FREEZE'S - at the reconnect the catalog is back on the network under its
+      captured aliases on the same address, and the connections the callers had held open for
+      the length of the cut are reset rather than answered, so the woken backlog fails - 26 of
+      the 39 orders begun during the cut end in a reset on their catalog lookup, the frontend's
+      error ratio reads 48 % in the minute after the fix and its p95 the ceiling to +13 as the
+      held spans close, checkout's 40 %, recommendation's 14 %; then `Product Not Found` for
+      products that exist, the catalog's own error ratio 2.7 % and its p95 179 ms against 6 on
+      the burst; six recovery-only alerts (ad's latency at +10:45; errors on checkout, the
+      frontend and recommendation at +12:45; latency on checkout and recommendation at +13:45),
+      the proxy's and the load generator's clearing at +13:30 and +14:30 as the 15 s spans age
+      out, all clear 5m01s after the reconnect - this time the recovery's wave is on record;
+      Postgres at 256M since Q96, restart count 0 before and after, the catalog's 0
   - change: nothing recorded - no deploy, no config, no flag; the history is empty for the
       whole window (the injector records no change for this class)
   - discriminator: a freeze of the same service looks identical on alerts, metrics, runtime
-      series and traces; the partition is the one whose target keeps running and logs its export
-      failures once a minute, where a frozen target logs nothing at all - on this target the
-      one line of separation, and the reason the row's rule blocks any target whose SDK cannot
-      write it
+      series and traces for the length of the fault; the partition is the one whose target
+      keeps running and logs its export failures once a minute, where a frozen target logs
+      nothing at all - on this target the one line of separation during the fault, and the
+      reason the row's rule blocks any target whose SDK cannot write it; the recording added a
+      second, after the fault - the freeze's held calls complete at the resume and the
+      partition's are reset at the reconnect - which a responder sees only once the fix is in
 expected_remediation_class: restart
 # The partition resolves when the container is put back on its network; where an operator cannot
 # reconnect it with its aliases, recreating or restarting the container does it
 # (knowledge/runbooks/class-network-partition.md). Nothing was changed, so nothing is reverted.
-rehearsed: false
+rehearsed: true
 alert_timeout_seconds: 900
 # Declared before recording, checked against the bundle after (T7.5). Measured on the running world
 # 2026-09-27: the catalog holds 9 Go runtime series and has no Loki stream when healthy. The cut
 # stops the series (the SDK cannot export), so runtime answers by going absent; the log is the
-# reverse - it appears under the fault - and is the evidence, not an absence.
-answers_idle_or_absent: [runtime]
+# reverse - it appears under the fault - and is the evidence, not an absence. Declared [runtime]
+# before recording. The first recording (2026-09-28) held 9 runtime series (gapped from +5:00 to
+# +11:15) and 12 target log lines, and the recorder derived [runtime, logs]: the derivation counts
+# lines against its threshold of ten and does not read them, and twelve is two over it. Restated
+# to the measurement, as the gate requires; the class is counted here for a log that is silent at
+# rest and speaks only under the fault - the reverse of the reading the derivation's docstring
+# gives it - which the candidate list's note records for a decision.
+answers_idle_or_absent: [runtime, logs]
