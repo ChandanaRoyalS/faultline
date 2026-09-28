@@ -744,8 +744,8 @@ LOG_LINES_BEFORE_ONSET = 100
 """Lines kept from before the fault, the newest of them: the service as it was just before.
 Split with `LOG_LINES_FROM_ONSET` so the capture's 500 hold both sides of the fault's start."""
 
-LOG_LINES_FROM_ONSET = 400
-"""Lines kept from the fault's start onward, the oldest of them: the fault as it began.
+LOG_LINES_FROM_ONSET = 20_000
+"""The ceiling on lines kept from the fault's start onward - a guard, not a budget.
 
 **Why the capture is split (T7.1, 2026-09-24).** It used to keep the first 500 lines of the
 whole window, which opens five minutes before the fault. `v2-cart-valkey-misconfig`'s cart logs
@@ -753,19 +753,38 @@ every call, about 130 lines a minute, so its capture ran out at 23:40:04 for a f
 at 23:41:56, and held nothing from the fault: the lines naming the cause (`Wasn't able to connect
 to redis`) were never captured. A talkative service filled the budget on its healthy minutes.
 Anchoring the larger part on the fault's start keeps the evidence and the lines just before it
-side by side. The file's header says which part hit its limit, so a capped side is legible."""
+side by side. The file's header says which part hit its limit, so a capped side is legible.
+
+**Why the part from onset is the whole window (Q113, 2026-09-28).** The split kept 400 lines
+from onset, set when every target wrote one line per event. A Java agent writes about thirty
+per failed export, so `v2-fraud-detection-partition`'s capture ended at about +10:30 and held
+neither the fault's last four failures nor the burst after the reconnect; `v2-ad-partition` the
+same. Kafka, the next target, halts and crashloops, and each restart writes a start-up banner
+of well over a hundred lines, so 400 would have ended inside the fault's first minutes. The
+capture now reads every line from onset to the window's end, in Loki's pages (`LOKI_PAGE`),
+and this constant is the ceiling a pathological target would hit - twenty thousand lines is
+about a megabyte, beside metric files of five thousand lines each, and more than any recorded
+target has written in a window (`v2-payment-freeze`, hundreds of lines a minute at rest, would
+reach five thousand). The header still says when it is hit. Bundles recorded before this keep
+their 400 and their headers say so; nothing recorded moves."""
+
+LOKI_PAGE = 5_000
+"""Lines per Loki read. Loki 2.9's `max_entries_limit_per_query` is 5000 by default, and the
+demo's `local-config.yaml` keeps it, so a whole-window capture pages: each read starts one
+nanosecond after the last line the previous one returned."""
 
 
-def _loki_lines(
-    selector: str, start: datetime, end: datetime, limit: int, direction: str
-) -> list[str]:
+def _loki_entries(
+    selector: str, start_ns: int, end_ns: int, limit: int, direction: str
+) -> list[tuple[int, str]]:
+    """One Loki read, at most `limit` entries, sorted oldest first whichever way it was asked."""
     payload = get_json(
         LOKI,
         "/loki/api/v1/query_range",
         {
             "query": selector,
-            "start": str(int(start.timestamp() * 1e9)),
-            "end": str(int(end.timestamp() * 1e9)),
+            "start": str(start_ns),
+            "end": str(end_ns),
             "limit": str(limit),
             "direction": direction,
         },
@@ -782,10 +801,43 @@ def _loki_lines(
     # Loki applies the limit across streams in `direction` order; the file is written oldest
     # first whichever side was queried, so a reader reads one timeline.
     entries.sort(key=lambda pair: pair[0])
+    return entries
+
+
+def _format_lines(entries: list[tuple[int, str]]) -> list[str]:
     return [
         f"{datetime.fromtimestamp(ns / 1e9, tz=UTC).isoformat(timespec='seconds')}  {text}"
         for ns, text in entries
     ]
+
+
+def _loki_lines(
+    selector: str, start: datetime, end: datetime, limit: int, direction: str
+) -> list[str]:
+    """Up to `limit` lines of the window, from whichever end `direction` names, in Loki pages.
+
+    Each read asks for at most `LOKI_PAGE` entries. A page that comes back full is followed by
+    another starting one nanosecond past its last entry (forward) or ending one nanosecond
+    before its first (backward), so the whole window is read regardless of Loki's own cap; a
+    short page is the window's end. Two lines stamped to the same nanosecond across a page
+    boundary could be split by this, which no recorded target has come near.
+    """
+    lo, hi = int(start.timestamp() * 1e9), int(end.timestamp() * 1e9)
+    entries: list[tuple[int, str]] = []
+    while len(entries) < limit and lo < hi:
+        want = min(LOKI_PAGE, limit - len(entries))
+        page = _loki_entries(selector, lo, hi, want, direction)
+        if not page:
+            break
+        if direction == "forward":
+            entries.extend(page)
+            lo = page[-1][0] + 1
+        else:
+            entries = page + entries
+            hi = page[0][0] - 1
+        if len(page) < want:
+            break
+    return _format_lines(entries)
 
 
 def loki_logs(
@@ -801,9 +853,9 @@ def loki_logs(
     rediscovering Loki's label space by hand.
 
     With `onset`, the capture is two parts: the newest `LOG_LINES_BEFORE_ONSET` lines before
-    it and the oldest `LOG_LINES_FROM_ONSET` from it. Without, the whole window's first
-    `LOG_LINES_BEFORE_ONSET + LOG_LINES_FROM_ONSET` lines, as every bundle before the split was
-    captured.
+    it and every line from it to the window's end, up to the `LOG_LINES_FROM_ONSET` ceiling
+    (Q113). Without, the whole window's first `LOG_LINES_BEFORE_ONSET + LOG_LINES_FROM_ONSET`
+    lines, the shape every bundle before the split was captured in.
     """
     source = discover_log_source(container)
     header = [f"# target container: {container}", *source.notes]
