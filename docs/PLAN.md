@@ -4617,6 +4617,19 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-09-28: `v2-checkout-partition` measured before authoring and blocked - the prediction wrong,
+the reason found in source; two reserves added for `network_partition`.***
+
+- **The measurement.** The same ten-minute cut, nothing recorded. Checkout wrote nothing while
+  cut off. Predicted to write what the catalog's Go SDK wrote; it did not, because checkout
+  calls `slog.SetDefault` on its OTLP-bridged logger and so exports its own export failures
+  over the cut connection, where the catalog leaves Go's `log` on stderr. One call decides it.
+- **Blocked as pre-registered.** No slot, no `SPLIT-V2.md` line; seen in passing, the order
+  path silent behind checkout with no page from the edge.
+- **The refill.** Reserves are now chosen per service from what their own bundles show reaching
+  the console: `v2-email-partition` and `v2-recommendation-partition` added after
+  `v2-fraud-detection-partition`, which is measured next for -3.
+
 ***2026-09-28: the thirtieth v2 scenario, `v2-ad-partition`, rehearsed and labeled - slot
 `v2/network_partition-2` (dev), first recording. The row's first reserve fills the slot three
 candidates released.***
