@@ -1,17 +1,101 @@
----
-origin: scenario:v2-product-catalog-partition
-split: dev
-fault_class: network_partition
-recorded_from: 2026-09-28T00:01:58+00:00
-capability: cap:d2b243e0
-onset_to_page: 4m46s
-page_to_fix: 5m00s
-fix_to_all_clear: 5m01s
----
-
 # The product catalog is cut from the network - its process runs and reaches nothing
 
-## What was observed
+## The scenario
+
+| | |
+|---|---|
+| scenario | `v2-product-catalog-partition` |
+| fault class | **`network_partition`** |
+| expected remediation | `restart` |
+| split | `dev` |
+| injected at | `product-catalog` via `v2-product-catalog-partition` |
+| time to page | 4m46s |
+| steady state captured | 300s |
+| capture window | 2026-09-27T23:56:58+00:00 → 2026-09-28T00:18:45+00:00 |
+
+The clock below runs from the moment the fault went in.
+
+| | |
+|---|---|
+| `t_inject` | T+0m00s |
+| first alert firing | T+4m46s |
+| `t_revert` | T+9m46s |
+| all clear | T+14m47s |
+
+## What fired, and when
+
+| when | service | alert | firing for | |
+|---|---|---|---:|---|
+| T+4m45s | `frontend-proxy` | ServiceHighErrorRate | 9.0 min | **paged** |
+| T+4m45s | `frontend-proxy` | ServiceHighLatency | 10.0 min | **paged** |
+| T+4m45s | `load-generator` | ServiceHighErrorRate | 9.0 min | **paged** |
+| T+4m45s | `load-generator` | ServiceHighLatency | 9.0 min | **paged** |
+| T+5m45s | `fraud-detection` | ServiceHighErrorRate | 1.0 min | joined later |
+| T+5m45s | `frontend` | ServiceHighLatency | 9.0 min | joined later |
+| T+7m45s | `accounting` | ServiceNoTraffic | 3.0 min | joined later |
+| T+7m45s | `currency` | ServiceNoTraffic | 3.0 min | joined later |
+| T+7m45s | `email` | ServiceNoTraffic | 3.0 min | joined later |
+| T+7m45s | `payment` | ServiceNoTraffic | 3.0 min | joined later |
+| T+7m45s | `product-catalog` | ServiceNoTraffic | 3.0 min | joined later |
+| T+7m45s | `quote` | ServiceNoTraffic | 3.0 min | joined later |
+| T+7m45s | `recommendation` | ServiceHighErrorRate | 2.0 min | joined later |
+| T+7m45s | `shipping` | ServiceNoTraffic | 3.0 min | joined later |
+| T+8m45s | `flagd` | ServiceHighLatency | 1.0 min | joined later |
+| T+8m45s | `recommendation` | ServiceHighLatency | 1.0 min | joined later |
+| T+9m45s | `fraud-detection` | ServiceNoTraffic | 1.0 min | joined later |
+| T+10m45s | `ad` | ServiceHighLatency | 1.0 min | began after the revert |
+| T+12m45s | `checkout` | ServiceHighErrorRate | 2.0 min | began after the revert |
+| T+12m45s | `frontend` | ServiceHighErrorRate | 2.0 min | began after the revert |
+| T+12m45s | `recommendation` | ServiceHighErrorRate | 2.0 min | began after the revert |
+| T+13m45s | `checkout` | ServiceHighLatency | 1.0 min | began after the revert |
+| T+13m45s | `recommendation` | ServiceHighLatency | 1.0 min | began after the revert |
+
+## What the bundle contains
+
+| capture | query |
+|---|---|
+| `metrics/alerts-firing.json` | `ALERTS{alertstate="firing"}` |
+| `metrics/call-rate.json` | `sum by(service_name) (rate(traces_span_metrics_calls_total[5m]))` |
+| `metrics/error-ratio.json` | `sum by(service_name) (rate(traces_span_metrics_calls_total{status_code="STATUS_CODE_ERROR"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total[5m]))` |
+| `metrics/latency-p95.json` | `histogram_quantile(0.95, sum by(service_name, le) (rate(traces_span_metrics_duration_milliseconds_bucket{span_kind!="SPAN_KIND_INTERNAL"}[5m])))` |
+| `metrics/runtime.json` | `{__name__=~"go_.*|dotnet_.*|jvm_.*|process_.*|v8js_.*|nodejs_.*",service_name="product-catalog"}` |
+
+`logs/product-catalog.txt` — 21 lines.
+
+## A look at the logs
+
+From `logs/product-catalog.txt` (---- onset 2026-09-28T00:01:58+00:00 ----):
+
+```
+2026-09-28T00:02:09+00:00  2026/09/28 00:02:09 context deadline exceeded: rpc error: code = DeadlineExceeded desc = context deadline exceeded
+2026-09-28T00:02:10+00:00  2026/09/28 00:02:10 traces export: context deadline exceeded: rpc error: code = DeadlineExceeded desc = context deadline exceeded
+2026-09-28T00:03:08+00:00  2026/09/28 00:03:08 failed to upload metrics: context deadline exceeded: rpc error: code = DeadlineExceeded desc = context deadline exceeded
+2026-09-28T00:04:08+00:00  2026/09/28 00:04:08 failed to upload metrics: context deadline exceeded: rpc error: code = DeadlineExceeded desc = context deadline exceeded
+2026-09-28T00:05:08+00:00  2026/09/28 00:05:08 failed to upload metrics: context deadline exceeded: rpc error: code = DeadlineExceeded desc = context deadline exceeded
+2026-09-28T00:06:08+00:00  2026/09/28 00:06:08 failed to upload metrics: context deadline exceeded: rpc error: code = DeadlineExceeded desc = context deadline exceeded
+2026-09-28T00:07:08+00:00  2026/09/28 00:07:08 failed to upload metrics: context deadline exceeded: rpc error: code = DeadlineExceeded desc = context deadline exceeded
+2026-09-28T00:08:08+00:00  2026/09/28 00:08:08 failed to upload metrics: context deadline exceeded: rpc error: code = DeadlineExceeded desc = context deadline exceeded
+2026-09-28T00:09:08+00:00  2026/09/28 00:09:08 failed to upload metrics: context deadline exceeded: rpc error: code = DeadlineExceeded desc = context deadline exceeded
+2026-09-28T00:10:08+00:00  2026/09/28 00:10:08 failed to upload metrics: context deadline exceeded: rpc error: code = DeadlineExceeded desc = context deadline exceeded
+2026-09-28T00:11:08+00:00  2026/09/28 00:11:08 failed to upload metrics: context deadline exceeded: rpc error: code = DeadlineExceeded desc = context deadline exceeded
+2026-09-28T00:12:08+00:00  2026/09/28 00:12:08 failed to upload metrics: context deadline exceeded: rpc error: code = DeadlineExceeded desc = context deadline exceeded
+```
+
+
+## The incident record
+
+Written from the responder's chair, by someone who did not know the fault class
+or that anything had been injected. This text is also corpus material, which is
+why it never names the injector.
+
+**It keeps its own clock.** The table above is measured from the injection, which
+is the only origin the manifest records; a narrative's `T+` offsets are the
+responder's own and start wherever that responder started counting — usually the
+page, sometimes the injection, sometimes an event in the logs. The same moment can
+therefore carry two different offsets on this page. The absolute timestamps in the
+bundle are the tiebreak.
+
+### What was observed
 
 The page came 4m46s after requests started hanging, and it was four alerts at once: error rate
 and latency on **frontend-proxy** and on **load-generator**. Neither is a service anyone would
@@ -35,7 +119,7 @@ ratio and no latency value at all: no samples, not zero errors. Recommendation w
 with it. The whole order path went with them - checkout down to a few hundredths of a request a
 second, currency, shipping, quote, payment, email and accounting to zero.
 
-## What was checked
+### What was checked
 
 **The proxy and the load generator, because they paged.** Their error traces - 300 drawn, none
 under fourteen seconds - were all the same shape: a request cut at the proxy's fifteen-second
@@ -81,7 +165,7 @@ the same stream span. Nothing was wrong with any of them.
 **What changed.** Nothing. No deploy, no image, no configuration, no limit, no flag, on any
 service involved. The change history for the window is empty.
 
-## Root cause
+### Root cause
 
 The product-catalog container was disconnected from the demo network. The process kept running
 and its port stayed open, on an address nothing could reach; packets on its established
@@ -93,7 +177,7 @@ nothing after it ran. The catalog itself was alive the whole time, and said so o
 the only place it could still write - its own log - because the same cut that stopped its
 requests stopped its telemetry. Nothing about it had been changed.
 
-## Resolution
+### Resolution
 
 The container was put back on its network under its original names, on the same address. Where
 an operator cannot reconnect a container with its aliases, recreating or restarting it does the
@@ -113,7 +197,7 @@ wave passed. The proxy's and the load generator's alerts cleared at T+13 and T+1
 fifteen-second spans aged out, and the world was all clear 5m01s after the fix. The database
 behind the catalog did not restart.
 
-## Detection notes
+### Detection notes
 
 - Onset to first page: **4m46s**, the storefront edge's error ratio and latency crossing their
   lines in the same minute.
@@ -139,3 +223,7 @@ behind the catalog did not restart.
   it. Errors on checkout, the frontend and recommendation that begin at the fix are the held
   connections failing, not a second fault - and, read after the fact, they are a second line of
   separation between this fault and a freeze.
+
+---
+
+Rendered from [`evals/scenarios/artifacts/dev/v2-product-catalog-partition/`](../../evals/scenarios/artifacts/dev/v2-product-catalog-partition/) by `faultline-render`. [All bundles](README.md).

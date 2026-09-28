@@ -1,6 +1,6 @@
 # The bundles, rendered
 
-Every recorded rehearsal in this repository as a readable page — 45 in all: **41 runnable** (30 dev, 11 holdout) and **4 that could not fire** (4 dev).
+Every recorded rehearsal in this repository as a readable page — 46 in all: **42 runnable** (31 dev, 11 holdout) and **4 that could not fire** (4 dev).
 
 A bundle is what one rehearsal left behind — the manifest, the Prometheus captures,
 a slice of one service's logs, the exact queries, and the narrative a responder wrote
@@ -54,6 +54,7 @@ benchmark** — see [RESULTS.md](../RESULTS.md).
 | [`v2-payment-telemetry-blackout`](v2-payment-telemetry-blackout.md) | `bad_config` | Payment service healthy, serving, and invisible in the traffic metric — 1 alerts over the window |
 | [`v2-product-catalog-flag-failure`](v2-product-catalog-flag-failure.md) | `feature_flag` | A feature flag makes the product catalog fail one product — 2 alerts over the window |
 | [`v2-product-catalog-freeze`](v2-product-catalog-freeze.md) | `process_freeze` | The product catalog process is frozen - its socket accepts and nothing answers — 20 alerts over the window |
+| [`v2-product-catalog-partition`](v2-product-catalog-partition.md) | `network_partition` | The product catalog is cut from the network - its process runs and reaches nothing — 23 alerts over the window |
 | [`v2-shipping-quote-misconfig`](v2-shipping-quote-misconfig.md) | `bad_config` | Shipping service pointed at a quote service that does not resolve — 9 alerts over the window |
 | [`v2-shipping-wrong-image`](v2-shipping-wrong-image.md) | `bad_deploy` | Shipping deployed with another service's image — 8 alerts over the window |
 | [`v2-valkey-cart-dependency-latency`](v2-valkey-cart-dependency-latency.md) | `dependency_latency` | Cart is slow because its store is, and the store has no spans — 5 alerts over the window |
