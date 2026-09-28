@@ -838,17 +838,61 @@ def _fake_loki(lines_per_minute: int, start: datetime, end: datetime) -> Any:
         stamps.append(moment)
         moment += timedelta(seconds=step)
 
+    stamped = [(int(s.timestamp() * 1e9), s) for s in stamps]
+
     def get_json(_base: str, _path: str, params: dict[str, str]) -> dict[str, Any]:
-        lo = datetime.fromtimestamp(int(params["start"]) / 1e9, tz=UTC)
-        hi = datetime.fromtimestamp(int(params["end"]) / 1e9, tz=UTC)
-        inside = [s for s in stamps if lo <= s < hi]
+        # Compared in nanoseconds, as Loki does: a page boundary is one nanosecond past the
+        # last entry, which a float second cannot represent.
+        lo, hi = int(params["start"]), int(params["end"])
+        inside = [(ns, s) for ns, s in stamped if lo <= ns < hi]
         if params["direction"] == "backward":
             inside = inside[::-1]
         kept = inside[: int(params["limit"])]
-        values = [[str(int(s.timestamp() * 1e9)), f"line at {s.isoformat()}"] for s in kept]
+        values = [[str(ns), f"line at {s.isoformat()}"] for ns, s in kept]
         return {"data": {"result": [{"stream": {"service": "cart"}, "values": values}]}}
 
     return get_json
+
+
+def test_the_capture_from_onset_pages_through_loki_and_stops_at_the_ceiling(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """**Q113 (2026-09-28).** Loki answers at most `LOKI_PAGE` entries a read, so a whole-window
+    capture is several reads, each starting a nanosecond after the last line of the one before;
+    the reads are counted here, and the lines must be every line once, in order. Past the
+    ceiling the header says so, which is the one thing a capped capture owes its reader."""
+    start = datetime(2026, 9, 28, 12, 0, 0, tzinfo=UTC)
+    onset = start + timedelta(minutes=5)
+    end = onset + timedelta(minutes=12)
+    # 1,000 lines a minute from onset: 12,000 lines, under the ceiling, three pages at 5,000.
+    inner = _fake_loki(1000, onset, end)
+    reads: list[dict[str, str]] = []
+
+    def counting(base: str, path: str, params: dict[str, str]) -> Any:
+        reads.append(dict(params))
+        return inner(base, path, params)
+
+    monkeypatch.setattr(rehearse, "get_json", counting)
+    monkeypatch.setattr(
+        rehearse,
+        "discover_log_source",
+        lambda _c: rehearse.LogSource(selector='{service="kafka"}', label="service"),
+    )
+
+    text = rehearse.loki_logs("kafka", start, end, onset=onset)
+    body = [ln for ln in text.splitlines() if ln and not ln.startswith("#")]
+    assert len(body) == 12_000 and len(set(body)) == 12_000, "every line once"
+    forward = [r for r in reads if r["direction"] == "forward"]
+    assert [int(r["limit"]) for r in forward] == [5000, 5000, 5000], "three pages, the last short"
+    assert int(forward[1]["start"]) > int(forward[0]["start"]), "each page starts past the last"
+    assert "later lines were not captured" not in text
+
+    # A pathological target: 3,000 a minute for twelve minutes is 36,000, and the ceiling holds.
+    monkeypatch.setattr(rehearse, "get_json", _fake_loki(3000, onset, end))
+    capped = rehearse.loki_logs("kafka", start, end, onset=onset)
+    body = [ln for ln in capped.splitlines() if ln and not ln.startswith("#")]
+    assert len(body) == rehearse.LOG_LINES_FROM_ONSET
+    assert "later lines were not captured" in capped
 
 
 def test_log_discovery_never_takes_the_injectors_own_helper_stream(monkeypatch) -> None:
@@ -893,7 +937,12 @@ def test_a_talkative_services_capture_holds_the_fault_not_only_the_minutes_befor
 ) -> None:
     """**v2-cart-valkey-misconfig, 2026-09-24.** Cart logs ~130 lines a minute. The capture kept
     the first 500 of a window opening five minutes early, ended before the fault began, and held
-    none of the lines naming the cause. Split at onset, it keeps both sides."""
+    none of the lines naming the cause. Split at onset, it keeps both sides.
+
+    **Amended by Q113 (2026-09-28), intent intact.** The part from onset is now the whole
+    window: 130 lines a minute over fifteen minutes is 1,950 lines, every one of them kept, and
+    read in pages of `LOKI_PAGE` rather than in one capped read. The lines before onset are still
+    the newest hundred."""
     start = datetime(2026, 9, 24, 23, 36, 56, tzinfo=UTC)
     onset = start + timedelta(minutes=5)
     end = onset + timedelta(minutes=15)
@@ -908,9 +957,8 @@ def test_a_talkative_services_capture_holds_the_fault_not_only_the_minutes_befor
     body = [ln for ln in text.splitlines() if ln and not ln.startswith("#")]
     stamps = [datetime.fromisoformat(ln.split("  ")[0]) for ln in body]
 
-    assert len(body) == rehearse.LOG_LINES_BEFORE_ONSET + rehearse.LOG_LINES_FROM_ONSET
     assert sum(s < onset for s in stamps) == rehearse.LOG_LINES_BEFORE_ONSET
-    assert sum(s >= onset for s in stamps) == rehearse.LOG_LINES_FROM_ONSET
+    assert sum(s >= onset for s in stamps) == 130 * 15, "the whole fault, to the window's end"
     assert stamps == sorted(stamps), "one timeline, oldest first"
     assert max(s for s in stamps if s < onset) > onset - timedelta(minutes=1), (
         "the lines kept before onset are the newest ones, just before it"
@@ -918,8 +966,10 @@ def test_a_talkative_services_capture_holds_the_fault_not_only_the_minutes_befor
     assert min(s for s in stamps if s >= onset) < onset + timedelta(seconds=1), (
         "the lines kept from onset start at onset"
     )
+    assert max(stamps) >= end - timedelta(seconds=2), "the last line is the window's last"
     assert f"# ---- onset {onset.isoformat(timespec='seconds')} ----" in text
-    assert "earlier lines were not captured" in text and "later lines were not captured" in text
+    assert "earlier lines were not captured" in text
+    assert "later lines were not captured" not in text, "nothing was left out from onset"
 
     whole = rehearse.loki_logs("cart", start, end)
     whole_stamps = [
@@ -927,4 +977,7 @@ def test_a_talkative_services_capture_holds_the_fault_not_only_the_minutes_befor
         for ln in whole.splitlines()
         if ln and not ln.startswith("#")
     ]
-    assert max(whole_stamps) < onset, "without onset: the old capture, which misses the fault"
+    # Without onset: the pre-split shape, the window's first lines - which, now that the budget
+    # is the ceiling rather than 500, is the whole window too.
+    assert abs(len(whole_stamps) - 130 * 20) <= 1, "the fake rounds one step"
+    assert max(whole_stamps) >= end - timedelta(seconds=2)

@@ -4617,6 +4617,27 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-09-28: Q113 decided and landed - the target-log capture from onset is the whole window,
+read in Loki's pages; 400 lines becomes a 20,000-line ceiling.***
+
+- **The decision.** Of the row's three answers - a higher cap, a stack-frame fold, a
+  time-bounded capture - the last: a capture bounded by the window is what the file's name
+  says it is, and it puts the recovery on record for every bundle after it. A higher cap is a
+  number that fits some targets and not others; a fold is lossy and does nothing for kafka,
+  whose volume is start-up banners.
+- **Why now.** The row's trigger was the next stack-trace-heavy target, and `v2-kafka-disk-fill`
+  is it: the broker halts at +2 s and crashloops, each restart a banner of well over a hundred
+  lines, so 400 lines would have ended inside the fault's first two minutes.
+- **What landed.** `_loki_lines` pages: `LOKI_PAGE = 5000` a read (Loki 2.9's default cap,
+  which the demo keeps), each page from a nanosecond past the last line of the one before,
+  a short page the window's end; `LOG_LINES_FROM_ONSET = 20_000` as the ceiling, about a
+  megabyte, the header still saying when it is hit. The 100 lines before onset unchanged.
+  Tests: the talkative-service capture restated to hold all 1,950 fault lines; a paging test
+  counting three reads over 12,000 lines and every line once; a ceiling test on 36,000.
+  `ARTIFACTS.md` says which capture a bundle's header identifies.
+- **Nothing recorded moves.** Fifty bundles keep their 400 and say so. No digest is involved.
+- **Next.** `v2-kafka-disk-fill`, slot `v2/disk_fill-1`.
+
 ***2026-09-28: Q100 decided and landed - the planner gets a log-line filter, both stamps move
 once, fifty narratives reviewed. `cap:d2b243e0` → `cap:91279a09`, `prompts:8dda4a19da2f` →
 `9ce16b66bbcc`.***
