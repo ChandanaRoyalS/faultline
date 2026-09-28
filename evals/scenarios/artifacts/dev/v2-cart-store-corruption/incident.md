@@ -3,7 +3,7 @@ origin: scenario:v2-cart-store-corruption
 split: dev
 fault_class: datastore_corruption
 recorded_from: 2026-09-28T12:41:00+00:00
-capability: cap:d2b243e0
+capability: cap:91279a09
 onset_to_page: 6m16s
 page_to_fix: 5m00s
 fix_to_all_clear: 1s

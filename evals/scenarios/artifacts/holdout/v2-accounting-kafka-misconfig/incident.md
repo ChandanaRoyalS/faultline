@@ -3,7 +3,7 @@ origin: scenario:v2-accounting-kafka-misconfig
 split: holdout
 fault_class: bad_config
 recorded_from: 2026-09-27T04:03:17+00:00
-capability: cap:d2b243e0
+capability: cap:91279a09
 onset_to_page: 7m32s
 page_to_fix: 5m00s
 fix_to_all_clear: 1m01s
@@ -106,7 +106,8 @@ Class of fix: **config_revert**. One setting was wrong and it was set back.
 - **A log flooded with one line still names the cause.** Over the whole incident the log tool
   returned only `1/1 brokers are down`, but that line carries the address in its thread name. The
   `Connection refused` behind it is a few lines a minute under the flood, and the first is at the
-  start: narrow the window there.
+  start: narrow the window there, or read the log filtered on `Connection refused`, which
+  returns those lines from both ends of the window and leaves the flood out.
 - **Check what the fix left behind.** A consumer that commits its offsets picks up where it
   stopped. The burst of orders after the fix, matching what the other consumer read, is what shows
   nothing was lost.

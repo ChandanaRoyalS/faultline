@@ -24,10 +24,16 @@ CAPABILITY_AT_EXTRACTION = "cap:dd651ccc"
 """The stamp before `ToolSet` existed, recorded here so the guard below can be read without
 running git. Every narrative stamp and every recorded run up to Q94 is against this value."""
 
-CAPABILITY_CURRENT = "cap:d2b243e0"
-"""The stamp since Q94 (T7.1): `TOOL_BEHAVIOUR_REVISION` 3 -> 4, the trace tool's depth per world,
-status messages and rule 0. The tool *surface* did not move. The review the move required is
-`docs/design/q94-capability-review.md`."""
+CAPABILITY_AT_Q94 = "cap:d2b243e0"
+"""The stamp from Q94 (T7.1) to Q100: `TOOL_BEHAVIOUR_REVISION` 3 -> 4, the trace tool's depth
+per world, status messages and rule 0. The tool *surface* did not move. The review that move
+required is `docs/design/q94-capability-review.md`."""
+
+CAPABILITY_CURRENT = "cap:91279a09"
+"""The stamp since Q100 (T7.1): `TOOL_BEHAVIOUR_REVISION` 4 -> 5, the log tool's line filter.
+The tool *surface* did not move - `logql_query` gained a parameter, not a name - which is why
+the revision is hand-kept: `capability_version` reads names, and a filter is a new thing a
+responder can ask. The review is `docs/design/q100-capability-review.md`."""
 
 
 def protocol_methods() -> list[str]:
@@ -109,7 +115,12 @@ class _StubTools:
         raise NotImplementedError
 
     def logql_query(
-        self, service: str, start: datetime, end: datetime, limit: int | None = None
+        self,
+        service: str,
+        start: datetime,
+        end: datetime,
+        limit: int | None = None,
+        contains: str | None = None,
     ) -> Any:
         raise NotImplementedError
 

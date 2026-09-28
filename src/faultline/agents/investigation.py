@@ -1042,7 +1042,9 @@ class Investigation:
             service=service,
             window_seconds=int((end - start).total_seconds()),
         ) as call:
-            tool_result = specialist.query(service, start, end, ranking=ranking)
+            tool_result = specialist.query(
+                service, start, end, ranking=ranking, log_filter=dispatch.log_filter
+            )
             rendered = envelope_renderer.render(tool_result)
             call.set(envelope_bytes=len(rendered), result_id=tool_result.id)
 

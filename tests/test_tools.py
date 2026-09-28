@@ -329,6 +329,95 @@ def test_the_loki_request_asks_for_the_newest_lines() -> None:
     assert captured["direction"] == "backward"
 
 
+# --- the line filter (Q100): the one way into the elided middle ------------------
+
+
+def test_a_line_filter_is_sent_to_loki_as_a_string_literal_after_the_selector() -> None:
+    """The filter is the planner's text, and it is interpolated into the query Loki runs. It
+    goes as a `|=` string literal and nothing else, so a model cannot write a pipeline stage."""
+    captured: dict[str, Any] = {}
+
+    def record(base: str, path: str, params: dict[str, str]) -> dict[str, Any]:
+        captured.update(params)
+        return _loki_payload(1, START)
+
+    with patch("faultline.telemetry.get_json", record):
+        result = Tools(ToolSettings()).logql_query(
+            "cartservice", START, END, limit=5, contains="InvalidProtocolBufferException"
+        )
+
+    assert captured["query"] == '{service="cart-service"} |= "InvalidProtocolBufferException"'
+    assert result.selector == captured["query"], "the evidence board records what Loki ran"
+    assert result.contains == "InvalidProtocolBufferException"
+    assert result.attributes()["contains"] == "InvalidProtocolBufferException"
+
+
+def test_an_unfiltered_query_is_byte_for_byte_what_it_was_before_the_filter() -> None:
+    """Revision 5 changes nothing a revision-4 narrative could have read: no filter, no `|=`,
+    no attribute. Blank and whitespace filters are the same as none."""
+    captured: dict[str, Any] = {}
+
+    def record(base: str, path: str, params: dict[str, str]) -> dict[str, Any]:
+        captured.update(params)
+        return _loki_payload(1, START)
+
+    for contains in (None, "", "   "):
+        captured.clear()
+        with patch("faultline.telemetry.get_json", record):
+            result = Tools(ToolSettings()).logql_query(
+                "cartservice", START, END, limit=5, contains=contains
+            )
+
+        assert captured["query"] == '{service="cart-service"}'
+        assert result.selector == '{service="cart-service"}'
+        assert result.contains == "" and "contains" not in result.attributes()
+
+
+def test_the_filter_text_cannot_leave_its_string_literal() -> None:
+    """A quote, a backslash or a newline in the text is escaped, not interpreted: the query
+    Loki receives is still one selector and one string literal. Control characters a line
+    could never carry are dropped, and a filter past the cap is cut at it."""
+    from faultline.tools.tools import CONTAINS_MAX_CHARS, logql_string
+
+    assert logql_string('a"b') == '"a\\"b"'
+    assert logql_string("a\\b") == '"a\\\\b"'
+    assert logql_string("a\nb") == '"a\\nb"'
+    assert logql_string("a\x00b\x1bc") == '"abc"'
+    hostile = '" } | line_format "{{.x}}" or {service="payment"} |= "'
+    literal = logql_string(hostile)
+    assert literal.startswith('"') and literal.endswith('"')
+    assert literal.count('"') - literal.count('\\"') == 2, "one opening and one closing quote"
+
+    captured: dict[str, Any] = {}
+
+    def record(base: str, path: str, params: dict[str, str]) -> dict[str, Any]:
+        captured.update(params)
+        return _loki_payload(1, START)
+
+    with patch("faultline.telemetry.get_json", record):
+        result = Tools(ToolSettings()).logql_query(
+            "cartservice", START, END, limit=5, contains="x" * (CONTAINS_MAX_CHARS + 50)
+        )
+    assert result.contains == "x" * CONTAINS_MAX_CHARS
+    assert captured["query"] == '{service="cart-service"} |= "' + "x" * CONTAINS_MAX_CHARS + '"'
+
+
+def test_a_filtered_result_says_so_when_it_is_empty_or_refused() -> None:
+    """An empty filtered read is evidence that the text is not in the window, and the body has
+    to say which text, or the reader cannot tell it from an empty unfiltered read."""
+    with patch("faultline.telemetry.get_json", return_value={"data": {"result": []}}):
+        empty = Tools(ToolSettings()).logql_query(
+            "cartservice", START, END, limit=5, contains="No space left"
+        )
+    assert empty.empty and '|= "No space left"' in empty.body()
+
+    tools = Tools(ToolSettings())
+    refused = tools.logql_query(
+        "cartservice", START - timedelta(days=30), END, limit=5, contains="No space left"
+    )
+    assert refused.error is not None and refused.contains == "No space left"
+
+
 def test_truncated_traces_keep_the_newest_traces_not_the_oldest() -> None:
     """The same defect, checked on the tool that had not been observed hitting it.
 

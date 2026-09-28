@@ -92,7 +92,12 @@ class ToolSet(Protocol):
     ) -> BaselineResult: ...
 
     def logql_query(
-        self, service: str, start: datetime, end: datetime, limit: int | None = None
+        self,
+        service: str,
+        start: datetime,
+        end: datetime,
+        limit: int | None = None,
+        contains: str | None = None,
     ) -> LogResult: ...
 
     def trace_query(

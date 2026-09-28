@@ -819,7 +819,7 @@ the reasoning and ADR-0028 Addendum 2 the decision.
 
 
 T70_DIGEST = "8dda4a19da2f"
-"""**HEAD.** Nine fault classes and eight remediation classes (T7.0, 2026-09-24).
+"""Nine fault classes and eight remediation classes (T7.0, 2026-09-24). HEAD until Q100.
 
 **Moved by the contracts and the prompts together, once, after every attempt was run.**
 `FaultClass` gained `feature_flag`, `process_freeze`, `network_partition`, `datastore_corruption`
@@ -840,6 +840,26 @@ four classes, as measured, and that is a property of a four-class baseline the n
 measure rather than a defect this patch hides.
 """
 
+Q100_DIGEST = "9ce16b66bbcc"
+"""**HEAD.** The planner's log filter (Q100, T7.1, 2026-09-28).
+
+**Moved by one contract field and one prompt paragraph together.** `Dispatch` gained
+`log_filter`, the exact text a logs dispatch's lines must contain, which reaches
+`Tools.logql_query` as `contains` and Loki as a string literal; and the planner's prompt gained
+the paragraph that says when to use it (a second read of a service, once another specialist or
+the first page has given it the text) and the schema line that names it. `Dispatch` is in
+`_CONTRACTS`, so the schema block moved; the paragraph is in `PLANNER_SYSTEM`, so the prose
+moved as well. `capability_version` moved with it - `cap:d2b243e0` to `cap:91279a09`,
+`TOOL_BEHAVIOUR_REVISION` 4 to 5 - because a filter is a new thing a responder can ask, and
+`docs/design/q100-capability-review.md` is the narrative review that move required.
+
+**Why now.** Measured twice before the first `disk_fill` scenario, which Q100's trigger named:
+the logs tool keeps the two ends of a window, the planner may not narrow one (Q17), and both
+times the lines that named the fault were in the dropped middle. Nothing scored exists at
+`8dda4a19da2f` (README's own headline says so), so the move strands no figure; a move after
+T7.2's first v2 sweep would have.
+"""
+
 
 def test_the_stamp_names_which_pipeline_produced_a_run() -> None:
     """`runtime_version` is the package version plus a digest over every role system prompt and
@@ -850,8 +870,8 @@ def test_the_stamp_names_which_pipeline_produced_a_run() -> None:
     """
     from faultline.agents.stamp import prompt_digest
 
-    assert prompt_digest() == T70_DIGEST, (
-        f"expected T7.0's pipeline {T70_DIGEST}. If a prompt or a contract moved again, "
+    assert prompt_digest() == Q100_DIGEST, (
+        f"expected Q100's pipeline {Q100_DIGEST}. If a prompt or a contract moved again, "
         f"add its digest here - and if it moved after a pre-registration was written, the sweep "
         f"it governs is measuring something nobody planned to measure."
     )
@@ -864,6 +884,7 @@ def test_the_stamp_names_which_pipeline_produced_a_run() -> None:
         TOP3_DIGEST,
         Q25B_DIGEST,
         Q29_DIGEST,
+        T70_DIGEST,
     }, "HEAD is none of the earlier pipelines, dev sweeps 9 to 12 and the P6 batches included"
     assert (
         len(
@@ -880,10 +901,11 @@ def test_the_stamp_names_which_pipeline_produced_a_run() -> None:
                 Q25B_DIGEST,
                 Q29_DIGEST,
                 T70_DIGEST,
+                Q100_DIGEST,
             }
         )
-        == 12
-    ), "twelve pipelines, seven of them measured — nothing is measured at T7.0's yet"
+        == 13
+    ), "thirteen pipelines, seven of them measured — nothing is measured at T7.0's or Q100's yet"
 
 
 def test_the_harness_side_paths_are_not_covered_by_the_stamp() -> None:
@@ -1154,7 +1176,7 @@ def test_the_correlate_budget_is_not_a_stamp_input() -> None:
     ):
         assert stamp_module.prompt_digest() == before
     stamp_module.prompt_digest.cache_clear()
-    assert stamp_module.runtime_version() == f"faultline/0.0.1+prompts:{T70_DIGEST}"
+    assert stamp_module.runtime_version() == f"faultline/0.0.1+prompts:{Q100_DIGEST}"
 
 
 # --- T7.14: the rule that fires at rest ----------------------------------------------------

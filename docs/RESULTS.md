@@ -283,11 +283,14 @@ judged figure.**
 > **dev sweeps 10 and 11 measured it**, and every figure in README's table is at it),
 > `prompts:06f24e827915` (Q29, T6.1 — `Proposal` reports unexpected keys too, after
 > sweep 11 refused two proposals whole for a `confirm_within_seconds_note`; no prose changed;
-> **dev sweep 12 and every P6 figure measured it**), and **HEAD today is `prompts:8dda4a19da2f`**
+> **dev sweep 12 and every P6 figure measured it**), `prompts:8dda4a19da2f`
 > (T7.0, 2026-09-24 — nine fault classes and eight remediation classes, each new class attempted
 > live on the v2 world under `PREREGISTRATION-T7.0.md`; the contracts' schemas and the
 > synthesizer's class definitions moved together, once, after every attempt was run; no scored
-> run exists at this stamp yet, and none on the v2 world at all).
+> run was ever taken at it), and **HEAD today is `prompts:9ce16b66bbcc`** (Q100, 2026-09-28 —
+> `Dispatch.log_filter`, the planner's line filter for a logs dispatch, and the paragraph in the
+> planner's prompt that says when to use it; `cap:d2b243e0` → `cap:91279a09` in the same change;
+> no scored run exists at this stamp yet, and none on the v2 world at all).
 >
 > *The line above previously named `a7330c098770` as HEAD and was correct on the day it was
 > written. It then went stale through four stamp moves while continuing to read as a statement

@@ -3,7 +3,7 @@ origin: scenario:v2-shipping-quote-misconfig
 split: dev
 fault_class: bad_config
 recorded_from: 2026-09-27T03:14:31+00:00
-capability: cap:d2b243e0
+capability: cap:91279a09
 onset_to_page: 3m19s
 page_to_fix: 5m00s
 fix_to_all_clear: 5m02s
