@@ -4617,6 +4617,27 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-09-28, evening: `v2-kafka-disk-fill`'s restarts were not silent, and its crashloop was
+not the disk - Q114 opened, the ground truth to be corrected and the scenario re-recorded.***
+
+- **How it surfaced.** A login restarted the host's Docker; kafka came back in place and failed
+  51 times, checkout panicking behind it on a nil producer. `docker logs` read whole showed the
+  same error on every start - `AccessDeniedException` writing `meta.properties` in
+  `/tmp/kafka-logs` - printed at the end of one 521-character line by the entrypoint's unquoted
+  `echo $result`. The afternoon's bundle holds the same line on all seventeen restarts; every
+  read of it had cut the line before the error. Recreated by hand with the v2 compose files;
+  healthy in 51 s.
+- **What was wrong in the label (0264)**: the restarts "wrote nothing of the broker's own"
+  (they wrote the error); the broker was "restarted against the same full directory" (the
+  tmpfs read 0 % during the restarts - it is created fresh on each start, and that fresh one is
+  not writable by the broker's user); and the ground truth's "every order ... fails" (none
+  did). The disk was full for six seconds; the crashloop after it is this world's (**Q114**).
+- **Decided**: valid, corrected, re-recorded - the ground truth is inside the fingerprint, so
+  the precedent is `v2-payment-memory-squeeze`'s. SPLIT-V2's line and the label entry below are
+  left as written; the candidates note records the correction.
+- **Method, recorded so it is not repeated**: read a log line whole before saying what it does
+  not contain.
+
 ***2026-09-28: the `injection` row's harness work landed - a `kind: injection` scenario carries
 its own attacker, the runner plants it for the kind, the recorder proves delivery through the
 agent's own tool. No stamp moved.***
