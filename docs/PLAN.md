@@ -4617,6 +4617,23 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-09-28: three recorder observations from the freeze and partition rows registered - Q111,
+Q112, Q113 - each with its evidence and its question, none decided.***
+
+- **Q111.** The window closes two minutes after the all-clear, before a recovery wave's rule can
+  hold; seen five times, and on the sixth recording the same wave was on record only because
+  the all-clear came later. Trigger: before `datastore_corruption`, whose reverts replay a
+  backlog.
+- **Q112.** The reachability derivation counts fault-time lines against a threshold of ten and
+  does not read them; the catalog partition's twelve export-failure lines were counted as a
+  class the derivation's own docstring says a silent-at-rest log cannot be. Trigger: before the
+  classes are used beyond the blind-target rule.
+- **Q113.** The target-log capture keeps 400 lines from onset; a Java agent's stack traces fill
+  them in ten minutes, so the capture misses the fault's tail and the recovery. Trigger: before
+  the next stack-trace-heavy target is recorded.
+- Registered from the candidate list's notes while the measurements are fresh; the notes stay
+  where they are. Nothing in the recorder changed.
+
 ***2026-09-28: the thirty-second v2 scenario, `v2-recommendation-partition`, rehearsed and labeled -
 slot `v2/network_partition-4` (holdout), first recording. The `network_partition` row is full.***
 
