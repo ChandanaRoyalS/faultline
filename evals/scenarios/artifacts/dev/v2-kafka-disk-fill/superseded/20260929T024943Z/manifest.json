@@ -1,50 +1,51 @@
 {
   "alerts_at_fire": [
+    "ServiceHighErrorRate/fraud-detection",
     "ServiceHighLatency/checkout"
   ],
   "alerts_over_window": [
     {
+      "alert": "ServiceHighErrorRate",
+      "began_after_revert": false,
+      "first_seen": "2026-09-29T02:55:28+00:00",
+      "last_seen": "2026-09-29T02:56:13+00:00",
+      "minutes_firing": 1.0,
+      "service": "fraud-detection"
+    },
+    {
       "alert": "ServiceHighLatency",
       "began_after_revert": false,
-      "first_seen": "2026-09-29T02:36:20+00:00",
-      "last_seen": "2026-09-29T02:45:05+00:00",
+      "first_seen": "2026-09-29T02:55:28+00:00",
+      "last_seen": "2026-09-29T03:04:13+00:00",
       "minutes_firing": 9.0,
       "service": "checkout"
     },
     {
       "alert": "ServiceHighErrorRate",
       "began_after_revert": false,
-      "first_seen": "2026-09-29T02:36:50+00:00",
-      "last_seen": "2026-09-29T02:43:05+00:00",
-      "minutes_firing": 6.5,
+      "first_seen": "2026-09-29T02:56:28+00:00",
+      "last_seen": "2026-09-29T03:02:13+00:00",
+      "minutes_firing": 6.0,
       "service": "checkout"
     },
     {
       "alert": "ServiceNoTraffic",
       "began_after_revert": false,
-      "first_seen": "2026-09-29T02:38:20+00:00",
-      "last_seen": "2026-09-29T02:42:05+00:00",
+      "first_seen": "2026-09-29T02:57:28+00:00",
+      "last_seen": "2026-09-29T03:01:13+00:00",
       "minutes_firing": 4.0,
       "service": "accounting"
     },
     {
-      "alert": "ServiceHighErrorRate",
+      "alert": "ServiceNoTraffic",
       "began_after_revert": false,
-      "first_seen": "2026-09-29T02:39:20+00:00",
-      "last_seen": "2026-09-29T02:41:05+00:00",
+      "first_seen": "2026-09-29T02:59:28+00:00",
+      "last_seen": "2026-09-29T03:01:13+00:00",
       "minutes_firing": 2.0,
-      "service": "fraud-detection"
-    },
-    {
-      "alert": "ServiceHighLatency",
-      "began_after_revert": false,
-      "first_seen": "2026-09-29T02:40:20+00:00",
-      "last_seen": "2026-09-29T02:41:05+00:00",
-      "minutes_firing": 1.0,
       "service": "fraud-detection"
     }
   ],
-  "baseline_clear_at": "2026-09-29T02:30:05+00:00",
+  "baseline_clear_at": "2026-09-29T02:49:43+00:00",
   "bundle_schema_version": 2,
   "capture_set": 2,
   "expected_remediation_class": "free_storage",
@@ -66,29 +67,29 @@
     ],
     "derived_from": "the bundle's own captures (T7.5)",
     "none_can_answer": false,
-    "runtime_series": 237,
-    "target_log_lines": 1343
+    "runtime_series": 251,
+    "target_log_lines": 1293
   },
   "recorded_by": "evalharness.rehearse",
   "recorder": {
     "git_dirty": true,
-    "git_sha": "c5274fee2a185bcf8105122f8c2c91127c761971",
+    "git_sha": "ca75c279029358924a72ea2796f8d7f778e39b91",
     "tool": "evalharness.rehearse"
   },
   "scenario_fingerprint": "3c366f7342fd14b0fa2adc9d3c6080bca38060537280c1a66aed554b544a344e",
   "scenario_id": "v2-kafka-disk-fill",
   "seconds_of_steady_state": 300,
-  "seconds_to_alert": 375,
-  "seconds_to_settle": 242,
+  "seconds_to_alert": 345,
+  "seconds_to_settle": 243,
   "split": "dev",
-  "t_alert_firing": "2026-09-29T02:36:20+00:00",
-  "t_clear": "2026-09-29T02:45:22+00:00",
-  "t_inject": "2026-09-29T02:30:05+00:00",
-  "t_revert": "2026-09-29T02:41:20+00:00",
+  "t_alert_firing": "2026-09-29T02:55:28+00:00",
+  "t_clear": "2026-09-29T03:04:31+00:00",
+  "t_inject": "2026-09-29T02:49:43+00:00",
+  "t_revert": "2026-09-29T03:00:28+00:00",
   "title": "The broker's only disk is full - it halts, cannot start again, and every order hangs",
   "window": {
-    "end": "2026-09-29T02:47:22+00:00",
-    "start": "2026-09-29T02:25:05+00:00"
+    "end": "2026-09-29T03:06:31+00:00",
+    "start": "2026-09-29T02:44:43+00:00"
   },
   "world": {
     "compose_digest": "5a2bc6d912f922a03874ab2824d9362541362386fbcab7e0c2f99aa760f567df",
@@ -113,9 +114,9 @@
   "world_lock": {
     "acquired": true,
     "host": "chandanas-MacBook-Air.local",
-    "pid": 28326,
+    "pid": 28619,
     "reason": "rehearse v2-kafka-disk-fill",
-    "since": "2026-09-29T02:30:01.857522+00:00",
-    "token": "28326-1790649001.857219"
+    "since": "2026-09-29T02:49:40.097797+00:00",
+    "token": "28619-1790650180.097497"
   }
 }

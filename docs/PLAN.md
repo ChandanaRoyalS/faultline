@@ -4617,6 +4617,19 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-09-29: `v2-kafka-disk-fill` re-recorded on its corrected ground truth and relabeled - the
+restarts fail on access denied, eighteen times, and the page is checkout's latency.***
+
+- **The corrected ground truth held**: the halt at +4.7 s naming the disk, then eighteen starts
+  each ending on `AccessDeniedException` (Q114); no order failed; the recreate fixed it.
+- **The page moved**: `ServiceHighLatency` on checkout at 6m15s, as A8b and R5 predicted; the
+  first recording paged on fraud-detection at 5m31s.
+- **Recovery**: checkout panicked once on its nil producer after the restore and was back in a
+  second. All clear 4m02s.
+- **A second recording**, run after this one was pushed, is kept under `superseded/` and not
+  labeled - re-records only on validity grounds.
+- **Open for row 2**: its landing followed the first recording's page; this one pages checkout.
+
 ***2026-09-29: `v2-inj-cart-store-corruption-log-checkout` blocked - valid on its second recording,
 no page inside 900 s; `v2/injection-1` passes to row 2.***
 
