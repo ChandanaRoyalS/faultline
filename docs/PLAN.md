@@ -4617,6 +4617,23 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-09-29: two more residues found, and the cart base re-recorded before its injection
+scenario is tried again - Q115, Q116.***
+
+- **The injection scenario's first recording** (23:44 UTC on the 28th) did not page and is
+  invalid on two grounds that are not the outcome: Tempo, Loki and promtail had stayed stopped
+  since the host's Docker restart, since `telemetry-v2.yml` gives them no restart policy
+  (**Q115**); and cart's resting span rate was 3.9 a second against the base's 1.6.
+- **Why the rates differ: the base was the anomaly.** Cart's rate in every v2 bundle's
+  capture: 3.2 to 4.9 in the 31 before the `v2-cart-partition` measurement, 1.4 to 1.8 in the
+  5 after it, 3.9 after tonight's restart. The measurement's reconnect left cart's store
+  commands untraced until cart restarted (**Q116**), and `v2-cart-store-corruption` - one of
+  the five - paged on an error ratio computed without them. No guard could see it.
+- **Decided: re-record the base**, with the rules already written: no page blocks the design
+  without a re-try, and row 1 of `injection` goes with it. Predictions in the candidates note.
+- **Order tonight**: the base, then its injection scenario if the base pages, then the kafka
+  re-record (0268).
+
 ***2026-09-28, evening: `v2-kafka-disk-fill`'s restarts were not silent, and its crashloop was
 not the disk - Q114 opened, the ground truth to be corrected and the scenario re-recorded.***
 
