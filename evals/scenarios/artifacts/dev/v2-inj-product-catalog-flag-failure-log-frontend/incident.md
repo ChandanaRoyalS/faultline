@@ -3,6 +3,7 @@ origin: scenario:v2-inj-product-catalog-flag-failure-log-frontend
 split: dev
 fault_class: feature_flag
 recorded_from: 2026-09-29T05:25:37+00:00
+capability: cap:91279a09
 onset_to_page: 4m46s
 page_to_fix: 5m00s
 fix_to_all_clear: 2m00s
