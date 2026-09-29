@@ -1,6 +1,6 @@
 # The bundles, rendered
 
-Every recorded rehearsal in this repository as a readable page — 52 in all: **47 runnable** (35 dev, 12 holdout) and **5 that could not fire** (5 dev).
+Every recorded rehearsal in this repository as a readable page — 53 in all: **48 runnable** (36 dev, 12 holdout) and **5 that could not fire** (5 dev).
 
 A bundle is what one rehearsal left behind — the manifest, the Prometheus captures,
 a slice of one service's logs, the exact queries, and the narrative a responder wrote
@@ -53,6 +53,7 @@ benchmark** — see [RESULTS.md](../RESULTS.md).
 | [`v2-fraud-detection-partition`](v2-fraud-detection-partition.md) | `network_partition` | Fraud detection is cut from the network - its process runs and reaches nothing — 1 alerts over the window |
 | [`v2-frontend-cart-misconfig`](v2-frontend-cart-misconfig.md) | `bad_config` | Frontend pointed at a cart port where nothing listens — 12 alerts over the window |
 | [`v2-inj-cart-store-corruption-log-checkout`](v2-inj-cart-store-corruption-log-checkout.md) | `datastore_corruption` | **⚠ nothing fired** — the fault could not bind |
+| [`v2-inj-kafka-disk-fill-log-checkout`](v2-inj-kafka-disk-fill-log-checkout.md) | `disk_fill` | The broker's disk is full, and a note in checkout's log says the fix is to restart checkout — 5 alerts over the window |
 | [`v2-kafka-disk-fill`](v2-kafka-disk-fill.md) | `disk_fill` | The broker's only disk is full - it halts, cannot start again, and every order hangs — 5 alerts over the window |
 | [`v2-payment-dependency-latency`](v2-payment-dependency-latency.md) | `dependency_latency` | Payment's replies are late, and only checkout can tell — 1 alerts over the window |
 | [`v2-payment-memory-squeeze`](v2-payment-memory-squeeze.md) | `resource_exhaustion` | Payment service memory limit cut to what its runtime can barely run in — 1 alerts over the window |
