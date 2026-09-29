@@ -1,4 +1,4 @@
-# The broker's only disk is full - it halts and restarts, halts again, and every order hangs
+# The broker's only disk is full - it halts, cannot start again, and every order hangs
 
 ## The scenario
 
@@ -9,29 +9,28 @@
 | expected remediation | `free_storage` |
 | split | `dev` |
 | injected at | `kafka` via `v2-kafka-disk-fill` |
-| time to page | 5m31s |
+| time to page | 6m15s |
 | steady state captured | 300s |
-| capture window | 2026-09-28T13:49:45+00:00 → 2026-09-28T14:10:18+00:00 |
+| capture window | 2026-09-29T02:25:05+00:00 → 2026-09-29T02:47:22+00:00 |
 
 The clock below runs from the moment the fault went in.
 
 | | |
 |---|---|
 | `t_inject` | T+0m00s |
-| first alert firing | T+5m31s |
-| `t_revert` | T+10m31s |
-| all clear | T+13m33s |
+| first alert firing | T+6m15s |
+| `t_revert` | T+11m15s |
+| all clear | T+15m17s |
 
 ## What fired, and when
 
 | when | service | alert | firing for | |
 |---|---|---|---:|---|
-| T+5m30s | `fraud-detection` | ServiceHighErrorRate | 2.0 min | **paged** |
-| T+6m15s | `checkout` | ServiceHighErrorRate | 6.2 min | joined later |
-| T+6m30s | `checkout` | ServiceHighLatency | 7.0 min | joined later |
-| T+6m30s | `fraud-detection` | ServiceHighLatency | 1.0 min | joined later |
-| T+7m30s | `accounting` | ServiceNoTraffic | 4.0 min | joined later |
-| T+10m30s | `fraud-detection` | ServiceNoTraffic | 1.0 min | joined later |
+| T+6m15s | `checkout` | ServiceHighLatency | 9.0 min | **paged** |
+| T+6m45s | `checkout` | ServiceHighErrorRate | 6.5 min | joined later |
+| T+8m15s | `accounting` | ServiceNoTraffic | 4.0 min | joined later |
+| T+9m15s | `fraud-detection` | ServiceHighErrorRate | 2.0 min | joined later |
+| T+10m15s | `fraud-detection` | ServiceHighLatency | 1.0 min | joined later |
 
 ## What the bundle contains
 
@@ -43,28 +42,28 @@ The clock below runs from the moment the fault went in.
 | `metrics/latency-p95.json` | `histogram_quantile(0.95, sum by(service_name, le) (rate(traces_span_metrics_duration_milliseconds_bucket{span_kind!="SPAN_KIND_INTERNAL"}[5m])))` |
 | `metrics/runtime.json` | `{__name__=~"go_.*|dotnet_.*|jvm_.*|process_.*|v8js_.*|nodejs_.*",service_name="kafka"}` |
 
-`logs/kafka.txt` — 1241 lines.
+`logs/kafka.txt` — 1352 lines.
 
 ## A look at the logs
 
-From `logs/kafka.txt` (---- onset 2026-09-28T13:54:45+00:00 ----):
+From `logs/kafka.txt` (---- onset 2026-09-29T02:30:05+00:00 ----):
 
 ```
-2026-09-28T13:52:26+00:00  [2026-09-28 13:52:26,038] INFO [UnifiedLog partition=__cluster_metadata-0, dir=/tmp/kafka-logs] Incremented log start offset to 465061 due to snapshot generated (kafka.log.UnifiedLog)
-2026-09-28T13:52:26+00:00  [2026-09-28 13:52:26,038] INFO [UnifiedLog partition=__cluster_metadata-0, dir=/tmp/kafka-logs] Deleting segments due to log start offset 465061 breach: LogSegment(baseOffset=465000, size=2160, lastModifiedTime=1790603482052, largestRecordTimestamp=1790603482028),LogSegment(baseOffset=465030, size=2160, lastModifiedTime=1790603497070, largestRecordTimestamp=1790603497045) (kafka.log.UnifiedLog)
-2026-09-28T13:52:26+00:00  [2026-09-28 13:52:26,040] INFO [MetadataLog partition=__cluster_metadata-0, nodeId=1] Marking snapshot OffsetAndEpoch(offset=465022, epoch=1) for deletion because its timestamp (1790603478025) is now (1790603546038) older than the
-2026-09-28T13:52:26+00:00  retention (60000) (kafka.raft.KafkaMetadataLog)
-2026-09-28T13:52:36+00:00  [2026-09-28 13:52:36,127] INFO [SnapshotGenerator id=1] Creating new KRaft snapshot file snapshot 00000000000000465178-0000000001 because we have replayed at least 2800 bytes. (org.apache.kafka.image.publisher.SnapshotGenerator)
-2026-09-28T13:52:36+00:00  [2026-09-28 13:52:36,128] INFO [SnapshotEmitter id=1] Successfully wrote snapshot 00000000000000465178-0000000001 (org.apache.kafka.image.publisher.SnapshotEmitter)
-2026-09-28T13:52:37+00:00  [2026-09-28 13:52:37,630] INFO [LocalLog partition=__cluster_metadata-0, dir=/tmp/kafka-logs] Rolled new log segment at offset 465180 in 0 ms. (kafka.log.LocalLog)
-2026-09-28T13:52:37+00:00  [2026-09-28 13:52:37,630] INFO [ProducerStateManager partition=__cluster_metadata-0] Wrote producer snapshot at offset 465180 with 0 producer ids in 0 ms. (org.apache.kafka.storage.internals.log.ProducerStateManager)
-2026-09-28T13:52:52+00:00  [2026-09-28 13:52:52,643] INFO [LocalLog partition=__cluster_metadata-0, dir=/tmp/kafka-logs] Rolled new log segment at offset 465210 in 0 ms. (kafka.log.LocalLog)
-2026-09-28T13:52:52+00:00  [2026-09-28 13:52:52,643] INFO [ProducerStateManager partition=__cluster_metadata-0] Wrote producer snapshot at offset 465210 with 0 producer ids in 0 ms. (org.apache.kafka.storage.internals.log.ProducerStateManager)
-2026-09-28T13:52:55+00:00  [2026-09-28 13:52:55,645] INFO [SnapshotGenerator id=1] Creating new KRaft snapshot file snapshot 00000000000000465217-0000000001 because we have replayed at least 2800 bytes. (org.apache.kafka.image.publisher.SnapshotGenerator)
-2026-09-28T13:52:55+00:00  [2026-09-28 13:52:55,646] INFO [SnapshotEmitter id=1] Successfully wrote snapshot 00000000000000465217-0000000001 (org.apache.kafka.image.publisher.SnapshotEmitter)
+2026-09-29T02:27:50+00:00  [2026-09-29 02:27:50,751] INFO [SnapshotGenerator id=1] Creating new KRaft snapshot file snapshot 00000000000000024203-0000000001 because we have replayed at least 2800 bytes. (org.apache.kafka.image.publisher.SnapshotGenerator)
+2026-09-29T02:27:50+00:00  [2026-09-29 02:27:50,752] INFO [SnapshotEmitter id=1] Successfully wrote snapshot 00000000000000024203-0000000001 (org.apache.kafka.image.publisher.SnapshotEmitter)
+2026-09-29T02:27:57+00:00  [2026-09-29 02:27:57,255] INFO [LocalLog partition=__cluster_metadata-0, dir=/tmp/kafka-logs] Rolled new log segment at offset 24215 in 0 ms. (kafka.log.LocalLog)
+2026-09-29T02:27:57+00:00  [2026-09-29 02:27:57,255] INFO [ProducerStateManager partition=__cluster_metadata-0] Wrote producer snapshot at offset 24215 with 0 producer ids in 0 ms. (org.apache.kafka.storage.internals.log.ProducerStateManager)
+2026-09-29T02:28:10+00:00  [2026-09-29 02:28:10,262] INFO [SnapshotGenerator id=1] Creating new KRaft snapshot file snapshot 00000000000000024242-0000000001 because we have replayed at least 2800 bytes. (org.apache.kafka.image.publisher.SnapshotGenerator)
+2026-09-29T02:28:10+00:00  [2026-09-29 02:28:10,263] INFO [SnapshotEmitter id=1] Successfully wrote snapshot 00000000000000024242-0000000001 (org.apache.kafka.image.publisher.SnapshotEmitter)
+2026-09-29T02:28:12+00:00  [2026-09-29 02:28:12,263] INFO [LocalLog partition=__cluster_metadata-0, dir=/tmp/kafka-logs] Rolled new log segment at offset 24245 in 0 ms. (kafka.log.LocalLog)
+2026-09-29T02:28:12+00:00  [2026-09-29 02:28:12,263] INFO [ProducerStateManager partition=__cluster_metadata-0] Wrote producer snapshot at offset 24245 with 0 producer ids in 0 ms. (org.apache.kafka.storage.internals.log.ProducerStateManager)
+2026-09-29T02:28:27+00:00  [2026-09-29 02:28:27,270] INFO [LocalLog partition=__cluster_metadata-0, dir=/tmp/kafka-logs] Rolled new log segment at offset 24275 in 0 ms. (kafka.log.LocalLog)
+2026-09-29T02:28:27+00:00  [2026-09-29 02:28:27,270] INFO [ProducerStateManager partition=__cluster_metadata-0] Wrote producer snapshot at offset 24275 with 0 producer ids in 0 ms. (org.apache.kafka.storage.internals.log.ProducerStateManager)
+2026-09-29T02:28:29+00:00  [2026-09-29 02:28:29,450] INFO [UnifiedLog partition=__cluster_metadata-0, dir=/tmp/kafka-logs] Incremented log start offset to 24086 due to snapshot generated (kafka.log.UnifiedLog)
+2026-09-29T02:28:29+00:00  [2026-09-29 02:28:29,450] INFO [UnifiedLog partition=__cluster_metadata-0, dir=/tmp/kafka-logs] Deleting segments due to log start offset 24086 breach: LogSegment(baseOffset=24035, size=2160, lastModifiedTime=1790648801698, largestRecordTimestamp=1790648801674) (kafka.log.UnifiedLog)
 ```
 
-_1220 further lines are in the bundle._
+_1331 further lines are in the bundle._
 
 ## The incident record
 
@@ -81,85 +80,86 @@ bundle are the tiebreak.
 
 ### What was observed
 
-The page came 5m31s after onset and it named the wrong service: `ServiceHighErrorRate` on
-**fraud-detection**, a consumer of orders that nobody calls. Forty-five seconds later
-`ServiceHighErrorRate` on **checkout**, and at the minute `ServiceHighLatency` on both; then
-`ServiceNoTraffic` on **accounting** at T+2m from the page, and on fraud-detection at T+5m,
-seconds before the fix. Six alerts on three services by the fix, and not one of them on the
-service that was broken, which has no rule of its own and no requests to fail.
+The page came 6m15s after onset: `ServiceHighLatency` on **checkout**. Thirty seconds later
+`ServiceHighErrorRate` on checkout; at T+2m from the page `ServiceNoTraffic` on **accounting**; at
+T+3m `ServiceHighErrorRate` on **fraud-detection**, and a minute after that its
+`ServiceHighLatency`. Five alerts on three services by the fix, and none of them on the service
+that was broken, which has no rule of its own and no requests to fail.
 
-The storefront looked well. The frontend's error ratio read zero for the whole fault and its p95
-sat at 36 to 47ms; product pages, carts, recommendations and ads served as before. At the edge,
-the proxy's error ratio rose to 2.4% and the load generator's to 2.8%, both under their line -
-64 requests in ten minutes cut at the proxy's fifteen-second timeout, every one of them a
-checkout. Checkout's own 95th percentile went to the histogram's ceiling, **15000ms**, from T+3
-and stayed there; its error ratio climbed from 2.7% at T+2 to a peak of 7.7% at T+5 and held
-between 6 and 7% to the fix; its span rate fell from 2.5 a second to 1.1 to 1.5.
+Checkout's 95th percentile went to the histogram's ceiling, **15000ms**, from T+3 and stayed there
+to the fix. Its error ratio climbed from 2.4% at T+2 to 5.2% at T+4 and held between 6 and 7% to
+the fix; its span rate fell from 2.0 a second to 1.4 to 1.8. Everything checkout calls answered as
+it always does: cart, payment, shipping and email held their p95s at 2 to 6ms.
 
-And yet **no order failed**. 115 orders completed in the fault's ten and a half minutes, zero
-ended in error, and every one of them was charged, shipped and confirmed by email. Something in
-checkout was slow and failing without failing the order, and the two services that read orders
-after checkout had gone quiet: accounting's rate to zero by T+4 with no error of any kind - no
-samples, not zero errors - and fraud-detection's error ratio to **100%** from T+4, then to
-nothing at all from T+7.
+The storefront mostly looked well. The frontend's p95 rose from 33 to between 37 and 49ms and it
+counted no errors of its own until the fix; product pages, carts, recommendations and ads served as
+before. At the edge the proxy's error ratio rose to 3.1% and the load generator's to 3.5%, under
+their line, and from T+9 their p95s went to 12 to 15 seconds: the requests being cut were
+checkouts, at fifteen seconds.
+
+The two services that read orders after checkout had gone quiet. Accounting's rate drained to zero
+by T+5 with no error of any kind - no samples, not zero errors. Fraud-detection's drained the same
+way, and then from T+7 to the fix its metrics held a single failing span: an error ratio of
+**100%** and a p95 at the ceiling, on about one span in five minutes.
 
 ### What was checked
 
-**Fraud-detection, because it paged first.** It has no callers; it reads orders off a topic. Its
-error ratio at 100% meant every span it produced was failing, and from T+7 it produced none. Its
-log had nothing to say about that: its `Consumed record` lines, one per order, stopped in the
-fault's first seconds, and it wrote no line of any kind for the rest of it. A consumer that fails
-loudly in its spans and silently in its log.
-
-**Accounting, because it went quiet next.** The other reader of the same topic, and the mirror
-image: its consumption stopped in the same first seconds - its rate read zero once the
-five-minute window had drained, at T+4 - with not one span in error, while its log filled with
-its client's complaints - 723 lines in ten minutes, `1/1 brokers are down` and `2/2 brokers are
-down` from 6.4 seconds after onset and every few seconds after, `Connect to ipv4#172.18.0.2:9092
-failed: Connection refused`, and `Failed to resolve 'kafka:9092': Name or service not known`.
-Both consumers were saying the same thing in different places: the broker they read from was not
-there, and at moments its name did not even resolve.
-
-**Checkout's traces, because it paged second and its p95 was at the ceiling.** 60 error traces
-in the fault, all of them orders. Each one the same shape: `PlaceOrder` prepared the order in a
-few milliseconds - cart, catalog, currency, shipping quote - charged the card, booked the
-shipment, emptied the cart, sent the confirmation email, and then held on its last step,
-`orders publish`, for 2.8, 15, 77, 80, 89 seconds, and ended that span in error with the
+**Checkout, because it paged.** Its error traces were all orders, and all the same shape:
+`PlaceOrder` prepared the order in a few milliseconds - cart, catalog, currency, shipping quote -
+charged the card, booked the shipment, emptied the cart, sent the confirmation email, and then held
+on its last step, `orders publish`, for 75 to 82 seconds, and ended that span in error with the
 producer's own message: `kafka: client has run out of available brokers to talk to: dial tcp:
-lookup kafka on 127.0.0.11:53: no such host`, and once the client had given up trying,
-`circuit breaker is open`. The `PlaceOrder` span above it was **not** in error: checkout logs the
-failed publish, marks its producer span, and returns the order as placed. Above the ones that
-took longer than fifteen seconds, the proxy's `ingress` in error at 15000ms - the customer was
-told the checkout failed, for an order that had been charged and confirmed. Nothing else in any
-trace was slow; the hop that hung was the publish, every time.
+lookup kafka on 127.0.0.11:53: no such host`, or, once the client had given up trying, `circuit
+breaker is open`. The `PlaceOrder` span above it was **not** in error. Every order the trace store
+returned for the fault completed and none failed: checkout records the failed publish on its
+producer span and returns the order as placed. Above them, the load generator's checkouts were cut
+by the proxy's `ingress` in error at 15000ms, and the frontend's own calls into checkout held for 45
+to 90 seconds - the customer was told the checkout failed, for an order that had been charged and
+confirmed. Nothing else in any trace was slow; the hop that hung was the publish, every time, and
+it named the broker.
 
-**Kafka's log, because everything pointed at it.** At rest it writes about fifty lines a minute,
-all INFO, segment rolls and snapshots on its metadata log, every line naming `dir=/tmp/kafka-logs`.
-Five seconds after onset it wrote `ERROR Error while writing to checkpoint file
-/tmp/kafka-logs/replication-offset-checkpoint`, `java.io.IOException: No space left on device`
-under it with the stack, `Stopping serving replicas in dir /tmp/kafka-logs`, and then
-`ERROR Shutdown broker because all log dirs in /tmp/kafka-logs have failed`. The broker had
-stopped itself, on purpose, six seconds into the fault, and said why and where.
+**Accounting, because it went quiet.** Its consumption stopped in the fault's first seconds with
+not one span in error, and its log filled with its client's complaints - 676 lines from the onset
+to the fix, none of them an order. The first, five seconds in: `Disconnected: connection closed by
+peer`, then `1/1 brokers are down` and `Connect to ipv4#172.18.0.24:9092 failed: Connection
+refused` in the same second; `brokers are down` 433 times, `Connection refused` 84, and from
+eighteen seconds in `Failed to resolve 'kafka:9092': Name or service not known`, 130 times, to the
+last minute. The broker was not answering, and at moments its name did not even resolve.
 
-**Kafka's restarts.** One second after the shutdown, its container's start-up: `===> User`,
-`===> Configuring ...`, `Running in KRaft mode...`, `===> Launching ...`, the JVM's one warning -
-nine lines - and then nothing. No `Kafka Server started`, no error, not a line of the broker's
-own. Three seconds later the same nine lines again. Seventeen starts in ten and a half minutes,
-at 6, 9, 11, 14, 18, 23, 32 and 47 seconds and then about once a minute as the supervisor's
-backoff reached its ceiling, each one nine lines and silence. The restart count on the container
-climbed to 19. The broker was not down; it was being started every minute against a directory it
-could not write, and dying before it could say so.
+**Fraud-detection, because it alerted last.** The other reader of the same topic wrote no line of
+any kind from the onset to the fix - not the `Consumed record` line it writes for every order, not a
+broker complaint - and the trace store held no trace of it that began in the fault. Its alerts came
+from its metrics alone: one span, failing and at the ceiling, over a rate that had drained to
+nothing. A consumer that goes silent everywhere says only that it is not consuming. Accounting said
+why.
 
-**Kafka's own runtime reports.** Its 52 JVM series - memory pools, garbage collection, threads -
-had stopped at the halt: the last report is from the six seconds before it, they held for the
-store's lookback and dropped out of queries at T+4:30. What replaced them was stranger and more
-telling: every restarted JVM reported **once**, seven series under a **new instance id**, and was
-gone - nineteen instance ids in ten minutes, one per start, each a single report held for the
-lookback. A service that has stopped reports nothing. A service that is crashlooping under an
-agent reports a fresh identity every backoff.
+**Kafka's log, because everything pointed at it.** At rest it writes thirty to forty-five lines a
+minute, all INFO, segment rolls and snapshots on its metadata log, every one naming
+`dir=/tmp/kafka-logs`. Two seconds after onset it failed to write a metadata snapshot, `Caused by:
+java.io.IOException: No space left on device`. At 4.7 seconds it wrote `ERROR Error while writing
+to checkpoint file /tmp/kafka-logs/replication-offset-checkpoint`, `No space left on device` again
+with its stack, `Stopping serving replicas in dir /tmp/kafka-logs ... because the log directory has
+failed`, and then `ERROR Shutdown broker because all log dirs in /tmp/kafka-logs have failed`. The
+broker had stopped itself, on purpose, and said why and where.
 
-**The disk.** The broker's directory sits on its own 256 MiB filesystem; it was at 10% an hour
-before and at 100% from the onset to the fix, with one file in it that had not been there before.
+**Kafka's restarts.** Half a second after the shutdown, its container started again: seven lines
+of start-up script - `===> User`, `===> Configuring ...`, `Running in KRaft mode...`, `===>
+Launching ...`, `===> Using provided cluster id` - and under two seconds later one line of 494
+characters. It begins with the JVM's warning and the tracing agent's version, and it ends:
+`Formatting metadata directory /tmp/kafka-logs with metadata.version 3.9-IV0. Error while writing
+meta.properties file /tmp/kafka-logs: java.nio.file.AccessDeniedException:
+/tmp/kafka-logs/bootstrap.checkpoint.tmp`. Then nothing, until the next start. **Eighteen starts
+before the fix** - at 5, 7, 9, 12, 15, 20, 28, 43 and 70 seconds and then every minute - each
+ending on that same line, and no line of the broker's own after the shutdown. The restarts were not
+failing on a full disk. They were failing to write to the directory at all: each start found it
+there and could not create a file in it.
+
+**Kafka's runtime reports.** Its 52 JVM series stopped with the halt - the last report is from the
+minute before it, held for the store's lookback and gone from queries at about T+4:15. Behind them
+were **nineteen instance ids that each reported seven series once and never again**: one for each
+failed start, from the start-up step's short-lived JVM - the one whose line carries the agent's
+banner and the format error - and a nineteenth fifteen seconds after the fix. A stopped service
+has no runtime reports; this one had a fresh identity every minute.
 
 **What changed.** Nothing. No deploy, no image, no configuration, no limit, no flag, on kafka, on
 checkout, on either consumer or on anything else. The change history for the window is empty. A
@@ -167,81 +167,78 @@ disk filling is not a change anything records.
 
 ### Root cause
 
-Kafka's only log directory filled to capacity. A broker whose every log directory has failed
-halts itself within seconds - this one did at six, naming the file it could not write and the
-directory that had failed - and its supervisor then restarted it against the same full directory
-seventeen times, each start dying in about two seconds before the broker could log a line.
-Checkout publishes every order to that broker as the last step of placing it, after the card has
-been charged and the confirmation sent, with no fallback: the publish waited on a client with no
-broker to talk to, then on an open circuit breaker, and failed after tens of seconds - but
-checkout treats a failed publish as something to log, not as a failed order, so the order was
-returned as placed and the only customer-facing failures were the checkouts the proxy cut at
-fifteen seconds. The two consumers of the topic had nothing to read: fraud-detection's client
-failed every fetch in its spans and said nothing in its log, accounting's said everything in its
-log and produced no spans at all. Nothing was deployed, configured or flagged; the broker's
-address, image and configuration were right all along. Its disk was full.
+Kafka's only log directory filled to capacity. A broker whose every log directory has failed halts
+itself within seconds - this one did at 4.7, naming the file it could not write and the directory
+that had failed. Its supervisor then restarted it in place, and on this world that cannot work: the
+restarted container's log directory is not writable by the broker's user, so every start failed on
+its first step, formatting the directory, with access denied, and the broker stayed down until the
+container was recreated. Checkout publishes every order to that broker as the last step of placing
+it, after the card is charged and the confirmation sent, with no fallback: the publish waited on a
+client with no broker to talk to, then on an open circuit breaker, and failed after more than a
+minute - and checkout treats a failed publish as something to record, not as a failed order, so
+the order was returned as placed and the customer-facing failures were the checkouts the proxy cut
+at fifteen seconds. The two consumers of the topic had nothing to read: accounting said so in its
+log and produced no spans, fraud-detection said nothing anywhere. Nothing was deployed, configured
+or flagged; the broker's address, image and configuration were right all along. Its disk was full,
+and a halted broker here does not come back without being recreated.
 
 ### Resolution
 
-The fill could not be removed in place - the container was never up long enough for a command
-to land - so the broker was recreated on an empty directory, and then accounting, fraud-detection
-and checkout were restarted, because in this world none of them reconnects to a broker that went
-away and came back. Class of fix: **free_storage**, the disk-fill class's own; the consumer
-restarts are the runbook's second step, not a second fix. Restarting the broker as it stood would
-have changed nothing - it had been restarted seventeen times - and there was no configuration to
-revert.
+The fill could not be removed in place - the container was never up long enough for a command to
+land - so the broker was recreated on an empty directory, and then accounting, fraud-detection and
+checkout were restarted, because none of them reconnects to a broker that went away and came back.
+Class of fix: **free_storage**, the disk-fill class's own; the restarts after it are the runbook's
+second step, not a second fix. Restarting the broker as it stood would have changed nothing - its
+supervisor had restarted it eighteen times - and there was no configuration to revert.
 
-The recovery was clean and it was quick. The new broker logged `Kafka Server started` 7 seconds
-after the fix; accounting's first fetch, half a second later, got `Subscribed topic not
-available: orders: Broker: Unknown topic or partition` - an empty broker has no topic until the
-first order creates it - and its first order line came 21 seconds after the fix, fraud-detection's
-in the same second. Both consumers' rates climbed back through the third and fourth minutes as
-their windows refilled; accounting's error ratio read 3.3% in its second minute back, on the
-fetches that found no topic yet, and fell from there. No duplicate-key wave followed the consumer
-restarts: the recreated broker had no orders to redeliver. The alerts cleared in the order they
-had come - both no-traffic alerts 44 seconds after the fix, checkout's error rate at 1m44s, its
-latency at 2m44s as the held publishes aged out of its window - and the world was all clear
-3m02s after the fix. One trace closed after the fix that had begun before it, a publish held for
-99 seconds; the frontend's error ratio read 1.4 to 1.8% for four minutes after the fix, on twelve
-checkout calls it had held through the fault that ended in error when they finally returned
-after 17 to 91 seconds, and its p95 read 3150ms for one minute on the same, under its line.
-Neither consumer restarted again; postgresql was untouched.
+The recovery had one stumble and was otherwise clean. Checkout's restart dropped the calls the
+frontend had been holding on it for up to ninety seconds - twelve `14 UNAVAILABLE: Connection
+dropped` in the frontend's log 2.6 seconds after the fix. The new broker logged `Kafka Server
+started` at 6.3 seconds. At 8.9 seconds checkout **panicked** on its first order - `invalid memory
+address or nil pointer dereference` in `sendToPostProcessor` (`main.go:630`) under `PlaceOrder` -
+having come up before the broker could answer and kept no producer; the frontend's one call in
+flight dropped with it, and its container restarted it within a second, from when it served
+normally. Accounting's first fetch, two seconds after the fix, got `Subscribed topic not available:
+orders: Broker: Unknown topic or partition` - an empty broker has no topic until the first order
+creates it - and its error ratio read 4.7% as it came back, on those fetches, then under 2%. Both
+consumers were consuming again within two minutes, their rates climbing as their windows refilled;
+no duplicate-key wave followed, because the recreated broker had no orders to redeliver. The alerts
+cleared in the order they had come: fraud-detection's two by the fix, accounting's no-traffic 45
+seconds after it, checkout's error rate at 1m45s and its latency at 3m45s as the held publishes
+aged out of its window; all clear 4m02s after the fix. The frontend's error ratio read 1.5 to 2.4%
+for four minutes after the fix, on the dropped calls, and its p95 14.7 seconds for one minute, under
+its lines. No alert fired only in recovery; postgresql was untouched; the directory was at 1% after.
 
 ### Detection notes
 
-- Onset to first page: **5m31s** - fraud-detection's error ratio at 100% for the rule's two
-  minutes. The broker halted at T+6s; the world noticed five and a half minutes later.
-- Services on the page: **one**, a consumer with no callers, not the culprit. By the fix: **six
-  alerts across three services** - checkout twice, fraud-detection three times, accounting once
-  - and the broker on none of them.
-- Alerts that fired only during recovery: **none.** Fraud-detection's no-traffic alert fired one
-  second before the fix and cleared 44 seconds after it.
-- Did the loudest service turn out to be the culprit? **No.** Fraud-detection paged first and
-  most; it was starved. Checkout paged second and longest; it was hanging on its last step. The
-  broker, which was the fault, has no rule.
-- Would the page alone have led you to the right service? **No.** The page named a consumer
-  that had stopped consuming; a consumer that stops looks the same whether it broke, was
-  starved, or was cut off. The second page named the producer. What the two have in common is
-  the broker between them, and the broker's own log named its disk in the sixth second.
-- **Two readers of one topic, two different silences.** Fraud-detection failed in its spans and
-  said nothing in its log; accounting said everything in its log and produced no spans. Neither
-  alone reads as a broker outage. Together they do: the only thing both depend on is the thing
-  that is missing.
+- Onset to first page: **6m15s** - checkout's p95 at the ceiling for the latency rule's three
+  minutes. The broker halted at T+4.7s; the world noticed six minutes later.
+- Services on the page: **one**, the producer, not the culprit. By the fix: **five alerts across
+  three services** - checkout twice, fraud-detection twice, accounting once - and the broker on
+  none of them.
+- Alerts that fired only during recovery: **none.**
+- Did the loudest service turn out to be the culprit? **No.** Checkout paged first and longest; it
+  was hanging on its last step. The broker, which was the fault, has no rule.
+- Would the page alone have led you to the right service? **No, but one trace would.** The page
+  said checkout was slow. Checkout's slow span was its publish, and the publish's error named
+  `kafka`. The broker's own log named its disk in under five seconds.
 - **A failing publish is not a failing order.** No order failed, every order was charged, and
-  checkout's own server spans were clean while its producer spans were not. The error ratio that
-  paged was made of the publish spans, and the customer-facing failures were the proxy's
-  timeouts on orders that had already gone through. Read which spans carry the errors before
-  concluding what the customer saw.
+  checkout's own server spans were clean while its producer spans were not. The customer-facing
+  failures were the proxy's timeouts on orders that had already gone through. Read which spans
+  carry the errors before concluding what the customer saw.
+- **Two readers of one topic, two different silences.** Accounting said everything in its log and
+  produced no spans; fraud-detection said nothing anywhere. Neither alone reads as a broker outage.
+  Together they do: the only thing both depend on is the thing that is missing.
+- **Read the restart's last line whole.** Each restart wrote seven short lines and then one long
+  one whose beginning is a harmless JVM warning; the reason it failed is at its end, four hundred
+  characters in. A log view that cuts lines short shows eighteen silent restarts. The whole line
+  shows eighteen identical failures - and a different one from the halt: access denied, not no
+  space.
 - **A crashloop under an agent leaves a trail of identities.** The broker's 52 runtime series
-  stopped at the halt, and nineteen new instance ids appeared behind them, seven series each,
-  one report apiece. A stopped service has no runtime reports; a restarting one has a new set
-  every backoff. Count the instance ids.
-- **The restarts said nothing, and that was the clue.** Seventeen starts, nine lines each, no
-  `Kafka Server started` and no error. A broker that starts and cannot write its directory dies
-  before it can log the reason; the reason is in the one halt that did get logged, and in the
-  disk.
-- **The fix is neither a restart nor a revert.** The broker had been restarted seventeen times
-  by its supervisor and nothing was misconfigured. Free the directory - or recreate the service
+  stopped at the halt, and one new instance id per start appeared behind them, seven series each,
+  one report apiece. Count the instance ids.
+- **The fix is neither a restart nor a revert.** The broker was restarted eighteen times by its
+  supervisor and nothing was misconfigured. Free the directory - on this world, recreate the service
   on an empty one - and then restart what stopped consuming, because they will not come back on
   their own.
 

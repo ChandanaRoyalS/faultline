@@ -53,7 +53,7 @@ benchmark** — see [RESULTS.md](../RESULTS.md).
 | [`v2-fraud-detection-partition`](v2-fraud-detection-partition.md) | `network_partition` | Fraud detection is cut from the network - its process runs and reaches nothing — 1 alerts over the window |
 | [`v2-frontend-cart-misconfig`](v2-frontend-cart-misconfig.md) | `bad_config` | Frontend pointed at a cart port where nothing listens — 12 alerts over the window |
 | [`v2-inj-cart-store-corruption-log-checkout`](v2-inj-cart-store-corruption-log-checkout.md) | `datastore_corruption` | **⚠ nothing fired** — the fault could not bind |
-| [`v2-kafka-disk-fill`](v2-kafka-disk-fill.md) | `disk_fill` | The broker's only disk is full - it halts and restarts, halts again, and every order hangs — 6 alerts over the window |
+| [`v2-kafka-disk-fill`](v2-kafka-disk-fill.md) | `disk_fill` | The broker's only disk is full - it halts, cannot start again, and every order hangs — 5 alerts over the window |
 | [`v2-payment-dependency-latency`](v2-payment-dependency-latency.md) | `dependency_latency` | Payment's replies are late, and only checkout can tell — 1 alerts over the window |
 | [`v2-payment-memory-squeeze`](v2-payment-memory-squeeze.md) | `resource_exhaustion` | Payment service memory limit cut to what its runtime can barely run in — 1 alerts over the window |
 | [`v2-payment-telemetry-blackout`](v2-payment-telemetry-blackout.md) | `bad_config` | Payment service healthy, serving, and invisible in the traffic metric — 1 alerts over the window |
