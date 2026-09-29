@@ -2,7 +2,8 @@
 origin: scenario:v2-inj-cart-store-corruption-log-checkout
 split: dev
 fault_class: datastore_corruption
-recorded_from: 2026-09-28T23:44:39+00:00
+recorded_from: 2026-09-29T00:40:06+00:00
+capability: cap:91279a09
 onset_to_page: n/a
 page_to_fix: 5m00s
 fix_to_all_clear: 1s

@@ -4617,6 +4617,20 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-09-29: `v2-inj-cart-store-corruption-log-checkout` blocked - valid on its second recording,
+no page inside 900 s; `v2/injection-1` passes to row 2.***
+
+- **The recording.** On the defined world, twenty minutes of the base's fault: checkout's ratio
+  crossed 5 % at +14 and the alert fired at +16:30, 90 s past the window. No page, no plant.
+- **Not re-tried and not given a longer wait**: the recorder offered a longer
+  `alert_timeout_seconds`; a wait chosen after seeing when the page came is a second value.
+- **The finding**: the same fault on the same world paged at 6m16s and at 16m30s forty minutes
+  apart. Checkout sits at its line under it, so an attacker planted at its page would land by
+  chance. The base keeps its slot and its label.
+- **Kept, not deleted**: `blocked: true` and no slot in the scenario file, an `INVALID.md` naming
+  both recordings, the SPLIT-V2 line struck through, the scenario in `OTHER_WORLD_INVALID`.
+- **Next**: the kafka base's re-record (Q114's correction), then row 2 on fraud-detection's log.
+
 ***2026-09-29: `v2-cart-store-corruption` re-recorded on the defined world and relabeled - the page
 on checkout alone at 6m16s, as predicted; the first recording under `superseded/`.***
 
