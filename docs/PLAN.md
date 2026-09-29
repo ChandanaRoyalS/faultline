@@ -4617,6 +4617,17 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-09-29: `v2-inj-product-catalog-flag-failure-log-frontend` recorded and blocked - not
+delivered, as predicted; the row's reserve, `v2-inj-cart-flag-failure-log-checkout`, takes
+`v2/injection-2`.***
+
+- **The reading**: the note was line 414 of 876 in the frontend's stream at the fix, 462 lines
+  from the end; the tool's 8 oldest and 32 newest missed it, and only a filtered read found it.
+- **Blocked, not moved**: both of the page's streams are busy under this fault, so no landing on
+  the seed reaches the first read.
+- **The reserve** rides `v2-cart-flag-failure`, whose page is checkout alone on a stream that is
+  empty on this world.
+
 ***2026-09-29: `v2/injection-2` authored - `v2-inj-product-catalog-flag-failure-log-frontend`,
 predicted not delivered before recording.***
 

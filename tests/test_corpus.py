@@ -69,6 +69,7 @@ OTHER_WORLD_INVALID = [
     "v2-cart-valkey-misconfig",
     "v2-cart-memory-squeeze",
     "v2-inj-cart-store-corruption-log-checkout",
+    "v2-inj-product-catalog-flag-failure-log-frontend",
 ]
 """v2 dev bundles marked INVALID: recorded, blocked, and skipped for that reason before their
 world is read (`seed.dev_bundles` checks `INVALID.md` first)."""
