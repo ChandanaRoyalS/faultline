@@ -33,62 +33,54 @@ ground_truth:
     cart. Nothing was deployed, configured or flagged; the address was right all along.
   category: datastore_corruption
 expected_evidence:
-  # Pre-registered from A4b (by hand, 2026-09-23) and R4b (through the injector, 2026-09-24) on the
-  # world before its revision; restated after the recording of 2026-09-28 to what the bundle and
-  # the read-back hold, with the two predictions that were wrong kept as such. The class's shape
-  # held - the store answers wrongly, fast; nothing hangs; no latency rule moves; the culprit's
-  # own span is in error in under a millisecond; the recovery is clean - and two details did not.
-  # The page named cart beside checkout instead of leaving it under its line, and the alerts
-  # cleared on their own with the fault still running.
-  - alerts: ServiceHighErrorRate on checkout AND on cart, in the same evaluation, at 6m16s
-      (predicted checkout first at four and a half to six with cart under its line - wrong on
-      cart, whose ratio ran a minute ahead of checkout's and a point above it, 7.1 % against
-      6.9 %, because every read of a cart the sweep had reached failed, GetCart and AddItem
-      alike); nothing else - the frontend at 3.5 % and the proxy at 3.6 %, under their line,
-      where A4b had them firing; no latency alert, no no-traffic alert; two alerts on two
-      services by the fix. THE ALERTS CLEARED ON THEIR OWN AT +9:00, 2m16s before the fix, the
-      ninth minute holding no failure and both five-minute ratios falling to 4.0 and 4.3 %, and
-      did not re-fire; the record's fix-to-all-clear is 1 s for that reason
-  - metrics: checkout's error ratio from 0.6 % at +1 to a peak of 6.9 % at +6 and 3.4 % at +11
-      (predicted 9 to 19 % - the revised world's load fails about one order in four, 24 of 92),
-      its p95 falling from 30 to 24 ms as the failed orders are the short ones; cart's ratio
-      3.8 % at +2, 7.1 % at +5, 3.5 % at +11, its p95 at 2 ms throughout against 2 to 3 at rest;
-      the frontend's and the proxy's ratios peaking at 3.5 and 3.6 %, the load generator's at
-      2.0 %, every p95 unmoved - frontend 32 to 38 ms, proxy 36 to 42; checkout's span rate
-      down about a third (1.9 to 1.1-1.4 a second) because a failed order is three spans and a
-      completed one a dozen, the frontend's rate unchanged at 11.6 to 12 - the order path was
-      thinned, not halved as predicted
-  - metrics: cart's 44 .NET runtime series continue without a gap for the whole window - the
-      service is healthy, its store is not; valkey-cart exports no runtime series on this world
-      and the recorder derived none for it (runtime.json holds zero series, the target's
-      condition and not the fault's)
-  - logs: THE CULPRIT IS ONE HOP PAST THE PAGE, AND ITS LOG NAMES THE FAULT - cart's log, 27 to
-      56 GetCartAsync lines a minute at rest and unchanged, adds from +20 s the line "Error status
-      code 'FailedPrecondition' with detail 'Can't access cart storage.
+  # Pre-registered from A4b (by hand, 2026-09-23) and R4b (through the injector, 2026-09-24);
+  # restated after the recording of 2026-09-28 12:41 UTC, and restated again after the re-record
+  # of 2026-09-29 00:20 UTC, which replaced it (superseded/20260928T124100Z). The first recording
+  # was made on a cart whose store commands had gone untraced since the v2-cart-partition
+  # measurement's reconnect (Q116), and its page - cart beside checkout - was computed over cart's
+  # server spans alone. On the defined world cart emits a client span for every store command, and
+  # the re-record's predictions were written before it (t7.1-candidates.md): cart under its line,
+  # checkout at its line, a page on checkout alone possible, not certain. That is what happened.
+  # The same fault on the same world 20 minutes later (v2-inj-cart-store-corruption-log-checkout)
+  # did not page inside 900 s and paged at 16m30s: a ratio at its line pages by chance.
+  - alerts: ServiceHighErrorRate on checkout alone at 6m16s - its ratio 5.5 % at +4, a 7.2 % peak
+      at +6 - and nothing else; cart at 1.2 to 2.8 %, never near its line; the frontend at 3.2 %
+      and the proxy at 3.5 %, under theirs; no latency alert, no no-traffic alert; one alert on
+      one service by the fix. THE ALERT CLEARED ON ITS OWN under two minutes after firing and
+      about three minutes before the fix, the ratio falling through 4.5, 3.0, 2.0 % with the
+      fault still running; the record's fix-to-all-clear is 0 s for that reason
+  - metrics: checkout's error ratio 1.8 % at +1 rising to 7.2 % at +6 and falling to 1.3 % at +11,
+      its p95 falling from 21 to 10-18 ms as the failed orders are the short ones; cart's 1.2 to
+      2.8 % with its p95 at 2 ms throughout, its span rate unchanged at 3.3 to 4.3 a second (a
+      client span for every store command, HGET, HMSET, EXPIRE, about 2.3 a second at rest); the
+      frontend's ratio peaking at 3.2 %, the proxy's at 3.5 %, the load generator's at 1.9 %,
+      every p95 unmoved; the frontend's rate 11 to 12 a second throughout
+  - metrics: cart's .NET runtime series continue without a gap - the service is healthy, its
+      store is not; valkey-cart exports no runtime series on this world and the recorder derived
+      none for it
+  - logs: THE CULPRIT IS ONE HOP PAST THE PAGE, AND ITS LOG NAMES THE FAULT - cart's log, 30 to
+      67 GetCartAsync lines a minute and unchanged, adds from +10 s the line "Error status code
+      'FailedPrecondition' with detail 'Can't access cart storage.
       Google.Protobuf.InvalidProtocolBufferException - While parsing a protocol message, the
-      input ended unexpectedly in the middle of a field'" - 53 in the fault's eleven minutes,
-      three to ten a minute and none in the ninth, none in the hour before and none after the
-      fix - a decode failure with the connection fine, against the connection failures a wrong
-      address logs; checkout's log carries nothing (its logger routes into OTLP); the frontend's
-      carries 77 lines of cart's message; the store's own log - the recorder's capture, 65 lines
-      in the window - shows its saves coming every 61 s from +1.7 s ("10000 changes in 60
-      seconds. Saving...", twelve saves, every one successful) where at rest it saves every five
-      minutes on a hundred changes, and nothing else, because nothing is wrong with the store as
-      a process
-  - traces: checkout's 24 error traces are all orders (user_checkout_multi 20, user_checkout_single
-      3), 14 to 164 ms edge to end, PlaceOrder in error at 1.4 to 2.9 ms with "cart failure -
-      failed to get user cart during checkout", CartService/GetCart in error beneath it, and
-      cart's own server span in error at 0.5 to 1.0 ms carrying the FailedPrecondition detail -
-      the class's fingerprint, the culprit's span fast and failed; the frontend's 53 error traces
-      are those 24 and 29 user_add_to_cart, the same message on AddItem, which reads the cart
-      before it adds; nothing over the proxy's 15 s timeout in the window, no span slow anywhere
-  - recovery: the loop stopped after 12,495 sweeps (about eighteen a second over 11m16s) and the
-      store flushed - 987 to 1015 keys through the fault, 7 after the flush, 89 five minutes
-      later as its clients refilled it; clean, as predicted - no parse-failure line, no error
-      trace on checkout, the frontend or cart, no alert after the fix; cart's ratio 3.1 % in the
-      minute after and zero by the fourth, checkout's 3.4 % and zero by the fifth, as their
-      windows drained; no p95 moved; no restart of cart or of valkey-cart. Q111 was watched and
-      showed nothing - the flushed carts produced no wave in the five minutes read after the fix
+      input ended unexpectedly in the middle of a field'" - 44 in the fault's eleven minutes, up
+      to ten a minute, none before and none after - a decode failure with the connection fine;
+      checkout's log carries nothing; the store's own log - the recorder's capture, 60 lines -
+      saves every 61 s from +22 s on "10000 changes in 60 seconds", eleven saves, where at rest
+      it saves every five minutes on a hundred changes
+  - traces: checkout's error traces are orders, 16 to 27 ms edge to end, PlaceOrder in error in
+      under a millisecond with "cart failure - failed to get user cart during checkout",
+      CartService/GetCart beneath it, cart's own server span in error at 0.4 to 0.6 ms carrying
+      the FailedPrecondition detail, and beneath that the store command it made - HGET, 0.2 ms,
+      NOT in error - the store answered and what it answered could not be read, the class's
+      fingerprint in one tree; the frontend's error traces add user_add_to_cart, AddItem failing
+      the same way over the same successful HGET; nothing over the proxy's timeout, nothing slow.
+      Tempo had been restarted eleven minutes before the onset (Q115) and its search returned a
+      subset - 9 of cart's error traces against 44 parse-failure lines in Loki - so trace counts
+      are not evidence here and the narrative cites none
+  - recovery: the loop stopped after 12,707 sweeps (about nineteen a second over 11m16s) and the
+      store flushed - 255 keys at the first sweep, 0 after the flush, refilling from its clients;
+      clean - no parse-failure line, no error trace, no alert after the fix; the ratios at 1 %
+      and under within two minutes as their windows drained; no restart of cart or valkey-cart
   - change: nothing recorded - no deploy, no config, no flag; the change history is empty for
       the whole window (the store's contents changed, and nothing records those)
   - discriminator: against v2-cart-valkey-misconfig (cart cannot connect - connection failures in
@@ -111,6 +103,7 @@ alert_timeout_seconds: 900
 # minutes at rest and every minute under the sweep's writes - so the capture's window was
 # predicted to hold more than the derivation's ten lines and the recorder to derive [logs]. It
 # did: the 2026-09-28 recording captured 65 lines (5 before the onset, 60 from it) and zero
-# runtime series, and derived [logs], as declared. The log that answers the fault is cart's, one
+# runtime series, and derived [logs], as declared; the re-record of 2026-09-29 captured 60 (5 and
+# 55) and zero, and derived [logs] again. The log that answers the fault is cart's, one
 # hop over, which the recorder does not capture and the agent reads through Loki.
 answers_idle_or_absent: [logs]

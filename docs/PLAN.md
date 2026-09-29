@@ -4617,6 +4617,20 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-09-29: `v2-cart-store-corruption` re-recorded on the defined world and relabeled - the page
+on checkout alone at 6m16s, as predicted; the first recording under `superseded/`.***
+
+- **The page.** `ServiceHighErrorRate` on checkout, 7.2 % at its peak, clearing on its own three
+  minutes before the fix; cart at 1.2 to 2.8 % with its store commands counted - the first
+  recording's cart-beside-checkout was the degraded cart's (Q116).
+- **The fingerprint, now in one tree**: cart's span in error in under a millisecond over an
+  `HGET` that answered in 0.2 ms. Cart's log names the decoder 44 times; the store saves every
+  minute on ten thousand changes; the recovery is clean.
+- **Recorded, not left out**: the settle loop and baseline were skipped and two containers stood
+  between 85 and 90 % of their limits; neither restarted, and the recording is unaffected.
+- **The first label's loose end closed**: the "traces over 5 s" were long-lived consumer and flag
+  streams, which TraceQL's span duration matches.
+
 ***2026-09-29: two more residues found, and the cart base re-recorded before its injection
 scenario is tried again - Q115, Q116.***
 
