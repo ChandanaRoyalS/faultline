@@ -112,6 +112,9 @@ NO_RUNTIME_METRICS = frozenset(
         # during it. The scenario declares `answers_idle_or_absent: [logs]`, on the store's saves,
         # which the sweep's writes bring to one a minute.
         "v2-cart-store-corruption",
+        # T7.1 (2026-09-29): the same target, valkey-cart, under the injection scenario that rides
+        # v2-cart-store-corruption (blocked, INVALID.md): nothing before the fault or during it.
+        "v2-inj-cart-store-corruption-log-checkout",
     }
 )
 """Bundles whose target exports no runtime metrics, so an empty `runtime.json` is the world

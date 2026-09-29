@@ -64,7 +64,11 @@ OTHER_WORLD_NARRATIVES = [
     "v2-cart-store-corruption",
     "v2-kafka-disk-fill",
 ]
-OTHER_WORLD_INVALID = ["v2-cart-valkey-misconfig", "v2-cart-memory-squeeze"]
+OTHER_WORLD_INVALID = [
+    "v2-cart-valkey-misconfig",
+    "v2-cart-memory-squeeze",
+    "v2-inj-cart-store-corruption-log-checkout",
+]
 """v2 dev bundles marked INVALID: recorded, blocked, and skipped for that reason before their
 world is read (`seed.dev_bundles` checks `INVALID.md` first)."""
 """Dev narratives recorded on v2, which the corpus holds out until T7.1's corpus piece (Q92)
