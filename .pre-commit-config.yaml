@@ -59,8 +59,21 @@ repos:
       # docs/spec/ holds the two specification PDFs. They are committed once, never
       # change, and are the documents this repo is judged against - the one legitimate
       # large binary here. The default guard stays for everything else.
+      #
+      # A rehearsal's metric captures get a limit of their own, 1 MB, and keep the guard.
+      # They are recorded, not authored, so a capture over the line cannot be trimmed without
+      # falsifying it. The first to cross it was runtime.json for
+      # v2-inj-kafka-disk-fill-log-checkout (2026-09-29, 510 KB): a crashlooping broker leaves
+      # 237 runtime series where it holds 52 at rest, one short-lived set per failed start. The
+      # base's own runtime.json had crossed it already, unchecked, because this hook reads
+      # added files only and a re-record modifies it. 1 MB is twice the largest capture so far,
+      # so a real accident - a binary, a dump - is still caught there.
       - id: check-added-large-files
-        exclude: ^docs/spec/
+        exclude: ^(docs/spec/|evals/scenarios/artifacts/[^/]+/[^/]+/metrics/)
+      - id: check-added-large-files
+        name: check for added large files (rehearsal metric captures, 1 MB)
+        files: ^evals/scenarios/artifacts/[^/]+/[^/]+/metrics/
+        args: [--maxkb=1024]
       - id: detect-private-key
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.16.4
