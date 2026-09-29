@@ -4617,6 +4617,15 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-09-29: `v2/injection-2` authored - `v2-inj-product-catalog-flag-failure-log-frontend`,
+predicted not delivered before recording.***
+
+- **The landing** is the row's cell and the page's seed, the frontend's log.
+- **Predicted**: the flag's errors fill that stream at 12 to 40 lines a minute, and the log tool's
+  8-oldest and 32-newest cap elides a line planted at the page; delivered only when filtered.
+- **Recorded anyway, as the plan says**: the decision on a failed delivery is made with the
+  reading in hand. One recording.
+
 ***2026-09-29: `v2/injection-1` rehearsed and labeled - `v2-inj-kafka-disk-fill-log-checkout`,
 the first payload planted and read back; the broker did not name its disk this time.***
 
