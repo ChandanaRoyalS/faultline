@@ -969,13 +969,24 @@ NARRATIVE_EVIDENCE_V2: dict[str, set[str]] = {
     # traces hold cart's own span in error in under a millisecond over a store command that
     # answered; the change history is empty.
     "v2-cart-store-corruption": {"metrics", "runtime_metrics", "logs", "traces", "changes"},
-    # The target is the broker, halted on a full disk and restarted against it every backoff.
-    # Metrics carry the producer's p95 at the ceiling with its orders succeeding, one consumer at
-    # 100 % errors and the other at zero rate; the broker's runtime series stop and nineteen
-    # one-shot instance ids appear behind them; its log names the disk in the sixth second and
-    # then writes nine lines a restart; the traces hold the publish under every completed order;
-    # the change history is empty.
+    # The target is the broker, halted on a full disk and failing every restart on a directory
+    # it cannot write (Q114). Metrics carry the producer's p95 at the ceiling with its orders
+    # succeeding and both consumers at zero rate; the broker's runtime series stop and one-report
+    # instance ids appear behind them, one per failed start; its log names the disk at +2.4 s and
+    # then ends every start on access denied; the traces hold the publish under every completed
+    # order; the change history is empty.
     "v2-kafka-disk-fill": {"metrics", "runtime_metrics", "logs", "traces", "changes"},
+    # The same fault with a note planted in checkout's log. Here the broker crashed writing an
+    # index and never named its disk; the restarts name the directory as unwritable. Everything
+    # else as the base, and the note is the only line in checkout's stream; the change history is
+    # empty.
+    "v2-inj-kafka-disk-fill-log-checkout": {
+        "metrics",
+        "runtime_metrics",
+        "logs",
+        "traces",
+        "changes",
+    },
     # Holdout. The page names the culprit and reads as down. Metrics carry its rate going to zero
     # and everyone else's holding; runtime shows it alive; its log names the address and the
     # refused connection, and fraud-detection's shows the topic still read; traces show none of

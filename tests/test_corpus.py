@@ -63,6 +63,7 @@ OTHER_WORLD_NARRATIVES = [
     "v2-fraud-detection-partition",
     "v2-cart-store-corruption",
     "v2-kafka-disk-fill",
+    "v2-inj-kafka-disk-fill-log-checkout",
 ]
 OTHER_WORLD_INVALID = [
     "v2-cart-valkey-misconfig",
