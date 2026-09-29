@@ -962,12 +962,12 @@ NARRATIVE_EVIDENCE_V2: dict[str, set[str]] = {
     # traces hold ListRecommendations open for the length of the cut and failing at the
     # reconnect; the change history is empty.
     "v2-recommendation-partition": {"metrics", "runtime_metrics", "logs", "traces", "changes"},
-    # The target is the store, whose contents are overwritten under it. Metrics carry two ratios
-    # near their line - cart's and checkout's - with every p95 unmoved and nothing silent; cart's
-    # runtime series continue, which is what says the service is healthy; cart's log names the
-    # decoder, and the store's own log names a write volume its clients do not produce; the
-    # traces hold cart's own span in error in under a millisecond under every failed order; the
-    # change history is empty.
+    # The target is the store, whose contents are overwritten under it. Metrics carry checkout's
+    # ratio at its line and cart's far under its own, with every p95 unmoved and nothing silent;
+    # cart's runtime series continue, which is what says the service is healthy; cart's log names
+    # the decoder, and the store's own log names a write volume its clients do not produce; the
+    # traces hold cart's own span in error in under a millisecond over a store command that
+    # answered; the change history is empty.
     "v2-cart-store-corruption": {"metrics", "runtime_metrics", "logs", "traces", "changes"},
     # The target is the broker, halted on a full disk and restarted against it every backoff.
     # Metrics carry the producer's p95 at the ceiling with its orders succeeding, one consumer at

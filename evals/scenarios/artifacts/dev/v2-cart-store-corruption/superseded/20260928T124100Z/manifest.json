@@ -1,18 +1,27 @@
 {
   "alerts_at_fire": [
-    "ServiceHighErrorRate/checkout"
+    "ServiceHighErrorRate/checkout",
+    "ServiceHighErrorRate/cart"
   ],
   "alerts_over_window": [
     {
       "alert": "ServiceHighErrorRate",
       "began_after_revert": false,
-      "first_seen": "2026-09-29T00:26:38+00:00",
-      "last_seen": "2026-09-29T00:28:23+00:00",
-      "minutes_firing": 2.0,
+      "first_seen": "2026-09-28T12:47:15+00:00",
+      "last_seen": "2026-09-28T12:50:00+00:00",
+      "minutes_firing": 3.0,
+      "service": "cart"
+    },
+    {
+      "alert": "ServiceHighErrorRate",
+      "began_after_revert": false,
+      "first_seen": "2026-09-28T12:47:15+00:00",
+      "last_seen": "2026-09-28T12:50:00+00:00",
+      "minutes_firing": 3.0,
       "service": "checkout"
     }
   ],
-  "baseline_clear_at": "2026-09-29T00:20:23+00:00",
+  "baseline_clear_at": "2026-09-28T12:41:00+00:00",
   "bundle_schema_version": 2,
   "capture_set": 2,
   "expected_remediation_class": "restore_data",
@@ -34,28 +43,28 @@
     "derived_from": "the bundle's own captures (T7.5)",
     "none_can_answer": false,
     "runtime_series": 0,
-    "target_log_lines": 60
+    "target_log_lines": 65
   },
   "recorded_by": "evalharness.rehearse",
   "recorder": {
     "git_dirty": true,
-    "git_sha": "b1a1fb4c96b82f0336b29758594b502659992511",
+    "git_sha": "f6e54375bd519fb2f3b535b539609f19d3ffcdd0",
     "tool": "evalharness.rehearse"
   },
   "scenario_fingerprint": "57f25942e7901f4b63c9c15573d2afd7f09887d653261501ba542c159fbb2ca1",
   "scenario_id": "v2-cart-store-corruption",
   "seconds_of_steady_state": 300,
   "seconds_to_alert": 376,
-  "seconds_to_settle": 0,
+  "seconds_to_settle": 1,
   "split": "dev",
-  "t_alert_firing": "2026-09-29T00:26:39+00:00",
-  "t_clear": "2026-09-29T00:31:39+00:00",
-  "t_inject": "2026-09-29T00:20:23+00:00",
-  "t_revert": "2026-09-29T00:31:39+00:00",
+  "t_alert_firing": "2026-09-28T12:47:16+00:00",
+  "t_clear": "2026-09-28T12:52:17+00:00",
+  "t_inject": "2026-09-28T12:41:00+00:00",
+  "t_revert": "2026-09-28T12:52:16+00:00",
   "title": "Every cart in the store is unreadable - the store answers, and what it holds cannot be parsed",
   "window": {
-    "end": "2026-09-29T00:33:39+00:00",
-    "start": "2026-09-29T00:15:23+00:00"
+    "end": "2026-09-28T12:54:17+00:00",
+    "start": "2026-09-28T12:36:00+00:00"
   },
   "world": {
     "compose_digest": "5a2bc6d912f922a03874ab2824d9362541362386fbcab7e0c2f99aa760f567df",
@@ -80,9 +89,9 @@
   "world_lock": {
     "acquired": true,
     "host": "chandanas-MacBook-Air.local",
-    "pid": 10729,
+    "pid": 86324,
     "reason": "rehearse v2-cart-store-corruption",
-    "since": "2026-09-29T00:20:20.271325+00:00",
-    "token": "10729-1790641220.27118"
+    "since": "2026-09-28T12:40:57.306527+00:00",
+    "token": "86324-1790599257.306247"
   }
 }

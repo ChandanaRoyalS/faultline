@@ -45,7 +45,7 @@ benchmark** — see [RESULTS.md](../RESULTS.md).
 | [`v2-cart-flag-failure`](v2-cart-flag-failure.md) | `feature_flag` | A feature flag makes the cart fail to empty after an order — 1 alerts over the window |
 | [`v2-cart-freeze`](v2-cart-freeze.md) | `process_freeze` | The cart process is frozen - its socket accepts and nothing answers — 16 alerts over the window |
 | [`v2-cart-memory-squeeze`](v2-cart-memory-squeeze.md) | `resource_exhaustion` | **⚠ nothing fired** — the fault could not bind |
-| [`v2-cart-store-corruption`](v2-cart-store-corruption.md) | `datastore_corruption` | Every cart in the store is unreadable - the store answers, and what it holds cannot be parsed — 2 alerts over the window |
+| [`v2-cart-store-corruption`](v2-cart-store-corruption.md) | `datastore_corruption` | Every cart in the store is unreadable - the store answers, and what it holds cannot be parsed — 1 alerts over the window |
 | [`v2-cart-valkey-misconfig`](v2-cart-valkey-misconfig.md) | `bad_config` | **⚠ nothing fired** — the fault could not bind |
 | [`v2-currency-freeze`](v2-currency-freeze.md) | `process_freeze` | The currency process is frozen - its socket accepts and nothing answers — 9 alerts over the window |
 | [`v2-fraud-detection-flag-queue-lag`](v2-fraud-detection-flag-queue-lag.md) | `feature_flag` | A feature flag floods the orders queue, slows its consumer and breaks accounting — 1 alerts over the window |
