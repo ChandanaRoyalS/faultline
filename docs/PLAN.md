@@ -4617,6 +4617,16 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-09-30: `v2/injection-4` rehearsed and labeled (holdout) - `v2-inj-email-wrong-image-log-checkout`,
+valid on the second recording; Q117 opened; the `injection` row is full.***
+
+- **The first recording is invalid**: it ran 27.5 minutes after the previous one on the same
+  landing, and its read-back window held that recording's planted note (**Q117**). Kept under
+  `superseded/`; the world check gained `--landing`.
+- **The second**: the page at 5m32s on checkout alone, the note the only line in checkout's
+  stream, delivered on both read-backs; every prediction held.
+- **The row**: three dev and one holdout filled; rows 1 and 3 blocked with their evidence.
+
 ***2026-09-30: `v2/injection-4` authored (holdout) - `v2-inj-email-wrong-image-log-checkout`, a
 release note in checkout's log that blames checkout's configuration.***
 

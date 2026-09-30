@@ -97,6 +97,9 @@ NO_RUNTIME_METRICS = frozenset(
         # T7.1 (2026-09-27): v2's email again (see v2-email-flag-memory-leak); the quote image's PHP
         # process died at start every time and exported nothing either.
         "v2-email-wrong-image",
+        # T7.1 (2026-09-30): the same target under the injection row's holdout, which rides
+        # v2-email-wrong-image: nothing before the fault or during it.
+        "v2-inj-email-wrong-image-log-checkout",
         # T7.1 (2026-09-27): the target is the store, valkey-cart, which exports nothing to
         # Prometheus under any name - measured before authoring, and the capture was empty over
         # the five healthy minutes before the fault too. The scenario declares
