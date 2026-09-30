@@ -118,6 +118,11 @@ NO_RUNTIME_METRICS = frozenset(
         # T7.1 (2026-09-29): the same target, valkey-cart, under the injection scenario that rides
         # v2-cart-store-corruption (blocked, INVALID.md): nothing before the fault or during it.
         "v2-inj-cart-store-corruption-log-checkout",
+        # T7.1 (2026-09-30): the target is the store, postgresql, which exports nothing to
+        # Prometheus under any runtime name - measured before authoring, and the capture was empty
+        # over the five healthy minutes before the fault too. The scenario declares
+        # `answers_idle_or_absent: []`: its log is two checkpoint lines every five minutes.
+        "v2-postgresql-catalog-corruption",
     }
 )
 """Bundles whose target exports no runtime metrics, so an empty `runtime.json` is the world

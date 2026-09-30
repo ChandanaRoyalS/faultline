@@ -11,6 +11,12 @@
 # the recorder's selector (its container log ends on metric-upload deadlines from 2026-09-28 -
 # Q119) and none for postgresql; postgresql's own log 22 lines in the last hour, all routine
 # checkpoints, a start and a complete every five minutes.
+# Recorded twice on 2026-09-30. The first recording (05:53 UTC, superseded/20260930T055341Z/) is
+# INVALID by Q120's registered rule: Tempo's search had been blind to its stored blocks since
+# 2026-09-28 14:55, its repair was accepted on substance and failed its acceptance as written, and
+# the registration's consequence of that is a re-record. The re-record (06:52 UTC) is the recording
+# of record, made on a world that passed the Q120 trace-depth check; its read-back was run at once.
+# Q119 had cleared on its own before it (product-catalog's 9 runtime series back by 06:49).
 id: v2-postgresql-catalog-corruption
 title: Every product description in the catalog database is NULL - the catalog cannot read its rows
 fault_class: datastore_corruption
@@ -40,81 +46,76 @@ ground_truth:
     database was down or slow.
   category: datastore_corruption
 expected_evidence:
-  # From A10 (by hand, 2026-09-30 04:16) and R6 (through the injector, 05:04), both on the revised
-  # world; predicted before recording and checked against the bundle. The class's shape on a SQL
-  # store: the reader of the store pages on its own error rate with its callers, because every
-  # one of its server spans fails and they are half of what it emits; the store emits no span and
-  # no line about it; nothing is slow.
-  - alerts: ServiceHighErrorRate on five services in one evaluation at three to four minutes -
-      frontend, frontend-proxy, load-generator, product-catalog and recommendation (A10 +3:00,
-      R6 +3:31) - the catalog among the first, not a hop below them; checkout's a minute later
-      (+4:00, +4:31); ServiceNoTraffic on the six services only a placed order reaches -
-      accounting, currency, email, payment, quote, shipping - at seven and a half to eight minutes
-      (A10 +8:00, R6 +7:31), which with the fix at page + 5:00 is at the fix's edge, so before it
-      is likely and not certain; fraud-detection possibly raising a short ServiceHighErrorRate
-      and ServiceHighLatency once orders stop (R6, +7:31 to +9:01) or ServiceNoTraffic (A10
-      +10:00, after the fix here) - the dead end the freeze and the partition of the catalog also
-      show; no latency alert on the catalog's path; nothing on postgresql, which emits no spans;
-      a storm by the record's measure - ten or more alerts by the fix - likely
-  - metrics: product-catalog's error ratio at 50 % (every server span fails; its database spans,
-      the other half, succeed) with its p95 at 2 to 4 ms and its span rate about 2.8 a second;
-      recommendation at about 67 %; the frontend and frontend-proxy at 53 to 56 %; checkout at
-      50 % with a 2 to 3 ms p95; the load generator at 28 to 30 %; accounting, currency, email,
-      payment, quote, shipping, kafka and fraud-detection at 0 req/s; every p95 on the path
-      unmoved
-  - metrics: no runtime series for the target - postgresql exports none on this world - and none
-      for product-catalog, whose metric exports have failed since 2026-09-28 (Q119); a responder
-      cannot read either process's own health from its runtime, and nothing here turns on it
-  # Quoted text below writes the logs' and spans' colons as " - ", this file's YAML rule.
+  # Predicted before recording from A10 (by hand) and R6 (through the injector), both on the
+  # revised world; restated here to the recording of record, 2026-09-30 06:52:53 UTC (the first,
+  # 05:53, is superseded as invalid - see the header). What the prediction got wrong is kept in
+  # t7.1-candidates.md; the lines below are what was recorded, and quoted text writes the logs'
+  # and spans' colons as " - ", this file's YAML rule.
+  - alerts: ServiceHighErrorRate on five services in one evaluation at 3m45s - recommendation,
+      product-catalog, load-generator, frontend-proxy and frontend - the reader of the corrupted
+      store among them; checkout's a minute later; ServiceNoTraffic on accounting, currency,
+      email, payment, quote and shipping together at 7m30s and ServiceHighErrorRate on
+      fraud-detection at 8m30s, both before the fix at 8m45s - thirteen alerts on thirteen
+      services by the fix, no latency alert among them; one alert only in recovery,
+      ServiceHighLatency on fraud-detection 45 s after the fix, for under a minute (the first
+      recording showed the same); nothing on postgresql, which emits no spans
+  - metrics: product-catalog's error ratio at 50 % from T+5 to the fix (every server span fails,
+      its database spans - the other half - succeed), its p95 FALLING from about 4.4 to 1.9 ms and
+      its rate from about 5.5 to 2.8 spans a second; recommendation at 67 %; the frontend and the
+      proxy at 49 to 55 %; checkout at 50 % with its p95 from about 25 to 3.5 ms; the load
+      generator at 28 to 30 %; payment, email, currency, quote, shipping, accounting and
+      fraud-detection at zero rate from T+5; cart, ad and product-reviews unmoved
+  - metrics: no runtime series for the target - postgresql exports none on this world - and the
+      recorder derived none; product-catalog's own nine Go series were reporting (Q119 had
+      cleared), which nothing here turns on
   - logs: THE READER'S WORDS NAME THE FAULT, ONE HOP OVER FROM THE STORE - recommendation's log
-      from within seconds of the onset, "Exception calling application - <_InactiveRpcError ...
+      from 7 s after the onset, "Exception calling application - <_InactiveRpcError ...
       StatusCode.INTERNAL details = "failed to load products - failed to get products from rows
       - failed to scan product row - sql - Scan error on column index 2, name "description" -
-      converting NULL to string is unsupported"", a few a minute to the fix; the frontend's log
-      the same text relayed, and "Error - 5 NOT_FOUND - Product Not Found - <id>" for ids the
-      table holds; product-catalog's log nothing, as at rest; the store's own log - the
-      recorder's capture, the target's - routine checkpoints every five minutes and no line
-      naming an update, a table or an error
-  - traces: product-catalog's ListProducts server span in error in under a millisecond or two
-      with the scan error naming the description column, and its GetProduct span in error with
-      "Product Not Found - <id>" for ids the table holds, EACH OVER A sql.conn.query CLIENT SPAN
-      NOT IN ERROR - the database answered and what it answered could not be read, the class's
-      fingerprint in one tree (R6, every trace read); the degrading hop ends at the catalog's
-      span, not at the database; checkout's PlaceOrder in error with "failed to prepare order -
-      failed to get product" after a cart read that succeeded, before any charge; recommendation's
-      get_product_list in error over its failed ListProducts; nothing slow, nothing over the
-      proxy's timeout
-  - recovery: the saved descriptions written back in one statement and the table's fingerprint
-      back at f9b57aae49e7ad4305e3120a54fdc20d; the errors stop at the write, with nothing
-      restarted - the catalog reads on every call and its connections are untouched; the
-      no-traffic alerts clear within about a minute as orders flow, the error-rate alerts as
-      their windows drain; all clear in four and a half to five minutes (A10 4m30s, R6 5m01s);
-      no alert only in recovery
+      converting NULL to string is unsupported"", 376 such lines to the fix, none before or after;
+      the frontend's log the same text relayed, and "Error - 5 NOT_FOUND - Product Not Found -
+      <id>" 1,112 times for all ten products in the table, 98 to 128 each, none before;
+      product-catalog's log nothing, as at rest; accounting's "Order details" 43 in the five
+      minutes before and none from onset to fix; the store's own log - the recorder's capture, 5
+      lines - routine checkpoints only, the one inside the fault skipped for want of writes and
+      the next writing 42 buffers against 120 to 165 at rest
+  - traces: product-catalog's GetProduct server span in error in 0.3 to 0.8 ms with "Product Not
+      Found - <id>" for ids the table holds, EACH OVER A sql.conn.query CLIENT SPAN NOT IN ERROR -
+      the database answered and what it answered could not be read, the class's fingerprint in
+      one tree; no database span in error in the whole window; its ListProducts spans in error in
+      94 traces, one under each recommendations request; checkout's PlaceOrder in error with
+      "failed to prepare order - failed to get product <id>" after a GetCart that succeeded, and
+      nothing after it; the degrading hop ends at the catalog's span; nothing slow but
+      fraud-detection's ten-minute flag stream, closed by the flag service on its timer
+  - recovery: the saved descriptions written back and the table's fingerprint back at
+      f9b57aae49e7ad4305e3120a54fdc20d; one lookup in error at the instant of the restore and
+      none after; the no-traffic alerts cleared within a minute, checkout's error rate at 2m30s,
+      the rest by 4m46s - all clear 4m46s; fraud-detection's latency the one alert only in
+      recovery; nothing restarted
   - change: nothing recorded - no deploy, no config, no flag; the change history is empty for
       the whole window (the store's contents changed, and nothing records those)
   - discriminator: against v2-product-catalog-flag-failure (a flag refuses one product in its own
       words, lists succeed, and the catalog stays under its line), against v2-product-catalog-freeze
       and v2-product-catalog-partition (the callers page on errors and latency and the catalog
       goes silent; the same six order-only services starve, so that silence does not tell them
-      apart), against a slow catalog (nothing errs) - here the catalog pages on its own error
-      rate, keeps answering at its usual rate and speed, its spans fail over database queries
-      that succeed, and the callers' logs carry the reader's own words - a NULL that cannot be
+      apart), against a slow catalog (nothing errs) - here the catalog paged on its own error
+      rate in the first evaluation, kept answering fast, its spans failed over database queries
+      that succeeded, and the callers' logs carried the reader's own words, a NULL that cannot be
       scanned into a named column; the fix is neither a revert, a restart nor a flag, but
-      restoring the table's contents
+      restoring the table's contents. Held on the recording
 expected_remediation_class: restore_data
 # The wrong thing is the stored contents, so the fix is to restore them
 # (knowledge/runbooks/class-datastore-corruption.md). Restarting product-catalog changes nothing -
 # it reads the same NULLs on its next query; restarting postgresql changes nothing - the rows are
 # in its data; reverting configuration changes nothing - nothing was configured. The injector's
 # restore writes the saved values back and checks the fingerprint.
-rehearsed: false
+rehearsed: true
 alert_timeout_seconds: 900
 # Declared before recording, checked against the bundle after (T7.5). The target is the store,
 # postgresql, which exports no runtime series and writes two lines per five-minute checkpoint -
-# 22 in the hour before authoring. The recorder's window runs from five minutes before the
-# onset to two minutes after all clear, about twenty minutes on A10's and R6's timings, so its
-# capture is predicted at seven to nine lines, under the derivation's ten: no class can answer
-# whether the target was idle or absent, and the narrative must not turn on it - it does not,
-# the store answering every query throughout. Restated to the measurement if the recorder derives
-# otherwise (a slower clear puts it over ten).
+# 22 in the hour before authoring - so the recorder's twenty-minute capture was predicted at seven
+# to nine lines, under the derivation's ten. It held 6 on the first recording and 5 on the
+# recording of record (a checkpoint is skipped when nothing has been written), and the recorder
+# derived [] with none_can_answer both times, as declared. The narrative does not turn on whether
+# the store was idle or absent: it answered every query throughout.
 answers_idle_or_absent: []

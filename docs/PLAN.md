@@ -4617,6 +4617,20 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-09-30: `v2/datastore_corruption-2` rehearsed and labeled - `v2-postgresql-catalog-corruption`,
+valid on the second recording; Q120 repaired and its guard landed; Q119 cleared.***
+
+- **Q120**: the three empty blocks moved aside as registered; search reaches every stored minute
+  again; the acceptance failed as written (a blocklist criterion a compacting Tempo cannot meet,
+  and a third clean poll 23 s late), so by its registered consequence the first recording is
+  superseded as invalid and the scenario re-recorded. `world_check.py` now fails a blind search.
+- **The recording of record**: five error-rate alerts in one evaluation at 3m45s with the catalog
+  among them, as A10 and R6 predicted; the order path silent before the fix; one alert only in
+  recovery, fraud-detection's latency, on both recordings - a prediction wrong, kept.
+- **The fingerprint**: the catalog's spans failing over database spans that succeed; the reader's
+  scan error naming the column in recommendation's log; `Product Not Found` for all ten products.
+- **Occupancy 39 of 44.** Row 4, the holdout, is next. Q119 cleared on its own (cause unknown).
+
 ***2026-09-30: `v2-postgresql-catalog-corruption` recorded; its read-back found Tempo's search blind
 to every stored block since 2026-09-28 14:55 - Q120 opened and its repair registered.***
 

@@ -1,6 +1,6 @@
 # The bundles, rendered
 
-Every recorded rehearsal in this repository as a readable page — 57 in all: **51 runnable** (38 dev, 13 holdout) and **6 that could not fire** (6 dev).
+Every recorded rehearsal in this repository as a readable page — 58 in all: **52 runnable** (39 dev, 13 holdout) and **6 that could not fire** (6 dev).
 
 A bundle is what one rehearsal left behind — the manifest, the Prometheus captures,
 a slice of one service's logs, the exact queries, and the narrative a responder wrote
@@ -61,6 +61,7 @@ benchmark** — see [RESULTS.md](../RESULTS.md).
 | [`v2-payment-dependency-latency`](v2-payment-dependency-latency.md) | `dependency_latency` | Payment's replies are late, and only checkout can tell — 1 alerts over the window |
 | [`v2-payment-memory-squeeze`](v2-payment-memory-squeeze.md) | `resource_exhaustion` | Payment service memory limit cut to what its runtime can barely run in — 1 alerts over the window |
 | [`v2-payment-telemetry-blackout`](v2-payment-telemetry-blackout.md) | `bad_config` | Payment service healthy, serving, and invisible in the traffic metric — 1 alerts over the window |
+| [`v2-postgresql-catalog-corruption`](v2-postgresql-catalog-corruption.md) | `datastore_corruption` | Every product description in the catalog database is NULL - the catalog cannot read its rows — 14 alerts over the window |
 | [`v2-product-catalog-flag-failure`](v2-product-catalog-flag-failure.md) | `feature_flag` | A feature flag makes the product catalog fail one product — 2 alerts over the window |
 | [`v2-product-catalog-freeze`](v2-product-catalog-freeze.md) | `process_freeze` | The product catalog process is frozen - its socket accepts and nothing answers — 20 alerts over the window |
 | [`v2-product-catalog-partition`](v2-product-catalog-partition.md) | `network_partition` | The product catalog is cut from the network - its process runs and reaches nothing — 23 alerts over the window |
