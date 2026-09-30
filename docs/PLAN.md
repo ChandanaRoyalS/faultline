@@ -4617,6 +4617,19 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-09-30: T7.2 resumed at scoping step 1b - a kind cluster on the deployment, registered before
+anything is installed.***
+
+- **The host**: the deployment VM, the owner's choice. Read first, read-only: 11.0 GiB available,
+  8 cores near idle, 424 G free; **a kernel update pending again**, so 1b opens with §3.10's
+  reboot; inotify below what kind needs; kind and kubectl absent.
+- **Registered**: SREGym's own four-node cluster and Calico at `46c853db`, kind `v0.27.0` as its
+  CI pins, sampled ten minutes before and ten after. **FITS** needs 7.0 GiB still available;
+  under 5.5 GiB, a restart, a stop or a new alert on the world is **does not fit**. The prediction
+  is FITS. Every change is listed with its undo, and the kill switch is on throughout.
+- **Also**: Q121's trigger corrected (SREGym runs on its own cluster, not this world's Tempo). The
+  platform container at 4.14 GiB against 698 MiB on 09-21 is read before the reboot resets it.
+
 ***2026-09-30: Q120's audit - every trace claim still readable holds across the whole fault; no
 label corrected; Q120 closed; quote's clock found 18h37m07s behind - Q121 opened.***
 

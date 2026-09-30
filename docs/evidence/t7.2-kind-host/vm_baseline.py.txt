@@ -1,0 +1,117 @@
+"""Read-only: the deployment VM as T7.2 step 1b would find it, before anything is installed.
+
+Copied to the VM and run there, from the Mac:
+    scp ~/Downloads/vm_baseline.py "$VM":/tmp/vm_baseline.py
+    ssh "$VM" 'python3 /tmp/vm_baseline.py' > ~/Downloads/vm-baseline.txt 2>&1
+
+t7.2-scoping.md section 5, step 1b: start a kind cluster on the deployment, with the world running,
+and measure it. Before the registration states what "fits" means, this reads what the box holds
+now, so the thresholds are written against the machine and not a capacity table (the mistake that
+section already made once). It prints, and changes nothing:
+
+  1. the host - kernel, OS, CPUs, memory, swap, disk, load, whether a reboot is pending;
+  2. memory and load sampled six times over a minute, the world and platform running;
+  3. Docker - version, cgroup driver and version, storage driver, what it holds on disk, every
+     running container with its memory and CPU now and its limit;
+  4. what kind, Calico and SREGym's applications need from the host - inotify limits (SREGym's
+     kind README asks 1024 / 1048576), vm.max_map_count (OpenSearch wants 262144), /run/udev
+     (the node image mounts it), IP forwarding, listening ports;
+  5. the tools - kind, kubectl, helm (SREGym wants >= 4.0), uv, python3 (>= 3.12), git;
+  6. egress from the host to the registries a cluster pulls from (HEAD requests only).
+Stdlib only. Nothing is written except to stdout.
+"""
+
+import os
+import shutil
+import subprocess
+import time
+
+
+def sh(cmd, timeout=60):
+    try:
+        r = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=timeout)
+        return (r.stdout + r.stderr).strip()
+    except subprocess.TimeoutExpired:
+        return "(timed out after %ds)" % timeout
+
+
+def head(title):
+    print("\n" + "=" * 100)
+    print(title)
+
+
+def meminfo():
+    out = {}
+    with open("/proc/meminfo") as f:
+        for line in f:
+            k, v = line.split(":", 1)
+            out[k] = int(v.split()[0])
+    return out
+
+
+def main():
+    print("vm baseline run at %s" % sh("date -u '+%Y-%m-%d %H:%M:%S UTC'"))
+
+    head("1. the host")
+    print("  kernel:   %s" % sh("uname -srm"))
+    print("  os:       %s" % sh(". /etc/os-release && echo \"$PRETTY_NAME\""))
+    print("  cpus:     %s (%s)" % (os.cpu_count(), sh("lscpu | grep -m1 'Model name' | sed 's/.*: *//'")))
+    m = meminfo()
+    print("  memory:   total %.1f GiB, available %.1f GiB, swap total %.1f GiB free %.1f GiB" % (
+        m["MemTotal"] / 2**20, m["MemAvailable"] / 2**20, m.get("SwapTotal", 0) / 2**20,
+        m.get("SwapFree", 0) / 2**20))
+    print("  free -m:")
+    for line in sh("free -m").splitlines():
+        print("    " + line)
+    print("  disk:")
+    for line in sh("df -h / /var/lib/docker 2>/dev/null | uniq").splitlines():
+        print("    " + line)
+    print("  uptime:   %s" % sh("uptime"))
+    print("  reboot pending: %s" % ("YES - " + sh("cat /var/run/reboot-required.pkgs 2>/dev/null | tr '\\n' ' '")
+                                    if os.path.exists("/var/run/reboot-required") else "no"))
+
+    head("2. memory available and load, six samples ten seconds apart")
+    for i in range(6):
+        m = meminfo()
+        print("  %s  available %6.2f GiB  load %s" % (
+            time.strftime("%H:%M:%S", time.gmtime()), m["MemAvailable"] / 2**20,
+            open("/proc/loadavg").read().split()[0]))
+        if i < 5:
+            time.sleep(10)
+
+    head("3. Docker")
+    print("  %s" % sh("docker version --format 'server {{.Server.Version}}  client {{.Client.Version}}'"))
+    print("  %s" % sh("docker info --format 'cgroup driver {{.CgroupDriver}}  cgroup v{{.CgroupVersion}}  "
+                      "storage {{.Driver}}  containers {{.ContainersRunning}} running of {{.Containers}}  "
+                      "memory {{.MemTotal}}'"))
+    print("  docker system df:")
+    for line in sh("docker system df").splitlines():
+        print("    " + line)
+    print("  running containers (memory now / limit, CPU now):")
+    for line in sh("docker stats --no-stream --format '{{.Name}}\t{{.MemUsage}}\t{{.CPUPerc}}' | sort").splitlines():
+        print("    " + line)
+    print("  networks: %s" % sh("docker network ls --format '{{.Name}}' | tr '\\n' ' '"))
+
+    head("4. what kind, Calico and the applications need from the host")
+    for key in ("fs.inotify.max_user_instances", "fs.inotify.max_user_watches", "vm.max_map_count",
+                "net.ipv4.ip_forward", "kernel.pid_max"):
+        print("  %-32s %s" % (key, sh("sysctl -n %s" % key)))
+    print("  /run/udev exists: %s" % os.path.isdir("/run/udev"))
+    print("  listening TCP ports: %s" % sh("ss -ltnH | awk '{print $4}' | sort -u | tr '\\n' ' '"))
+
+    head("5. tools")
+    for tool, ver in (("kind", "kind version"), ("kubectl", "kubectl version --client 2>&1 | head -1"),
+                      ("helm", "helm version --short"), ("uv", "uv --version"),
+                      ("python3", "python3 --version"), ("git", "git --version")):
+        path = shutil.which(tool)
+        print("  %-8s %s" % (tool, (path + "  " + sh(ver)) if path else "not installed"))
+
+    head("6. egress from the host (HEAD, 10 s each)")
+    for url in ("https://ghcr.io/v2/", "https://registry-1.docker.io/v2/", "https://quay.io/v2/",
+                "https://raw.githubusercontent.com/", "https://github.com/", "https://pypi.org/simple/",
+                "https://get.helm.sh/", "https://dl.k8s.io/", "https://kind.sigs.k8s.io/"):
+        print("  %-40s %s" % (url, sh("curl -sS -o /dev/null -I -m 10 -w '%%{http_code}' %s" % url, 20)))
+
+
+if __name__ == "__main__":
+    main()

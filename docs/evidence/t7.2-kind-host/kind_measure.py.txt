@@ -1,0 +1,198 @@
+"""Read-only: T7.2 step 1b's sampler - the deployment VM, its world and platform, and a kind cluster if one runs.
+
+Run on the VM, from the Mac:
+    ssh "$VM" 'python3 /tmp/kind_measure.py <label> <seconds>' > ~/Downloads/1b-<label>.txt 2>&1
+
+Registered in evals/runs/PREREGISTRATION-T7.2-1b.md before any of 1b's changes are made. The label
+is P0 (before the cluster), P2 (the cluster settled) or P3 (after teardown); the sampler is the
+same in all three so the phases compare. It prints, and changes nothing:
+
+  at the start and the end - every container's state, restart count, OOM flag and memory now; the
+  platform container's memory split into anonymous and file-backed (its cgroup's memory.stat);
+  the world's firing alerts (Alertmanager on the host, :9093); kind nodes and every pod with its
+  restarts, when a cluster exists; the tools on a login shell's PATH and on 1b's own directory;
+  the inotify limits; whether ~/.kube exists;
+  every 30 s between - memory available, load, pressure stall (PSI) for memory and CPU, and how
+  many alerts are firing (every alert seen is kept for the summary);
+  a summary line the registration's criteria are read from.
+Stdlib only, Python 3.8-safe.
+"""
+
+import json
+import os
+import subprocess
+import sys
+import time
+import urllib.request
+
+BIN = os.path.expanduser("~/t7.2-1b/bin")
+
+
+def sh(cmd, timeout=60):
+    env = dict(os.environ)
+    env["PATH"] = BIN + ":" + os.path.expanduser("~/.local/bin") + ":" + env.get("PATH", "")
+    try:
+        r = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=timeout, env=env)
+        return (r.stdout + r.stderr).strip()
+    except subprocess.TimeoutExpired:
+        return "(timed out after %ds)" % timeout
+
+
+def now():
+    return time.strftime("%H:%M:%S", time.gmtime())
+
+
+def mem_available_gib():
+    with open("/proc/meminfo") as f:
+        for line in f:
+            if line.startswith("MemAvailable:"):
+                return int(line.split()[1]) / 2**20
+    return 0.0
+
+
+def psi(kind):
+    """{'some': (avg10, avg60), 'full': (avg10, avg60)} from /proc/pressure/<kind>."""
+    out = {}
+    try:
+        with open("/proc/pressure/" + kind) as f:
+            for line in f:
+                parts = line.split()
+                vals = dict(p.split("=") for p in parts[1:])
+                out[parts[0]] = (float(vals["avg10"]), float(vals["avg60"]))
+    except OSError:
+        pass
+    return out
+
+
+def containers():
+    ids = sh("docker ps -aq").split()
+    if not ids:
+        return []
+    raw = sh("docker inspect " + " ".join(ids), 120)
+    try:
+        data = json.loads(raw)
+    except ValueError:
+        print("  docker inspect unreadable: " + raw[:200])
+        return []
+    return [{"name": d["Name"].lstrip("/"), "id": d["Id"], "status": d["State"]["Status"],
+             "restarts": d.get("RestartCount", 0), "oom": d["State"].get("OOMKilled", False),
+             "started": d["State"].get("StartedAt", "")[:19]} for d in data]
+
+
+def alerts():
+    try:
+        with urllib.request.urlopen("http://localhost:9093/api/v2/alerts?active=true&silenced=false"
+                                    "&inhibited=false", timeout=10) as r:
+            got = json.load(r)
+    except Exception as e:  # the sampler reports and goes on
+        return ["(alertmanager unreadable: %s)" % e]
+    return sorted("%s/%s" % (a["labels"].get("alertname", "?"),
+                             a["labels"].get("service_name", a["labels"].get("service", "?")))
+                  for a in got if a.get("status", {}).get("state") == "active")
+
+
+def platform_memory():
+    cid = sh("docker inspect -f '{{.Id}}' faultline-deploy-faultline-1")
+    for path in ("/sys/fs/cgroup/system.slice/docker-%s.scope/memory.stat" % cid,
+                 "/sys/fs/cgroup/docker/%s/memory.stat" % cid):
+        if os.path.exists(path):
+            stat = {}
+            with open(path) as f:
+                for line in f:
+                    k, v = line.split()
+                    stat[k] = int(v)
+            return "anon %.2f GiB  file %.2f GiB (active %.2f, inactive %.2f)  shmem %.2f GiB" % (
+                stat.get("anon", 0) / 2**30, stat.get("file", 0) / 2**30,
+                stat.get("active_file", 0) / 2**30, stat.get("inactive_file", 0) / 2**30,
+                stat.get("shmem", 0) / 2**30)
+    return "(memory.stat not found for %s)" % cid[:12]
+
+
+def snapshot(title):
+    print("\n" + "=" * 100)
+    print("%s at %s UTC" % (title, now()))
+    cs = containers()
+    running = [c for c in cs if c["status"] == "running"]
+    print("  containers: %d running of %d" % (len(running), len(cs)))
+    stats = {}
+    for line in sh("docker stats --no-stream --format '{{.Name}}\t{{.MemUsage}}\t{{.CPUPerc}}'", 120).splitlines():
+        parts = line.split("\t")
+        if len(parts) == 3:
+            stats[parts[0]] = (parts[1], parts[2])
+    for c in sorted(cs, key=lambda c: c["name"]):
+        mem, cpu = stats.get(c["name"], ("-", "-"))
+        print("    %-34s %-8s restarts %-3d oom %-5s started %s  %s  %s" % (
+            c["name"][:34], c["status"], c["restarts"], c["oom"], c["started"], mem, cpu))
+    print("  platform container memory: %s" % platform_memory())
+    al = alerts()
+    print("  firing alerts (%d): %s" % (len(al), ", ".join(al) or "none"))
+    kubectl = sh("command -v kubectl")
+    if kubectl and sh("kind get clusters 2>/dev/null"):
+        print("  kind clusters: %s" % sh("kind get clusters"))
+        for line in sh("kubectl get nodes -o wide --no-headers").splitlines():
+            print("    node " + line)
+        pods = sh("kubectl get pods -A --no-headers").splitlines()
+        print("  pods: %d" % len(pods))
+        for line in pods:
+            print("    " + line)
+    else:
+        print("  kind cluster: none")
+    print("  tools (login PATH): %s" % sh("bash -lc 'for t in kind kubectl helm uv; do printf \"%s=\" $t; "
+                                          "command -v $t || echo none; done' | tr '\\n' ' '"))
+    print("  tools (1b dir): %s" % (" ".join(sorted(os.listdir(BIN))) if os.path.isdir(BIN) else "none"))
+    print("  inotify: instances %s watches %s" % (sh("sysctl -n fs.inotify.max_user_instances"),
+                                                  sh("sysctl -n fs.inotify.max_user_watches")))
+    print("  ~/.kube exists: %s" % os.path.isdir(os.path.expanduser("~/.kube")))
+    return {c["name"]: c for c in cs}, al
+
+
+def main():
+    label = sys.argv[1] if len(sys.argv) > 1 else "P?"
+    seconds = int(sys.argv[2]) if len(sys.argv) > 2 else 600
+    print("1b sampler, phase %s, %d s, run at %s UTC on %s (%s)" % (
+        label, seconds, time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()), sh("hostname"), sh("uname -r")))
+    print("uptime: %s" % sh("uptime"))
+    start, start_alerts = snapshot("start")
+
+    print("\n" + "=" * 100)
+    print("samples every 30 s")
+    print("  time      avail GiB  load1  mem-some avg10/avg60  mem-full avg10/avg60  cpu-some avg10/avg60"
+          "  alerts")
+    avail, load, msome, mfull, csome, seen = [], [], [], [], [], set()
+    t_end = time.time() + seconds
+    while True:
+        a = mem_available_gib()
+        l1 = float(open("/proc/loadavg").read().split()[0])
+        pm, pc = psi("memory"), psi("cpu")
+        ms, mf, cs = pm.get("some", (0, 0)), pm.get("full", (0, 0)), pc.get("some", (0, 0))
+        avail.append(a)
+        load.append(l1)
+        msome.append(ms[1])
+        mfull.append(mf[1])
+        csome.append(cs[1])
+        al = alerts()
+        seen.update(al)
+        print("  %s  %8.2f  %5.2f  %8.2f / %6.2f      %8.2f / %6.2f      %8.2f / %6.2f  %d" % (
+            now(), a, l1, ms[0], ms[1], mf[0], mf[1], cs[0], cs[1], len(al)))
+        if time.time() >= t_end:
+            break
+        time.sleep(30)
+
+    end, end_alerts = snapshot("end")
+    restarted = sorted(n for n, c in end.items() if n in start and c["restarts"] > start[n]["restarts"])
+    oom = sorted(n for n, c in end.items() if c["oom"])
+    gone = sorted(n for n, c in start.items() if c["status"] == "running"
+                  and (n not in end or end[n]["status"] != "running"))
+    new_alerts = sorted((seen | set(end_alerts)) - set(start_alerts))
+    print("\n" + "=" * 100)
+    print("SUMMARY %s: samples %d; avail GiB min %.2f mean %.2f max %.2f; load1 max %.2f; "
+          "mem-some avg60 max %.2f; mem-full avg60 max %.2f; cpu-some avg60 max %.2f; "
+          "restarted in window %s; oom-flagged %s; stopped in window %s; alerts that fired in the window "
+          "and were not firing at its start %s" % (
+              label, len(avail), min(avail), sum(avail) / len(avail), max(avail), max(load),
+              max(msome), max(mfull), max(csome), restarted or "none", oom or "none", gone or "none",
+              new_alerts or "none"))
+
+
+if __name__ == "__main__":
+    main()
