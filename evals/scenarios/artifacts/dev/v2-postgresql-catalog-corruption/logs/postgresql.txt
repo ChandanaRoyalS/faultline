@@ -1,14 +1,13 @@
 # target container: postgresql
 # loki labels: service, stream
 # selector: {service="postgresql"}
-# 6 lines
-# before onset (2026-09-30T05:53:41+00:00): 2 lines, the newest kept
-# from onset: 4 lines, the oldest kept
+# 5 lines
+# before onset (2026-09-30T06:52:53+00:00): 2 lines, the newest kept
+# from onset: 3 lines, the oldest kept
 
-2026-09-30T05:52:48+00:00  2026-09-30 05:52:48.387 UTC [27] LOG:  checkpoint starting: time
-2026-09-30T05:53:03+00:00  2026-09-30 05:53:03.488 UTC [27] LOG:  checkpoint complete: wrote 151 buffers (0.9%); 0 WAL file(s) added, 0 removed, 0 recycled; write=15.085 s, sync=0.009 s, total=15.101 s; sync files=9, longest=0.007 s, average=0.001 s; distance=858 kB, estimate=899 kB; lsn=0/311FEA40, redo lsn=0/311FE9B0
-# ---- onset 2026-09-30T05:53:41+00:00 ----
-2026-09-30T05:57:48+00:00  2026-09-30 05:57:48.588 UTC [27] LOG:  checkpoint starting: time
-2026-09-30T05:57:50+00:00  2026-09-30 05:57:50.121 UTC [27] LOG:  checkpoint complete: wrote 16 buffers (0.1%); 0 WAL file(s) added, 0 removed, 0 recycled; write=1.513 s, sync=0.012 s, total=1.534 s; sync files=8, longest=0.011 s, average=0.002 s; distance=80 kB, estimate=817 kB; lsn=0/31212C38, redo lsn=0/31212BA8
-2026-09-30T06:02:48+00:00  2026-09-30 06:02:48.218 UTC [27] LOG:  checkpoint starting: time
-2026-09-30T06:02:51+00:00  2026-09-30 06:02:51.357 UTC [27] LOG:  checkpoint complete: wrote 32 buffers (0.2%); 0 WAL file(s) added, 0 removed, 0 recycled; write=3.124 s, sync=0.010 s, total=3.140 s; sync files=9, longest=0.009 s, average=0.002 s; distance=172 kB, estimate=753 kB; lsn=0/3123DDB8, redo lsn=0/3123DD60
+2026-09-30T06:48:01+00:00  2026-09-30 06:48:01.857 UTC [27] LOG:  checkpoint complete: wrote 126 buffers (0.8%); 0 WAL file(s) added, 0 removed, 0 recycled; write=12.568 s, sync=0.011 s, total=12.584 s; sync files=9, longest=0.009 s, average=0.002 s; distance=749 kB, estimate=876 kB; lsn=0/31908AA0, redo lsn=0/318FFD18
+2026-09-30T06:52:49+00:00  2026-09-30 06:52:49.958 UTC [27] LOG:  checkpoint starting: time
+# ---- onset 2026-09-30T06:52:53+00:00 ----
+2026-09-30T06:53:04+00:00  2026-09-30 06:53:04.041 UTC [27] LOG:  checkpoint complete: wrote 141 buffers (0.9%); 0 WAL file(s) added, 0 removed, 0 recycled; write=14.074 s, sync=0.003 s, total=14.084 s; sync files=10, longest=0.001 s, average=0.001 s; distance=820 kB, estimate=871 kB; lsn=0/319D5C60, redo lsn=0/319CCE30
+2026-09-30T07:02:49+00:00  2026-09-30 07:02:49.240 UTC [27] LOG:  checkpoint starting: time
+2026-09-30T07:02:53+00:00  2026-09-30 07:02:53.388 UTC [27] LOG:  checkpoint complete: wrote 42 buffers (0.3%); 0 WAL file(s) added, 0 removed, 0 recycled; write=4.137 s, sync=0.007 s, total=4.148 s; sync files=13, longest=0.005 s, average=0.001 s; distance=207 kB, estimate=804 kB; lsn=0/31A00CE8, redo lsn=0/31A00C90
