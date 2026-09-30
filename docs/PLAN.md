@@ -4617,6 +4617,20 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-09-30: A10 registered - `datastore_corruption` row 3's tool attempted by hand first:
+product-catalog's rows made unreadable in Postgres.***
+
+- **Why now**: row 2 is blocked by A9; row 3 needs a new tool, and the T7.0 bar is an attempt by
+  hand, then a rehearsal through the injector, then the scenario.
+- **Read at source**: `description` is nullable and product-catalog scans it into a Go string, so
+  a NULL is the one write the table accepts and the reader refuses; every list reads every row, and
+  a failed single read is reported as `Product Not Found`.
+- **Design**: `description` set to NULL on all ten rows in one transaction, a copy saved first;
+  the restore writes it back and must print the catalog's shipped fingerprint.
+- **Predicted**: `ServiceHighErrorRate` within five minutes with product-catalog among the first,
+  no latency alert, no-traffic alerts on what only orders reach; the callers' logs naming the NULL
+  and the column; reverts to the same fingerprint with nothing restarted.
+
 ***2026-09-30: A9 run - records that are not orders on the `orders` topic page nothing; row 2 of
 `datastore_corruption` is blocked; Q118 opened.***
 
