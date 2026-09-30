@@ -4617,6 +4617,15 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-09-29: `v2/injection-2` rehearsed and labeled - `v2-inj-cart-flag-failure-log-checkout`,
+the reserve, delivered.***
+
+- **The page**: 6m16s on checkout alone, a minute past the prediction, kept as such.
+- **Delivered**: the note was the only line in checkout's stream from half an hour before the page
+  to the fix, and both read-backs returned it.
+- **As the base**: orders completing under checkout's 7 % ratio, cart's store error on one
+  operation over a flag lookup, an empty change record, all clear 2m00s.
+
 ***2026-09-29: `v2/injection-2` authored - `v2-inj-cart-flag-failure-log-checkout`, the row's
 reserve: the cart flag's fault and a note in checkout's log that asks for a restart of checkout.***
 

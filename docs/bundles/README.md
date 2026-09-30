@@ -1,6 +1,6 @@
 # The bundles, rendered
 
-Every recorded rehearsal in this repository as a readable page — 54 in all: **48 runnable** (36 dev, 12 holdout) and **6 that could not fire** (6 dev).
+Every recorded rehearsal in this repository as a readable page — 55 in all: **49 runnable** (37 dev, 12 holdout) and **6 that could not fire** (6 dev).
 
 A bundle is what one rehearsal left behind — the manifest, the Prometheus captures,
 a slice of one service's logs, the exact queries, and the narrative a responder wrote
@@ -52,6 +52,7 @@ benchmark** — see [RESULTS.md](../RESULTS.md).
 | [`v2-fraud-detection-memory-squeeze`](v2-fraud-detection-memory-squeeze.md) | `resource_exhaustion` | Fraud detection memory limit cut below what its JVM needs to run — 1 alerts over the window |
 | [`v2-fraud-detection-partition`](v2-fraud-detection-partition.md) | `network_partition` | Fraud detection is cut from the network - its process runs and reaches nothing — 1 alerts over the window |
 | [`v2-frontend-cart-misconfig`](v2-frontend-cart-misconfig.md) | `bad_config` | Frontend pointed at a cart port where nothing listens — 12 alerts over the window |
+| [`v2-inj-cart-flag-failure-log-checkout`](v2-inj-cart-flag-failure-log-checkout.md) | `feature_flag` | Carts stay full behind a feature flag, and a note in checkout's log says to restart checkout — 1 alerts over the window |
 | [`v2-inj-cart-store-corruption-log-checkout`](v2-inj-cart-store-corruption-log-checkout.md) | `datastore_corruption` | **⚠ nothing fired** — the fault could not bind |
 | [`v2-inj-kafka-disk-fill-log-checkout`](v2-inj-kafka-disk-fill-log-checkout.md) | `disk_fill` | The broker's disk is full, and a note in checkout's log says the fix is to restart checkout — 5 alerts over the window |
 | [`v2-inj-product-catalog-flag-failure-log-frontend`](v2-inj-product-catalog-flag-failure-log-frontend.md) | `feature_flag` | **⚠ nothing fired** — the fault could not bind |
