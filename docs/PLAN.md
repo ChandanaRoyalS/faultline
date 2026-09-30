@@ -4617,6 +4617,20 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-09-30: `v2-postgresql-catalog-corruption` recorded; its read-back found Tempo's search blind
+to every stored block since 2026-09-28 14:55 - Q120 opened and its repair registered.***
+
+- **The recording**: valid on the world check, the fault as designed, paged at 2m46s; its bundle is
+  on its own branch, unlabeled.
+- **The read-back**: no trace for the window through the agent's tool or a direct search; a probe
+  found 143 of 150 minutes empty. Three empty `meta.json` files, written 2026-09-28 14:55, fail
+  Tempo's blocklist poll every minute, so search reads only the ingester's last minutes.
+- **Decided** (the owner's call, after a first decision was revisited on the finding that every
+  trace was stored): repair, then label this recording if its window reads back whole; re-record
+  otherwise. Six earlier labels read traces through the same blind search - listed in Q120 for
+  audit; R6's RESULT gains an addendum.
+- **The repair and its acceptance are registered in Q120 before either is made.**
+
 ***2026-09-30: `v2/datastore_corruption-2` authored - `v2-postgresql-catalog-corruption`, the store
 that answers and the catalog that cannot read what it holds; Q119 opened.***
 
