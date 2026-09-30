@@ -4617,6 +4617,20 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-09-30: A10 run - product-catalog's rows made unreadable in Postgres page at +3:00; a SQL
+table is admissible as a `datastore_corruption` store.***
+
+- **First run void**: injected while A9's leftover kafka alert was firing (the check printed NOT
+  READY and my command block did not stop on it), and its watch was interrupted. Re-run with the
+  inject gated on the check; the second run is the run of record.
+- **The page**: error rate on frontend, frontend-proxy, load-generator, product-catalog and
+  recommendation in one evaluation at +3:00, checkout at +4:00; six order-only services silent at
+  +8:00, fraud-detection at +10:00; no latency alert; the tool reported as no service.
+- **Distinct on (c)**: the callers' logs carry `converting NULL to string is unsupported` with the
+  column's name, and `Product Not Found` for ids the table holds.
+- **Reverts** to the shipped fingerprint, all clear 4m30s, nothing restarted. Next: the injector's
+  SQL tool, then an R-rehearsal, then the scenario.
+
 ***2026-09-30: A10 registered - `datastore_corruption` row 3's tool attempted by hand first:
 product-catalog's rows made unreadable in Postgres.***
 

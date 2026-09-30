@@ -1,0 +1,164 @@
+A10 - product-catalog's rows made unreadable in Postgres (evals/attempts/a10-catalog-null.sql,
+a10-catalog-restore.sql) - the run of record, the second run. The first, at 03:47:35, is void
+(transcript-void-0347.txt).
+Run 2026-09-30, times UTC. One paste, verbatim from Chandana's Mac terminal (zsh): the saved copy
+from the void run removed; the world check, whose ALL PASS gated the inject; the inject; watch.py
+12; shape.py product-catalog; the four registered log reads; the restore; watch.py 10; restart
+counts. Trailing spaces are trimmed; nothing else is changed.
+
+PASS  loki /ready                                  200
+PASS  tempo /ready                                 200
+PASS  promtail running                             running
+PASS  cart store-command spans (Q116)              2.70/s over 10m (defined: about 2)
+PASS  no container but grafana >= 85 % memory      none
+PASS  nothing firing                               none
+PASS  kafka running (Q114)                         running restarts=0 started=2026-09-29T03:57:22.310992764Z
+PASS  kafka tmpfs under 50 % used                  1%
+PASS  kafka log directory writable by the broker's user writable
+
+ALL PASS
+04:16:29 A10 inject
+   utc    |  a10   | rows | descriptions |           fingerprint
+----------+--------+------+--------------+----------------------------------
+ 04:16:29 | before |   10 |           10 | f9b57aae49e7ad4305e3120a54fdc20d
+
+   utc    |  a10  | rows | descriptions |           fingerprint
+----------+-------+------+--------------+----------------------------------
+ 04:16:29 | after |   10 |            0 | ea4a8cf36bcb834d426c151c896148e4
+
+04:16:29 a10: committed; saved copy 10 rows
+04:16:29  quiet
+04:16:59  quiet
+04:17:29  quiet
+04:17:59  quiet
+04:18:29  quiet
+04:18:59  quiet
+04:19:29  ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighErrorRate/product-catalog, ServiceHighErrorRate/recommendation
+04:19:59  ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighErrorRate/product-catalog, ServiceHighErrorRate/recommendation
+04:20:29  ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighErrorRate/product-catalog, ServiceHighErrorRate/recommendation
+04:20:59  ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighErrorRate/product-catalog, ServiceHighErrorRate/recommendation
+04:21:29  ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighErrorRate/product-catalog, ServiceHighErrorRate/recommendation
+04:21:59  ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighErrorRate/product-catalog, ServiceHighErrorRate/recommendation
+04:22:29  ServiceHighErrorRate/checkout, ServiceHighErrorRate/fraud-detection, ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighErrorRate/product-catalog, ServiceHighErrorRate/recommendation
+04:22:59  ServiceHighErrorRate/checkout, ServiceHighErrorRate/fraud-detection, ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighErrorRate/product-catalog, ServiceHighErrorRate/recommendation
+04:23:29  ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighErrorRate/product-catalog, ServiceHighErrorRate/recommendation
+04:23:59  ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighErrorRate/product-catalog, ServiceHighErrorRate/recommendation
+04:24:29  ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighErrorRate/product-catalog, ServiceHighErrorRate/recommendation, ServiceNoTraffic/accounting, ServiceNoTraffic/currency, ServiceNoTraffic/email, ServiceNoTraffic/payment, ServiceNoTraffic/quote, ServiceNoTraffic/shipping
+04:24:59  ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighErrorRate/product-catalog, ServiceHighErrorRate/recommendation, ServiceNoTraffic/accounting, ServiceNoTraffic/currency, ServiceNoTraffic/email, ServiceNoTraffic/payment, ServiceNoTraffic/quote, ServiceNoTraffic/shipping
+04:25:29  ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighErrorRate/product-catalog, ServiceHighErrorRate/recommendation, ServiceNoTraffic/accounting, ServiceNoTraffic/currency, ServiceNoTraffic/email, ServiceNoTraffic/payment, ServiceNoTraffic/quote, ServiceNoTraffic/shipping
+04:25:59  ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighErrorRate/product-catalog, ServiceHighErrorRate/recommendation, ServiceNoTraffic/accounting, ServiceNoTraffic/currency, ServiceNoTraffic/email, ServiceNoTraffic/payment, ServiceNoTraffic/quote, ServiceNoTraffic/shipping
+04:26:29  ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighErrorRate/product-catalog, ServiceHighErrorRate/recommendation, ServiceNoTraffic/accounting, ServiceNoTraffic/currency, ServiceNoTraffic/email, ServiceNoTraffic/fraud-detection, ServiceNoTraffic/payment, ServiceNoTraffic/quote, ServiceNoTraffic/shipping
+04:26:59  ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighErrorRate/product-catalog, ServiceHighErrorRate/recommendation, ServiceNoTraffic/accounting, ServiceNoTraffic/currency, ServiceNoTraffic/email, ServiceNoTraffic/fraud-detection, ServiceNoTraffic/payment, ServiceNoTraffic/quote, ServiceNoTraffic/shipping
+04:27:29  ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighErrorRate/product-catalog, ServiceHighErrorRate/recommendation, ServiceNoTraffic/accounting, ServiceNoTraffic/currency, ServiceNoTraffic/email, ServiceNoTraffic/fraud-detection, ServiceNoTraffic/payment, ServiceNoTraffic/quote, ServiceNoTraffic/shipping
+04:27:59  ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighErrorRate/product-catalog, ServiceHighErrorRate/recommendation, ServiceNoTraffic/accounting, ServiceNoTraffic/currency, ServiceNoTraffic/email, ServiceNoTraffic/fraud-detection, ServiceNoTraffic/payment, ServiceNoTraffic/quote, ServiceNoTraffic/shipping
+== firing ==
+  ServiceHighErrorRate/checkout
+  ServiceNoTraffic/email
+  ServiceHighErrorRate/frontend-proxy
+  ServiceHighErrorRate/frontend
+  ServiceHighErrorRate/recommendation
+  ServiceHighErrorRate/load-generator
+  ServiceHighErrorRate/product-catalog
+  ServiceNoTraffic/shipping
+  ServiceNoTraffic/accounting
+  ServiceNoTraffic/currency
+  ServiceNoTraffic/payment
+  ServiceNoTraffic/quote
+  ServiceNoTraffic/fraud-detection
+
+== per service, [5m] ==
+  service                 err%    p95ms   req/s
+  accounting               nan      nan   0.000
+  ad                      1.01        2   0.412
+  cart                    0.00        2   2.846
+  checkout               50.00        3   0.533
+  currency                0.00      nan   0.000
+  email                   0.00      nan   0.000
+  flagd                   0.49        2   0.846
+  fraud-detection          nan      nan   0.000
+  frontend               56.25       22  10.371
+  frontend-proxy         54.55       30   5.354
+  image-provider          0.00        2   0.100
+  kafka                   0.00      nan   0.000
+  load-generator         29.64       37   4.921
+  payment                 0.00      nan   0.000
+  product-catalog        50.00        2   2.900
+  product-reviews         0.00       40   0.967
+  quote                   0.00      nan   0.000
+  recommendation         66.67        4   0.775
+  shipping                0.00      nan   0.000
+
+== silent: running, and no span metrics in [5m] ==
+  none
+
+== quote's clock (Q98) ==
+  current: 2 of quote's own series are landing
+
+== docker state (not agent-visible) ==
+  alertmanager         exited     Exited (255) 30 hours ago
+  faultline-minio-1    exited     Exited (255) 8 days ago
+  faultline-postgres-1 exited     Exited (255) 8 days ago
+  faultline-prometheus-self-1 exited     Exited (255) 9 days ago
+  faultline-redis-1    exited     Exited (255) 8 days ago
+  nostalgic_volhard    created    Created
+  (only containers not plainly running are listed)
+
+== last 8 log lines: product-catalog ==
+  2026/09/28 00:05:08 failed to upload metrics: context deadline exceeded: rpc error: code = DeadlineExceeded desc = context deadline exceeded
+  2026/09/28 00:06:08 failed to upload metrics: context deadline exceeded: rpc error: code = DeadlineExceeded desc = context deadline exceeded
+  2026/09/28 00:07:08 failed to upload metrics: context deadline exceeded: rpc error: code = DeadlineExceeded desc = context deadline exceeded
+  2026/09/28 00:08:08 failed to upload metrics: context deadline exceeded: rpc error: code = DeadlineExceeded desc = context deadline exceeded
+  2026/09/28 00:09:08 failed to upload metrics: context deadline exceeded: rpc error: code = DeadlineExceeded desc = context deadline exceeded
+  2026/09/28 00:10:08 failed to upload metrics: context deadline exceeded: rpc error: code = DeadlineExceeded desc = context deadline exceeded
+  2026/09/28 00:11:08 failed to upload metrics: context deadline exceeded: rpc error: code = DeadlineExceeded desc = context deadline exceeded
+  2026/09/28 00:12:08 failed to upload metrics: context deadline exceeded: rpc error: code = DeadlineExceeded desc = context deadline exceeded
+{service="frontend"} |= "Scan error"  over the last 20 min
+  668 lines
+  details = "failed to load products: failed to get products from rows: failed to scan product row: sql: Scan error on column index 2, name "description": converting NULL to string is unsupported"
+  debug_error_string = "UNKNOWN:Error received from peer  {grpc_status:13, grpc_message:"failed to load products: failed to get products from rows: failed to scan product row: sql: Scan error on column index 2, name \"des
+      '\tdetails = "failed to load products: failed to get products from rows: failed to scan product row: sql: Scan error on column index 2, name "description": converting NULL to string is unsupported"\n' +
+{service="recommendation"} |= "Scan error"  over the last 20 min
+  668 lines
+  details = "failed to load products: failed to get products from rows: failed to scan product row: sql: Scan error on column index 2, name "description": converting NULL to string is unsupported"
+  debug_error_string = "UNKNOWN:Error received from peer  {grpc_status:13, grpc_message:"failed to load products: failed to get products from rows: failed to scan product row: sql: Scan error on column index 2, name \"des
+  details = "failed to load products: failed to get products from rows: failed to scan product row: sql: Scan error on column index 2, name "description": converting NULL to string is unsupported"
+{service="frontend"} |= "Product Not Found"  over the last 20 min
+  1520 lines
+  Error: 5 NOT_FOUND: Product Not Found: OLJCESPC7Z
+    details: 'Product Not Found: OLJCESPC7Z',
+  Error: 5 NOT_FOUND: Product Not Found: HQTGWGPNH4
+{service="postgresql"} |= ""  over the last 20 min
+  4 lines
+  2026-09-30 04:12:44.092 UTC [27] LOG:  checkpoint starting: time
+  2026-09-30 04:12:59.694 UTC [27] LOG:  checkpoint complete: wrote 156 buffers (1.0%); 0 WAL file(s) added, 0 removed, 0 recycled; write=15.585 s, sync=0.009 s, total=15.602 s; sync files=8, longest=0.007 s, average=0.002
+  2026-09-30 04:17:44.799 UTC [27] LOG:  checkpoint starting: time
+04:28:00 A10 revert
+   utc    |   a10    | rows | descriptions |           fingerprint
+----------+----------+------+--------------+----------------------------------
+ 04:28:00 | restored |   10 |           10 | f9b57aae49e7ad4305e3120a54fdc20d
+
+04:28:00  ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighErrorRate/product-catalog, ServiceHighErrorRate/recommendation, ServiceNoTraffic/accounting, ServiceNoTraffic/currency, ServiceNoTraffic/email, ServiceNoTraffic/fraud-detection, ServiceNoTraffic/payment, ServiceNoTraffic/quote, ServiceNoTraffic/shipping
+04:28:30  ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighErrorRate/product-catalog, ServiceHighErrorRate/recommendation, ServiceNoTraffic/accounting, ServiceNoTraffic/currency, ServiceNoTraffic/email, ServiceNoTraffic/fraud-detection, ServiceNoTraffic/payment, ServiceNoTraffic/quote, ServiceNoTraffic/shipping
+04:29:00  ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighErrorRate/product-catalog, ServiceHighErrorRate/recommendation, ServiceNoTraffic/accounting, ServiceNoTraffic/currency, ServiceNoTraffic/email, ServiceNoTraffic/fraud-detection, ServiceNoTraffic/payment, ServiceNoTraffic/quote, ServiceNoTraffic/shipping
+04:29:30  ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighErrorRate/product-catalog, ServiceHighErrorRate/recommendation
+04:30:00  ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighErrorRate/product-catalog, ServiceHighErrorRate/recommendation
+04:30:30  ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighErrorRate/product-catalog, ServiceHighErrorRate/recommendation
+04:31:00  ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighErrorRate/product-catalog, ServiceHighErrorRate/recommendation
+04:31:30  ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighErrorRate/product-catalog, ServiceHighErrorRate/recommendation
+04:32:00  ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighErrorRate/product-catalog, ServiceHighErrorRate/recommendation
+04:32:30  quiet
+04:33:00  quiet
+04:33:30  quiet
+04:34:00  quiet
+04:34:30  quiet
+04:35:00  quiet
+04:35:30  quiet
+04:36:00  quiet
+04:36:30  quiet
+04:37:00  quiet
+04:37:30  quiet
+/product-catalog restarts=2 started=2026-09-28T22:20:25.022258002Z
+/postgresql restarts=0 started=2026-09-28T22:20:23.057300001Z
+/recommendation restarts=0 started=2026-09-28T22:20:23.129344001Z
+/checkout restarts=2 started=2026-09-29T03:57:37.334377965Z
+/fraud-detection restarts=14 started=2026-09-30T03:18:59.466111221Z
