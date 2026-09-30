@@ -50,3 +50,14 @@ RESTORES: **right**; all clear at the edge of the registered window.
 | 05:16:35 | no-traffic alerts cleared |
 | 05:19:35 | checkout and load-generator cleared |
 | 05:20:35 | all clear; quiet to the last poll at 05:25:05 |
+
+## Addendum, 2026-09-30 - the read-back's traces came from the ingester alone (Q120)
+
+Every trace R6's two read-backs returned began in the window's last minute (05:14:11 to
+05:14:59), and that was not the tool's newest-first order running out of budget: Tempo's search
+had been blind to its stored blocks since 2026-09-28 14:55, three empty `meta.json` files failing
+its blocklist poll (**Q120**), so a search could find only what the ingester still held, the last
+five to seven minutes. **The verdicts stand**: the eighteen traces were real, each showed the
+fingerprint whole, and none contradicted another. What changes is their weight: they are the
+fault's newest minute, not a sample of its eleven, and VISIBLE's (d) rests on that minute. The
+whole window is re-read once Q120's repair is accepted, and any difference is added here.
