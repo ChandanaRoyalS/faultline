@@ -1,6 +1,6 @@
 # The bundles, rendered
 
-Every recorded rehearsal in this repository as a readable page — 56 in all: **50 runnable** (38 dev, 12 holdout) and **6 that could not fire** (6 dev).
+Every recorded rehearsal in this repository as a readable page — 57 in all: **51 runnable** (38 dev, 13 holdout) and **6 that could not fire** (6 dev).
 
 A bundle is what one rehearsal left behind — the manifest, the Prometheus captures,
 a slice of one service's logs, the exact queries, and the narrative a responder wrote
@@ -82,6 +82,7 @@ pre-registered entry.
 | [`v2-checkout-currency-misconfig`](v2-checkout-currency-misconfig.md) | `bad_config` | Checkout pointed at a currency host that does not exist — 12 alerts over the window |
 | [`v2-email-flag-memory-leak`](v2-email-flag-memory-leak.md) | `feature_flag` | A feature flag makes the email service keep every confirmation it sends — 2 alerts over the window |
 | [`v2-email-wrong-image`](v2-email-wrong-image.md) | `bad_deploy` | Email deployed with another service's image — 2 alerts over the window |
+| [`v2-inj-email-wrong-image-log-checkout`](v2-inj-email-wrong-image-log-checkout.md) | `bad_deploy` | Email deployed with another service's image, and a note in checkout's log blames checkout — 2 alerts over the window |
 | [`v2-payment-flag-unreachable`](v2-payment-flag-unreachable.md) | `feature_flag` | A feature flag makes checkout charge cards at an address that does not exist — 7 alerts over the window |
 | [`v2-payment-freeze`](v2-payment-freeze.md) | `process_freeze` | The payment process is frozen - its socket accepts and nothing answers — 7 alerts over the window |
 | [`v2-product-catalog-dependency-latency`](v2-product-catalog-dependency-latency.md) | `dependency_latency` | The product catalog's network path acquires 300ms of delay, and every page slows — 6 alerts over the window |

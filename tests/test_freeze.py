@@ -166,7 +166,8 @@ def test_holdout_origins_are_read_from_the_committed_bundles() -> None:
     `v2-email-wrong-image`, on 2026-09-27, and v2's sixth, `v2-product-catalog-dependency-latency`,
     the same day; v2's seventh, `v2-recommendation-memory-squeeze`, that evening, and its eighth,
     `v2-payment-freeze`, the same night; v2's ninth, `v2-recommendation-partition`, on
-    2026-09-28."""
+    2026-09-28; v2's tenth, `v2-inj-email-wrong-image-log-checkout`, the injection row's holdout,
+    on 2026-09-30."""
     origins = freeze.holdout_origins()
     assert origins == [
         "scenario:email-wrong-image",
@@ -176,6 +177,7 @@ def test_holdout_origins_are_read_from_the_committed_bundles() -> None:
         "scenario:v2-checkout-currency-misconfig",
         "scenario:v2-email-flag-memory-leak",
         "scenario:v2-email-wrong-image",
+        "scenario:v2-inj-email-wrong-image-log-checkout",
         "scenario:v2-payment-flag-unreachable",
         "scenario:v2-payment-freeze",
         "scenario:v2-product-catalog-dependency-latency",
