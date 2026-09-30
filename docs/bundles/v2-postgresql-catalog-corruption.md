@@ -1,17 +1,85 @@
----
-origin: scenario:v2-postgresql-catalog-corruption
-split: dev
-fault_class: datastore_corruption
-recorded_from: 2026-09-30T06:52:53+00:00
-capability: cap:91279a09
-onset_to_page: 3m45s
-page_to_fix: 5m00s
-fix_to_all_clear: 4m46s
----
-
 # Every product description in the catalog database is NULL - the catalog cannot read its rows
 
-## What was observed
+## The scenario
+
+| | |
+|---|---|
+| scenario | `v2-postgresql-catalog-corruption` |
+| fault class | **`datastore_corruption`** |
+| expected remediation | `restore_data` |
+| split | `dev` |
+| injected at | `postgresql` via `v2-postgresql-catalog-corruption` |
+| time to page | 3m45s |
+| steady state captured | 300s |
+| capture window | 2026-09-30T06:47:53+00:00 → 2026-09-30T07:08:24+00:00 |
+
+The clock below runs from the moment the fault went in.
+
+| | |
+|---|---|
+| `t_inject` | T+0m00s |
+| first alert firing | T+3m45s |
+| `t_revert` | T+8m45s |
+| all clear | T+13m31s |
+
+## What fired, and when
+
+| when | service | alert | firing for | |
+|---|---|---|---:|---|
+| T+3m30s | `frontend` | ServiceHighErrorRate | 10.0 min | **paged** |
+| T+3m30s | `frontend-proxy` | ServiceHighErrorRate | 9.0 min | **paged** |
+| T+3m30s | `load-generator` | ServiceHighErrorRate | 9.0 min | **paged** |
+| T+3m30s | `product-catalog` | ServiceHighErrorRate | 9.0 min | **paged** |
+| T+3m30s | `recommendation` | ServiceHighErrorRate | 10.0 min | **paged** |
+| T+4m30s | `checkout` | ServiceHighErrorRate | 7.0 min | joined later |
+| T+7m30s | `accounting` | ServiceNoTraffic | 2.0 min | joined later |
+| T+7m30s | `currency` | ServiceNoTraffic | 2.0 min | joined later |
+| T+7m30s | `email` | ServiceNoTraffic | 2.0 min | joined later |
+| T+7m30s | `payment` | ServiceNoTraffic | 2.0 min | joined later |
+| T+7m30s | `quote` | ServiceNoTraffic | 2.0 min | joined later |
+| T+7m30s | `shipping` | ServiceNoTraffic | 2.0 min | joined later |
+| T+8m30s | `fraud-detection` | ServiceHighErrorRate | 2.0 min | joined later |
+| T+9m30s | `fraud-detection` | ServiceHighLatency | 1.0 min | began after the revert |
+
+## What the bundle contains
+
+| capture | query |
+|---|---|
+| `metrics/alerts-firing.json` | `ALERTS{alertstate="firing"}` |
+| `metrics/call-rate.json` | `sum by(service_name) (rate(traces_span_metrics_calls_total[5m]))` |
+| `metrics/error-ratio.json` | `sum by(service_name) (rate(traces_span_metrics_calls_total{status_code="STATUS_CODE_ERROR"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total[5m]))` |
+| `metrics/latency-p95.json` | `histogram_quantile(0.95, sum by(service_name, le) (rate(traces_span_metrics_duration_milliseconds_bucket{span_kind!="SPAN_KIND_INTERNAL"}[5m])))` |
+| `metrics/runtime.json` | `{__name__=~"go_.*|dotnet_.*|jvm_.*|process_.*|v8js_.*|nodejs_.*",service_name="postgresql"}` |
+
+`logs/postgresql.txt` — 14 lines.
+
+## A look at the logs
+
+From `logs/postgresql.txt` (---- onset 2026-09-30T06:52:53+00:00 ----):
+
+```
+2026-09-30T06:48:01+00:00  2026-09-30 06:48:01.857 UTC [27] LOG:  checkpoint complete: wrote 126 buffers (0.8%); 0 WAL file(s) added, 0 removed, 0 recycled; write=12.568 s, sync=0.011 s, total=12.584 s; sync files=9, longest=0.009 s, average=0.002 s; distance=749 kB, estimate=876 kB; lsn=0/31908AA0, redo lsn=0/318FFD18
+2026-09-30T06:52:49+00:00  2026-09-30 06:52:49.958 UTC [27] LOG:  checkpoint starting: time
+2026-09-30T06:53:04+00:00  2026-09-30 06:53:04.041 UTC [27] LOG:  checkpoint complete: wrote 141 buffers (0.9%); 0 WAL file(s) added, 0 removed, 0 recycled; write=14.074 s, sync=0.003 s, total=14.084 s; sync files=10, longest=0.001 s, average=0.001 s; distance=820 kB, estimate=871 kB; lsn=0/319D5C60, redo lsn=0/319CCE30
+2026-09-30T07:02:49+00:00  2026-09-30 07:02:49.240 UTC [27] LOG:  checkpoint starting: time
+2026-09-30T07:02:53+00:00  2026-09-30 07:02:53.388 UTC [27] LOG:  checkpoint complete: wrote 42 buffers (0.3%); 0 WAL file(s) added, 0 removed, 0 recycled; write=4.137 s, sync=0.007 s, total=4.148 s; sync files=13, longest=0.005 s, average=0.001 s; distance=207 kB, estimate=804 kB; lsn=0/31A00CE8, redo lsn=0/31A00C90
+```
+
+
+## The incident record
+
+Written from the responder's chair, by someone who did not know the fault class
+or that anything had been injected. This text is also corpus material, which is
+why it never names the injector.
+
+**It keeps its own clock.** The table above is measured from the injection, which
+is the only origin the manifest records; a narrative's `T+` offsets are the
+responder's own and start wherever that responder started counting — usually the
+page, sometimes the injection, sometimes an event in the logs. The same moment can
+therefore carry two different offsets on this page. The absolute timestamps in the
+bundle are the tiebreak.
+
+### What was observed
 
 The page came 3m45s after onset and it was five lines in one evaluation: `ServiceHighErrorRate` on
 **recommendation**, **product-catalog**, **load-generator**, **frontend-proxy** and **frontend**.
@@ -31,7 +99,7 @@ Everything an order reaches after it is prepared - payment, email, currency, quo
 accounting and fraud-detection on the order topic - fell from its usual rate to **zero** by T+5,
 with no errors and then no latency value at all. Nothing was failing there; nothing was arriving.
 
-## What was checked
+### What was checked
 
 **The catalog, because it paged.** Its error traces were product lookups: the frontend's product
 pages and add-to-cart calls, and checkout preparing an order. In each, the catalog's
@@ -85,7 +153,7 @@ That is an idle consumer's ratio, not a fault of its own.
 **What changed.** Nothing that change history can see: no deploy, no configuration, no flag, no
 restart.
 
-## Root cause
+### Root cause
 
 The product catalog's rows in its Postgres database were corrupted: the `description` column of
 every row in `catalog.products` had been set to NULL. The column accepts NULL, so the database
@@ -97,7 +165,7 @@ pages, cart views, recommendations and every order failed fast, and orders faile
 so everything an order reaches afterwards went silent. Nothing was deployed, configured or
 flagged, and neither the catalog nor its database was down or slow.
 
-## Resolution
+### Resolution
 
 The rows' descriptions were written back from a copy taken before the corruption, and the table
 checked equal to that copy. Class of fix: **restore_data**. Restarting the catalog would have
@@ -111,7 +179,7 @@ five-minute windows drained; all clear 4m46s. **One alert fired only in recovery
 `ServiceHighLatency` on fraud-detection, under a minute after the restore and for under a minute,
 its p95 still carrying the flag stream's length as its window turned over. Nothing restarted.
 
-## Detection notes
+### Detection notes
 
 - Onset to first page: **3m45s** - five error-rate alerts in one evaluation.
 - Services on the page: **five**, the reader of the corrupted store among them. By the fix:
@@ -133,3 +201,7 @@ its p95 still carrying the flag stream's length as its window turned over. Nothi
   reaching them. They are consequences, not suspects.
 - **The fix is the data.** Restore the rows; restarting or reverting anything leaves them as they
   are.
+
+---
+
+Rendered from [`evals/scenarios/artifacts/dev/v2-postgresql-catalog-corruption/`](../../evals/scenarios/artifacts/dev/v2-postgresql-catalog-corruption/) by `faultline-render`. [All bundles](README.md).

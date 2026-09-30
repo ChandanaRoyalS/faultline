@@ -66,6 +66,7 @@ OTHER_WORLD_NARRATIVES = [
     "v2-inj-kafka-disk-fill-log-checkout",
     "v2-inj-cart-flag-failure-log-checkout",
     "v2-inj-payment-dependency-latency-log-checkout",
+    "v2-postgresql-catalog-corruption",
 ]
 OTHER_WORLD_INVALID = [
     "v2-cart-valkey-misconfig",

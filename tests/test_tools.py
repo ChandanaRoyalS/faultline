@@ -1022,6 +1022,14 @@ NARRATIVE_EVIDENCE_V2: dict[str, set[str]] = {
     # Convert client span carries the resolver error with nothing beneath it; runtime shows
     # checkout up; the change record names the variable.
     "v2-checkout-currency-misconfig": {"metrics", "runtime_metrics", "logs", "traces", "changes"},
+    # The target is the catalog's database, whose rows' descriptions are NULL. Metrics carry five
+    # services paging together with the catalog at exactly half and every p95 falling, and the
+    # order path's six services silent; recommendation's log carries the reader's scan error
+    # naming the column and the frontend's the catalog's own products as not found; the traces
+    # hold the catalog's span in error over a database span that is not; the store logs only its
+    # checkpoints; the change history is empty. No runtime class: the store exports none, and the
+    # narrative does not rest on the catalog's.
+    "v2-postgresql-catalog-corruption": {"metrics", "logs", "traces", "changes"},
 }
 """**v2's narratives, apart from v1's (T7.1).** `NARRATIVE_EVIDENCE` and the counts pinned on it
 are ADR-0019's claims about v1's investigations - *change history consulted in 11 of 11* - and
