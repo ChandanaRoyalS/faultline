@@ -1,0 +1,105 @@
+vm baseline run at 2026-09-30 08:51:14 UTC
+
+====================================================================================================
+1. the host
+  kernel:   Linux 6.8.0-139-generic x86_64
+  os:       Ubuntu 24.04.4 LTS
+  cpus:     8 (AMD EPYC-Milan Processor)
+  memory:   total 15.6 GiB, available 11.0 GiB, swap total 0.0 GiB free 0.0 GiB
+  free -m:
+    total        used        free      shared  buff/cache   available
+    Mem:           15936        4659        3523          48        8345       11276
+    Swap:              0           0           0
+  disk:
+    Filesystem      Size  Used Avail Use% Mounted on
+    /dev/vda1       464G   41G  424G   9% /
+  uptime:   08:51:14 up 8 days, 19:26,  2 users,  load average: 0.40, 0.49, 0.44
+  reboot pending: YES - linux-image-6.8.0-142-generic linux-base
+
+====================================================================================================
+2. memory available and load, six samples ten seconds apart
+  08:51:14  available  11.01 GiB  load 0.40
+  08:51:24  available  11.03 GiB  load 0.33
+  08:51:34  available  11.03 GiB  load 0.44
+  08:51:44  available  11.04 GiB  load 0.37
+  08:51:54  available  11.03 GiB  load 0.31
+  08:52:04  available  11.06 GiB  load 0.42
+
+====================================================================================================
+3. Docker
+  server 29.8.0  client 29.8.0
+  cgroup driver systemd  cgroup v2  storage overlayfs  containers 35 running of 38  memory 16710197248
+  docker system df:
+    TYPE            TOTAL     ACTIVE    SIZE      RECLAIMABLE
+    Images          48        34        31.53GB   17.64GB (55%)
+    Containers      38        35        557.6MB   77.82kB (0%)
+    Local Volumes   20        16        2.01GB    67.15MB (3%)
+    Build Cache     12        0         244.3MB   28.67kB
+  running containers (memory now / limit, CPU now):
+    accounting-service	8.465MiB / 300MiB	0.38%
+    ad-service	272.9MiB / 700MiB	0.16%
+    alertmanager	14.69MiB / 200MiB	0.09%
+    cart-service	132.9MiB / 400MiB	0.15%
+    checkout-service	13.48MiB / 120MiB	0.02%
+    currency-service	26.27MiB / 100MiB	0.06%
+    email-service	157.6MiB / 250MiB	0.01%
+    faultline-deploy-caddy-1	54.66MiB / 15.56GiB	0.00%
+    faultline-deploy-egress-1	34.84MiB / 15.56GiB	0.02%
+    faultline-deploy-executor-1	79.89MiB / 15.56GiB	0.18%
+    faultline-deploy-faultline-1	4.14GiB / 15.56GiB	3.05%
+    faultline-deploy-orchestrator-1	66.89MiB / 15.56GiB	0.02%
+    faultline-deploy-postgres-1	73.2MiB / 15.56GiB	0.00%
+    faultline-deploy-prometheus-self-1	90.62MiB / 15.56GiB	0.10%
+    faultline-deploy-redis-1	13.51MiB / 15.56GiB	0.49%
+    feature-flag-service	38.53MiB / 200MiB	0.20%
+    frauddetection-service	211.2MiB / 500MiB	0.32%
+    frontend	197.6MiB / 500MiB	0.88%
+    frontend-proxy	52.15MiB / 300MiB	0.54%
+    grafana	47.34MiB / 15.56GiB	0.02%
+    jaeger	200MiB / 275MiB	0.21%
+    kafka	716.3MiB / 2GiB	0.95%
+    load-generator	71.63MiB / 300MiB	0.93%
+    loki	91.09MiB / 400MiB	0.55%
+    otel-col	202.1MiB / 600MiB	0.82%
+    payment-service	101.8MiB / 320MiB	0.00%
+    postgres	47.93MiB / 200MiB	0.00%
+    product-catalog-service	18.07MiB / 120MiB	0.13%
+    prometheus	92.41MiB / 15.56GiB	0.01%
+    promtail	180.6MiB / 200MiB	0.86%
+    quoteservice	61.96MiB / 200MiB	0.00%
+    recommendation-service	65.3MiB / 800MiB	0.13%
+    redis-cart	19.05MiB / 20MiB	0.23%
+    shipping-service	7.457MiB / 120MiB	0.00%
+    tempo	191.5MiB / 400MiB	0.05%
+  networks: bridge faultline-deploy-egress faultline-deploy-net faultline_default host none opentelemetry-demo
+
+====================================================================================================
+4. what kind, Calico and the applications need from the host
+  fs.inotify.max_user_instances    128
+  fs.inotify.max_user_watches      124032
+  vm.max_map_count                 1048576
+  net.ipv4.ip_forward              1
+  kernel.pid_max                   4194304
+  /run/udev exists: True
+  listening TCP ports: 0.0.0.0:10000 0.0.0.0:22 0.0.0.0:3000 0.0.0.0:3100 0.0.0.0:3200 0.0.0.0:32768 0.0.0.0:32770 0.0.0.0:32771 0.0.0.0:32773 0.0.0.0:32774 0.0.0.0:32775 0.0.0.0:32776 0.0.0.0:32777 0.0.0.0:32778 0.0.0.0:32779 0.0.0.0:32780 0.0.0.0:32782 0.0.0.0:32783 0.0.0.0:32784 0.0.0.0:32785 0.0.0.0:32786 0.0.0.0:32787 0.0.0.0:32792 0.0.0.0:32794 0.0.0.0:32800 0.0.0.0:32801 0.0.0.0:4318 0.0.0.0:443 0.0.0.0:80 0.0.0.0:8080 0.0.0.0:9090 0.0.0.0:9093 127.0.0.53%lo:53 127.0.0.54:53 [::]:10000 [::]:22 [::]:3000 [::]:3100 [::]:3200 [::]:32768 [::]:32770 [::]:32771 [::]:32773 [::]:32774 [::]:32775 [::]:32776 [::]:32777 [::]:32778 [::]:32779 [::]:32780 [::]:32782 [::]:32783 [::]:32784 [::]:32785 [::]:32786 [::]:32787 [::]:32792 [::]:32794 [::]:32800 [::]:32801 [::]:4318 [::]:443 [::]:80 [::]:8080 [::]:9090 [::]:9093
+
+====================================================================================================
+5. tools
+  kind     not installed
+  kubectl  not installed
+  helm     not installed
+  uv       not installed
+  python3  /usr/bin/python3  Python 3.12.3
+  git      /usr/bin/git  git version 2.43.0
+
+====================================================================================================
+6. egress from the host (HEAD, 10 s each)
+  https://ghcr.io/v2/                      405
+  https://registry-1.docker.io/v2/         401
+  https://quay.io/v2/                      401
+  https://raw.githubusercontent.com/       301
+  https://github.com/                      200
+  https://pypi.org/simple/                 200
+  https://get.helm.sh/                     404
+  https://dl.k8s.io/                       200
+  https://kind.sigs.k8s.io/                200
