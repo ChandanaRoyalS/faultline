@@ -4617,6 +4617,19 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-09-30: T7.2 step 1b run - FITS: SREGym's kind cluster runs on the deployment beside the
+world; 1c (an application beside it) next.***
+
+- **The run**: the reboot first, as §3.10 says (kernel 142, all 35 back by themselves), then P0,
+  the cluster, P2 and a full teardown, from 09:06 to 11:07 UTC. The four nodes came up first
+  time in 70 s and hold 1.55 GiB; 10.63 GiB stayed available at the lowest; nothing restarted,
+  nothing paged, and the deployment opened no incident. P3 matched P0 after teardown.
+- **Predictions**: all held but one absolute range. It came from the pre-reboot baseline, and
+  P0 of the same boot read 1.2 GiB higher.
+- **Found**: the platform container's 4.14 GiB was kernel slab (4.38 GB), not the process (72
+  MB anonymous). Departures from the registration are listed in the RESULT, and none moves a
+  criterion.
+
 ***2026-09-30: T7.2 resumed at scoping step 1b - a kind cluster on the deployment, registered before
 anything is installed.***
 

@@ -1,0 +1,118 @@
+1b sampler, phase P3, 300 s, run at 2026-09-30 11:01:52 UTC on ubuntu (6.8.0-142-generic)
+uptime: 11:01:52 up  1:55,  1 user,  load average: 0.75, 0.65, 0.66
+
+====================================================================================================
+start at 11:01:52 UTC
+  containers: 35 running of 38
+    accounting-service                 running  restarts 6   oom False started 2026-09-30T09:07:12  7.18MiB / 300MiB  0.30%
+    ad-service                         running  restarts 0   oom False started 2026-09-30T09:06:47  195.3MiB / 700MiB  0.59%
+    alertmanager                       running  restarts 0   oom False started 2026-09-30T09:19:19  14.15MiB / 200MiB  0.10%
+    cart-service                       running  restarts 0   oom False started 2026-09-30T09:06:47  140.3MiB / 400MiB  0.65%
+    checkout-service                   running  restarts 6   oom False started 2026-09-30T09:07:12  11.48MiB / 120MiB  0.00%
+    currency-service                   running  restarts 0   oom False started 2026-09-30T09:06:47  16.87MiB / 100MiB  0.06%
+    email-service                      running  restarts 0   oom False started 2026-09-30T09:06:47  68.24MiB / 250MiB  0.13%
+    faultline-deploy-caddy-1           running  restarts 0   oom False started 2026-09-30T09:06:47  51.28MiB / 15.56GiB  0.00%
+    faultline-deploy-egress-1          running  restarts 0   oom False started 2026-09-30T09:06:47  34.88MiB / 15.56GiB  0.02%
+    faultline-deploy-executor-1        running  restarts 0   oom False started 2026-09-30T11:01:38  51.73MiB / 15.56GiB  0.21%
+    faultline-deploy-faultline-1       running  restarts 0   oom False started 2026-09-30T09:06:47  142.2MiB / 15.56GiB  0.19%
+    faultline-deploy-orchestrator-1    running  restarts 0   oom False started 2026-09-30T09:06:47  55.67MiB / 15.56GiB  0.02%
+    faultline-deploy-postgres-1        running  restarts 0   oom False started 2026-09-30T09:06:47  67.59MiB / 15.56GiB  0.00%
+    faultline-deploy-prometheus-self-1 running  restarts 0   oom False started 2026-09-30T09:06:47  112.2MiB / 15.56GiB  0.03%
+    faultline-deploy-redis-1           running  restarts 0   oom False started 2026-09-30T09:06:47  13.7MiB / 15.56GiB  0.55%
+    faultline-minio-1                  exited   restarts 0   oom False started 2026-09-15T04:30:12  -  -
+    faultline-postgres-1               exited   restarts 0   oom False started 2026-09-15T04:30:11  -  -
+    faultline-redis-1                  exited   restarts 0   oom False started 2026-09-15T04:30:11  -  -
+    feature-flag-service               running  restarts 0   oom False started 2026-09-30T09:06:47  37.77MiB / 200MiB  0.24%
+    frauddetection-service             running  restarts 1   oom False started 2026-09-30T09:06:58  149.2MiB / 500MiB  0.33%
+    frontend                           running  restarts 0   oom False started 2026-09-30T09:06:47  195.1MiB / 500MiB  2.02%
+    frontend-proxy                     running  restarts 0   oom False started 2026-09-30T09:19:19  20.04MiB / 300MiB  0.47%
+    grafana                            running  restarts 0   oom False started 2026-09-30T09:19:17  47.7MiB / 15.56GiB  0.01%
+    jaeger                             running  restarts 0   oom False started 2026-09-30T09:06:47  195.6MiB / 275MiB  0.19%
+    kafka                              running  restarts 0   oom False started 2026-09-30T09:06:47  596.9MiB / 2GiB  1.16%
+    load-generator                     running  restarts 0   oom False started 2026-09-30T09:06:47  65.72MiB / 300MiB  1.24%
+    loki                               running  restarts 0   oom False started 2026-09-30T09:19:18  69.84MiB / 400MiB  0.58%
+    otel-col                           running  restarts 0   oom False started 2026-09-30T09:06:47  200.7MiB / 600MiB  1.19%
+    payment-service                    running  restarts 0   oom False started 2026-09-30T09:06:47  103MiB / 320MiB  0.00%
+    postgres                           running  restarts 0   oom False started 2026-09-30T09:06:47  48.51MiB / 200MiB  0.01%
+    product-catalog-service            running  restarts 0   oom False started 2026-09-30T09:06:47  17.65MiB / 120MiB  0.21%
+    prometheus                         running  restarts 0   oom False started 2026-09-30T09:19:17  68.78MiB / 15.56GiB  0.09%
+    promtail                           running  restarts 0   oom False started 2026-09-30T09:19:18  49.98MiB / 200MiB  1.08%
+    quoteservice                       running  restarts 0   oom False started 2026-09-30T09:06:47  59.31MiB / 200MiB  0.00%
+    recommendation-service             running  restarts 0   oom False started 2026-09-30T09:06:47  64.61MiB / 800MiB  0.19%
+    redis-cart                         running  restarts 0   oom False started 2026-09-30T09:06:47  17.54MiB / 20MiB  0.19%
+    shipping-service                   running  restarts 0   oom False started 2026-09-30T09:06:47  7.27MiB / 120MiB  0.00%
+    tempo                              running  restarts 0   oom False started 2026-09-30T09:19:18  134.9MiB / 400MiB  0.39%
+  platform container memory: anon 0.07 GiB  file 0.05 GiB (active 0.03, inactive 0.02)  shmem 0.00 GiB
+  firing alerts (0): none
+  kind cluster: none
+  tools (login PATH): kind=none kubectl=none helm=none uv=/home/deploy/.local/bin/uv
+  tools (1b dir): none
+  inotify: instances 128 watches 124032
+  ~/.kube exists: False
+
+====================================================================================================
+samples every 30 s
+  time      avail GiB  load1  mem-some avg10/avg60  mem-full avg10/avg60  cpu-some avg10/avg60  alerts
+  11:01:54     12.06   0.69      0.00 /   0.00          0.00 /   0.00          0.42 /   0.58  0
+  11:02:24     12.09   0.48      0.00 /   0.00          0.00 /   0.00          0.02 /   0.35  0
+  11:02:54     12.08   0.41      0.00 /   0.00          0.00 /   0.00          0.00 /   0.21  0
+  11:03:24     12.09   0.33      0.00 /   0.00          0.00 /   0.00          0.00 /   0.12  0
+  11:03:54     12.10   0.20      0.00 /   0.00          0.00 /   0.00          0.00 /   0.07  0
+  11:04:24     12.12   0.12      0.00 /   0.00          0.00 /   0.00          0.00 /   0.04  0
+  11:04:54     12.08   0.33      0.00 /   0.00          0.00 /   0.00          0.00 /   0.02  0
+  11:05:24     12.12   0.41      0.00 /   0.00          0.00 /   0.00          0.02 /   0.03  0
+  11:05:54     12.09   0.40      0.00 /   0.00          0.00 /   0.00          0.17 /   0.07  0
+  11:06:24     12.10   0.24      0.00 /   0.00          0.00 /   0.00          0.00 /   0.04  0
+  11:06:54     12.11   0.20      0.00 /   0.00          0.00 /   0.00          0.00 /   0.02  0
+
+====================================================================================================
+end at 11:06:54 UTC
+  containers: 35 running of 38
+    accounting-service                 running  restarts 6   oom False started 2026-09-30T09:07:12  7.176MiB / 300MiB  0.35%
+    ad-service                         running  restarts 0   oom False started 2026-09-30T09:06:47  195.4MiB / 700MiB  0.20%
+    alertmanager                       running  restarts 0   oom False started 2026-09-30T09:19:19  14.15MiB / 200MiB  0.09%
+    cart-service                       running  restarts 0   oom False started 2026-09-30T09:06:47  140.4MiB / 400MiB  0.10%
+    checkout-service                   running  restarts 6   oom False started 2026-09-30T09:07:12  11.16MiB / 120MiB  0.00%
+    currency-service                   running  restarts 0   oom False started 2026-09-30T09:06:47  16.87MiB / 100MiB  0.05%
+    email-service                      running  restarts 0   oom False started 2026-09-30T09:06:47  68.34MiB / 250MiB  0.01%
+    faultline-deploy-caddy-1           running  restarts 0   oom False started 2026-09-30T09:06:47  55.05MiB / 15.56GiB  0.00%
+    faultline-deploy-egress-1          running  restarts 0   oom False started 2026-09-30T09:06:47  34.88MiB / 15.56GiB  0.02%
+    faultline-deploy-executor-1        running  restarts 0   oom False started 2026-09-30T11:01:38  51.73MiB / 15.56GiB  0.20%
+    faultline-deploy-faultline-1       running  restarts 0   oom False started 2026-09-30T09:06:47  143.8MiB / 15.56GiB  0.21%
+    faultline-deploy-orchestrator-1    running  restarts 0   oom False started 2026-09-30T09:06:47  55.67MiB / 15.56GiB  0.02%
+    faultline-deploy-postgres-1        running  restarts 0   oom False started 2026-09-30T09:06:47  67.59MiB / 15.56GiB  8.02%
+    faultline-deploy-prometheus-self-1 running  restarts 0   oom False started 2026-09-30T09:06:47  83.73MiB / 15.56GiB  0.00%
+    faultline-deploy-redis-1           running  restarts 0   oom False started 2026-09-30T09:06:47  13.7MiB / 15.56GiB  0.56%
+    faultline-minio-1                  exited   restarts 0   oom False started 2026-09-15T04:30:12  -  -
+    faultline-postgres-1               exited   restarts 0   oom False started 2026-09-15T04:30:11  -  -
+    faultline-redis-1                  exited   restarts 0   oom False started 2026-09-15T04:30:11  -  -
+    feature-flag-service               running  restarts 0   oom False started 2026-09-30T09:06:47  37.77MiB / 200MiB  0.16%
+    frauddetection-service             running  restarts 1   oom False started 2026-09-30T09:06:58  149.2MiB / 500MiB  0.36%
+    frontend                           running  restarts 0   oom False started 2026-09-30T09:06:47  195.1MiB / 500MiB  0.07%
+    frontend-proxy                     running  restarts 0   oom False started 2026-09-30T09:19:19  20.11MiB / 300MiB  0.80%
+    grafana                            running  restarts 0   oom False started 2026-09-30T09:19:17  47.7MiB / 15.56GiB  0.03%
+    jaeger                             running  restarts 0   oom False started 2026-09-30T09:06:47  194.3MiB / 275MiB  0.26%
+    kafka                              running  restarts 0   oom False started 2026-09-30T09:06:47  596.8MiB / 2GiB  6.42%
+    load-generator                     running  restarts 0   oom False started 2026-09-30T09:06:47  65.88MiB / 300MiB  1.39%
+    loki                               running  restarts 0   oom False started 2026-09-30T09:19:18  71.04MiB / 400MiB  0.64%
+    otel-col                           running  restarts 0   oom False started 2026-09-30T09:06:47  203.6MiB / 600MiB  2.22%
+    payment-service                    running  restarts 0   oom False started 2026-09-30T09:06:47  102.6MiB / 320MiB  0.18%
+    postgres                           running  restarts 0   oom False started 2026-09-30T09:06:47  48.5MiB / 200MiB  0.00%
+    product-catalog-service            running  restarts 0   oom False started 2026-09-30T09:06:47  17.27MiB / 120MiB  0.00%
+    prometheus                         running  restarts 0   oom False started 2026-09-30T09:19:17  69.57MiB / 15.56GiB  0.43%
+    promtail                           running  restarts 0   oom False started 2026-09-30T09:19:18  49.48MiB / 200MiB  0.57%
+    quoteservice                       running  restarts 0   oom False started 2026-09-30T09:06:47  59.31MiB / 200MiB  0.00%
+    recommendation-service             running  restarts 0   oom False started 2026-09-30T09:06:47  64.61MiB / 800MiB  0.15%
+    redis-cart                         running  restarts 0   oom False started 2026-09-30T09:06:47  17.55MiB / 20MiB  0.23%
+    shipping-service                   running  restarts 0   oom False started 2026-09-30T09:06:47  7.23MiB / 120MiB  0.00%
+    tempo                              running  restarts 0   oom False started 2026-09-30T09:19:18  136.5MiB / 400MiB  0.33%
+  platform container memory: anon 0.07 GiB  file 0.05 GiB (active 0.03, inactive 0.02)  shmem 0.00 GiB
+  firing alerts (0): none
+  kind cluster: none
+  tools (login PATH): kind=none kubectl=none helm=none uv=/home/deploy/.local/bin/uv
+  tools (1b dir): none
+  inotify: instances 128 watches 124032
+  ~/.kube exists: False
+
+====================================================================================================
+SUMMARY P3: samples 11; avail GiB min 12.06 mean 12.09 max 12.12; load1 max 0.69; mem-some avg60 max 0.00; mem-full avg60 max 0.00; cpu-some avg60 max 0.58; restarted in window none; oom-flagged none; stopped in window none; alerts that fired in the window and were not firing at its start none
