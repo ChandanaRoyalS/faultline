@@ -1,0 +1,179 @@
+A10 - product-catalog's rows made unreadable in Postgres - FIRST RUN, VOID.
+Run 2026-09-30 03:47:35 -> 04:10:12 UTC. Pasted verbatim from Chandana's Mac terminal (zsh), two
+pastes; trailing spaces are trimmed; nothing else is changed.
+
+Why void, decided before any second run: two breaches of PREREGISTRATION-T7.0.md's protocol.
+(1) Step 1: the world check printed NOT READY - `ServiceNoTraffic/kafka`, A9's leftover from its
+own Kafka command-line reads (Q118), was firing - and the inject ran anyway, because the command
+block I gave ran every line in turn and nothing in it stopped on the check. The protocol says to
+wait until it clears plus five minutes. That alert overlaps this fault exactly: stopping orders
+would have silenced kafka too, so it cannot be read either way. (2) Step 3: `watch.py 12` was
+interrupted by Ctrl-C at 03:58:05 (+10:30), which also cancelled the rest of that paste; the
+fault stayed live until the second paste ran shape.py (+13:00), the (c) reads and the revert at
+04:00:42 (+13:07). The mistake in (1) was mine. The re-run gates the inject on the check.
+
+The verdicts this run would give are not used. The run of record is the re-run.
+
+=== paste 1 ===
+
+PASS  loki /ready                                  200
+PASS  tempo /ready                                 200
+PASS  promtail running                             running
+PASS  cart store-command spans (Q116)              2.74/s over 10m (defined: about 2)
+PASS  no container but grafana >= 85 % memory      none
+FAIL  nothing firing                               ServiceNoTraffic/kafka
+PASS  kafka running (Q114)                         running restarts=0 started=2026-09-29T03:57:22.310992764Z
+PASS  kafka tmpfs under 50 % used                  1%
+PASS  kafka log directory writable by the broker's user writable
+
+NOT READY - 1 check(s) failed
+03:47:35 A10 inject
+   utc    |  a10   | rows | descriptions |           fingerprint
+----------+--------+------+--------------+----------------------------------
+ 03:47:35 | before |   10 |           10 | f9b57aae49e7ad4305e3120a54fdc20d
+
+   utc    |  a10  | rows | descriptions |           fingerprint
+----------+-------+------+--------------+----------------------------------
+ 03:47:35 | after |   10 |            0 | ea4a8cf36bcb834d426c151c896148e4
+
+03:47:35 a10: committed; saved copy 10 rows
+03:47:35  ServiceNoTraffic/kafka
+03:48:05  ServiceNoTraffic/kafka
+03:48:35  ServiceNoTraffic/kafka
+03:49:05  ServiceNoTraffic/kafka
+03:49:35  ServiceNoTraffic/kafka
+03:50:05  ServiceNoTraffic/kafka
+03:50:35  ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy, ServiceNoTraffic/kafka
+03:51:05  ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy, ServiceNoTraffic/kafka
+03:51:35  ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighErrorRate/product-catalog, ServiceHighErrorRate/recommendation, ServiceNoTraffic/kafka
+03:52:05  ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighErrorRate/product-catalog, ServiceHighErrorRate/recommendation, ServiceNoTraffic/kafka
+03:52:35  ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighErrorRate/product-catalog, ServiceHighErrorRate/recommendation, ServiceNoTraffic/kafka
+03:53:05  ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighErrorRate/product-catalog, ServiceHighErrorRate/recommendation, ServiceNoTraffic/kafka
+03:53:35  ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighErrorRate/product-catalog, ServiceHighErrorRate/recommendation, ServiceNoTraffic/kafka
+03:54:05  ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighErrorRate/product-catalog, ServiceHighErrorRate/recommendation, ServiceNoTraffic/kafka
+03:54:35  ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighErrorRate/product-catalog, ServiceHighErrorRate/recommendation, ServiceNoTraffic/kafka
+03:55:05  ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighErrorRate/product-catalog, ServiceHighErrorRate/recommendation, ServiceNoTraffic/kafka
+03:55:35  ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighErrorRate/product-catalog, ServiceHighErrorRate/recommendation, ServiceNoTraffic/accounting, ServiceNoTraffic/currency, ServiceNoTraffic/email, ServiceNoTraffic/kafka, ServiceNoTraffic/payment, ServiceNoTraffic/quote, ServiceNoTraffic/shipping
+03:56:05  ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighErrorRate/product-catalog, ServiceHighErrorRate/recommendation, ServiceNoTraffic/accounting, ServiceNoTraffic/currency, ServiceNoTraffic/email, ServiceNoTraffic/kafka, ServiceNoTraffic/payment, ServiceNoTraffic/quote, ServiceNoTraffic/shipping
+03:56:35  ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighErrorRate/product-catalog, ServiceHighErrorRate/recommendation, ServiceNoTraffic/accounting, ServiceNoTraffic/currency, ServiceNoTraffic/email, ServiceNoTraffic/fraud-detection, ServiceNoTraffic/kafka, ServiceNoTraffic/payment, ServiceNoTraffic/quote, ServiceNoTraffic/shipping
+03:57:05  ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighErrorRate/product-catalog, ServiceHighErrorRate/recommendation, ServiceNoTraffic/accounting, ServiceNoTraffic/currency, ServiceNoTraffic/email, ServiceNoTraffic/fraud-detection, ServiceNoTraffic/kafka, ServiceNoTraffic/payment, ServiceNoTraffic/quote, ServiceNoTraffic/shipping
+03:57:35  ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighErrorRate/product-catalog, ServiceHighErrorRate/recommendation, ServiceNoTraffic/accounting, ServiceNoTraffic/currency, ServiceNoTraffic/email, ServiceNoTraffic/fraud-detection, ServiceNoTraffic/payment, ServiceNoTraffic/quote, ServiceNoTraffic/shipping
+03:58:05  ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighErrorRate/product-catalog, ServiceHighErrorRate/recommendation, ServiceNoTraffic/accounting, ServiceNoTraffic/currency, ServiceNoTraffic/email, ServiceNoTraffic/fraud-detection, ServiceNoTraffic/payment, ServiceNoTraffic/quote, ServiceNoTraffic/shipping
+^CTraceback (most recent call last):
+  File "/Users/chandana/dev/faultline/evals/attempts/watch.py", line 51, in <module>
+    main()
+  File "/Users/chandana/dev/faultline/evals/attempts/watch.py", line 47, in main
+    time.sleep(30)
+KeyboardInterrupt
+
+=== paste 2 ===
+
+== firing ==
+  ServiceHighErrorRate/checkout
+  ServiceHighErrorRate/frontend
+  ServiceHighErrorRate/frontend-proxy
+  ServiceHighErrorRate/load-generator
+  ServiceHighErrorRate/product-catalog
+  ServiceHighErrorRate/recommendation
+  ServiceNoTraffic/accounting
+  ServiceNoTraffic/currency
+  ServiceNoTraffic/email
+  ServiceNoTraffic/payment
+  ServiceNoTraffic/quote
+  ServiceNoTraffic/shipping
+
+== per service, [5m] ==
+  service                 err%    p95ms   req/s
+  accounting               nan      nan   0.000
+  ad                      0.00        2   0.496
+  cart                    0.00        2   3.800
+  checkout               50.00        3   0.667
+  currency                0.00      nan   0.000
+  email                   0.00      nan   0.000
+  flagd                   0.56       20   0.742
+  fraud-detection       100.00    15000   0.004
+  frontend               53.88       20  11.753
+  frontend-proxy         52.51       27   5.983
+  image-provider          0.00        2   0.100
+  kafka                   0.00      nan   0.000
+  load-generator         29.73       37   5.312
+  payment                 0.00      nan   0.000
+  product-catalog        50.00        2   3.150
+  product-reviews         0.00       42   0.796
+  quote                   0.00      nan   0.000
+  recommendation         66.88        5   0.642
+  shipping                0.00      nan   0.000
+
+== silent: running, and no span metrics in [5m] ==
+  none
+
+== quote's clock (Q98) ==
+  current: 2 of quote's own series are landing
+
+== docker state (not agent-visible) ==
+  alertmanager         exited     Exited (255) 30 hours ago
+  faultline-minio-1    exited     Exited (255) 8 days ago
+  faultline-postgres-1 exited     Exited (255) 8 days ago
+  faultline-prometheus-self-1 exited     Exited (255) 9 days ago
+  faultline-redis-1    exited     Exited (255) 8 days ago
+  nostalgic_volhard    created    Created
+  (only containers not plainly running are listed)
+
+== last 8 log lines: product-catalog ==
+  2026/09/28 00:05:08 failed to upload metrics: context deadline exceeded: rpc error: code = DeadlineExceeded desc = context deadline exceeded
+  2026/09/28 00:06:08 failed to upload metrics: context deadline exceeded: rpc error: code = DeadlineExceeded desc = context deadline exceeded
+  2026/09/28 00:07:08 failed to upload metrics: context deadline exceeded: rpc error: code = DeadlineExceeded desc = context deadline exceeded
+  2026/09/28 00:08:08 failed to upload metrics: context deadline exceeded: rpc error: code = DeadlineExceeded desc = context deadline exceeded
+  2026/09/28 00:09:08 failed to upload metrics: context deadline exceeded: rpc error: code = DeadlineExceeded desc = context deadline exceeded
+  2026/09/28 00:10:08 failed to upload metrics: context deadline exceeded: rpc error: code = DeadlineExceeded desc = context deadline exceeded
+  2026/09/28 00:11:08 failed to upload metrics: context deadline exceeded: rpc error: code = DeadlineExceeded desc = context deadline exceeded
+  2026/09/28 00:12:08 failed to upload metrics: context deadline exceeded: rpc error: code = DeadlineExceeded desc = context deadline exceeded
+{service="frontend"} |= "Scan error"  over the last 20 min
+  592 lines
+  details = "failed to load products: failed to get products from rows: failed to scan product row: sql: Scan error on column index 2, name "description": converting NULL to string is unsupported"
+  debug_error_string = "UNKNOWN:Error received from peer  {grpc_status:13, grpc_message:"failed to load products: failed to get products from rows: failed to scan product row: sql: Scan error on column index 2, name \"des
+      '\tdetails = "failed to load products: failed to get products from rows: failed to scan product row: sql: Scan error on column index 2, name "description": converting NULL to string is unsupported"\n' +
+{service="recommendation"} |= "Scan error"  over the last 20 min
+  592 lines
+  details = "failed to load products: failed to get products from rows: failed to scan product row: sql: Scan error on column index 2, name "description": converting NULL to string is unsupported"
+  debug_error_string = "UNKNOWN:Error received from peer  {grpc_status:13, grpc_message:"failed to load products: failed to get products from rows: failed to scan product row: sql: Scan error on column index 2, name \"des
+  details = "failed to load products: failed to get products from rows: failed to scan product row: sql: Scan error on column index 2, name "description": converting NULL to string is unsupported"
+{service="frontend"} |= "Product Not Found"  over the last 20 min
+  1770 lines
+  Error: 5 NOT_FOUND: Product Not Found: OLJCESPC7Z
+    details: 'Product Not Found: OLJCESPC7Z',
+  Error: 5 NOT_FOUND: Product Not Found: 2ZYFJ3GM2N
+{service="postgresql"} |= ""  over the last 20 min
+  4 lines
+  2026-09-30 03:42:43.632 UTC [27] LOG:  checkpoint starting: time
+  2026-09-30 03:42:56.353 UTC [27] LOG:  checkpoint complete: wrote 127 buffers (0.8%); 0 WAL file(s) added, 0 removed, 0 recycled; write=12.687 s, sync=0.014 s, total=12.722 s; sync files=9, longest=0.005 s, average=0.002
+  2026-09-30 03:47:43.456 UTC [27] LOG:  checkpoint starting: time
+04:00:42 A10 revert
+   utc    |   a10    | rows | descriptions |           fingerprint
+----------+----------+------+--------------+----------------------------------
+ 04:00:42 | restored |   10 |           10 | f9b57aae49e7ad4305e3120a54fdc20d
+
+04:00:42  ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighErrorRate/product-catalog, ServiceHighErrorRate/recommendation, ServiceNoTraffic/accounting, ServiceNoTraffic/currency, ServiceNoTraffic/email, ServiceNoTraffic/payment, ServiceNoTraffic/quote, ServiceNoTraffic/shipping
+04:01:12  ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighErrorRate/product-catalog, ServiceHighErrorRate/recommendation, ServiceNoTraffic/accounting, ServiceNoTraffic/currency, ServiceNoTraffic/email, ServiceNoTraffic/payment, ServiceNoTraffic/quote, ServiceNoTraffic/shipping
+04:01:42  ServiceHighErrorRate/checkout, ServiceHighErrorRate/fraud-detection, ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighErrorRate/product-catalog, ServiceHighErrorRate/recommendation
+04:02:12  ServiceHighErrorRate/checkout, ServiceHighErrorRate/fraud-detection, ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighErrorRate/product-catalog, ServiceHighErrorRate/recommendation
+04:02:42  ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighErrorRate/product-catalog, ServiceHighErrorRate/recommendation
+04:03:12  ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighErrorRate/product-catalog, ServiceHighErrorRate/recommendation
+04:03:42  ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighErrorRate/product-catalog, ServiceHighErrorRate/recommendation
+04:04:12  ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighErrorRate/product-catalog, ServiceHighErrorRate/recommendation
+04:04:42  ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighErrorRate/product-catalog, ServiceHighErrorRate/recommendation
+04:05:12  ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighErrorRate/product-catalog, ServiceHighErrorRate/recommendation
+04:05:42  quiet
+04:06:12  quiet
+04:06:42  quiet
+04:07:12  quiet
+04:07:42  quiet
+04:08:12  quiet
+04:08:42  quiet
+04:09:12  quiet
+04:09:42  quiet
+04:10:12  quiet
+/product-catalog restarts=2 started=2026-09-28T22:20:25.022258002Z
+/postgresql restarts=0 started=2026-09-28T22:20:23.057300001Z
+/recommendation restarts=0 started=2026-09-28T22:20:23.129344001Z
+/checkout restarts=2 started=2026-09-29T03:57:37.334377965Z
