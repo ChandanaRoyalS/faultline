@@ -4617,6 +4617,13 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-09-30: `v2/injection-3` rehearsed and labeled - `v2-inj-payment-dependency-latency-log-checkout`,
+delivered; the injection row's dev slots are full.***
+
+- **The page**: 5m20s on checkout's latency alone, as predicted; every prediction held.
+- **Delivered**: the note was the only line in checkout's stream, returned by both read-backs.
+- **Next**: row 4, the holdout, from the kept draft.
+
 ***2026-09-30: the rehearsal capture limit covers log captures too - payment's is 642 KB.***
 
 - **Why**: payment logs every charge, and Q113's paged capture keeps the whole window. The capture
