@@ -685,6 +685,28 @@ CATALOG: tuple[FaultDefinition, ...] = _validated(
             ),
             params={"cli": "valkey-cli", "field": "cart", "interval": "0.05"},
         ),
+        # --- T7.1: datastore_corruption's second store, a SQL table (A10) --------------------
+        FaultDefinition(
+            id="v2-postgresql-catalog-corruption",
+            fault_class=FaultClass.DATASTORE_CORRUPTION,
+            target="postgresql",
+            world="v2",
+            description=(
+                "Set catalog.products.description to NULL on every row - a nullable column the "
+                "catalog scans into a Go string, so every list and every lookup fails while the "
+                "store stays up and holds all ten products. The catalog's own error rate pages "
+                "with its callers' (A10: +3:00), nothing slows, and the callers' logs name the "
+                "NULL and the column. Restore writes the saved values back and checks the "
+                "table's fingerprint."
+            ),
+            params={
+                "table": "catalog.products",
+                "column": "description",
+                "key": "id",
+                "database": "otel",
+                "user": "root",
+            },
+        ),
         FaultDefinition(
             id="v2-kafka-disk-fill",
             fault_class=FaultClass.DISK_FILL,

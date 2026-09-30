@@ -161,6 +161,28 @@ class CorruptionRestore(BaseModel):
     flush: bool
 
 
+class SqlCorruptionRestore(BaseModel):
+    """Write a table column's saved values back over the NULLs, then check the table's
+    fingerprint is the one read before the write (T7.1, A10).
+
+    The saved copy is the column's every value keyed by the table's key, read in the same query
+    as the fingerprint, and it lives here - in the injector's state, outside the store and its
+    schema - so a restore needs nothing from inside the container but the database's own client.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    kind: Literal["sql_corruption"] = "sql_corruption"
+    container: str
+    database: str
+    user: str
+    table: str
+    column: str
+    key: str
+    saved: dict[str, str | None]
+    fingerprint: str
+
+
 class DiskFillRestore(BaseModel):
     """Remove the fill file; if the container is restarting too fast to reach, recreate the
     service, which discards the filled tmpfs; then restart whatever stopped consuming (T7.0, A8b).
@@ -184,6 +206,7 @@ RestoreState = Annotated[
     | PauseRestore
     | NetworkRestore
     | CorruptionRestore
+    | SqlCorruptionRestore
     | DiskFillRestore,
     Field(discriminator="kind"),
 ]

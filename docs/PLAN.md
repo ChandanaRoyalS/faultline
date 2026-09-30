@@ -4617,6 +4617,19 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-09-30: `datastore_corruption`'s SQL tool in the injector, and R6 registered to rehearse it.***
+
+- **The tool**: `DatastoreCorruptionFault` gains a second mechanism, chosen by a `table` param:
+  A10's one-statement NULL over a nullable column and its restore, the saved values kept in the
+  injector's state rather than the container, the restore refusing to finish unless the table's
+  fingerprint matches. `v2-postgresql-catalog-corruption` joins the catalog.
+- **Guards**: a table not at rest, a key that does not identify rows, or a name that would need
+  quoting are refused before anything is written; an UPDATE that does not empty the column is put
+  back. A refused restore now keeps its state entry instead of escaping the engine.
+- **Tested** with fakes, and against a real Postgres: the integration test runs through Docker;
+  its bodies were run first against a local Postgres, the world's catalog fingerprinting as A10.
+- **Next**: R6, through the injector and the agent's tools, then the scenario.
+
 ***2026-09-30: A10 run - product-catalog's rows made unreadable in Postgres page at +3:00; a SQL
 table is admissible as a `datastore_corruption` store.***
 

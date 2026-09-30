@@ -29,6 +29,7 @@ from injector.models import (
     PauseRestore,
     PumbaRestore,
     RestoreState,
+    SqlCorruptionRestore,
 )
 from injector.settings import InjectorSettings
 
@@ -81,6 +82,11 @@ def _describe_restore(state: RestoreState) -> str:
             return f"reconnect {state.container} to {state.network}"
         case CorruptionRestore():
             return f"stop the corruption loop on {state.container} and flush it"
+        case SqlCorruptionRestore():
+            return (
+                f"write {len(state.saved)} saved {state.table}.{state.column} values back on "
+                f"{state.container} and check the fingerprint"
+            )
         case DiskFillRestore():
             return f"remove the fill on {state.container} (or recreate {state.service})"
 
