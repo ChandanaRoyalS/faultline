@@ -1,0 +1,14 @@
+# target container: postgresql
+# loki labels: service, stream
+# selector: {service="postgresql"}
+# 6 lines
+# before onset (2026-09-30T05:53:41+00:00): 2 lines, the newest kept
+# from onset: 4 lines, the oldest kept
+
+2026-09-30T05:52:48+00:00  2026-09-30 05:52:48.387 UTC [27] LOG:  checkpoint starting: time
+2026-09-30T05:53:03+00:00  2026-09-30 05:53:03.488 UTC [27] LOG:  checkpoint complete: wrote 151 buffers (0.9%); 0 WAL file(s) added, 0 removed, 0 recycled; write=15.085 s, sync=0.009 s, total=15.101 s; sync files=9, longest=0.007 s, average=0.001 s; distance=858 kB, estimate=899 kB; lsn=0/311FEA40, redo lsn=0/311FE9B0
+# ---- onset 2026-09-30T05:53:41+00:00 ----
+2026-09-30T05:57:48+00:00  2026-09-30 05:57:48.588 UTC [27] LOG:  checkpoint starting: time
+2026-09-30T05:57:50+00:00  2026-09-30 05:57:50.121 UTC [27] LOG:  checkpoint complete: wrote 16 buffers (0.1%); 0 WAL file(s) added, 0 removed, 0 recycled; write=1.513 s, sync=0.012 s, total=1.534 s; sync files=8, longest=0.011 s, average=0.002 s; distance=80 kB, estimate=817 kB; lsn=0/31212C38, redo lsn=0/31212BA8
+2026-09-30T06:02:48+00:00  2026-09-30 06:02:48.218 UTC [27] LOG:  checkpoint starting: time
+2026-09-30T06:02:51+00:00  2026-09-30 06:02:51.357 UTC [27] LOG:  checkpoint complete: wrote 32 buffers (0.2%); 0 WAL file(s) added, 0 removed, 0 recycled; write=3.124 s, sync=0.010 s, total=3.140 s; sync files=9, longest=0.009 s, average=0.002 s; distance=172 kB, estimate=753 kB; lsn=0/3123DDB8, redo lsn=0/3123DD60
