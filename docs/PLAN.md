@@ -4617,6 +4617,18 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-09-30: `datastore_corruption` row 4, `v2-postgresql-reviews-corruption`, measured and blocked -
+it cannot page on this load; the row stands at two of four with no holdout.***
+
+- **It reads Postgres** (the open question): `psycopg2` against `reviews.productreviews`.
+- **Nothing the table accepts fails the paths that are called**: a NULL description reads as empty
+  text, the other columns refuse NULL, every legal score formats, a scrambled key empties the
+  list without error. The one failing path, an average over no rows, is never called (measured:
+  only `GetProductReviews` and the product-question RPC).
+- **Blocked on the measurement**, no world time spent (the owner's decision); the candidates
+  doc's slot note corrected - row 4 was never the holdout. Slots 3 and 4 empty, no candidate
+  left; the missing holdout named as a gap. Next: `disk_fill` row 2.
+
 ***2026-09-30: `v2/datastore_corruption-2` rehearsed and labeled - `v2-postgresql-catalog-corruption`,
 valid on the second recording; Q120 repaired and its guard landed; Q119 cleared.***
 
