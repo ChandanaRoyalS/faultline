@@ -14,3 +14,10 @@ alone. Each output is verbatim (`docs/evidence` is excluded from the formatting 
 **Two capture lines are edited.** `1b-step4.txt` and `1b-T2.txt` end with the `ssh -t` client's
 `Connection to <address> closed.`, and the address is replaced with `<the VM>`, because the
 repository does not record the VM's address. No other byte in any capture is changed.
+
+**Step 1c** ([`PREREGISTRATION-T7.2-1c.md`](../../../evals/runs/PREREGISTRATION-T7.2-1c.md)):
+
+| file | what it is |
+|---|---|
+| `c1_preread.sh.txt` → `1c-preread.txt` | the deployment read-only before 1c's registration, 2026-09-30 11:36 UTC; the Docker Hub reply's `docker-ratelimit-source` line has the VM's address withheld as above. The script's last check (`git status`) never ran: `docker compose exec` read the rest of the script from stdin |
+| `kind_measure_1c.py.txt` | 1c's sampler: 1b's with its directory, kubeconfig, reported paths and headers changed, and nothing else |

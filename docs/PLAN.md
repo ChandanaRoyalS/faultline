@@ -4617,6 +4617,19 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-09-30: T7.2 step 1c registered - astronomy-shop deployed by SREGym beside the world.***
+
+- **The path**: SREGym's own `--use-external-harness` mode. It deploys its whole stack and one
+  problem, injects the fault and exits, with `--agent demo` so no agent image is built and no model
+  is called. The problem is `wrong_dns_policy_astronomy_shop`, from SREGym-Lite.
+- **Read at source, and handled**: SREGym opens its API on 0.0.0.0:8000 (bound to loopback by its
+  own variable) and a port-forward to its MCP server on 0.0.0.0:9954, hard-coded, which outlives
+  the run. Both ports are closed by two host firewall rules for the duration and checked from
+  outside.
+- **Outcomes**: FITS needs 3.0 GiB still available for the agent the run would add. Under 1.5 GiB,
+  a memory stall, an OOM kill, or any effect on the world is DOES NOT FIT. A deploy that fails
+  for a cause other than size is INCONCLUSIVE. Predicted FITS, with 3.7-6.7 GiB left.
+
 ***2026-09-30: T7.2 step 1b run - FITS: SREGym's kind cluster runs on the deployment beside the
 world; 1c (an application beside it) next.***
 

@@ -1,0 +1,19 @@
+# Read-only: what T7.2 step 1c would touch on the deployment, read before its registration.
+# Run on the VM through: ssh "$VM" 'bash -l -s' < ~/Downloads/c1_preread.sh > ~/Downloads/1c-preread.txt 2>&1
+echo "1c pre-read at $(date -u '+%Y-%m-%d %H:%M:%S UTC') on $(hostname), kernel $(uname -r)"
+echo "== tools on a login PATH"
+for t in uv helm kind kubectl python3 git; do printf '  %-8s ' "$t"; if command -v "$t" >/dev/null; then printf '%s  ' "$(command -v $t)"; case $t in uv) uv --version;; helm) helm version --short;; kind) kind version;; kubectl) kubectl version --client 2>&1 | head -1;; python3) python3 --version;; git) git --version;; esac; else echo "absent"; fi; done
+echo "== home paths SREGym, Helm and kind write to (present or absent now)"
+for p in ~/cache_dir ~/.kube ~/.config/helm ~/.cache/helm ~/.local/share/helm ~/t7.2-1b ~/t7.2-1c; do printf '  %-40s %s\n' "$p" "$( [ -e "$p" ] && echo present || echo absent)"; done
+echo "== ports SREGym opens on the host (API 8000, MCP 9954, k8s proxy 16443): listening now?"
+for port in 8000 9954 16443; do printf '  %-6s %s\n' "$port" "$(ss -ltnH "sport = :$port" | grep -q . && echo IN-USE || echo free)"; done
+echo "== memory, load, disk"
+free -m | sed 's/^/  /'; echo "  load: $(cat /proc/loadavg)"; df -h / | sed 's/^/  /'
+echo "== containers: $(docker ps -q | wc -l) running; images $(docker image ls -q | wc -l)"
+echo "== Docker Hub anonymous pull allowance for this address (HEAD, uses none)"
+tok=$(curl -fsS -m 10 "https://auth.docker.io/token?service=registry.docker.io&scope=repository:ratelimitpreview/test:pull" | python3 -c 'import json,sys; print(json.load(sys.stdin)["token"])' 2>/dev/null)
+if [ -n "$tok" ]; then curl -fsS -m 10 -I -H "Authorization: Bearer $tok" https://registry-1.docker.io/v2/ratelimitpreview/test/manifests/latest 2>&1 | grep -i "ratelimit" | sed 's/^/  /'; else echo "  token not obtained"; fi
+echo "== the kill switch now"
+cd ~/faultline/deploy && grep -n "KILL_SWITCH" compose.yml | sed 's/^/  /' && docker compose exec -T executor curl -fsS localhost:8100/healthz; echo
+echo "== git status of ~/faultline (empty means committed configuration)"
+cd ~/faultline && git status --short | sed 's/^/  /'; echo "  (end)"
