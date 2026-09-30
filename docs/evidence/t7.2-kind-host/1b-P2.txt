@@ -1,0 +1,178 @@
+1b sampler, phase P2, 600 s, run at 2026-09-30 10:26:03 UTC on ubuntu (6.8.0-142-generic)
+uptime: 10:26:03 up  1:19,  1 user,  load average: 1.17, 1.19, 0.81
+
+====================================================================================================
+start at 10:26:03 UTC
+  containers: 39 running of 42
+    accounting-service                 running  restarts 6   oom False started 2026-09-30T09:07:12  6.918MiB / 300MiB  0.32%
+    ad-service                         running  restarts 0   oom False started 2026-09-30T09:06:47  193.9MiB / 700MiB  0.08%
+    alertmanager                       running  restarts 0   oom False started 2026-09-30T09:19:19  14.03MiB / 200MiB  0.08%
+    cart-service                       running  restarts 0   oom False started 2026-09-30T09:06:47  139.9MiB / 400MiB  0.19%
+    checkout-service                   running  restarts 6   oom False started 2026-09-30T09:07:12  10.37MiB / 120MiB  0.00%
+    currency-service                   running  restarts 0   oom False started 2026-09-30T09:06:47  16.81MiB / 100MiB  0.03%
+    email-service                      running  restarts 0   oom False started 2026-09-30T09:06:47  65.68MiB / 250MiB  0.02%
+    faultline-deploy-caddy-1           running  restarts 0   oom False started 2026-09-30T09:06:47  51.27MiB / 15.56GiB  0.00%
+    faultline-deploy-egress-1          running  restarts 0   oom False started 2026-09-30T09:06:47  34.88MiB / 15.56GiB  0.02%
+    faultline-deploy-executor-1        running  restarts 0   oom False started 2026-09-30T09:34:18  59.16MiB / 15.56GiB  0.18%
+    faultline-deploy-faultline-1       running  restarts 0   oom False started 2026-09-30T09:06:47  139.3MiB / 15.56GiB  11.88%
+    faultline-deploy-orchestrator-1    running  restarts 0   oom False started 2026-09-30T09:06:47  55.67MiB / 15.56GiB  0.02%
+    faultline-deploy-postgres-1        running  restarts 0   oom False started 2026-09-30T09:06:47  66.95MiB / 15.56GiB  0.03%
+    faultline-deploy-prometheus-self-1 running  restarts 0   oom False started 2026-09-30T09:06:47  84.23MiB / 15.56GiB  0.00%
+    faultline-deploy-redis-1           running  restarts 0   oom False started 2026-09-30T09:06:47  13.64MiB / 15.56GiB  0.49%
+    faultline-minio-1                  exited   restarts 0   oom False started 2026-09-15T04:30:12  -  -
+    faultline-postgres-1               exited   restarts 0   oom False started 2026-09-15T04:30:11  -  -
+    faultline-redis-1                  exited   restarts 0   oom False started 2026-09-15T04:30:11  -  -
+    feature-flag-service               running  restarts 0   oom False started 2026-09-30T09:06:47  37.77MiB / 200MiB  0.15%
+    frauddetection-service             running  restarts 1   oom False started 2026-09-30T09:06:58  147.5MiB / 500MiB  0.40%
+    frontend                           running  restarts 0   oom False started 2026-09-30T09:06:47  195MiB / 500MiB  3.65%
+    frontend-proxy                     running  restarts 0   oom False started 2026-09-30T09:19:19  19.53MiB / 300MiB  0.76%
+    grafana                            running  restarts 0   oom False started 2026-09-30T09:19:17  47.78MiB / 15.56GiB  0.05%
+    jaeger                             running  restarts 0   oom False started 2026-09-30T09:06:47  194.4MiB / 275MiB  0.17%
+    kafka                              running  restarts 0   oom False started 2026-09-30T09:06:47  594.5MiB / 2GiB  1.24%
+    kind-control-plane                 running  restarts 0   oom False started 2026-09-30T10:20:08  663.7MiB / 15.56GiB  15.55%
+    kind-worker                        running  restarts 0   oom False started 2026-09-30T10:20:08  265.7MiB / 15.56GiB  4.03%
+    kind-worker2                       running  restarts 0   oom False started 2026-09-30T10:20:08  264.3MiB / 15.56GiB  3.07%
+    kind-worker3                       running  restarts 0   oom False started 2026-09-30T10:20:08  346.7MiB / 15.56GiB  3.72%
+    load-generator                     running  restarts 0   oom False started 2026-09-30T09:06:47  64.76MiB / 300MiB  0.77%
+    loki                               running  restarts 0   oom False started 2026-09-30T09:19:18  67.75MiB / 400MiB  0.51%
+    otel-col                           running  restarts 0   oom False started 2026-09-30T09:06:47  203.6MiB / 600MiB  1.20%
+    payment-service                    running  restarts 0   oom False started 2026-09-30T09:06:47  102.5MiB / 320MiB  0.18%
+    postgres                           running  restarts 0   oom False started 2026-09-30T09:06:47  48.02MiB / 200MiB  0.00%
+    product-catalog-service            running  restarts 0   oom False started 2026-09-30T09:06:47  17.45MiB / 120MiB  0.00%
+    prometheus                         running  restarts 0   oom False started 2026-09-30T09:19:17  68.02MiB / 15.56GiB  0.00%
+    promtail                           running  restarts 0   oom False started 2026-09-30T09:19:18  49.36MiB / 200MiB  0.49%
+    quoteservice                       running  restarts 0   oom False started 2026-09-30T09:06:47  59.31MiB / 200MiB  0.00%
+    recommendation-service             running  restarts 0   oom False started 2026-09-30T09:06:47  64.55MiB / 800MiB  0.14%
+    redis-cart                         running  restarts 0   oom False started 2026-09-30T09:06:47  17.44MiB / 20MiB  0.20%
+    shipping-service                   running  restarts 0   oom False started 2026-09-30T09:06:47  7.25MiB / 120MiB  0.00%
+    tempo                              running  restarts 0   oom False started 2026-09-30T09:19:18  179.1MiB / 400MiB  0.33%
+  platform container memory: anon 0.08 GiB  file 0.05 GiB (active 0.03, inactive 0.02)  shmem 0.00 GiB
+  firing alerts (0): none
+  kind clusters: kind
+    node kind-control-plane   Ready   control-plane   5m48s   v1.32.1   172.22.0.3   <none>   Debian GNU/Linux 12 (bookworm)   6.8.0-142-generic   containerd://2.0.2
+    node kind-worker          Ready   <none>          5m38s   v1.32.1   172.22.0.2   <none>   Debian GNU/Linux 12 (bookworm)   6.8.0-142-generic   containerd://2.0.2
+    node kind-worker2         Ready   <none>          5m37s   v1.32.1   172.22.0.4   <none>   Debian GNU/Linux 12 (bookworm)   6.8.0-142-generic   containerd://2.0.2
+    node kind-worker3         Ready   <none>          5m37s   v1.32.1   172.22.0.5   <none>   Debian GNU/Linux 12 (bookworm)   6.8.0-142-generic   containerd://2.0.2
+  pods: 16
+    kube-system          calico-kube-controllers-75cd4cc5b9-xbwgl     1/1   Running   0     5m34s
+    kube-system          calico-node-2l286                            1/1   Running   0     5m34s
+    kube-system          calico-node-452v5                            1/1   Running   0     5m34s
+    kube-system          calico-node-t2zbl                            1/1   Running   0     5m34s
+    kube-system          calico-node-whcr9                            1/1   Running   0     5m34s
+    kube-system          coredns-668d6bf9bc-khw2b                     1/1   Running   0     5m39s
+    kube-system          coredns-668d6bf9bc-x8brp                     1/1   Running   0     5m39s
+    kube-system          etcd-kind-control-plane                      1/1   Running   0     5m46s
+    kube-system          kube-apiserver-kind-control-plane            1/1   Running   0     5m45s
+    kube-system          kube-controller-manager-kind-control-plane   1/1   Running   0     5m45s
+    kube-system          kube-proxy-8xmt8                             1/1   Running   0     5m38s
+    kube-system          kube-proxy-ktk98                             1/1   Running   0     5m37s
+    kube-system          kube-proxy-nhqjd                             1/1   Running   0     5m39s
+    kube-system          kube-proxy-zmvk8                             1/1   Running   0     5m37s
+    kube-system          kube-scheduler-kind-control-plane            1/1   Running   0     5m45s
+    local-path-storage   local-path-provisioner-58cc7856b6-xfjc8      1/1   Running   0     5m39s
+  tools (login PATH): kind=/home/deploy/t7.2-1b/bin/kind kubectl=/home/deploy/t7.2-1b/bin/kubectl helm=none uv=/home/deploy/.local/bin/uv
+  tools (1b dir): kind kubectl
+  inotify: instances 1024 watches 1048576
+  ~/.kube exists: True
+
+====================================================================================================
+samples every 30 s
+  time      avail GiB  load1  mem-some avg10/avg60  mem-full avg10/avg60  cpu-some avg10/avg60  alerts
+  10:26:06     10.72   1.07      0.00 /   0.00          0.00 /   0.00          1.73 /   1.52  0
+  10:26:36     10.80   0.72      0.00 /   0.00          0.00 /   0.00          1.58 /   1.53  0
+  10:27:06     10.79   0.97      0.00 /   0.00          0.00 /   0.00          1.39 /   1.45  0
+  10:27:36     10.73   0.83      0.00 /   0.00          0.00 /   0.00          1.38 /   1.45  0
+  10:28:06     10.76   0.57      0.00 /   0.00          0.00 /   0.00          1.61 /   1.46  0
+  10:28:36     10.75   0.55      0.00 /   0.00          0.00 /   0.00          1.58 /   1.49  0
+  10:29:06     10.75   0.92      0.00 /   0.00          0.00 /   0.00          1.40 /   1.43  0
+  10:29:36     10.75   0.61      0.00 /   0.00          0.00 /   0.00          1.52 /   1.45  0
+  10:30:06     10.75   0.67      0.00 /   0.00          0.00 /   0.00          1.53 /   1.45  0
+  10:30:36     10.77   0.47      0.00 /   0.00          0.00 /   0.00          1.54 /   1.46  0
+  10:31:06     10.76   0.57      0.00 /   0.00          0.00 /   0.00          1.26 /   1.36  0
+  10:31:36     10.76   0.48      0.00 /   0.00          0.00 /   0.00          1.52 /   1.40  0
+  10:32:06     10.73   0.29      0.00 /   0.00          0.00 /   0.00          1.51 /   1.40  0
+  10:32:36     10.76   0.91      0.00 /   0.00          0.00 /   0.00          1.51 /   1.41  0
+  10:33:06     10.76   0.71      0.00 /   0.00          0.00 /   0.00          1.51 /   1.41  0
+  10:33:36     10.77   0.56      0.00 /   0.00          0.00 /   0.00          1.51 /   1.41  0
+  10:34:06     10.71   0.53      0.00 /   0.00          0.00 /   0.00          1.53 /   1.43  0
+  10:34:36     10.76   0.47      0.00 /   0.00          0.00 /   0.00          1.53 /   1.45  0
+  10:35:06     10.63   0.71      0.00 /   0.00          0.00 /   0.00          1.60 /   1.50  0
+  10:35:36     10.73   0.57      0.00 /   0.00          0.00 /   0.00          1.34 /   1.46  0
+  10:36:06     10.63   0.82      0.00 /   0.00          0.00 /   0.00          1.54 /   1.48  0
+
+====================================================================================================
+end at 10:36:06 UTC
+  containers: 39 running of 42
+    accounting-service                 running  restarts 6   oom False started 2026-09-30T09:07:12  7.109MiB / 300MiB  0.48%
+    ad-service                         running  restarts 0   oom False started 2026-09-30T09:06:47  194.2MiB / 700MiB  0.09%
+    alertmanager                       running  restarts 0   oom False started 2026-09-30T09:19:19  14.03MiB / 200MiB  0.08%
+    cart-service                       running  restarts 0   oom False started 2026-09-30T09:06:47  140.1MiB / 400MiB  0.66%
+    checkout-service                   running  restarts 6   oom False started 2026-09-30T09:07:12  11.28MiB / 120MiB  0.16%
+    currency-service                   running  restarts 0   oom False started 2026-09-30T09:06:47  16.82MiB / 100MiB  0.05%
+    email-service                      running  restarts 0   oom False started 2026-09-30T09:06:47  67.38MiB / 250MiB  0.13%
+    faultline-deploy-caddy-1           running  restarts 0   oom False started 2026-09-30T09:06:47  51.28MiB / 15.56GiB  0.00%
+    faultline-deploy-egress-1          running  restarts 0   oom False started 2026-09-30T09:06:47  34.88MiB / 15.56GiB  0.01%
+    faultline-deploy-executor-1        running  restarts 0   oom False started 2026-09-30T09:34:18  59.16MiB / 15.56GiB  0.20%
+    faultline-deploy-faultline-1       running  restarts 0   oom False started 2026-09-30T09:06:47  133.7MiB / 15.56GiB  0.18%
+    faultline-deploy-orchestrator-1    running  restarts 0   oom False started 2026-09-30T09:06:47  55.67MiB / 15.56GiB  0.07%
+    faultline-deploy-postgres-1        running  restarts 0   oom False started 2026-09-30T09:06:47  67.6MiB / 15.56GiB  7.89%
+    faultline-deploy-prometheus-self-1 running  restarts 0   oom False started 2026-09-30T09:06:47  84.23MiB / 15.56GiB  0.00%
+    faultline-deploy-redis-1           running  restarts 0   oom False started 2026-09-30T09:06:47  13.7MiB / 15.56GiB  0.59%
+    faultline-minio-1                  exited   restarts 0   oom False started 2026-09-15T04:30:12  -  -
+    faultline-postgres-1               exited   restarts 0   oom False started 2026-09-15T04:30:11  -  -
+    faultline-redis-1                  exited   restarts 0   oom False started 2026-09-15T04:30:11  -  -
+    feature-flag-service               running  restarts 0   oom False started 2026-09-30T09:06:47  37.77MiB / 200MiB  0.21%
+    frauddetection-service             running  restarts 1   oom False started 2026-09-30T09:06:58  147.9MiB / 500MiB  0.37%
+    frontend                           running  restarts 0   oom False started 2026-09-30T09:06:47  195MiB / 500MiB  0.95%
+    frontend-proxy                     running  restarts 0   oom False started 2026-09-30T09:19:19  19.8MiB / 300MiB  0.46%
+    grafana                            running  restarts 0   oom False started 2026-09-30T09:19:17  47.82MiB / 15.56GiB  0.06%
+    jaeger                             running  restarts 0   oom False started 2026-09-30T09:06:47  194.5MiB / 275MiB  0.43%
+    kafka                              running  restarts 0   oom False started 2026-09-30T09:06:47  595.2MiB / 2GiB  1.94%
+    kind-control-plane                 running  restarts 0   oom False started 2026-09-30T10:20:08  680.3MiB / 15.56GiB  15.83%
+    kind-worker                        running  restarts 0   oom False started 2026-09-30T10:20:08  263.1MiB / 15.56GiB  6.11%
+    kind-worker2                       running  restarts 0   oom False started 2026-09-30T10:20:08  263.7MiB / 15.56GiB  3.00%
+    kind-worker3                       running  restarts 0   oom False started 2026-09-30T10:20:08  349.9MiB / 15.56GiB  7.58%
+    load-generator                     running  restarts 0   oom False started 2026-09-30T09:06:47  65.09MiB / 300MiB  0.68%
+    loki                               running  restarts 0   oom False started 2026-09-30T09:19:18  69MiB / 400MiB  0.54%
+    otel-col                           running  restarts 0   oom False started 2026-09-30T09:06:47  202.1MiB / 600MiB  2.05%
+    payment-service                    running  restarts 0   oom False started 2026-09-30T09:06:47  102.7MiB / 320MiB  0.00%
+    postgres                           running  restarts 0   oom False started 2026-09-30T09:06:47  48.5MiB / 200MiB  0.00%
+    product-catalog-service            running  restarts 0   oom False started 2026-09-30T09:06:47  17.62MiB / 120MiB  0.00%
+    prometheus                         running  restarts 0   oom False started 2026-09-30T09:19:17  68.46MiB / 15.56GiB  0.08%
+    promtail                           running  restarts 0   oom False started 2026-09-30T09:19:18  49.48MiB / 200MiB  1.38%
+    quoteservice                       running  restarts 0   oom False started 2026-09-30T09:06:47  59.31MiB / 200MiB  0.00%
+    recommendation-service             running  restarts 0   oom False started 2026-09-30T09:06:47  64.59MiB / 800MiB  0.17%
+    redis-cart                         running  restarts 0   oom False started 2026-09-30T09:06:47  17.46MiB / 20MiB  0.22%
+    shipping-service                   running  restarts 0   oom False started 2026-09-30T09:06:47  7.266MiB / 120MiB  0.06%
+    tempo                              running  restarts 0   oom False started 2026-09-30T09:19:18  288MiB / 400MiB  0.74%
+  platform container memory: anon 0.07 GiB  file 0.05 GiB (active 0.03, inactive 0.02)  shmem 0.00 GiB
+  firing alerts (0): none
+  kind clusters: kind
+    node kind-control-plane   Ready   control-plane   15m   v1.32.1   172.22.0.3   <none>   Debian GNU/Linux 12 (bookworm)   6.8.0-142-generic   containerd://2.0.2
+    node kind-worker          Ready   <none>          15m   v1.32.1   172.22.0.2   <none>   Debian GNU/Linux 12 (bookworm)   6.8.0-142-generic   containerd://2.0.2
+    node kind-worker2         Ready   <none>          15m   v1.32.1   172.22.0.4   <none>   Debian GNU/Linux 12 (bookworm)   6.8.0-142-generic   containerd://2.0.2
+    node kind-worker3         Ready   <none>          15m   v1.32.1   172.22.0.5   <none>   Debian GNU/Linux 12 (bookworm)   6.8.0-142-generic   containerd://2.0.2
+  pods: 16
+    kube-system          calico-kube-controllers-75cd4cc5b9-xbwgl     1/1   Running   0     15m
+    kube-system          calico-node-2l286                            1/1   Running   0     15m
+    kube-system          calico-node-452v5                            1/1   Running   0     15m
+    kube-system          calico-node-t2zbl                            1/1   Running   0     15m
+    kube-system          calico-node-whcr9                            1/1   Running   0     15m
+    kube-system          coredns-668d6bf9bc-khw2b                     1/1   Running   0     15m
+    kube-system          coredns-668d6bf9bc-x8brp                     1/1   Running   0     15m
+    kube-system          etcd-kind-control-plane                      1/1   Running   0     15m
+    kube-system          kube-apiserver-kind-control-plane            1/1   Running   0     15m
+    kube-system          kube-controller-manager-kind-control-plane   1/1   Running   0     15m
+    kube-system          kube-proxy-8xmt8                             1/1   Running   0     15m
+    kube-system          kube-proxy-ktk98                             1/1   Running   0     15m
+    kube-system          kube-proxy-nhqjd                             1/1   Running   0     15m
+    kube-system          kube-proxy-zmvk8                             1/1   Running   0     15m
+    kube-system          kube-scheduler-kind-control-plane            1/1   Running   0     15m
+    local-path-storage   local-path-provisioner-58cc7856b6-xfjc8      1/1   Running   0     15m
+  tools (login PATH): kind=/home/deploy/t7.2-1b/bin/kind kubectl=/home/deploy/t7.2-1b/bin/kubectl helm=none uv=/home/deploy/.local/bin/uv
+  tools (1b dir): kind kubectl
+  inotify: instances 1024 watches 1048576
+  ~/.kube exists: True
+
+====================================================================================================
+SUMMARY P2: samples 21; avail GiB min 10.63 mean 10.74 max 10.80; load1 max 1.07; mem-some avg60 max 0.00; mem-full avg60 max 0.00; cpu-some avg60 max 1.53; restarted in window none; oom-flagged none; stopped in window none; alerts that fired in the window and were not firing at its start none

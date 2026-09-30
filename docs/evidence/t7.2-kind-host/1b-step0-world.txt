@@ -1,0 +1,125 @@
+ffs-stub:1 already built from this source (8defed3104c42adffb16b77e85396e1796f2681652d0771b99d3632358c37fde)
+cd world && docker compose --progress plain -f docker-compose.yml -f ../compose/world-arm64.override.yml -f ../compose/telemetry.yml -f ../compose/linux-host-gateway.override.yml -f ../compose/dev-tempo-otlp.override.yml up -d --no-build
+time="2026-09-30T09:18:42Z" level=warning msg="/home/deploy/faultline/world/docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+ Container recommendation-service Running 
+ Container accounting-service Running 
+ Container quoteservice Running 
+ Container checkout-service Running 
+ Container otel-col Running 
+ Container email-service Running 
+ Container ad-service Running 
+ Container kafka Running 
+ Container cart-service Running 
+ Container feature-flag-service Running 
+ Container postgres Running 
+ Container product-catalog-service Running 
+ Container frauddetection-service Running 
+ Container jaeger Running 
+ Container shipping-service Running 
+ Container load-generator Running 
+ Container currency-service Running 
+ Container payment-service Running 
+ Container frontend Running 
+ Container redis-cart Running 
+ Container prometheus Recreate 
+ Container alertmanager Recreate 
+ Container loki Recreate 
+ Container grafana Recreate 
+ Container tempo Recreate 
+ Container grafana Recreated 
+ Container frontend-proxy Recreate 
+ Container alertmanager Recreated 
+ Container prometheus Recreated 
+ Container loki Recreated 
+ Container promtail Recreate 
+ Container tempo Recreated 
+ Container frontend-proxy Recreated 
+ Container promtail Recreated 
+ Container grafana Starting 
+ Container prometheus Starting 
+ Container alertmanager Starting 
+ Container loki Starting 
+ Container tempo Starting 
+ Container postgres Waiting 
+ Container grafana Started 
+ Container prometheus Started 
+ Container postgres Healthy 
+ Container alertmanager Started 
+ Container loki Started 
+ Container promtail Starting 
+ Container tempo Started 
+ Container kafka Waiting 
+ Container kafka Waiting 
+ Container kafka Waiting 
+ Container promtail Started 
+ Container kafka Healthy 
+ Container kafka Healthy 
+ Container frontend-proxy Starting 
+ Container kafka Healthy 
+uv run python scripts/provision_dashboards.py
+ Container frontend-proxy Started 
+Provisioning 2 dashboard(s) to http://localhost:3000/grafana
+  faultline-self.json -> http://localhost:3000/grafana/grafana/d/faultline-self/faultline-self (version 1)
+  shop-health.json -> http://localhost:3000/grafana/grafana/d/faultline-shop-health/faultline-shop-health (version 1)
+  datasource faultline-self-metrics -> http://host.docker.internal:9091 (created)
+time="2026-09-30T09:18:56Z" level=warning msg="/home/deploy/faultline/world/docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+ Container checkout-service Running 
+ Container ad-service Running 
+ Container payment-service Running 
+ Container redis-cart Running 
+ Container feature-flag-service Running 
+ Container recommendation-service Running 
+ Container quoteservice Running 
+ Container postgres Running 
+ Container kafka Running 
+ Container frauddetection-service Running 
+ Container frontend Running 
+ Container load-generator Running 
+ Container accounting-service Running 
+ Container jaeger Running 
+ Container otel-col Running 
+ Container shipping-service Running 
+ Container cart-service Running 
+ Container email-service Running 
+ Container product-catalog-service Running 
+ Container currency-service Running 
+ Container grafana Recreate 
+ Container alertmanager Recreate 
+ Container loki Recreate 
+ Container tempo Recreate 
+ Container prometheus Recreate 
+ Container alertmanager Recreated 
+ Container grafana Recreated 
+ Container frontend-proxy Recreate 
+ Container prometheus Recreated 
+ Container loki Recreated 
+ Container promtail Recreate 
+ Container tempo Recreated 
+ Container frontend-proxy Recreated 
+ Container promtail Recreated 
+ Container grafana Starting 
+ Container prometheus Starting 
+ Container tempo Starting 
+ Container loki Starting 
+ Container alertmanager Starting 
+ Container postgres Waiting 
+ Container grafana Started 
+ Container postgres Healthy 
+ Container prometheus Started 
+ Container tempo Started 
+ Container kafka Waiting 
+ Container kafka Waiting 
+ Container kafka Waiting 
+ Container loki Started 
+ Container promtail Starting 
+ Container kafka Healthy 
+ Container kafka Healthy 
+ Container frontend-proxy Starting 
+ Container kafka Healthy 
+ Container promtail Started 
+ Container alertmanager Started 
+ Container frontend-proxy Started 
+Provisioning 2 dashboard(s) to http://localhost:3000/grafana
+  faultline-self.json -> http://localhost:3000/grafana/grafana/d/faultline-self/faultline-self (version 1)
+  shop-health.json -> http://localhost:3000/grafana/grafana/d/faultline-shop-health/faultline-shop-health (version 1)
+  datasource faultline-self-metrics -> http://prometheus-self:9090 (created)
