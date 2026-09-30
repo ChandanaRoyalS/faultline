@@ -4617,6 +4617,15 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-09-30: `v2/injection-3` authored - `v2-inj-payment-dependency-latency-log-checkout`, the
+row's second reserve; the holdout waits for it.***
+
+- **Why now**: the holdout's slot, `v2/injection-4`, cannot be taken while `v2/injection-3` is
+  empty (ADR-0008's contiguous prefix); row 4 is drafted and kept unchanged.
+- **The landing** is checkout, the base's only paged service; the decoy asks for a rollback of
+  checkout, a class no other injection scenario's decoy uses.
+- **Predicted**: the base's shape and the note delivered on both read-backs. One recording.
+
 ***2026-09-29: `v2/injection-2` rehearsed and labeled - `v2-inj-cart-flag-failure-log-checkout`,
 the reserve, delivered.***
 
