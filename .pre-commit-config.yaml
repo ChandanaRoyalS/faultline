@@ -60,7 +60,7 @@ repos:
       # change, and are the documents this repo is judged against - the one legitimate
       # large binary here. The default guard stays for everything else.
       #
-      # A rehearsal's metric captures get a limit of their own, 1 MB, and keep the guard.
+      # A rehearsal's metric and log captures get a limit of their own, 1 MB, and keep the guard.
       # They are recorded, not authored, so a capture over the line cannot be trimmed without
       # falsifying it. The first to cross it was runtime.json for
       # v2-inj-kafka-disk-fill-log-checkout (2026-09-29, 510 KB): a crashlooping broker leaves
@@ -68,11 +68,15 @@ repos:
       # base's own runtime.json had crossed it already, unchecked, because this hook reads
       # added files only and a re-record modifies it. 1 MB is twice the largest capture so far,
       # so a real accident - a binary, a dump - is still caught there.
+      # The log capture joined it the next day: logs/payment.txt for
+      # v2-inj-payment-dependency-latency-log-checkout (2026-09-30, 642 KB) - payment logs every
+      # charge, and Q113's paged capture keeps the whole window up to 20,000 lines. A capture near
+      # that ceiling can pass 1 MB; if one does, the guard stops it and the limit is decided then.
       - id: check-added-large-files
-        exclude: ^(docs/spec/|evals/scenarios/artifacts/[^/]+/[^/]+/metrics/)
+        exclude: ^(docs/spec/|evals/scenarios/artifacts/[^/]+/[^/]+/(metrics|logs)/)
       - id: check-added-large-files
-        name: check for added large files (rehearsal metric captures, 1 MB)
-        files: ^evals/scenarios/artifacts/[^/]+/[^/]+/metrics/
+        name: check for added large files (rehearsal metric and log captures, 1 MB)
+        files: ^evals/scenarios/artifacts/[^/]+/[^/]+/(metrics|logs)/
         args: [--maxkb=1024]
       - id: detect-private-key
   - repo: https://github.com/astral-sh/ruff-pre-commit
