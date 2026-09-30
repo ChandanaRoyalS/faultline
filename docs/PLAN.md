@@ -4617,6 +4617,13 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-09-30: the rehearsal capture limit covers log captures too - payment's is 642 KB.***
+
+- **Why**: payment logs every charge, and Q113's paged capture keeps the whole window. The capture
+  is recorded, not authored, and cannot be trimmed.
+- **The guard stays**: 1 MB for metric and log captures, 500 KB for everything else. A capture
+  near Q113's 20,000-line ceiling can pass 1 MB; the limit is decided then, not now.
+
 ***2026-09-30: `v2/injection-3` authored - `v2-inj-payment-dependency-latency-log-checkout`, the
 row's second reserve; the holdout waits for it.***
 
