@@ -4617,6 +4617,19 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-09-30: `v2/datastore_corruption-2` authored - `v2-postgresql-catalog-corruption`, the store
+that answers and the catalog that cannot read what it holds; Q119 opened.***
+
+- **Slot**: the row's second, dev; row 2's candidate left no scenario file (A9 blocked it by hand).
+- **Measured first**, read-only: the table at rest with the shipped fingerprint; recommendation
+  the list's only caller; product-catalog with **no runtime series** (Q119) and postgresql none;
+  the target's log two checkpoint lines every five minutes.
+- **Predicted**: five error-rate alerts in one evaluation at three to four minutes with the
+  catalog among them, checkout a minute later, the six order-only services silent at the fix's
+  edge; the reader's words in recommendation's log; spans failing over database spans that
+  succeed; `answers_idle_or_absent: []` declared; `restore_data`.
+- **Before recording**: the world check, an empty injector, and R6's lines older than 35 minutes.
+
 ***2026-09-30: R6 run - the SQL tool rehearsed through the injector and the agent's tools; row 3
 may be authored.***
 
