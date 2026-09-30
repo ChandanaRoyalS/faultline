@@ -4617,6 +4617,19 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-09-30: R6 run - the SQL tool rehearsed through the injector and the agent's tools; row 3
+may be authored.***
+
+- **Injects** A10's write to the character and A10's page within half a minute: the same five
+  services in one evaluation at +3:31, checkout at +4:31, the six order-only services silent at
+  +7:31. One registered prediction wrong: a short latency alert on fraud-detection once orders stop.
+- **Visible**: recommendation's log names the NULL and the column one second after the inject;
+  the catalog's spans fail over database queries that succeed, `Product Not Found` on five ids the
+  table holds - A10's (d) claim, seen - and the hop line ends at the catalog. Change history
+  unavailable, as registered.
+- **Restores** to the shipped fingerprint, idempotently; all clear inside 5m01s, nothing restarted.
+  Next: author `v2-postgresql-catalog-corruption` into `v2/datastore_corruption-2`'s free slot.
+
 ***2026-09-30: `datastore_corruption`'s SQL tool in the injector, and R6 registered to rehearse it.***
 
 - **The tool**: `DatastoreCorruptionFault` gains a second mechanism, chosen by a `table` param:

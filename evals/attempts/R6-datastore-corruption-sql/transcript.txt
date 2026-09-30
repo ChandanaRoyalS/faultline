@@ -1,0 +1,565 @@
+R6 - datastore_corruption on a SQL table, rehearsed through the injector: v2-postgresql-catalog-corruption.
+Run 2026-09-30 05:04:02 -> 05:25:05 UTC on the Mac, zsh, FAULTLINE_TOOLS_WORLD=v2. Protocol:
+evals/runs/REHEARSAL-T7.1-R6.md (REHEARSALS-T7.0.md's seven steps). One block, pasted verbatim from
+terminal 1; the inject was conditional on the world check's ALL PASS and on `status` printing no
+active injections. Then the three read-backs the block wrote to files, each verbatim, and the
+tail of the integration test run on the Mac before the tool merged. Trailing spaces are trimmed;
+nothing else is changed.
+
+=== 0. the tool's integration test, on the Mac before merge (0289, real Postgres through Docker) ===
+
+$ uv run pytest -m integration -o addopts=-q tests/test_integration_sql_corruption.py 2>&1 | tee ~/Downloads/r6-integration.txt | tail -8; echo "itest exit=${pipestatus[1]}"
+...                                                                      [100%]
+3 passed in 5.55s
+itest exit=0
+
+=== 1-6. the block: pre-state, inject, observe, read back, restore, recover ===
+
+PASS  loki /ready                                  200
+PASS  tempo /ready                                 200
+PASS  promtail running                             running
+PASS  cart store-command spans (Q116)              2.89/s over 10m (defined: about 2)
+PASS  no container but grafana >= 85 % memory      none
+PASS  nothing firing                               none
+PASS  kafka running (Q114)                         running restarts=0 started=2026-09-29T03:57:22.310992764Z
+PASS  kafka tmpfs under 50 % used                  1%
+PASS  kafka log directory writable by the broker's user writable
+
+ALL PASS
+no active injections
+05:04:02 R6 inject
+injected v2-postgresql-catalog-corruption (datastore_corruption) on postgresql
+  - psql on postgresql: catalog.products.description set to NULL on all 10 rows (fingerprint f9b57aae49e7ad4305e3120a54fdc20d -> ea4a8cf36bcb834d426c151c896148e4; the 10 values are saved in the injector's state, outside the store)
+  - no change record: the store is healthy and its contents are wrong
+revert with: faultline-inject stop v2-postgresql-catalog-corruption
+1 active injection(s)  [state: /Users/chandana/dev/faultline/.faultline/injections.json]
+
+v2-postgresql-catalog-corruption
+    class  : datastore_corruption
+    target : postgresql
+    started: 2026-09-30T05:04:02.909271+00:00 (0s ago)
+    params : table=catalog.products, column=description, key=id, database=otel, user=root
+    revert : write 10 saved catalog.products.description values back on postgresql and check the fingerprint
+05:04:03  quiet
+05:04:33  quiet
+05:05:03  quiet
+05:05:33  quiet
+05:06:03  quiet
+05:06:33  quiet
+05:07:03  quiet
+05:07:33  ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighErrorRate/product-catalog, ServiceHighErrorRate/recommendation
+05:08:03  ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighErrorRate/product-catalog, ServiceHighErrorRate/recommendation
+05:08:33  ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighErrorRate/product-catalog, ServiceHighErrorRate/recommendation
+05:09:03  ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighErrorRate/product-catalog, ServiceHighErrorRate/recommendation
+05:09:33  ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighErrorRate/product-catalog, ServiceHighErrorRate/recommendation
+05:10:03  ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighErrorRate/product-catalog, ServiceHighErrorRate/recommendation
+05:10:33  ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighErrorRate/product-catalog, ServiceHighErrorRate/recommendation
+05:11:03  ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighErrorRate/product-catalog, ServiceHighErrorRate/recommendation
+05:11:33  ServiceHighErrorRate/checkout, ServiceHighErrorRate/fraud-detection, ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighErrorRate/product-catalog, ServiceHighErrorRate/recommendation, ServiceNoTraffic/accounting, ServiceNoTraffic/currency, ServiceNoTraffic/email, ServiceNoTraffic/payment, ServiceNoTraffic/quote, ServiceNoTraffic/shipping
+05:12:03  ServiceHighErrorRate/checkout, ServiceHighErrorRate/fraud-detection, ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighErrorRate/product-catalog, ServiceHighErrorRate/recommendation, ServiceNoTraffic/accounting, ServiceNoTraffic/currency, ServiceNoTraffic/email, ServiceNoTraffic/payment, ServiceNoTraffic/quote, ServiceNoTraffic/shipping
+05:12:33  ServiceHighErrorRate/checkout, ServiceHighErrorRate/fraud-detection, ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighErrorRate/product-catalog, ServiceHighErrorRate/recommendation, ServiceHighLatency/fraud-detection, ServiceNoTraffic/accounting, ServiceNoTraffic/currency, ServiceNoTraffic/email, ServiceNoTraffic/payment, ServiceNoTraffic/quote, ServiceNoTraffic/shipping
+05:13:03  ServiceHighErrorRate/checkout, ServiceHighErrorRate/fraud-detection, ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighErrorRate/product-catalog, ServiceHighErrorRate/recommendation, ServiceHighLatency/fraud-detection, ServiceNoTraffic/accounting, ServiceNoTraffic/currency, ServiceNoTraffic/email, ServiceNoTraffic/payment, ServiceNoTraffic/quote, ServiceNoTraffic/shipping
+05:13:33  ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighErrorRate/product-catalog, ServiceHighErrorRate/recommendation, ServiceNoTraffic/accounting, ServiceNoTraffic/currency, ServiceNoTraffic/email, ServiceNoTraffic/payment, ServiceNoTraffic/quote, ServiceNoTraffic/shipping
+05:14:03  ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighErrorRate/product-catalog, ServiceHighErrorRate/recommendation, ServiceNoTraffic/accounting, ServiceNoTraffic/currency, ServiceNoTraffic/email, ServiceNoTraffic/payment, ServiceNoTraffic/quote, ServiceNoTraffic/shipping
+05:14:33  ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighErrorRate/product-catalog, ServiceHighErrorRate/recommendation, ServiceNoTraffic/accounting, ServiceNoTraffic/currency, ServiceNoTraffic/email, ServiceNoTraffic/payment, ServiceNoTraffic/quote, ServiceNoTraffic/shipping
+05:15:03  ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighErrorRate/product-catalog, ServiceHighErrorRate/recommendation, ServiceNoTraffic/accounting, ServiceNoTraffic/currency, ServiceNoTraffic/email, ServiceNoTraffic/payment, ServiceNoTraffic/quote, ServiceNoTraffic/shipping
+05:15:33  ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighErrorRate/product-catalog, ServiceHighErrorRate/recommendation, ServiceNoTraffic/accounting, ServiceNoTraffic/currency, ServiceNoTraffic/email, ServiceNoTraffic/payment, ServiceNoTraffic/quote, ServiceNoTraffic/shipping
+== firing ==
+  ServiceHighErrorRate/checkout
+  ServiceNoTraffic/email
+  ServiceHighErrorRate/frontend-proxy
+  ServiceHighErrorRate/frontend
+  ServiceHighErrorRate/recommendation
+  ServiceHighErrorRate/load-generator
+  ServiceHighErrorRate/product-catalog
+  ServiceNoTraffic/shipping
+  ServiceNoTraffic/accounting
+  ServiceNoTraffic/currency
+  ServiceNoTraffic/payment
+  ServiceNoTraffic/quote
+
+== per service, [5m] ==
+  service                 err%    p95ms   req/s
+  accounting               nan      nan   0.000
+  ad                      1.14        2   0.367
+  cart                    0.00        2   2.846
+  checkout               50.00        2   0.500
+  currency                0.00      nan   0.000
+  email                   0.00      nan   0.000
+  flagd                   0.49        2   0.850
+  fraud-detection          nan      nan   0.000
+  frontend               53.72       23  10.363
+  frontend-proxy         52.83       30   5.229
+  image-provider          0.00        2   0.100
+  kafka                   0.00      nan   0.000
+  load-generator         28.50       36   4.854
+  payment                 0.00      nan   0.000
+  product-catalog        50.00        2   2.750
+  product-reviews         0.45       41   0.921
+  quote                   0.00      nan   0.000
+  recommendation         66.67        5   0.650
+  shipping                0.00      nan   0.000
+
+== silent: running, and no span metrics in [5m] ==
+  none
+
+== quote's clock (Q98) ==
+  current: 2 of quote's own series are landing
+
+== docker state (not agent-visible) ==
+  alertmanager         exited     Exited (255) 31 hours ago
+  faultline-minio-1    exited     Exited (255) 8 days ago
+  faultline-postgres-1 exited     Exited (255) 8 days ago
+  faultline-prometheus-self-1 exited     Exited (255) 9 days ago
+  faultline-redis-1    exited     Exited (255) 8 days ago
+  nostalgic_volhard    created    Created
+  (only containers not plainly running are listed)
+
+== last 8 log lines: product-catalog ==
+  2026/09/28 00:05:08 failed to upload metrics: context deadline exceeded: rpc error: code = DeadlineExceeded desc = context deadline exceeded
+  2026/09/28 00:06:08 failed to upload metrics: context deadline exceeded: rpc error: code = DeadlineExceeded desc = context deadline exceeded
+  2026/09/28 00:07:08 failed to upload metrics: context deadline exceeded: rpc error: code = DeadlineExceeded desc = context deadline exceeded
+  2026/09/28 00:08:08 failed to upload metrics: context deadline exceeded: rpc error: code = DeadlineExceeded desc = context deadline exceeded
+  2026/09/28 00:09:08 failed to upload metrics: context deadline exceeded: rpc error: code = DeadlineExceeded desc = context deadline exceeded
+  2026/09/28 00:10:08 failed to upload metrics: context deadline exceeded: rpc error: code = DeadlineExceeded desc = context deadline exceeded
+  2026/09/28 00:11:08 failed to upload metrics: context deadline exceeded: rpc error: code = DeadlineExceeded desc = context deadline exceeded
+  2026/09/28 00:12:08 failed to upload metrics: context deadline exceeded: rpc error: code = DeadlineExceeded desc = context deadline exceeded
+readback window 05:04..05:15
+product-catalog readback exit=0
+recommendation readback exit=0
+postgresql readback exit=0
+05:15:34 R6 restore
+reverted v2-postgresql-catalog-corruption
+  - psql on postgresql: 10 saved catalog.products.description values written back; fingerprint f9b57aae49e7ad4305e3120a54fdc20d, as before the write
+no active injections
+v2-postgresql-catalog-corruption is not active; nothing to revert
+05:15:35  ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighErrorRate/product-catalog, ServiceHighErrorRate/recommendation, ServiceNoTraffic/accounting, ServiceNoTraffic/currency, ServiceNoTraffic/email, ServiceNoTraffic/payment, ServiceNoTraffic/quote, ServiceNoTraffic/shipping
+05:16:05  ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighErrorRate/product-catalog, ServiceHighErrorRate/recommendation, ServiceNoTraffic/accounting, ServiceNoTraffic/currency, ServiceNoTraffic/email, ServiceNoTraffic/payment, ServiceNoTraffic/quote, ServiceNoTraffic/shipping
+05:16:35  ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighErrorRate/product-catalog, ServiceHighErrorRate/recommendation
+05:17:05  ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighErrorRate/product-catalog, ServiceHighErrorRate/recommendation
+05:17:35  ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighErrorRate/product-catalog, ServiceHighErrorRate/recommendation
+05:18:05  ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighErrorRate/product-catalog, ServiceHighErrorRate/recommendation
+05:18:35  ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighErrorRate/product-catalog, ServiceHighErrorRate/recommendation
+05:19:05  ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighErrorRate/product-catalog, ServiceHighErrorRate/recommendation
+05:19:35  ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/recommendation
+05:20:05  ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/recommendation
+05:20:35  quiet
+05:21:05  quiet
+05:21:35  quiet
+05:22:05  quiet
+05:22:35  quiet
+05:23:05  quiet
+05:23:35  quiet
+05:24:05  quiet
+05:24:35  quiet
+05:25:05  quiet
+/product-catalog restarts=2 started=2026-09-28T22:20:25.022258002Z
+/postgresql restarts=0 started=2026-09-28T22:20:23.057300001Z
+/recommendation restarts=0 started=2026-09-28T22:20:23.129344001Z
+/checkout restarts=2 started=2026-09-29T03:57:37.334377965Z
+
+=== 4. read-back: ~/Downloads/r6-rb-product-catalog.txt, as written by evalharness.readback ===
+
+== product-catalog over 05:04..05:15 UTC, world v2 ==
+
+-- promql_query error-ratio --
+query: sum by(service_name) (rate(traces_span_metrics_calls_total{service_name="product-catalog",status_code="STATUS_CODE_ERROR"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name="product-catalog"}[5m]))
+1 series
+  {service_name=product-catalog} min=0 max=0.5 n=23
+
+-- promql_query latency-p95 --
+query: histogram_quantile(0.95, sum by(service_name, le) (rate(traces_span_metrics_duration_milliseconds_bucket{service_name="product-catalog",span_kind!="SPAN_KIND_INTERNAL"}[5m])))
+1 series
+  {service_name=product-catalog} min=1.906 max=3.861 n=23
+
+-- logql_query --
+no log lines matched {service="product-catalog"} over this window
+
+-- trace_query (errors only) --
+service: product-catalog
+10 trace(s) shown of 10 found, 126 spans; offsets are from each trace's root
+
+trace 25a11026f8361f49  root load-generator/user_checkout_single  11.3ms  started 2026-09-30T05:14:11.504665+00:00  16 spans
+  +0.0ms load-generator/user_checkout_single 11.3ms [self 8.1ms]
+    +8.0ms load-generator/POST 3.2ms [self 0.5ms]  ERROR
+      +8.2ms frontend-proxy/ingress 2.7ms [self 0.1ms]  ERROR
+        +8.2ms frontend-proxy/router frontend egress 2.6ms [self 0.1ms]  ERROR
+          +8.3ms frontend/POST 2.5ms [self 0.1ms]  ERROR
+            +8.3ms frontend/POST /api/checkout 2.4ms [self 0.3ms]  ERROR
+              +8.3ms frontend/executing api route (pages) /api/checkout 2.1ms [self 0.5ms]  ERROR
+                +8.3ms frontend/grpc.oteldemo.CheckoutService/PlaceOrder 1.6ms [self 0.5ms]  ERROR
+                  +9.1ms checkout/oteldemo.CheckoutService/PlaceOrder 1.1ms [self 0.1ms]  ERROR: failed to prepare order: failed to get product #"HQTGWGPNH4"
+                    +9.2ms checkout/prepareOrderItemsAndShippingQuoteFromCart 1.0ms [self 0.0ms]
+                      +9.7ms checkout/oteldemo.ProductCatalogService/GetProduct 0.5ms [self 0.2ms]  ERROR: Product Not Found: HQTGWGPNH4
+                        +9.8ms product-catalog/oteldemo.ProductCatalogService/GetProduct 0.3ms [self 0.1ms]  ERROR: Product Not Found: HQTGWGPNH4
+                          +9.9ms product-catalog/sql.conn.query 0.3ms [self 0.3ms]
+                      +9.2ms checkout/oteldemo.CartService/GetCart 0.5ms [self 0.2ms]
+                        +9.3ms cart/POST /oteldemo.CartService/GetCart 0.3ms [self 0.1ms]
+                          +9.4ms cart/HGET 0.2ms [self 0.2ms]
+  degrading hop: checkout/oteldemo.ProductCatalogService/GetProduct -> product-catalog/oteldemo.ProductCatalogService/GetProduct  0.3ms, 3% of the trace (error)
+
+trace 30fa30b7c5f88fb5  root load-generator/user_add_to_cart  9.9ms  started 2026-09-30T05:14:12.178164+00:00  24 spans
+  +0.0ms load-generator/user_add_to_cart 9.9ms [self 0.8ms]
+    +5.2ms load-generator/POST 4.7ms [self 0.7ms]
+      +5.6ms frontend-proxy/ingress 4.0ms [self 0.2ms]
+        +5.6ms frontend-proxy/router frontend egress 3.8ms [self 0.2ms]
+          +4.8ms frontend/POST 3.5ms [self 0.2ms]
+            +5.8ms frontend/POST /api/cart 3.4ms [self 0.4ms]
+              +5.8ms frontend/executing api route (pages) /api/cart 3.0ms [self 0.3ms]
+                +5.8ms frontend/grpc.oteldemo.CartService/AddItem 2.0ms [self 0.7ms]
+                  +6.8ms cart/POST /oteldemo.CartService/AddItem 1.3ms [self 0.6ms]
+                    +7.4ms cart/HGET 0.3ms [self 0.3ms]
+                    +7.7ms cart/HMSET 0.2ms [self 0.2ms]
+                    +7.9ms cart/EXPIRE 0.2ms [self 0.2ms]
+                +7.8ms frontend/grpc.oteldemo.CartService/GetCart 0.7ms [self 0.5ms]
+                  +8.7ms cart/POST /oteldemo.CartService/GetCart 0.2ms [self 0.1ms]
+                    +8.7ms cart/HGET 0.2ms [self 0.2ms]
+    +0.4ms load-generator/GET 4.5ms [self 1.0ms]  ERROR
+      +0.9ms frontend-proxy/ingress 3.5ms [self 0.2ms]  ERROR
+        +1.0ms frontend-proxy/router frontend egress 3.3ms [self 0.4ms]  ERROR
+          +0.8ms frontend/GET 2.9ms [self 0.3ms]  ERROR
+            +0.8ms frontend/GET /api/products/{productId} 2.6ms [self 0.6ms]  ERROR
+              +1.8ms frontend/executing api route (pages) /api/products/[productId]/index 2.0ms [self 0.7ms]  ERROR
+                +1.8ms frontend/grpc.oteldemo.ProductCatalogService/GetProduct 1.3ms [self 0.7ms]  ERROR
+                  +2.8ms product-catalog/oteldemo.ProductCatalogService/GetProduct 0.5ms [self 0.1ms]  ERROR: Product Not Found: 2ZYFJ3GM2N
+                    +2.9ms product-catalog/sql.conn.query 0.4ms [self 0.4ms]
+  degrading hop: frontend/grpc.oteldemo.ProductCatalogService/GetProduct -> product-catalog/oteldemo.ProductCatalogService/GetProduct  0.5ms, 5% of the trace (error)
+
+trace 4cd635e40de30eb3  root load-generator/user_browse_product  10.1ms  started 2026-09-30T05:14:55.110783+00:00  10 spans
+  +0.0ms load-generator/user_browse_product 10.1ms [self 1.6ms]
+    +1.4ms load-generator/GET 8.5ms [self 2.0ms]  ERROR
+      +2.6ms frontend-proxy/ingress 6.5ms [self 0.4ms]  ERROR
+        +3.0ms frontend-proxy/router frontend egress 6.1ms [self 0.7ms]  ERROR
+          +3.2ms frontend/GET 5.4ms [self 0.7ms]  ERROR
+            +4.2ms frontend/GET /api/products/{productId} 4.7ms [self 1.4ms]  ERROR
+              +5.2ms frontend/executing api route (pages) /api/products/[productId]/index 3.3ms [self 1.1ms]  ERROR
+                +5.2ms frontend/grpc.oteldemo.ProductCatalogService/GetProduct 2.2ms [self 1.4ms]  ERROR
+                  +6.9ms product-catalog/oteldemo.ProductCatalogService/GetProduct 0.8ms [self 0.2ms]  ERROR: Product Not Found: OLJCESPC7Z
+                    +7.1ms product-catalog/sql.conn.query 0.6ms [self 0.6ms]
+  degrading hop: frontend/grpc.oteldemo.ProductCatalogService/GetProduct -> product-catalog/oteldemo.ProductCatalogService/GetProduct  0.8ms, 8% of the trace (error)
+
+trace fa2b2658b6dce9b9  root load-generator/user_get_recommendations  10.8ms  started 2026-09-30T05:14:57.650082+00:00  13 spans
+  +0.0ms load-generator/user_get_recommendations 10.8ms [self 0.6ms]
+    +0.5ms load-generator/GET 10.2ms [self 1.2ms]  ERROR
+      +0.9ms frontend-proxy/ingress 9.0ms [self 0.2ms]  ERROR
+        +1.1ms frontend-proxy/router frontend egress 8.8ms [self 0.6ms]  ERROR
+          +0.9ms frontend/GET 8.1ms [self 0.4ms]  ERROR
+            +0.9ms frontend/GET /api/recommendations 7.7ms [self 0.9ms]  ERROR
+              +1.9ms frontend/executing api route (pages) /api/recommendations 6.8ms [self 1.0ms]  ERROR
+                +1.9ms frontend/grpc.oteldemo.RecommendationService/ListRecommendations 5.9ms [self 2.5ms]  ERROR
+                  +4.3ms recommendation//oteldemo.RecommendationService/ListRecommendations 3.4ms [self 0.9ms]
+                    +4.3ms recommendation/get_product_list 2.5ms [self 0.7ms]  ERROR: _InactiveRpcError: <_InactiveRpcError of RPC that terminated with: status = StatusCode.INTERNAL details = "failed to load products: failed to get products from rows: failed to scan product row: sql: S
+                      +4.5ms recommendation//oteldemo.ProductCatalogService/ListProducts 1.8ms [self 1.2ms]  ERROR: _InactiveRpcError: <_InactiveRpcError of RPC that terminated with: status = StatusCode.INTERNAL details = "failed to load products: failed to get products from rows: failed to scan product row: sql: S
+                        +5.0ms product-catalog/oteldemo.ProductCatalogService/ListProducts 0.6ms [self 0.2ms]  ERROR: failed to load products: failed to get products from rows: failed to scan product row: sql: Scan error on column index 2, name "description": converting NULL to string is unsupported
+                          +5.1ms product-catalog/sql.conn.query 0.4ms [self 0.4ms]
+  degrading hop: recommendation//oteldemo.ProductCatalogService/ListProducts -> product-catalog/oteldemo.ProductCatalogService/ListProducts  0.6ms, 5% of the trace (error)
+
+trace a0542cba407ba55e  root load-generator/user_get_recommendations  7.4ms  started 2026-09-30T05:14:57.682302+00:00  13 spans
+  +0.0ms load-generator/user_get_recommendations 7.4ms [self 0.4ms]
+    +0.3ms load-generator/GET 7.0ms [self 0.9ms]  ERROR
+      +0.7ms frontend-proxy/ingress 6.0ms [self 0.2ms]  ERROR
+        +0.8ms frontend-proxy/router frontend egress 5.9ms [self 0.4ms]  ERROR
+          +0.7ms frontend/GET 5.5ms [self 0.2ms]  ERROR
+            +0.7ms frontend/GET /api/recommendations 5.3ms [self 0.5ms]  ERROR
+              +1.7ms frontend/executing api route (pages) /api/recommendations 4.8ms [self 0.7ms]  ERROR
+                +1.7ms frontend/grpc.oteldemo.RecommendationService/ListRecommendations 4.1ms [self 1.7ms]  ERROR
+                  +2.7ms recommendation//oteldemo.RecommendationService/ListRecommendations 2.4ms [self 0.7ms]
+                    +2.8ms recommendation/get_product_list 1.7ms [self 0.5ms]  ERROR: _InactiveRpcError: <_InactiveRpcError of RPC that terminated with: status = StatusCode.INTERNAL details = "failed to load products: failed to get products from rows: failed to scan product row: sql: S
+                      +2.9ms recommendation//oteldemo.ProductCatalogService/ListProducts 1.2ms [self 0.8ms]  ERROR: _InactiveRpcError: <_InactiveRpcError of RPC that terminated with: status = StatusCode.INTERNAL details = "failed to load products: failed to get products from rows: failed to scan product row: sql: S
+                        +3.2ms product-catalog/oteldemo.ProductCatalogService/ListProducts 0.4ms [self 0.1ms]  ERROR: failed to load products: failed to get products from rows: failed to scan product row: sql: Scan error on column index 2, name "description": converting NULL to string is unsupported
+                          +3.2ms product-catalog/sql.conn.query 0.3ms [self 0.3ms]
+  degrading hop: recommendation//oteldemo.ProductCatalogService/ListProducts -> product-catalog/oteldemo.ProductCatalogService/ListProducts  0.4ms, 6% of the trace (error)
+
+trace b7327f0cd6cc8098  root load-generator/user_browse_product  6.2ms  started 2026-09-30T05:14:57.972685+00:00  10 spans
+  +0.0ms load-generator/user_browse_product 6.2ms [self 0.6ms]
+    +0.5ms load-generator/GET 5.6ms [self 1.0ms]  ERROR
+      +1.0ms frontend-proxy/ingress 4.5ms [self 0.2ms]  ERROR
+        +1.1ms frontend-proxy/router frontend egress 4.3ms [self 0.7ms]  ERROR
+          +1.3ms frontend/GET 3.7ms [self 0.4ms]  ERROR
+            +1.3ms frontend/GET /api/products/{productId} 3.3ms [self 0.8ms]  ERROR
+              +2.3ms frontend/executing api route (pages) /api/products/[productId]/index 2.4ms [self 0.8ms]  ERROR
+                +2.3ms frontend/grpc.oteldemo.ProductCatalogService/GetProduct 1.7ms [self 1.0ms]  ERROR
+                  +3.7ms product-catalog/oteldemo.ProductCatalogService/GetProduct 0.7ms [self 0.2ms]  ERROR: Product Not Found: 2ZYFJ3GM2N
+                    +3.8ms product-catalog/sql.conn.query 0.5ms [self 0.5ms]
+  degrading hop: frontend/grpc.oteldemo.ProductCatalogService/GetProduct -> product-catalog/oteldemo.ProductCatalogService/GetProduct  0.7ms, 11% of the trace (error)
+
+trace 60b85d44540e2565  root load-generator/user_browse_product  6.1ms  started 2026-09-30T05:14:58.826380+00:00  10 spans
+  +0.0ms load-generator/user_browse_product 6.1ms [self 0.8ms]
+    +0.7ms load-generator/GET 5.2ms [self 1.1ms]  ERROR
+      +1.2ms frontend-proxy/ingress 4.1ms [self 0.2ms]  ERROR
+        +1.4ms frontend-proxy/router frontend egress 3.9ms [self 0.5ms]  ERROR
+          +1.6ms frontend/GET 3.4ms [self 0.4ms]  ERROR
+            +1.6ms frontend/GET /api/products/{productId} 3.1ms [self 0.8ms]  ERROR
+              +2.6ms frontend/executing api route (pages) /api/products/[productId]/index 2.3ms [self 0.8ms]  ERROR
+                +2.6ms frontend/grpc.oteldemo.ProductCatalogService/GetProduct 1.5ms [self 0.9ms]  ERROR
+                  +3.6ms product-catalog/oteldemo.ProductCatalogService/GetProduct 0.6ms [self 0.1ms]  ERROR: Product Not Found: L9ECAV7KIM
+                    +3.7ms product-catalog/sql.conn.query 0.4ms [self 0.4ms]
+  degrading hop: frontend/grpc.oteldemo.ProductCatalogService/GetProduct -> product-catalog/oteldemo.ProductCatalogService/GetProduct  0.6ms, 9% of the trace (error)
+
+trace 8a530356bb2c54e1  root load-generator/user_browse_product  9.4ms  started 2026-09-30T05:14:59.336041+00:00  10 spans
+  +0.0ms load-generator/user_browse_product 9.4ms [self 0.5ms]
+    +0.3ms load-generator/GET 8.9ms [self 1.9ms]  ERROR
+      +1.3ms frontend-proxy/ingress 7.0ms [self 0.1ms]  ERROR
+        +1.4ms frontend-proxy/router frontend egress 7.0ms [self 3.5ms]  ERROR
+          +4.0ms frontend/GET 3.5ms [self 0.2ms]  ERROR
+            +5.0ms frontend/GET /api/products/{productId} 3.2ms [self 0.5ms]  ERROR
+              +5.0ms frontend/executing api route (pages) /api/products/[productId]/index 2.7ms [self 0.9ms]  ERROR
+                +5.0ms frontend/grpc.oteldemo.ProductCatalogService/GetProduct 1.8ms [self 1.1ms]  ERROR
+                  +6.1ms product-catalog/oteldemo.ProductCatalogService/GetProduct 0.7ms [self 0.2ms]  ERROR: Product Not Found: OLJCESPC7Z
+                    +6.2ms product-catalog/sql.conn.query 0.5ms [self 0.5ms]
+  degrading hop: frontend/grpc.oteldemo.ProductCatalogService/GetProduct -> product-catalog/oteldemo.ProductCatalogService/GetProduct  0.7ms, 7% of the trace (error)
+
+trace 8159572d36e033c8  root load-generator/user_browse_product  8.8ms  started 2026-09-30T05:14:59.817736+00:00  10 spans
+  +0.0ms load-generator/user_browse_product 8.8ms [self 1.0ms]
+    +0.8ms load-generator/GET 7.8ms [self 1.8ms]  ERROR
+      +1.5ms frontend-proxy/ingress 6.0ms [self 0.3ms]  ERROR
+        +1.7ms frontend-proxy/router frontend egress 5.7ms [self 0.6ms]  ERROR
+          +2.3ms frontend/GET 5.1ms [self 0.6ms]  ERROR
+            +2.3ms frontend/GET /api/products/{productId} 4.5ms [self 1.2ms]  ERROR
+              +3.3ms frontend/executing api route (pages) /api/products/[productId]/index 3.3ms [self 1.2ms]  ERROR
+                +3.3ms frontend/grpc.oteldemo.ProductCatalogService/GetProduct 2.1ms [self 1.4ms]  ERROR
+                  +4.9ms product-catalog/oteldemo.ProductCatalogService/GetProduct 0.7ms [self 0.2ms]  ERROR: Product Not Found: 2ZYFJ3GM2N
+                    +5.0ms product-catalog/sql.conn.query 0.5ms [self 0.5ms]
+  degrading hop: frontend/grpc.oteldemo.ProductCatalogService/GetProduct -> product-catalog/oteldemo.ProductCatalogService/GetProduct  0.7ms, 8% of the trace (error)
+
+trace ef07b38de0e97133  root load-generator/user_browse_product  3.2ms  started 2026-09-30T05:14:59.873898+00:00  10 spans
+  +0.0ms load-generator/user_browse_product 3.2ms [self 0.3ms]
+    +0.3ms load-generator/GET 2.9ms [self 0.6ms]  ERROR
+      +0.5ms frontend-proxy/ingress 2.3ms [self 0.1ms]  ERROR
+        +0.6ms frontend-proxy/router frontend egress 2.2ms [self 0.4ms]  ERROR
+          +0.1ms frontend/GET 1.8ms [self 0.2ms]  ERROR
+            +1.1ms frontend/GET /api/products/{productId} 1.6ms [self 0.4ms]  ERROR
+              +1.1ms frontend/executing api route (pages) /api/products/[productId]/index 1.3ms [self 0.4ms]  ERROR
+                +1.1ms frontend/grpc.oteldemo.ProductCatalogService/GetProduct 0.8ms [self 0.5ms]  ERROR
+                  +1.9ms product-catalog/oteldemo.ProductCatalogService/GetProduct 0.4ms [self 0.1ms]  ERROR: Product Not Found: 9SIQT8TOJO
+                    +1.9ms product-catalog/sql.conn.query 0.3ms [self 0.3ms]
+  degrading hop: frontend/grpc.oteldemo.ProductCatalogService/GetProduct -> product-catalog/oteldemo.ProductCatalogService/GetProduct  0.4ms, 11% of the trace (error)
+
+-- change_history --
+query failed: no change log configured, so this window was not observed
+
+=== 4. read-back: ~/Downloads/r6-rb-recommendation.txt, as written by evalharness.readback ===
+
+== recommendation over 05:04..05:15 UTC, world v2 ==
+
+-- promql_query error-ratio --
+query: sum by(service_name) (rate(traces_span_metrics_calls_total{service_name="recommendation",status_code="STATUS_CODE_ERROR"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name="recommendation"}[5m]))
+1 series
+  {service_name=recommendation} min=0 max=0.6691 n=23
+
+-- promql_query latency-p95 --
+query: histogram_quantile(0.95, sum by(service_name, le) (rate(traces_span_metrics_duration_milliseconds_bucket{service_name="recommendation",span_kind!="SPAN_KIND_INTERNAL"}[5m])))
+1 series
+  {service_name=recommendation} min=3.952 max=5.078 n=23
+
+-- logql_query --
+selector: {service="recommendation"}
+2026-09-30T05:04:03.991888+00:00  2026-09-30 05:04:03,991 ERROR [grpc._server] [_server.py:636] [trace_id=0 span_id=0 resource.service.name=recommendation trace_sampled=False] - Exception calling application: <_InactiveRpcError of RPC that terminated with:
+2026-09-30T05:04:03.991956+00:00  	status = StatusCode.INTERNAL
+2026-09-30T05:04:03.991959+00:00  	details = "failed to load products: failed to get products from rows: failed to scan product row: sql: Scan error on column index 2, name "description": converting NULL to string is unsupported"
+2026-09-30T05:04:03.991961+00:00  	debug_error_string = "UNKNOWN:Error received from peer  {grpc_status:13, grpc_message:"failed to load products: failed to get products from rows: failed to scan product row: sql: Scan error on column index 2, name \"description\": converting NULL to string is unsupported"}"
+  ... lines between here and the next timestamp were not returned: this result keeps the OLDEST 4 and the NEWEST 16 lines of the window, and nothing in between ...
+2026-09-30T05:14:57.688116+00:00      result = invoker(request, metadata)
+2026-09-30T05:14:57.688118+00:00    File "/venv/lib/python3.12/site-packages/opentelemetry/instrumentation/grpc/grpcext/_interceptor.py", line 58, in invoker
+2026-09-30T05:14:57.688118+00:00               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-09-30T05:14:57.688120+00:00      return self._base_callable(
+2026-09-30T05:14:57.688121+00:00             ^^^^^^^^^^^^^^^^^^^^
+2026-09-30T05:14:57.688122+00:00    File "/venv/lib/python3.12/site-packages/grpc/_channel.py", line 1166, in __call__
+2026-09-30T05:14:57.688123+00:00      return _end_unary_response_blocking(state, call, False, None)
+2026-09-30T05:14:57.688124+00:00             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-09-30T05:14:57.688125+00:00    File "/venv/lib/python3.12/site-packages/grpc/_channel.py", line 996, in _end_unary_response_blocking
+2026-09-30T05:14:57.688127+00:00      raise _InactiveRpcError(state)  # pytype: disable=not-instantiable
+2026-09-30T05:14:57.688128+00:00  grpc._channel._InactiveRpcError: <_InactiveRpcError of RPC that terminated with:
+2026-09-30T05:14:57.688128+00:00      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-09-30T05:14:57.688130+00:00  	status = StatusCode.INTERNAL
+2026-09-30T05:14:57.688131+00:00  	details = "failed to load products: failed to get products from rows: failed to scan product row: sql: Scan error on column index 2, name "description": converting NULL to string is unsupported"
+2026-09-30T05:14:57.688132+00:00  	debug_error_string = "UNKNOWN:Error received from peer  {grpc_message:"failed to load products: failed to get products from rows: failed to scan product row: sql: Scan error on column index 2, name \"description\": converting NULL to string is unsupported", grpc_status:13}"
+2026-09-30T05:14:57.688149+00:00  >
+
+-- trace_query (errors only) --
+service: recommendation
+10 trace(s) shown of 10 found, 130 spans; offsets are from each trace's root
+
+trace 8599f6fadcd159da  root load-generator/user_get_recommendations  16.1ms  started 2026-09-30T05:14:26.232603+00:00  13 spans
+  +0.0ms load-generator/user_get_recommendations 16.1ms [self 1.3ms]
+    +1.2ms load-generator/GET 14.8ms [self 4.3ms]  ERROR
+      +4.5ms frontend-proxy/ingress 10.5ms [self 0.2ms]  ERROR
+        +4.7ms frontend-proxy/router frontend egress 10.3ms [self 2.1ms]  ERROR
+          +5.4ms frontend/GET 8.2ms [self 0.4ms]  ERROR
+            +5.4ms frontend/GET /api/recommendations 7.8ms [self 0.9ms]  ERROR
+              +6.4ms frontend/executing api route (pages) /api/recommendations 7.0ms [self 0.9ms]  ERROR
+                +6.4ms frontend/grpc.oteldemo.RecommendationService/ListRecommendations 6.1ms [self 3.1ms]  ERROR
+                  +9.1ms recommendation//oteldemo.RecommendationService/ListRecommendations 3.0ms [self 0.8ms]
+                    +9.1ms recommendation/get_product_list 2.2ms [self 0.6ms]  ERROR: _InactiveRpcError: <_InactiveRpcError of RPC that terminated with: status = StatusCode.INTERNAL details = "failed to load products: failed to get products from rows: failed to scan product row: sql: S
+                      +9.3ms recommendation//oteldemo.ProductCatalogService/ListProducts 1.6ms [self 1.2ms]  ERROR: _InactiveRpcError: <_InactiveRpcError of RPC that terminated with: status = StatusCode.INTERNAL details = "failed to load products: failed to get products from rows: failed to scan product row: sql: S
+                        +9.7ms product-catalog/oteldemo.ProductCatalogService/ListProducts 0.4ms [self 0.1ms]  ERROR: failed to load products: failed to get products from rows: failed to scan product row: sql: Scan error on column index 2, name "description": converting NULL to string is unsupported
+                          +9.7ms product-catalog/sql.conn.query 0.3ms [self 0.3ms]
+  degrading hop: recommendation//oteldemo.ProductCatalogService/ListProducts -> product-catalog/oteldemo.ProductCatalogService/ListProducts  0.4ms, 2% of the trace (error)
+
+trace bdeca8aed5ebffb4  root load-generator/user_get_recommendations  5.5ms  started 2026-09-30T05:14:29.602424+00:00  13 spans
+  +0.0ms load-generator/user_get_recommendations 5.5ms [self 0.3ms]
+    +0.3ms load-generator/GET 5.2ms [self 0.6ms]  ERROR
+      +0.5ms frontend-proxy/ingress 4.6ms [self 0.1ms]  ERROR
+        +0.6ms frontend-proxy/router frontend egress 4.6ms [self 0.3ms]  ERROR
+          +0.6ms frontend/GET 4.3ms [self 0.2ms]  ERROR
+            +0.6ms frontend/GET /api/recommendations 4.1ms [self 0.4ms]  ERROR
+              +0.6ms frontend/executing api route (pages) /api/recommendations 3.7ms [self 0.5ms]  ERROR
+                +0.6ms frontend/grpc.oteldemo.RecommendationService/ListRecommendations 3.2ms [self 1.3ms]  ERROR
+                  +2.1ms recommendation//oteldemo.RecommendationService/ListRecommendations 1.8ms [self 0.5ms]
+                    +2.1ms recommendation/get_product_list 1.3ms [self 0.4ms]  ERROR: _InactiveRpcError: <_InactiveRpcError of RPC that terminated with: status = StatusCode.INTERNAL details = "failed to load products: failed to get products from rows: failed to scan product row: sql: S
+                      +2.2ms recommendation//oteldemo.ProductCatalogService/ListProducts 0.9ms [self 0.6ms]  ERROR: _InactiveRpcError: <_InactiveRpcError of RPC that terminated with: status = StatusCode.INTERNAL details = "failed to load products: failed to get products from rows: failed to scan product row: sql: S
+                        +2.4ms product-catalog/oteldemo.ProductCatalogService/ListProducts 0.3ms [self 0.1ms]  ERROR: failed to load products: failed to get products from rows: failed to scan product row: sql: Scan error on column index 2, name "description": converting NULL to string is unsupported
+                          +2.5ms product-catalog/sql.conn.query 0.2ms [self 0.2ms]
+  degrading hop: recommendation//oteldemo.ProductCatalogService/ListProducts -> product-catalog/oteldemo.ProductCatalogService/ListProducts  0.3ms, 5% of the trace (error)
+
+trace 34085d5ac26e69a6  root load-generator/user_get_recommendations  19.4ms  started 2026-09-30T05:14:33.931523+00:00  13 spans
+  +0.0ms load-generator/user_get_recommendations 19.4ms [self 2.1ms]
+    +1.8ms load-generator/GET 17.3ms [self 2.8ms]  ERROR
+      +3.0ms frontend-proxy/ingress 14.5ms [self 0.4ms]  ERROR
+        +3.3ms frontend-proxy/router frontend egress 14.1ms [self 1.1ms]  ERROR
+          +3.5ms frontend/GET 13.0ms [self 1.0ms]  ERROR
+            +4.5ms frontend/GET /api/recommendations 12.0ms [self 2.0ms]  ERROR
+              +6.5ms frontend/executing api route (pages) /api/recommendations 9.9ms [self 1.6ms]  ERROR
+                +7.5ms frontend/grpc.oteldemo.RecommendationService/ListRecommendations 8.4ms [self 3.8ms]  ERROR
+                  +9.9ms recommendation//oteldemo.RecommendationService/ListRecommendations 4.6ms [self 1.0ms]
+                    +9.9ms recommendation/get_product_list 3.6ms [self 0.9ms]  ERROR: _InactiveRpcError: <_InactiveRpcError of RPC that terminated with: status = StatusCode.INTERNAL details = "failed to load products: failed to get products from rows: failed to scan product row: sql: S
+                      +10.2ms recommendation//oteldemo.ProductCatalogService/ListProducts 2.7ms [self 1.7ms]  ERROR: _InactiveRpcError: <_InactiveRpcError of RPC that terminated with: status = StatusCode.INTERNAL details = "failed to load products: failed to get products from rows: failed to scan product row: sql: S
+                        +10.9ms product-catalog/oteldemo.ProductCatalogService/ListProducts 1.0ms [self 0.2ms]  ERROR: failed to load products: failed to get products from rows: failed to scan product row: sql: Scan error on column index 2, name "description": converting NULL to string is unsupported
+                          +11.0ms product-catalog/sql.conn.query 0.8ms [self 0.8ms]
+  degrading hop: recommendation//oteldemo.ProductCatalogService/ListProducts -> product-catalog/oteldemo.ProductCatalogService/ListProducts  1.0ms, 5% of the trace (error)
+
+trace a6bd716504149c84  root load-generator/user_get_recommendations  5.7ms  started 2026-09-30T05:14:37.798582+00:00  13 spans
+  +0.0ms load-generator/user_get_recommendations 5.7ms [self 0.4ms]
+    +0.3ms load-generator/GET 5.3ms [self 1.0ms]  ERROR
+      +0.6ms frontend-proxy/ingress 4.3ms [self 0.1ms]  ERROR
+        +0.7ms frontend-proxy/router frontend egress 4.2ms [self 0.3ms]  ERROR
+          +0.4ms frontend/GET 3.9ms [self 0.2ms]  ERROR
+            +0.4ms frontend/GET /api/recommendations 3.8ms [self 0.4ms]  ERROR
+              +1.4ms frontend/executing api route (pages) /api/recommendations 3.4ms [self 0.5ms]  ERROR
+                +1.4ms frontend/grpc.oteldemo.RecommendationService/ListRecommendations 2.9ms [self 1.2ms]  ERROR
+                  +2.2ms recommendation//oteldemo.RecommendationService/ListRecommendations 1.7ms [self 0.5ms]
+                    +2.2ms recommendation/get_product_list 1.2ms [self 0.4ms]  ERROR: _InactiveRpcError: <_InactiveRpcError of RPC that terminated with: status = StatusCode.INTERNAL details = "failed to load products: failed to get products from rows: failed to scan product row: sql: S
+                      +2.3ms recommendation//oteldemo.ProductCatalogService/ListProducts 0.8ms [self 0.6ms]  ERROR: _InactiveRpcError: <_InactiveRpcError of RPC that terminated with: status = StatusCode.INTERNAL details = "failed to load products: failed to get products from rows: failed to scan product row: sql: S
+                        +2.5ms product-catalog/oteldemo.ProductCatalogService/ListProducts 0.3ms [self 0.1ms]  ERROR: failed to load products: failed to get products from rows: failed to scan product row: sql: Scan error on column index 2, name "description": converting NULL to string is unsupported
+                          +2.6ms product-catalog/sql.conn.query 0.2ms [self 0.2ms]
+  degrading hop: recommendation//oteldemo.ProductCatalogService/ListProducts -> product-catalog/oteldemo.ProductCatalogService/ListProducts  0.3ms, 5% of the trace (error)
+
+trace a324d57a45a4f9de  root load-generator/user_get_recommendations  10.7ms  started 2026-09-30T05:14:43.329135+00:00  13 spans
+  +0.0ms load-generator/user_get_recommendations 10.7ms [self 0.8ms]
+    +0.6ms load-generator/GET 9.9ms [self 1.6ms]  ERROR
+      +1.2ms frontend-proxy/ingress 8.3ms [self 0.3ms]  ERROR
+        +1.4ms frontend-proxy/router frontend egress 8.0ms [self 0.7ms]  ERROR
+          +1.9ms frontend/GET 7.3ms [self 0.4ms]  ERROR
+            +1.9ms frontend/GET /api/recommendations 7.0ms [self 0.8ms]  ERROR
+              +2.9ms frontend/executing api route (pages) /api/recommendations 6.1ms [self 0.9ms]  ERROR
+                +2.9ms frontend/grpc.oteldemo.RecommendationService/ListRecommendations 5.3ms [self 2.3ms]  ERROR
+                  +4.6ms recommendation//oteldemo.RecommendationService/ListRecommendations 2.9ms [self 0.8ms]
+                    +4.6ms recommendation/get_product_list 2.1ms [self 0.6ms]  ERROR: _InactiveRpcError: <_InactiveRpcError of RPC that terminated with: status = StatusCode.INTERNAL details = "failed to load products: failed to get products from rows: failed to scan product row: sql: S
+                      +4.8ms recommendation//oteldemo.ProductCatalogService/ListProducts 1.6ms [self 1.0ms]  ERROR: _InactiveRpcError: <_InactiveRpcError of RPC that terminated with: status = StatusCode.INTERNAL details = "failed to load products: failed to get products from rows: failed to scan product row: sql: S
+                        +5.2ms product-catalog/oteldemo.ProductCatalogService/ListProducts 0.5ms [self 0.1ms]  ERROR: failed to load products: failed to get products from rows: failed to scan product row: sql: Scan error on column index 2, name "description": converting NULL to string is unsupported
+                          +5.2ms product-catalog/sql.conn.query 0.4ms [self 0.4ms]
+  degrading hop: recommendation//oteldemo.ProductCatalogService/ListProducts -> product-catalog/oteldemo.ProductCatalogService/ListProducts  0.5ms, 5% of the trace (error)
+
+trace 9103f7ae3bc0c81b  root load-generator/user_get_recommendations  14.9ms  started 2026-09-30T05:14:45.216046+00:00  13 spans
+  +0.0ms load-generator/user_get_recommendations 14.9ms [self 1.6ms]
+    +1.4ms load-generator/GET 13.3ms [self 2.0ms]  ERROR
+      +2.4ms frontend-proxy/ingress 11.3ms [self 0.3ms]  ERROR
+        +2.7ms frontend-proxy/router frontend egress 11.0ms [self 0.8ms]  ERROR
+          +3.0ms frontend/GET 10.1ms [self 0.5ms]  ERROR
+            +3.0ms frontend/GET /api/recommendations 9.6ms [self 1.2ms]  ERROR
+              +5.0ms frontend/executing api route (pages) /api/recommendations 8.4ms [self 1.1ms]  ERROR
+                +5.0ms frontend/grpc.oteldemo.RecommendationService/ListRecommendations 7.2ms [self 3.1ms]  ERROR
+                  +7.2ms recommendation//oteldemo.RecommendationService/ListRecommendations 4.1ms [self 1.1ms]
+                    +7.3ms recommendation/get_product_list 3.0ms [self 0.9ms]  ERROR: _InactiveRpcError: <_InactiveRpcError of RPC that terminated with: status = StatusCode.INTERNAL details = "failed to load products: failed to get products from rows: failed to scan product row: sql: S
+                      +7.6ms recommendation//oteldemo.ProductCatalogService/ListProducts 2.1ms [self 1.4ms]  ERROR: _InactiveRpcError: <_InactiveRpcError of RPC that terminated with: status = StatusCode.INTERNAL details = "failed to load products: failed to get products from rows: failed to scan product row: sql: S
+                        +8.1ms product-catalog/oteldemo.ProductCatalogService/ListProducts 0.7ms [self 0.2ms]  ERROR: failed to load products: failed to get products from rows: failed to scan product row: sql: Scan error on column index 2, name "description": converting NULL to string is unsupported
+                          +8.2ms product-catalog/sql.conn.query 0.5ms [self 0.5ms]
+  degrading hop: recommendation//oteldemo.ProductCatalogService/ListProducts -> product-catalog/oteldemo.ProductCatalogService/ListProducts  0.7ms, 5% of the trace (error)
+
+trace c74464f329b513a6  root load-generator/user_get_recommendations  7.7ms  started 2026-09-30T05:14:49.088366+00:00  13 spans
+  +0.0ms load-generator/user_get_recommendations 7.7ms [self 0.5ms]
+    +0.4ms load-generator/GET 7.2ms [self 0.9ms]  ERROR
+      +0.7ms frontend-proxy/ingress 6.3ms [self 0.1ms]  ERROR
+        +0.8ms frontend-proxy/router frontend egress 6.2ms [self 0.2ms]  ERROR
+          +0.6ms frontend/GET 6.0ms [self 0.2ms]  ERROR
+            +0.6ms frontend/GET /api/recommendations 5.7ms [self 0.5ms]  ERROR
+              +1.6ms frontend/executing api route (pages) /api/recommendations 5.2ms [self 0.7ms]  ERROR
+                +1.6ms frontend/grpc.oteldemo.RecommendationService/ListRecommendations 4.4ms [self 1.8ms]  ERROR
+                  +2.8ms recommendation//oteldemo.RecommendationService/ListRecommendations 2.7ms [self 0.7ms]
+                    +2.8ms recommendation/get_product_list 2.0ms [self 0.6ms]  ERROR: _InactiveRpcError: <_InactiveRpcError of RPC that terminated with: status = StatusCode.INTERNAL details = "failed to load products: failed to get products from rows: failed to scan product row: sql: S
+                      +2.9ms recommendation//oteldemo.ProductCatalogService/ListProducts 1.4ms [self 1.0ms]  ERROR: _InactiveRpcError: <_InactiveRpcError of RPC that terminated with: status = StatusCode.INTERNAL details = "failed to load products: failed to get products from rows: failed to scan product row: sql: S
+                        +3.3ms product-catalog/oteldemo.ProductCatalogService/ListProducts 0.4ms [self 0.1ms]  ERROR: failed to load products: failed to get products from rows: failed to scan product row: sql: Scan error on column index 2, name "description": converting NULL to string is unsupported
+                          +3.3ms product-catalog/sql.conn.query 0.3ms [self 0.3ms]
+  degrading hop: recommendation//oteldemo.ProductCatalogService/ListProducts -> product-catalog/oteldemo.ProductCatalogService/ListProducts  0.4ms, 5% of the trace (error)
+
+trace 23a5102db0bfc844  root load-generator/user_get_recommendations  6.1ms  started 2026-09-30T05:14:50.681630+00:00  13 spans
+  +0.0ms load-generator/user_get_recommendations 6.1ms [self 0.5ms]
+    +0.4ms load-generator/GET 5.6ms [self 0.8ms]  ERROR
+      +0.7ms frontend-proxy/ingress 4.8ms [self 0.1ms]  ERROR
+        +0.8ms frontend-proxy/router frontend egress 4.7ms [self 0.4ms]  ERROR
+          +0.4ms frontend/GET 4.3ms [self 0.2ms]  ERROR
+            +1.4ms frontend/GET /api/recommendations 4.1ms [self 0.4ms]  ERROR
+              +1.4ms frontend/executing api route (pages) /api/recommendations 3.6ms [self 0.6ms]  ERROR
+                +1.4ms frontend/grpc.oteldemo.RecommendationService/ListRecommendations 3.1ms [self 1.3ms]  ERROR
+                  +2.7ms recommendation//oteldemo.RecommendationService/ListRecommendations 1.8ms [self 0.5ms]
+                    +2.7ms recommendation/get_product_list 1.3ms [self 0.4ms]  ERROR: _InactiveRpcError: <_InactiveRpcError of RPC that terminated with: status = StatusCode.INTERNAL details = "failed to load products: failed to get products from rows: failed to scan product row: sql: S
+                      +2.8ms recommendation//oteldemo.ProductCatalogService/ListProducts 0.9ms [self 0.6ms]  ERROR: _InactiveRpcError: <_InactiveRpcError of RPC that terminated with: status = StatusCode.INTERNAL details = "failed to load products: failed to get products from rows: failed to scan product row: sql: S
+                        +3.0ms product-catalog/oteldemo.ProductCatalogService/ListProducts 0.3ms [self 0.1ms]  ERROR: failed to load products: failed to get products from rows: failed to scan product row: sql: Scan error on column index 2, name "description": converting NULL to string is unsupported
+                          +3.0ms product-catalog/sql.conn.query 0.2ms [self 0.2ms]
+  degrading hop: recommendation//oteldemo.ProductCatalogService/ListProducts -> product-catalog/oteldemo.ProductCatalogService/ListProducts  0.3ms, 5% of the trace (error)
+
+trace fa2b2658b6dce9b9  root load-generator/user_get_recommendations  10.8ms  started 2026-09-30T05:14:57.650082+00:00  13 spans
+  +0.0ms load-generator/user_get_recommendations 10.8ms [self 0.6ms]
+    +0.5ms load-generator/GET 10.2ms [self 1.2ms]  ERROR
+      +0.9ms frontend-proxy/ingress 9.0ms [self 0.2ms]  ERROR
+        +1.1ms frontend-proxy/router frontend egress 8.8ms [self 0.6ms]  ERROR
+          +0.9ms frontend/GET 8.1ms [self 0.4ms]  ERROR
+            +0.9ms frontend/GET /api/recommendations 7.7ms [self 0.9ms]  ERROR
+              +1.9ms frontend/executing api route (pages) /api/recommendations 6.8ms [self 1.0ms]  ERROR
+                +1.9ms frontend/grpc.oteldemo.RecommendationService/ListRecommendations 5.9ms [self 2.5ms]  ERROR
+                  +4.3ms recommendation//oteldemo.RecommendationService/ListRecommendations 3.4ms [self 0.9ms]
+                    +4.3ms recommendation/get_product_list 2.5ms [self 0.7ms]  ERROR: _InactiveRpcError: <_InactiveRpcError of RPC that terminated with: status = StatusCode.INTERNAL details = "failed to load products: failed to get products from rows: failed to scan product row: sql: S
+                      +4.5ms recommendation//oteldemo.ProductCatalogService/ListProducts 1.8ms [self 1.2ms]  ERROR: _InactiveRpcError: <_InactiveRpcError of RPC that terminated with: status = StatusCode.INTERNAL details = "failed to load products: failed to get products from rows: failed to scan product row: sql: S
+                        +5.0ms product-catalog/oteldemo.ProductCatalogService/ListProducts 0.6ms [self 0.2ms]  ERROR: failed to load products: failed to get products from rows: failed to scan product row: sql: Scan error on column index 2, name "description": converting NULL to string is unsupported
+                          +5.1ms product-catalog/sql.conn.query 0.4ms [self 0.4ms]
+  degrading hop: recommendation//oteldemo.ProductCatalogService/ListProducts -> product-catalog/oteldemo.ProductCatalogService/ListProducts  0.6ms, 5% of the trace (error)
+
+trace a0542cba407ba55e  root load-generator/user_get_recommendations  7.4ms  started 2026-09-30T05:14:57.682302+00:00  13 spans
+  +0.0ms load-generator/user_get_recommendations 7.4ms [self 0.4ms]
+    +0.3ms load-generator/GET 7.0ms [self 0.9ms]  ERROR
+      +0.7ms frontend-proxy/ingress 6.0ms [self 0.2ms]  ERROR
+        +0.8ms frontend-proxy/router frontend egress 5.9ms [self 0.4ms]  ERROR
+          +0.7ms frontend/GET 5.5ms [self 0.2ms]  ERROR
+            +0.7ms frontend/GET /api/recommendations 5.3ms [self 0.5ms]  ERROR
+              +1.7ms frontend/executing api route (pages) /api/recommendations 4.8ms [self 0.7ms]  ERROR
+                +1.7ms frontend/grpc.oteldemo.RecommendationService/ListRecommendations 4.1ms [self 1.7ms]  ERROR
+                  +2.7ms recommendation//oteldemo.RecommendationService/ListRecommendations 2.4ms [self 0.7ms]
+                    +2.8ms recommendation/get_product_list 1.7ms [self 0.5ms]  ERROR: _InactiveRpcError: <_InactiveRpcError of RPC that terminated with: status = StatusCode.INTERNAL details = "failed to load products: failed to get products from rows: failed to scan product row: sql: S
+                      +2.9ms recommendation//oteldemo.ProductCatalogService/ListProducts 1.2ms [self 0.8ms]  ERROR: _InactiveRpcError: <_InactiveRpcError of RPC that terminated with: status = StatusCode.INTERNAL details = "failed to load products: failed to get products from rows: failed to scan product row: sql: S
+                        +3.2ms product-catalog/oteldemo.ProductCatalogService/ListProducts 0.4ms [self 0.1ms]  ERROR: failed to load products: failed to get products from rows: failed to scan product row: sql: Scan error on column index 2, name "description": converting NULL to string is unsupported
+                          +3.2ms product-catalog/sql.conn.query 0.3ms [self 0.3ms]
+  degrading hop: recommendation//oteldemo.ProductCatalogService/ListProducts -> product-catalog/oteldemo.ProductCatalogService/ListProducts  0.4ms, 6% of the trace (error)
+
+-- change_history --
+query failed: no change log configured, so this window was not observed
+
+=== 4. read-back: ~/Downloads/r6-rb-postgresql.txt, as written by evalharness.readback ===
+
+== postgresql over 05:04..05:15 UTC, world v2 ==
+
+-- promql_query error-ratio --
+no series matched 'sum by(service_name) (rate(traces_span_metrics_calls_total{service_name="postgresql",status_code="STATUS_CODE_ERROR"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name="postgresql"}[5m]))' over this window
+
+-- promql_query latency-p95 --
+no series matched 'histogram_quantile(0.95, sum by(service_name, le) (rate(traces_span_metrics_duration_milliseconds_bucket{service_name="postgresql",span_kind!="SPAN_KIND_INTERNAL"}[5m])))' over this window
+
+-- logql_query --
+selector: {service="postgresql"}
+2026-09-30T05:07:48.084456+00:00  2026-09-30 05:07:48.084 UTC [27] LOG:  checkpoint starting: time
+2026-09-30T05:07:52.638318+00:00  2026-09-30 05:07:52.638 UTC [27] LOG:  checkpoint complete: wrote 46 buffers (0.3%); 0 WAL file(s) added, 0 removed, 0 recycled; write=4.539 s, sync=0.009 s, total=4.554 s; sync files=9, longest=0.006 s, average=0.001 s; distance=247 kB, estimate=854 kB; lsn=0/30BFF2D0, redo lsn=0/30BFF278
+
+-- trace_query --
+no traces for postgresql over this window
+
+-- change_history --
+query failed: no change log configured, so this window was not observed
