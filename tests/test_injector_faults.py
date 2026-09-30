@@ -37,6 +37,7 @@ from injector.models import (
     NetworkRestore,
     PauseRestore,
     PumbaRestore,
+    SqlCorruptionRestore,
 )
 from injector.settings import InjectorSettings
 from tests.fakes import FakeRunner, RecordedCall
@@ -1182,6 +1183,208 @@ def test_corruption_restore_is_a_no_op_when_gone(settings: InjectorSettings) -> 
             container="valkey-cart", stop_file="/tmp/x.stop", cli="valkey-cli", flush=True
         )
     )
+    assert "gone" in changes[0]
+
+
+# --- datastore_corruption, a SQL table (A10) --------------------------------------------------
+
+_SHIPPED = "f9b57aae49e7ad4305e3120a54fdc20d"
+"""The catalog's fingerprint as shipped, printed by A10's inject and restore on the world."""
+
+_SNAPSHOT = (
+    "10|10|"
+    + _SHIPPED
+    + '|10|{ "66VCHSJNUP" : "Starsense, \'app\' | 4.5", "OLJCESPC7Z" : "Explorascope" }\n'
+)
+_NULLED = "10|0|ea4a8cf36bcb834d426c151c896148e4\n"
+
+
+def _sql_def(**params: object) -> FaultDefinition:
+    base: dict[str, object] = {
+        "table": "catalog.products",
+        "column": "description",
+        "key": "id",
+        "database": "otel",
+        "user": "root",
+    }
+    base.update(params)
+    return _def("pg-corrupt", FaultClass.DATASTORE_CORRUPTION, "postgresql", **base)
+
+
+def _sql_runner(**overrides: str) -> FakeRunner:
+    # Key order matters: the UPDATE and the restore both end on the fingerprint query, so each is
+    # keyed on what only it contains, and the snapshot on the aggregate only it asks for.
+    stdout = {
+        "{{.State.Running}}": "true\n",
+        "{{.Id}}": "abc\n",
+        "json_object_agg": _SNAPSHOT,
+        "SET description = NULL": _NULLED,
+        "json_each_text": f"10|10|{_SHIPPED}\n",
+    }
+    stdout.update(overrides)
+    return FakeRunner(stdout=stdout)
+
+
+def test_the_catalog_carries_the_sql_corruption_as_a10_ran_it() -> None:
+    found = definition("v2-postgresql-catalog-corruption")
+    assert found.fault_class is FaultClass.DATASTORE_CORRUPTION
+    assert (found.world, found.target) == ("v2", "postgresql")
+    assert found.params == {
+        "table": "catalog.products",
+        "column": "description",
+        "key": "id",
+        "database": "otel",
+        "user": "root",
+    }
+
+
+def test_sql_corruption_saves_the_column_then_nulls_it(settings: InjectorSettings) -> None:
+    runner = _sql_runner()
+    outcome = DatastoreCorruptionFault(DockerCli(runner)).inject(_sql_def())
+
+    snapshot = next(c.args for c in runner.calls if any("json_object_agg" in a for a in c.args))
+    assert snapshot[:4] == ("docker", "exec", "postgresql", "psql")
+    assert snapshot[snapshot.index("-U") : snapshot.index("-U") + 2] == ("-U", "root")
+    assert "otel" in snapshot and "ON_ERROR_STOP=1" in snapshot and "-X" in snapshot
+    update = next(c.args for c in runner.calls if any("SET description" in a for a in c.args))
+    assert update[-1].startswith("UPDATE catalog.products SET description = NULL; SELECT count(*)")
+    # read first, then write: never the other way round
+    kinds = [
+        "json_object_agg"
+        if any("json_object_agg" in a for a in c.args)
+        else "UPDATE"
+        if any("UPDATE" in a for a in c.args)
+        else "other"
+        for c in runner.calls
+    ]
+    assert kinds.index("json_object_agg") < kinds.index("UPDATE")
+    assert isinstance(outcome.restore, SqlCorruptionRestore)
+    assert outcome.restore.fingerprint == _SHIPPED
+    assert outcome.restore.saved == {
+        "66VCHSJNUP": "Starsense, 'app' | 4.5",
+        "OLJCESPC7Z": "Explorascope",
+    }
+    assert "all 10 rows" in outcome.changes[0] and _SHIPPED in outcome.changes[0]
+    assert "no change record" in outcome.changes[1]
+    assert DatastoreCorruptionFault.records_change is False
+
+
+def test_sql_corruption_refuses_a_table_that_is_not_at_rest(settings: InjectorSettings) -> None:
+    """A second inject would save the NULLs over the good copy (A10's guard, registered)."""
+    runner = _sql_runner(json_object_agg="10|0|ea4a8cf3|10|{}\n")
+    with pytest.raises(FaultUsageError, match="not at rest"):
+        DatastoreCorruptionFault(DockerCli(runner)).inject(_sql_def())
+    assert not any(any("UPDATE" in a for a in c.args) for c in runner.calls)
+
+
+def test_sql_corruption_refuses_a_key_that_does_not_identify_rows(
+    settings: InjectorSettings,
+) -> None:
+    runner = _sql_runner(json_object_agg="10|10|abc|9|{}\n")
+    with pytest.raises(FaultUsageError, match="does not identify"):
+        DatastoreCorruptionFault(DockerCli(runner)).inject(_sql_def())
+    assert not any(any("UPDATE" in a for a in c.args) for c in runner.calls)
+
+
+@pytest.mark.parametrize(
+    ("param", "value"),
+    [
+        ("table", "catalog.products; DROP TABLE catalog.products"),
+        ("table", "products"),
+        ("column", "Description"),
+        ("key", ""),
+        ("user", "root --"),
+    ],
+)
+def test_sql_corruption_refuses_a_name_it_would_have_to_quote(
+    settings: InjectorSettings, param: str, value: str
+) -> None:
+    """The statements are built from the definition's names, so a name is checked, not quoted."""
+    runner = _sql_runner()
+    with pytest.raises(FaultUsageError, match="plain lower-case SQL name"):
+        DatastoreCorruptionFault(DockerCli(runner)).inject(_sql_def(**{param: value}))
+    assert runner.calls == []
+
+
+def test_sql_corruption_refuses_a_sweep_param(settings: InjectorSettings) -> None:
+    runner = _sql_runner()
+    with pytest.raises(FaultUsageError, match="no sweep params"):
+        DatastoreCorruptionFault(DockerCli(runner)).inject(_sql_def(interval="0.05"))
+    assert runner.calls == []
+
+
+def test_sql_corruption_fails_cleanly_when_the_update_is_refused(
+    settings: InjectorSettings,
+) -> None:
+    """A NOT NULL column: the server refuses the statement and its transaction writes nothing."""
+    runner = _sql_runner()
+    runner.returncodes["SET description = NULL"] = 1
+    with pytest.raises(FaultUsageError, match="NOT been injected"):
+        DatastoreCorruptionFault(DockerCli(runner)).inject(_sql_def())
+    assert not any(any("json_each_text" in a for a in c.args) for c in runner.calls)
+
+
+def test_sql_corruption_writes_the_copy_back_if_the_update_did_not_take(
+    settings: InjectorSettings,
+) -> None:
+    runner = _sql_runner(**{"SET description = NULL": "10|4|0123\n"})
+    with pytest.raises(FaultUsageError, match=r"written back\. The fault has NOT been injected"):
+        DatastoreCorruptionFault(DockerCli(runner)).inject(_sql_def())
+    assert any(any("json_each_text" in a for a in c.args) for c in runner.calls)
+
+
+def _sql_restore(**overrides: object) -> SqlCorruptionRestore:
+    fields: dict[str, object] = {
+        "container": "postgresql",
+        "database": "otel",
+        "user": "root",
+        "table": "catalog.products",
+        "column": "description",
+        "key": "id",
+        "saved": {"66VCHSJNUP": "Starsense, 'app' | 4.5", "OLJCESPC7Z": "Explorascope"},
+        "fingerprint": _SHIPPED,
+    }
+    fields.update(overrides)
+    return SqlCorruptionRestore(**fields)  # type: ignore[arg-type]
+
+
+def test_sql_restore_writes_the_saved_values_back_in_one_statement(
+    settings: InjectorSettings,
+) -> None:
+    runner = _sql_runner()
+    changes = DatastoreCorruptionFault(DockerCli(runner)).restore(_sql_restore())
+    writes = [c.args for c in runner.calls if any("json_each_text" in a for a in c.args)]
+    assert len(writes) == 1
+    statement = writes[0][-1]
+    assert statement.startswith("UPDATE catalog.products AS t SET description = s.value FROM ")
+    # the values travel inside the statement, dollar-quoted, as JSON - quotes and pipes intact
+    assert '$faultline${"66VCHSJNUP": "Starsense, \'app\' | 4.5"' in statement
+    assert "WHERE t.id::text = s.key;" in statement
+    assert _SHIPPED in changes[0] and "2 saved" in changes[0]
+
+
+def test_sql_restore_refuses_to_call_itself_done_on_another_fingerprint(
+    settings: InjectorSettings,
+) -> None:
+    runner = _sql_runner(json_each_text="10|10|0000\n")
+    with pytest.raises(FaultUsageError, match="saved copy is still in the state"):
+        DatastoreCorruptionFault(DockerCli(runner)).restore(_sql_restore())
+
+
+def test_sql_restore_refuses_values_that_would_break_its_quoting(
+    settings: InjectorSettings,
+) -> None:
+    runner = _sql_runner()
+    with pytest.raises(FaultUsageError, match="restore by hand"):
+        DatastoreCorruptionFault(DockerCli(runner)).restore(
+            _sql_restore(saved={"x": "a $faultline$ b"})
+        )
+    assert not any(any("json_each_text" in a for a in c.args) for c in runner.calls)
+
+
+def test_sql_restore_is_a_no_op_when_gone(settings: InjectorSettings) -> None:
+    runner = FakeRunner(returncodes={"inspect": 1})
+    changes = DatastoreCorruptionFault(DockerCli(runner)).restore(_sql_restore())
     assert "gone" in changes[0]
 
 

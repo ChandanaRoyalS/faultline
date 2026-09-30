@@ -4,7 +4,8 @@
 `evals/runs/PREREGISTRATION-T7.0.md` and admitted on the registered criteria (ADR-0043 addendum,
 2026-09-24); each handler below does what its attempt did, with the parameters the attempt found
 to matter carried as params rather than assumed. What a class *may* still gain is another
-mechanism, which costs nothing: ADR-0010 draws that line and `resource_exhaustion` owns two.
+mechanism, which costs nothing: ADR-0010 draws that line, and `resource_exhaustion` and
+`datastore_corruption` (a key-value sweep, A4b; a SQL column, A10) own two each.
 
 **Five of the nine leave no change record, on purpose.** ADR-0019 has the injector write the
 record an operator would have written; nobody records a pause, a cable pull, a bad key or a full
@@ -32,6 +33,7 @@ from __future__ import annotations
 
 import contextlib
 import json
+import re
 import time
 from abc import ABC, abstractmethod
 from pathlib import Path
@@ -41,7 +43,7 @@ import yaml
 from pydantic import BaseModel, ConfigDict
 
 from evalharness.scenario import FaultClass
-from injector.docker import CommandError, ComposeCli, DockerCli
+from injector.docker import CommandError, CommandResult, ComposeCli, DockerCli
 from injector.models import (
     ComposeServiceRestore,
     CorruptionRestore,
@@ -54,6 +56,7 @@ from injector.models import (
     PauseRestore,
     PumbaRestore,
     RestoreState,
+    SqlCorruptionRestore,
     TargetKind,
 )
 from injector.settings import InjectorSettings
@@ -775,14 +778,97 @@ returns at the first beat."""
 LOOP_HEARTBEAT_POLL = 0.25
 """Seconds between heartbeat reads while waiting for the first."""
 
+_SQL_NAME = re.compile(r"[a-z_][a-z0-9_]*")
+"""A SQL identifier this injector will write into a statement: lower case, unquoted, nothing
+else. The statements are built from the definition's names, so the names are checked instead
+of quoted; a name that needs quoting is refused."""
+
+_SQL_QUOTE_TAG = "$faultline$"
+"""The dollar-quote tag around the saved values in the restore's one statement."""
+
+
+def _sql_name(
+    definition: FaultDefinition, param: str, value: str, *, qualified: bool = False
+) -> str:
+    # A table is named with its schema, so what is written does not hang on a search_path.
+    parts = value.split(".") if qualified else [value]
+    if len(parts) != (2 if qualified else 1) or not all(_SQL_NAME.fullmatch(p) for p in parts):
+        raise FaultUsageError(
+            f"{definition.id}: param {param!r} must be a plain lower-case SQL name"
+            f"{' (schema.table)' if qualified else ''}; got {value!r}"
+        )
+    return value
+
+
+def _sql_fingerprint_query(table: str, column: str, key: str) -> str:
+    """Rows, rows with a value, and an md5 over every key and value in key order - the
+    fingerprint A10 registered and printed (`f9b57aae...` for the world's catalog as shipped)."""
+    return (
+        f"SELECT count(*), count({column}), "
+        f"md5(coalesce(string_agg({key}::text || ':' || coalesce({column}::text, '<null>'), "
+        f"'|' ORDER BY {key}), '')) FROM {table};"
+    )
+
+
+def _sql_fingerprint_row(stdout: str) -> tuple[int, int, str]:
+    lines = [line for line in stdout.splitlines() if line.strip()]
+    if not lines:
+        raise FaultUsageError(f"psql printed no fingerprint row; got {stdout!r}")
+    rows, values, fingerprint = lines[-1].split("|", 2)
+    return int(rows), int(values), fingerprint.strip()
+
+
+class _Psql:
+    """The database's own client inside its own container, one statement string at a time.
+
+    `-c` sends the whole string as one query, which the server runs as one transaction; `-X`
+    ignores any psqlrc; `-q -A -t` leave only the rows, `|`-separated. Argv throughout: the
+    statement is one argument and no shell of ours reads it.
+    """
+
+    def __init__(self, docker: DockerCli, container: str, database: str, user: str) -> None:
+        self._docker = docker
+        self._container = container
+        self._args = ["psql", "-X", "-q", "-A", "-t", "-v", "ON_ERROR_STOP=1"]
+        self._args += ["-U", user, "-d", database]
+
+    def run(self, sql: str, *, check: bool = True) -> CommandResult:
+        return self._docker.exec(self._container, [*self._args, "-c", sql], check=check)
+
+    def snapshot(
+        self, table: str, column: str, key: str
+    ) -> tuple[int, int, int, str, dict[str, str | None]]:
+        """Rows, distinct keys, rows with a value, fingerprint, and every value keyed by the key -
+        one query, so the copy and the fingerprint describe the same instant."""
+        select = _sql_fingerprint_query(table, column, key).removesuffix(f" FROM {table};")
+        result = self.run(
+            f"{select}, count(DISTINCT {key}), "
+            f"coalesce(json_object_agg({key}::text, {column}::text), '{{}}') FROM {table};"
+        )
+        lines = [line for line in result.stdout.splitlines() if line.strip()]
+        if len(lines) != 1:
+            raise FaultUsageError(f"psql printed {len(lines)} rows for one; got {result.stdout!r}")
+        rows, values, fingerprint, keys, blob = lines[0].split("|", 4)
+        saved = json.loads(blob)
+        return int(rows), int(keys), int(values), fingerprint, saved
+
 
 class DatastoreCorruptionFault(Fault):
-    """Make the target datastore's contents unparseable while the store stays healthy (A4b).
+    """Make the target datastore's contents unparseable while the store stays healthy.
 
-    The store answers, and what it returns cannot be decoded. A background loop inside the
-    container overwrites a chosen hash field of every key with bytes the client cannot parse,
-    on an interval, because the store's live values turn over in milliseconds. Restore stops the
-    loop and flushes the store; its clients make fresh values.
+    The store answers, and what it returns cannot be decoded. Two stores, two mechanisms, chosen
+    by the definition's params as `resource_exhaustion` chooses between memory and CPU:
+
+    * **A key-value store (A4b).** A background loop inside the container overwrites a chosen
+      hash field of every key with bytes the client cannot parse, on an interval, because the
+      store's live values turn over in milliseconds. Restore stops the loop and flushes the
+      store; its clients make fresh values.
+    * **A SQL table (A10)**, when the definition names a `table`. One statement sets a nullable
+      column to NULL on every row - the one write the schema accepts and a reader that scans the
+      column into a non-null type refuses. No loop: nothing rewrites the rows. The column's
+      values and the table's fingerprint are read first, in one query, and kept in the restore
+      state; restore writes them back in one statement and refuses to call itself done unless
+      the fingerprint matches.
     """
 
     fault_class = FaultClass.DATASTORE_CORRUPTION
@@ -796,6 +882,18 @@ class DatastoreCorruptionFault(Fault):
         return TargetKind.CONTAINER
 
     def inject(self, definition: FaultDefinition) -> InjectionOutcome:
+        if "table" in definition.params:
+            mixed = sorted(set(definition.params) & {"cli", "field", "payload", "interval"})
+            if mixed:
+                # One store, one mechanism: a definition naming a table and a sweep's params
+                # would corrupt one thing and describe another.
+                raise FaultUsageError(
+                    f"{definition.id}: a SQL corruption takes no sweep params; drop {mixed}"
+                )
+            return self._inject_sql(definition)
+        return self._inject_sweep(definition)
+
+    def _inject_sweep(self, definition: FaultDefinition) -> InjectionOutcome:
         container = definition.target
         cli = _str_param(definition, "cli", "valkey-cli")
         field = _str_param(definition, "field", "cart")
@@ -873,7 +971,105 @@ class DatastoreCorruptionFault(Fault):
             ],
         )
 
+    def _inject_sql(self, definition: FaultDefinition) -> InjectionOutcome:
+        container = definition.target
+        table = _sql_name(definition, "table", _str_param(definition, "table", ""), qualified=True)
+        column = _sql_name(definition, "column", _str_param(definition, "column", ""))
+        key = _sql_name(definition, "key", _str_param(definition, "key", ""))
+        database = _sql_name(definition, "database", _str_param(definition, "database", ""))
+        user = _sql_name(definition, "user", _str_param(definition, "user", ""))
+        if not self._docker.is_running(container):
+            raise FaultUsageError(
+                f"{definition.id}: {container} is not running; nothing to corrupt"
+            )
+        psql = _Psql(self._docker, container, database, user)
+        # Read before writing: A4's first run corrupted nothing and reported success because its
+        # command never ran (2026-09-23). The copy and the fingerprint come from one query.
+        rows, keys, values, fingerprint, saved = psql.snapshot(table, column, key)
+        if keys != rows:
+            raise FaultUsageError(
+                f"{definition.id}: {key} does not identify {table}'s rows on {container} ({rows} "
+                f"rows, {keys} distinct keys), so the saved copy could not be written back row "
+                "for row. The fault has NOT been injected."
+            )
+        if rows == 0 or values != rows:
+            raise FaultUsageError(
+                f"{definition.id}: {table}.{column} is not at rest on {container} ({rows} rows, "
+                f"{values} with a value); a second run would save the corrupted state over the "
+                "good one. The fault has NOT been injected."
+            )
+        written = psql.run(
+            f"UPDATE {table} SET {column} = NULL; " + _sql_fingerprint_query(table, column, key),
+            check=False,
+        )
+        if written.returncode != 0:
+            raise FaultUsageError(
+                f"{definition.id}: the UPDATE failed on {container}, so nothing was corrupted "
+                f"(is {column} NOT NULL?). The fault has NOT been injected.\n"
+                f"{written.stdout}{written.stderr}"
+            )
+        after_rows, after_values, after = _sql_fingerprint_row(written.stdout)
+        restore = SqlCorruptionRestore(
+            container=container,
+            database=database,
+            user=user,
+            table=table,
+            column=column,
+            key=key,
+            saved=saved,
+            fingerprint=fingerprint,
+        )
+        if after_rows != rows or after_values != 0:
+            # Verify after writing, too (R4, 2026-09-24: a loop reported twelve minutes of success
+            # without running once). Put the copy back before saying so.
+            self._restore_sql(restore)
+            raise FaultUsageError(
+                f"{definition.id}: after the UPDATE {table} held {after_rows} rows and "
+                f"{after_values} values of {column}, not {rows} and 0; the saved copy was written "
+                "back. The fault has NOT been injected."
+            )
+        return InjectionOutcome(
+            restore=restore,
+            changes=[
+                f"psql on {container}: {table}.{column} set to NULL on all {rows} rows "
+                f"(fingerprint {fingerprint} -> {after}; the {rows} values are saved in the "
+                "injector's state, outside the store)",
+                "no change record: the store is healthy and its contents are wrong",
+            ],
+        )
+
+    def _restore_sql(self, state: SqlCorruptionRestore) -> list[str]:
+        psql = _Psql(self._docker, state.container, state.database, state.user)
+        blob = json.dumps(state.saved, ensure_ascii=False, sort_keys=True)
+        if _SQL_QUOTE_TAG in blob:
+            raise FaultUsageError(
+                f"the saved {state.table}.{state.column} values contain {_SQL_QUOTE_TAG}, which "
+                "the restore uses to quote them; restore by hand from the state file"
+            )
+        written = psql.run(
+            f"UPDATE {state.table} AS t SET {state.column} = s.value "
+            f"FROM json_each_text({_SQL_QUOTE_TAG}{blob}{_SQL_QUOTE_TAG}::json) AS s "
+            f"WHERE t.{state.key}::text = s.key; "
+            + _sql_fingerprint_query(state.table, state.column, state.key),
+        )
+        rows, values, fingerprint = _sql_fingerprint_row(written.stdout)
+        if fingerprint != state.fingerprint:
+            # Not done: the engine keeps the state entry, and with it the saved copy.
+            raise FaultUsageError(
+                f"{state.container}: {state.table} was written back but its fingerprint is "
+                f"{fingerprint} ({rows} rows, {values} values of {state.column}), not "
+                f"{state.fingerprint} as before the write. The saved copy is still in the state."
+            )
+        return [
+            f"psql on {state.container}: {len(state.saved)} saved {state.table}.{state.column} "
+            f"values written back; fingerprint {fingerprint}, as before the write"
+        ]
+
     def restore(self, state: RestoreState) -> list[str]:
+        if isinstance(state, SqlCorruptionRestore):
+            if not self._docker.container_exists(state.container):
+                return [f"{state.container} is gone; the corruption went with it"]
+            return self._restore_sql(state)
         if not isinstance(state, CorruptionRestore):
             raise FaultUsageError(f"datastore_corruption cannot restore {state.kind}")
         if not self._docker.container_exists(state.container):

@@ -302,3 +302,38 @@ def test_an_external_restore_also_forgets_a_live_memory_limit_on_the_same_servic
     assert forgotten == ["ad-memory-squeeze"]
     assert sum(1 for c in runner.calls if "update" in c.args) == updates_before
     assert "ad-memory-squeeze" not in make_engine(settings, runner).active()
+
+
+def test_a_sql_restore_that_does_not_match_keeps_the_saved_copy(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A handler's own refusal on stop is an error, not a crash, and the state entry - here the
+    only copy of the values the fault overwrote - stays for the next `stop` (T7.1, A10)."""
+    monkeypatch.setenv("FAULTLINE_TOOLS_WORLD", "v2")
+    v2 = InjectorSettings(
+        world_dir=tmp_path / "world-v2",
+        state_dir=tmp_path / ".faultline",
+        ffs_stub_context=tmp_path / "compose" / "ffs-stub",
+    )
+    shipped = "f9b57aae49e7ad4305e3120a54fdc20d"
+    runner = FakeRunner(
+        stdout={
+            "{{.State.Running}}": "true\n",
+            "{{.Id}}": "abc\n",
+            "json_object_agg": f'10|10|{shipped}|10|{{ "OLJCESPC7Z" : "Explorascope" }}\n',
+            "SET description = NULL": "10|0|ea4a8cf36bcb834d426c151c896148e4\n",
+            "json_each_text": "10|9|0000\n",
+        }
+    )
+    fault = "v2-postgresql-catalog-corruption"
+    assert main(["start", fault], engine=make_engine(v2, runner)) == 0
+    capsys.readouterr()
+
+    assert main(["stop", fault], engine=make_engine(v2, runner)) != 0
+    assert "saved copy is still in the state" in capsys.readouterr().err
+    kept = make_engine(v2, runner).active()[fault].restore
+    assert getattr(kept, "saved", None) == {"OLJCESPC7Z": "Explorascope"}
+
+    runner.stdout["json_each_text"] = f"10|10|{shipped}\n"
+    assert main(["stop", fault], engine=make_engine(v2, runner)) == 0
+    assert make_engine(v2, runner).active() == {}

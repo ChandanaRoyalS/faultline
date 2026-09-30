@@ -19,7 +19,7 @@ from faultline.tools.changes import ChangeRecord
 from injector.catalog import CATALOG, by_id
 from injector.changelog import record_for_start, record_for_stop
 from injector.docker import CommandError, CommandRunner, ComposeCli, DockerCli, SubprocessRunner
-from injector.faults import Fault, build_handlers
+from injector.faults import Fault, FaultUsageError, build_handlers
 from injector.models import ActiveInjection, FaultDefinition
 from injector.settings import InjectorSettings
 from injector.state import StateStore
@@ -151,9 +151,10 @@ class Engine:
         handler = self._handler_for(injection.definition)
         try:
             changes = handler.restore(injection.restore)
-        except (CommandError, InjectorError) as exc:
+        except (CommandError, InjectorError, FaultUsageError) as exc:
             # Keep the state entry: the fault is still applied, and the operator
-            # needs the restore data to try again.
+            # needs the restore data to try again. A handler's own refusal counts: a SQL
+            # restore whose fingerprint does not match must not drop the saved copy.
             return StopResult(fault_id=fault_id, was_active=True, error=str(exc))
 
         self._store.remove(fault_id)
