@@ -1,0 +1,451 @@
+audit run at 2026-09-30 07:54:58 UTC
+
+====================================================================================================
+v2-cart-store-corruption   onset 00:20:23  fix 00:31:39   (age of onset 31.6 h)
+  claim: cart's span in error under 1 ms over an HGET that succeeded
+  evidence query: { resource.service.name = "cart" && status = error }
+  NOTHING in Tempo for the window at all - not re-readable (retention is 24 h)
+
+====================================================================================================
+v2-kafka-disk-fill   onset 02:30:05  fix 02:41:20   (age of onset 29.4 h)
+  claim: the publish held tens of seconds under completed orders
+  evidence query: { resource.service.name = "checkout" && name = "orders publish" }
+  NOTHING in Tempo for the window at all - not re-readable (retention is 24 h)
+
+====================================================================================================
+v2-inj-kafka-disk-fill-log-checkout   onset 03:46:50  fix 03:57:21   (age of onset 28.1 h)
+  claim: as the base
+  evidence query: { resource.service.name = "checkout" && name = "orders publish" }
+  NOTHING in Tempo for the window at all - not re-readable (retention is 24 h)
+
+====================================================================================================
+v2-inj-cart-flag-failure-log-checkout   onset 05:56:09  fix 06:07:25   (age of onset 26.0 h)
+  claim: EmptyCart in error over a flag lookup, no store call
+  evidence query: { resource.service.name = "cart" && name =~ ".*EmptyCart" && status = error }
+  NOTHING in Tempo for the window at all - not re-readable (retention is 24 h)
+
+====================================================================================================
+v2-inj-payment-dependency-latency-log-checkout   onset 01:24:16  fix 01:34:36   (age of onset 6.5 h)
+  claim: every slow trace - Charge about 301 ms over payment's own 0.3 ms span
+  evidence query: { resource.service.name = "checkout" && name = "oteldemo.PaymentService/Charge" && duration > 250ms }
+  minute   any(<=100)  evidence(<=500)
+  +00:00       100        92
+  +01:00       100        86
+  +02:00       100        73
+  +03:00       100        67
+  +04:00       100        64
+  +05:00       100        53
+  +06:00       100        37
+  +07:00       100        27
+  +08:00       100        21
+  +09:00       100        11
+  +10:00       100         7
+  all Charge client spans                                    292 (limit 500)
+  payment server spans over 50 ms (predicted none)           0 (limit 500)
+  trace from minute +00:00: ede5d04a7cb3b149d84b9a7f881b079d
+      load-generator/user_checkout_multi 347.9ms
+        load-generator/POST 322.9ms
+          frontend-proxy/ingress 322.0ms
+            frontend-proxy/router frontend egress 321.9ms
+              frontend/POST 321.6ms
+                frontend/POST /api/checkout 321.0ms
+                  frontend/executing api route (pages) /api/checkout 320.6ms
+                    frontend/grpc.oteldemo.CheckoutService/PlaceOrder 318.7ms
+                      checkout/oteldemo.CheckoutService/PlaceOrder 317.7ms
+                        checkout/prepareOrderItemsAndShippingQuoteFromCart 9.8ms
+                          checkout/oteldemo.CartService/GetCart 0.8ms
+                            cart/POST /oteldemo.CartService/GetCart 0.4ms
+                              cart/HGET 0.3ms
+                          checkout/oteldemo.ProductCatalogService/GetProduct 0.9ms
+                            product-catalog/oteldemo.ProductCatalogService/GetProduct 0.5ms
+                              product-catalog/sql.conn.query 0.4ms
+                          checkout/oteldemo.CurrencyService/Convert 1.7ms
+                            currency/Currency/Convert 0.7ms
+                          checkout/oteldemo.ProductCatalogService/GetProduct 0.8ms
+                            product-catalog/oteldemo.ProductCatalogService/GetProduct 0.5ms
+                              product-catalog/sql.conn.query 0.4ms
+                          checkout/oteldemo.CurrencyService/Convert 1.2ms
+                            currency/Currency/Convert 0.4ms
+                          checkout/HTTP POST 2.8ms
+                            shipping//get-quote 1.3ms
+                              shipping/POST quote 1.2ms
+                                quote/POST /getquote 0.2ms
+                                  quote/{closure} 0.1ms
+                                    quote/calculate-quote 0.0ms
+                          checkout/oteldemo.CurrencyService/Convert 1.3ms
+                            currency/Currency/Convert 0.4ms
+                        checkout/oteldemo.PaymentService/Charge 301.1ms
+                          payment/grpc.oteldemo.PaymentService/Charge 0.4ms
+                            payment/charge 0.2ms
+                        checkout/HTTP POST 0.4ms
+                          shipping//ship-order 0.0ms
+                        checkout/oteldemo.CartService/EmptyCart 2.1ms
+                          cart/POST /oteldemo.CartService/EmptyCart 1.7ms
+                            cart/flagd.evaluation.v1.Service/ResolveBoolean 0.9ms
+                              cart/POST 0.9ms
+                                flagd/flagd.evaluation.v1.Service/ResolveBoolean 0.1ms
+                                  flagd/resolveBoolean 0.1ms
+                                    flagd/resolveBoolean 0.0ms
+                            cart/HMSET 0.4ms
+                            cart/EXPIRE 0.2ms
+                        checkout/HTTP POST 4.0ms
+                          email/POST /send_order_confirmation 3.1ms
+                            email/send_email 2.0ms
+                              email/sinatra.render_template 0.2ms
+                                email/sinatra.render_template 0.1ms
+                        checkout/orders publish 0.1ms
+                    frontend/grpc.oteldemo.ProductCatalogService/GetProduct 1.4ms
+                      product-catalog/oteldemo.ProductCatalogService/GetProduct 0.6ms
+                        product-catalog/sql.conn.query 0.5ms
+                    frontend/grpc.oteldemo.ProductCatalogService/GetProduct 1.4ms
+                      product-catalog/oteldemo.ProductCatalogService/GetProduct 0.4ms
+                        product-catalog/sql.conn.query 0.3ms
+  trace from minute +05:00: 8084bfcefe01d6a820709e991b285001
+      load-generator/user_checkout_single 326.2ms
+        load-generator/POST 318.7ms
+          frontend-proxy/ingress 317.8ms
+            frontend-proxy/router frontend egress 317.5ms
+              frontend/POST 317.3ms
+                frontend/POST /api/checkout 317.0ms
+                  frontend/executing api route (pages) /api/checkout 316.7ms
+                    frontend/grpc.oteldemo.CheckoutService/PlaceOrder 314.5ms
+                      checkout/oteldemo.CheckoutService/PlaceOrder 313.6ms
+                        checkout/prepareOrderItemsAndShippingQuoteFromCart 5.8ms
+                          checkout/oteldemo.CartService/GetCart 0.7ms
+                            cart/POST /oteldemo.CartService/GetCart 0.3ms
+                              cart/HGET 0.2ms
+                          checkout/oteldemo.ProductCatalogService/GetProduct 0.8ms
+                            product-catalog/oteldemo.ProductCatalogService/GetProduct 0.5ms
+                              product-catalog/sql.conn.query 0.4ms
+                          checkout/oteldemo.CurrencyService/Convert 1.3ms
+                            currency/Currency/Convert 0.5ms
+                          checkout/HTTP POST 2.0ms
+                            shipping//get-quote 1.3ms
+                              shipping/POST quote 1.2ms
+                                quote/POST /getquote 0.3ms
+                                  quote/{closure} 0.1ms
+                                    quote/calculate-quote 0.0ms
+                          checkout/oteldemo.CurrencyService/Convert 0.7ms
+                            currency/Currency/Convert 0.3ms
+                        checkout/oteldemo.PaymentService/Charge 302.1ms
+                          payment/grpc.oteldemo.PaymentService/Charge 0.3ms
+                            payment/charge 0.2ms
+                        checkout/HTTP POST 0.3ms
+                          shipping//ship-order 0.0ms
+                        checkout/oteldemo.CartService/EmptyCart 2.0ms
+                          cart/POST /oteldemo.CartService/EmptyCart 1.6ms
+                            cart/flagd.evaluation.v1.Service/ResolveBoolean 0.7ms
+                              cart/POST 0.6ms
+                                flagd/flagd.evaluation.v1.Service/ResolveBoolean 0.1ms
+                                  flagd/resolveBoolean 0.0ms
+                                    flagd/resolveBoolean 0.0ms
+                            cart/HMSET 0.3ms
+                            cart/EXPIRE 0.3ms
+                        checkout/HTTP POST 3.0ms
+                          email/POST /send_order_confirmation 2.4ms
+                            email/send_email 1.8ms
+                              email/sinatra.render_template 0.2ms
+                                email/sinatra.render_template 0.1ms
+                        checkout/orders publish 0.1ms
+                    frontend/grpc.oteldemo.ProductCatalogService/GetProduct 1.7ms
+                      product-catalog/oteldemo.ProductCatalogService/GetProduct 0.7ms
+                        product-catalog/sql.conn.query 0.5ms
+  trace from minute +10:00: dd0c14fb3ca2f832f80ab611956150bc
+      load-generator/user_checkout_multi 334.9ms
+        load-generator/POST 320.7ms
+          frontend-proxy/ingress 319.8ms
+            frontend-proxy/router frontend egress 319.7ms
+              frontend/POST 319.5ms
+                frontend/POST /api/checkout 319.3ms
+                  frontend/executing api route (pages) /api/checkout 319.0ms
+                    frontend/grpc.oteldemo.CheckoutService/PlaceOrder 317.2ms
+                      checkout/oteldemo.CheckoutService/PlaceOrder 316.5ms
+                        checkout/prepareOrderItemsAndShippingQuoteFromCart 7.9ms
+                          checkout/oteldemo.CartService/GetCart 0.5ms
+                            cart/POST /oteldemo.CartService/GetCart 0.2ms
+                              cart/HGET 0.2ms
+                          checkout/oteldemo.ProductCatalogService/GetProduct 0.5ms
+                            product-catalog/oteldemo.ProductCatalogService/GetProduct 0.3ms
+                              product-catalog/sql.conn.query 0.3ms
+                          checkout/oteldemo.CurrencyService/Convert 1.4ms
+                            currency/Currency/Convert 0.5ms
+                          checkout/oteldemo.ProductCatalogService/GetProduct 0.9ms
+                            product-catalog/oteldemo.ProductCatalogService/GetProduct 0.5ms
+                              product-catalog/sql.conn.query 0.2ms
+                          checkout/oteldemo.CurrencyService/Convert 0.8ms
+                            currency/Currency/Convert 0.3ms
+                          checkout/HTTP POST 2.9ms
+                            shipping//get-quote 1.6ms
+                              shipping/POST quote 1.4ms
+                                quote/POST /getquote 0.3ms
+                                  quote/{closure} 0.2ms
+                                    quote/calculate-quote 0.0ms
+                          checkout/oteldemo.CurrencyService/Convert 0.8ms
+                            currency/Currency/Convert 0.2ms
+                        checkout/oteldemo.PaymentService/Charge 302.3ms
+                          payment/grpc.oteldemo.PaymentService/Charge 0.7ms
+                            payment/charge 0.4ms
+                        checkout/HTTP POST 0.2ms
+                          shipping//ship-order 0.0ms
+                        checkout/oteldemo.CartService/EmptyCart 2.0ms
+                          cart/POST /oteldemo.CartService/EmptyCart 1.7ms
+                            cart/flagd.evaluation.v1.Service/ResolveBoolean 1.1ms
+                              cart/POST 0.9ms
+                                flagd/flagd.evaluation.v1.Service/ResolveBoolean 0.1ms
+                                  flagd/resolveBoolean 0.1ms
+                                    flagd/resolveBoolean 0.0ms
+                            cart/HMSET 0.2ms
+                            cart/EXPIRE 0.1ms
+                        checkout/HTTP POST 3.7ms
+                          email/POST /send_order_confirmation 2.8ms
+                            email/send_email 2.1ms
+                              email/sinatra.render_template 0.1ms
+                                email/sinatra.render_template 0.0ms
+                        checkout/orders publish 0.1ms
+                    frontend/grpc.oteldemo.ProductCatalogService/GetProduct 1.4ms
+                      product-catalog/oteldemo.ProductCatalogService/GetProduct 0.5ms
+                        product-catalog/sql.conn.query 0.4ms
+                    frontend/grpc.oteldemo.ProductCatalogService/GetProduct 1.4ms
+                      product-catalog/oteldemo.ProductCatalogService/GetProduct 0.4ms
+                        product-catalog/sql.conn.query 0.3ms
+
+====================================================================================================
+v2-inj-email-wrong-image-log-checkout   onset 02:32:57  fix 02:43:29   (age of onset 5.4 h)
+  claim: the POST to email failing in about 2 ms, no such host, nothing beneath
+  evidence query: { resource.service.name = "checkout" && status = error }
+  minute   any(<=100)  evidence(<=500)
+  +00:00       100        89
+  +01:00       100        89
+  +02:00       100        84
+  +03:00       100        78
+  +04:00       100        71
+  +05:00       100        58
+  +06:00       100        50
+  +07:00       100        45
+  +08:00       100        31
+  +09:00       100        24
+  +10:00       100        14
+  +11:00       100         5
+  email spans of any kind (the narrative says none)          131 (limit 500)
+  checkout PlaceOrder in error (the narrative says none)     0 (limit 500)
+  trace from minute +00:00: b0a807528a56994f09763675e3b62e37
+      load-generator/user_checkout_single 158.8ms
+        load-generator/POST 139.4ms
+          frontend-proxy/ingress 138.7ms
+            frontend-proxy/router frontend egress 138.5ms
+              frontend/POST 136.9ms
+                frontend/POST /api/checkout 136.6ms
+                  frontend/executing api route (pages) /api/checkout 135.5ms
+                    frontend/grpc.oteldemo.CheckoutService/PlaceOrder 133.4ms
+                      checkout/oteldemo.CheckoutService/PlaceOrder 132.1ms
+                        checkout/prepareOrderItemsAndShippingQuoteFromCart 17.8ms
+                          checkout/oteldemo.CartService/GetCart 2.8ms
+                            cart/POST /oteldemo.CartService/GetCart 2.1ms
+                              cart/HGET 0.9ms
+                          checkout/oteldemo.ProductCatalogService/GetProduct 1.1ms
+                            product-catalog/oteldemo.ProductCatalogService/GetProduct 0.8ms
+                              product-catalog/sql.conn.query 0.7ms
+                          checkout/oteldemo.CurrencyService/Convert 6.9ms
+                            currency/Currency/Convert 1.2ms
+                          checkout/HTTP POST 4.8ms
+                            shipping//get-quote 3.1ms
+                              shipping/POST quote 2.7ms
+                                quote/POST /getquote 0.4ms
+                                  quote/{closure} 0.2ms
+                                    quote/calculate-quote 0.1ms
+                          checkout/oteldemo.CurrencyService/Convert 2.0ms
+                            currency/Currency/Convert 0.9ms
+                        checkout/oteldemo.PaymentService/Charge 2.1ms
+                          payment/grpc.oteldemo.PaymentService/Charge 0.8ms
+                            payment/charge 0.4ms
+                        checkout/HTTP POST 0.2ms
+                          shipping//ship-order 0.0ms
+                        checkout/oteldemo.CartService/EmptyCart 5.2ms
+                          cart/POST /oteldemo.CartService/EmptyCart 4.6ms
+                            cart/flagd.evaluation.v1.Service/ResolveBoolean 3.0ms
+                              cart/POST 2.8ms
+                                flagd/flagd.evaluation.v1.Service/ResolveBoolean 0.1ms
+                                  flagd/resolveBoolean 0.1ms
+                                    flagd/resolveBoolean 0.0ms
+                            cart/HMSET 0.4ms
+                            cart/EXPIRE 0.8ms
+                        checkout/HTTP POST 106.2ms  ERROR: dial tcp: lookup email on 127.0.0.11:53: no such host
+                        checkout/orders publish 0.1ms
+                    frontend/grpc.oteldemo.ProductCatalogService/GetProduct 1.4ms
+                      product-catalog/oteldemo.ProductCatalogService/GetProduct 0.6ms
+                        product-catalog/sql.conn.query 0.5ms
+  trace from minute +06:00: cecfbaebb0e2ebb96b1e28c60fad4cd4
+      load-generator/user_checkout_multi 49.3ms
+        load-generator/POST 21.6ms
+          frontend-proxy/ingress 21.0ms
+            frontend-proxy/router frontend egress 20.9ms
+              frontend/POST 20.8ms
+                frontend/POST /api/checkout 20.5ms
+                  frontend/executing api route (pages) /api/checkout 20.2ms
+                    frontend/grpc.oteldemo.CheckoutService/PlaceOrder 14.6ms
+                      checkout/oteldemo.CheckoutService/PlaceOrder 13.8ms
+                        checkout/prepareOrderItemsAndShippingQuoteFromCart 8.1ms
+                          checkout/oteldemo.CartService/GetCart 0.5ms
+                            cart/POST /oteldemo.CartService/GetCart 0.2ms
+                              cart/HGET 0.1ms
+                          checkout/oteldemo.ProductCatalogService/GetProduct 0.5ms
+                            product-catalog/oteldemo.ProductCatalogService/GetProduct 0.3ms
+                              product-catalog/sql.conn.query 0.2ms
+                          checkout/oteldemo.CurrencyService/Convert 1.0ms
+                            currency/Currency/Convert 0.4ms
+                          checkout/oteldemo.ProductCatalogService/GetProduct 0.6ms
+                            product-catalog/oteldemo.ProductCatalogService/GetProduct 0.3ms
+                              product-catalog/sql.conn.query 0.2ms
+                          checkout/oteldemo.CurrencyService/Convert 0.7ms
+                            currency/Currency/Convert 0.3ms
+                          checkout/oteldemo.ProductCatalogService/GetProduct 0.6ms
+                            product-catalog/oteldemo.ProductCatalogService/GetProduct 0.3ms
+                              product-catalog/sql.conn.query 0.3ms
+                          checkout/oteldemo.CurrencyService/Convert 1.0ms
+                            currency/Currency/Convert 0.3ms
+                          checkout/HTTP POST 2.0ms
+                            shipping//get-quote 1.0ms
+                              shipping/POST quote 0.9ms
+                                quote/POST /getquote 0.2ms
+                                  quote/{closure} 0.1ms
+                                    quote/calculate-quote 0.0ms
+                          checkout/oteldemo.CurrencyService/Convert 1.0ms
+                            currency/Currency/Convert 0.3ms
+                        checkout/oteldemo.PaymentService/Charge 1.0ms
+                          payment/grpc.oteldemo.PaymentService/Charge 0.4ms
+                            payment/charge 0.2ms
+                        checkout/HTTP POST 0.2ms
+                          shipping//ship-order 0.0ms
+                        checkout/oteldemo.CartService/EmptyCart 1.7ms
+                          cart/POST /oteldemo.CartService/EmptyCart 1.4ms
+                            cart/flagd.evaluation.v1.Service/ResolveBoolean 0.8ms
+                              cart/POST 0.7ms
+                                flagd/flagd.evaluation.v1.Service/ResolveBoolean 0.1ms
+                                  flagd/resolveBoolean 0.0ms
+                                    flagd/resolveBoolean 0.0ms
+                            cart/HMSET 0.2ms
+                            cart/EXPIRE 0.2ms
+                        checkout/HTTP POST 2.5ms  ERROR: dial tcp: lookup email on 127.0.0.11:53: no such host
+                        checkout/orders publish 0.1ms
+                    frontend/grpc.oteldemo.ProductCatalogService/GetProduct 5.2ms
+                      product-catalog/oteldemo.ProductCatalogService/GetProduct 4.3ms
+                        product-catalog/sql.conn.query 0.5ms
+                    frontend/grpc.oteldemo.ProductCatalogService/GetProduct 2.3ms
+                      product-catalog/oteldemo.ProductCatalogService/GetProduct 1.0ms
+                        product-catalog/sql.conn.query 0.7ms
+                    frontend/grpc.oteldemo.ProductCatalogService/GetProduct 2.4ms
+                      product-catalog/oteldemo.ProductCatalogService/GetProduct 1.0ms
+                        product-catalog/sql.conn.query 0.8ms
+  trace from minute +11:00: 196af1f1206826d65f7e6ffd4a146636
+      load-generator/user_checkout_single 31.5ms
+        load-generator/POST 18.3ms
+          frontend-proxy/ingress 17.4ms
+            frontend-proxy/router frontend egress 17.2ms
+              frontend/POST 16.9ms
+                frontend/POST /api/checkout 16.6ms
+                  frontend/executing api route (pages) /api/checkout 16.0ms
+                    frontend/grpc.oteldemo.CheckoutService/PlaceOrder 14.4ms
+                      checkout/oteldemo.CheckoutService/PlaceOrder 13.5ms
+                        checkout/prepareOrderItemsAndShippingQuoteFromCart 8.0ms
+                          checkout/oteldemo.CartService/GetCart 0.8ms
+                            cart/POST /oteldemo.CartService/GetCart 0.4ms
+                              cart/HGET 0.3ms
+                          checkout/oteldemo.ProductCatalogService/GetProduct 1.1ms
+                            product-catalog/oteldemo.ProductCatalogService/GetProduct 0.6ms
+                              product-catalog/sql.conn.query 0.4ms
+                          checkout/oteldemo.CurrencyService/Convert 2.0ms
+                            currency/Currency/Convert 0.9ms
+                          checkout/HTTP POST 2.6ms
+                            shipping//get-quote 1.4ms
+                              shipping/POST quote 1.3ms
+                                quote/POST /getquote 0.3ms
+                                  quote/{closure} 0.2ms
+                                    quote/calculate-quote 0.0ms
+                          checkout/oteldemo.CurrencyService/Convert 1.2ms
+                            currency/Currency/Convert 0.4ms
+                        checkout/oteldemo.PaymentService/Charge 1.1ms
+                          payment/grpc.oteldemo.PaymentService/Charge 0.4ms
+                            payment/charge 0.2ms
+                        checkout/HTTP POST 0.2ms
+                          shipping//ship-order 0.0ms
+                        checkout/oteldemo.CartService/EmptyCart 1.5ms
+                          cart/POST /oteldemo.CartService/EmptyCart 1.2ms
+                            cart/flagd.evaluation.v1.Service/ResolveBoolean 0.6ms
+                              cart/POST 0.5ms
+                                flagd/flagd.evaluation.v1.Service/ResolveBoolean 0.1ms
+                                  flagd/resolveBoolean 0.0ms
+                                    flagd/resolveBoolean 0.0ms
+                            cart/HMSET 0.3ms
+                            cart/EXPIRE 0.2ms
+                        checkout/HTTP POST 2.3ms  ERROR: dial tcp: lookup email on 127.0.0.11:53: no such host
+                        checkout/orders publish 0.1ms
+                    frontend/grpc.oteldemo.ProductCatalogService/GetProduct 1.3ms
+                      product-catalog/oteldemo.ProductCatalogService/GetProduct 0.6ms
+                        product-catalog/sql.conn.query 0.5ms
+
+====================================================================================================
+R6 (v2-postgresql-catalog-corruption rehearsal)   onset 05:04:02  fix 05:15:34   (age of onset 2.8 h)
+  claim: catalog spans in error over database spans that are not
+  evidence query: { resource.service.name = "product-catalog" && status = error }
+  minute   any(<=100)  evidence(<=500)
+  +00:00       100        84
+  +01:00       100        87
+  +02:00       100        77
+  +03:00       100        93
+  +04:00       100        73
+  +05:00       100        64
+  +06:00       100        85
+  +07:00       100        89
+  +08:00       100        74
+  +09:00       100        77
+  +10:00       100        89
+  +11:00       100        55
+  database spans in error (predicted none)                   0 (limit 500)
+  trace from minute +00:00: dedeecb2f9ff8457751161e3868456aa
+      load-generator/user_browse_product 23.1ms
+        load-generator/GET 22.1ms  ERROR: 
+          frontend-proxy/ingress 9.5ms  ERROR: 
+            frontend-proxy/router frontend egress 9.3ms  ERROR: 
+              frontend/GET 8.3ms  ERROR: 
+                frontend/GET /api/products/{productId} 7.4ms  ERROR: 
+                  frontend/executing api route (pages) /api/products/[productId]/index 5.7ms  ERROR: 
+                    frontend/grpc.oteldemo.ProductCatalogService/GetProduct 3.5ms  ERROR: 
+                      product-catalog/oteldemo.ProductCatalogService/GetProduct 0.8ms  ERROR: Product Not Found: 9SIQT8TOJO
+                        product-catalog/sql.conn.query 0.7ms
+  trace from minute +06:00: ed836f3c6b6196b0307ccf9457053103
+      load-generator/user_browse_product 4.0ms
+        load-generator/GET 3.6ms  ERROR: 
+          frontend-proxy/ingress 2.8ms  ERROR: 
+            frontend-proxy/router frontend egress 2.6ms  ERROR: 
+              frontend/GET 2.1ms  ERROR: 
+                frontend/GET /api/products/{productId} 1.8ms  ERROR: 
+                  frontend/executing api route (pages) /api/products/[productId]/index 1.4ms  ERROR: 
+                    frontend/grpc.oteldemo.ProductCatalogService/GetProduct 0.9ms  ERROR: 
+                      product-catalog/oteldemo.ProductCatalogService/GetProduct 0.4ms  ERROR: Product Not Found: LS4PSXUNUM
+                        product-catalog/sql.conn.query 0.3ms
+  trace from minute +11:00: 9ff4ffe711e8cde93d90c65ec900fa65
+      load-generator/user_add_to_cart 7.6ms
+        load-generator/GET 3.4ms  ERROR: 
+          frontend-proxy/ingress 2.7ms  ERROR: 
+            frontend-proxy/router frontend egress 2.6ms  ERROR: 
+              frontend/GET 2.2ms  ERROR: 
+                frontend/GET /api/products/{productId} 1.9ms  ERROR: 
+                  frontend/executing api route (pages) /api/products/[productId]/index 1.5ms  ERROR: 
+                    frontend/grpc.oteldemo.ProductCatalogService/GetProduct 0.9ms  ERROR: 
+                      product-catalog/oteldemo.ProductCatalogService/GetProduct 0.4ms  ERROR: Product Not Found: 9SIQT8TOJO
+                        product-catalog/sql.conn.query 0.3ms
+        load-generator/POST 3.6ms
+          frontend-proxy/ingress 3.0ms
+            frontend-proxy/router frontend egress 3.0ms
+              frontend/POST 2.8ms
+                frontend/POST /api/cart 2.7ms
+                  frontend/executing api route (pages) /api/cart 2.4ms
+                    frontend/grpc.oteldemo.CartService/AddItem 1.5ms
+                      cart/POST /oteldemo.CartService/AddItem 0.9ms
+                        cart/HGET 0.3ms
+                        cart/HMSET 0.2ms
+                        cart/EXPIRE 0.3ms
+                    frontend/grpc.oteldemo.CartService/GetCart 0.6ms
+                      cart/POST /oteldemo.CartService/GetCart 0.3ms
+                        cart/HGET 0.2ms
+

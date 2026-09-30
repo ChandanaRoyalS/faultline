@@ -1,0 +1,264 @@
+"""Read-only: Q120 audit, second pass - what the first pass left open, checked against a second source.
+
+Run from anywhere, with the world up:
+    python3 ~/Downloads/audit_q120_b.py > ~/Downloads/audit-q120-b.txt 2>&1
+
+The first pass (audit_q120.py) left three things open, and this reads each one without writing:
+
+  1. Are Tempo's answers complete? Every negative the audit leans on ("PlaceOrder in error - 0",
+     "payment server spans over 50 ms - 0", "database spans in error - 0") is only as good as the
+     search that returned it. For each window still in retention this prints the search's own
+     completion counters (jobs completed of jobs total, traces inspected) for the evidence query
+     and each negative.
+  2. Does Tempo hold every trace? The per-minute evidence counts fell across both the payment and
+     the email windows (92 -> 7, 89 -> 5) while the rates in the bundles held. Beside each minute
+     this prints the same thing counted by the span metrics - Prometheus, written by the collector
+     and not by Tempo - so a fall in Tempo alone shows as Tempo, and a fall in both as the world.
+  3. The 131 email traces in the email label's window, which the narrative says produced no span
+     of any kind. Every one is fetched whole and placed: its email spans' names and start times
+     against the onset and the fix, bucketed by 30 s. Beside it, email's span count per minute
+     from the span metrics, from ten minutes before the onset to five after the fix.
+  4. "About 2 ms". The first pass drew three trees: 106 ms in the first minute, 2.5 and 2.3 later.
+     This reads every failing HTTP POST from checkout in the window and prints its duration per
+     minute - count, minimum, median, 90th percentile, maximum.
+
+Stdlib only, Python 3.9-safe. Nothing is written anywhere.
+"""
+
+import datetime as dt
+import json
+import urllib.parse
+import urllib.request
+
+TEMPO = "http://localhost:3200"
+PROM = "http://localhost:9090"
+
+PAY = ("v2-inj-payment-dependency-latency-log-checkout", "2026-09-30T01:24:16+00:00",
+       "2026-09-30T01:34:36+00:00")
+EMAIL = ("v2-inj-email-wrong-image-log-checkout", "2026-09-30T02:32:57+00:00",
+         "2026-09-30T02:43:29+00:00")
+R6 = ("R6 (v2-postgresql-catalog-corruption rehearsal)", "2026-09-30T05:04:02+00:00",
+      "2026-09-30T05:15:34+00:00")
+
+# (window, what, TraceQL, span-metrics selector for the same spans, bucket bound in ms or None)
+CHECKS = [
+    (PAY, "Charge from checkout over 250 ms (evidence)",
+     '{ resource.service.name = "checkout" && name = "oteldemo.PaymentService/Charge" && duration > 250ms }',
+     'service_name="checkout",span_name="oteldemo.PaymentService/Charge"', 250),
+    (PAY, "all Charge from checkout",
+     '{ resource.service.name = "checkout" && name = "oteldemo.PaymentService/Charge" }',
+     'service_name="checkout",span_name="oteldemo.PaymentService/Charge"', None),
+    (PAY, "payment server spans over 50 ms (negative)",
+     '{ resource.service.name = "payment" && kind = server && duration > 50ms }',
+     'service_name="payment",span_kind="SPAN_KIND_SERVER"', 50),
+    (EMAIL, "checkout spans in error (evidence)",
+     '{ resource.service.name = "checkout" && status = error }',
+     'service_name="checkout",status_code="STATUS_CODE_ERROR"', None),
+    (EMAIL, "PlaceOrder in error (negative)",
+     '{ resource.service.name = "checkout" && name = "oteldemo.CheckoutService/PlaceOrder" && status = error }',
+     'service_name="checkout",span_name="oteldemo.CheckoutService/PlaceOrder",status_code="STATUS_CODE_ERROR"',
+     None),
+    (EMAIL, "email spans of any kind",
+     '{ resource.service.name = "email" }',
+     'service_name="email"', None),
+    (R6, "product-catalog spans in error (evidence)",
+     '{ resource.service.name = "product-catalog" && status = error }',
+     'service_name="product-catalog",status_code="STATUS_CODE_ERROR"', None),
+    (R6, "database spans in error (negative)",
+     '{ resource.service.name = "product-catalog" && name = "sql.conn.query" && status = error }',
+     'service_name="product-catalog",span_name="sql.conn.query",status_code="STATUS_CODE_ERROR"', None),
+]
+
+
+def get(base, path, params, timeout=120):
+    url = base + path + "?" + urllib.parse.urlencode(params)
+    with urllib.request.urlopen(url, timeout=timeout) as r:
+        return json.load(r)
+
+
+def ts(s):
+    return dt.datetime.fromisoformat(s)
+
+
+def search(q, a, b, limit=2000, spss=20):
+    r = get(TEMPO, "/api/search", {"q": q, "start": str(int(a.timestamp())), "end": str(int(b.timestamp())),
+                                   "limit": str(limit), "spss": str(spss)})
+    return r.get("traces") or [], r.get("metrics") or {}
+
+
+def done(metrics):
+    return "jobs %s of %s, traces inspected %s, blocks %s" % (
+        metrics.get("completedJobs", "?"), metrics.get("totalJobs", "?"),
+        metrics.get("inspectedTraces", "?"), metrics.get("totalBlocks", "?"))
+
+
+def spans_of(trace):
+    out = []
+    sets = trace.get("spanSets") or ([trace["spanSet"]] if trace.get("spanSet") else [])
+    for ss in sets:
+        out.extend(ss.get("spans") or [])
+    return out
+
+
+def prom_minutes(selector, minutes, bound):
+    """Spans per minute from the span metrics: all, and over `bound` ms when given."""
+    les = []
+    if bound is not None:
+        series = get(PROM, "/api/v1/series", {"match[]": "traces_span_metrics_duration_milliseconds_bucket{%s}" % selector,
+                                              "start": str(int(minutes[0].timestamp())),
+                                              "end": str(int(minutes[-1].timestamp()) + 60)})["data"]
+        les = sorted({float(s["le"]) for s in series if s.get("le") not in (None, "+Inf")})
+    le = max([x for x in les if x <= bound], default=None) if bound is not None else None
+    rows = []
+    for m in minutes:
+        t = str(int(m.timestamp()) + 60)
+        a = get(PROM, "/api/v1/query", {"query": "sum(increase(traces_span_metrics_calls_total{%s}[1m]))" % selector,
+                                         "time": t})["data"]["result"]
+        n = float(a[0]["value"][1]) if a else 0.0
+        over = None
+        if le is not None:
+            b = get(PROM, "/api/v1/query", {"query": 'sum(increase(traces_span_metrics_duration_milliseconds_bucket{%s,le="%s"}[1m]))'
+                                            % (selector, ("%g" % le)), "time": t})["data"]["result"]
+            under = float(b[0]["value"][1]) if b else 0.0
+            over = n - under
+        rows.append((n, over))
+    return rows, le, les
+
+
+def minutes_of(a, b):
+    m = a.replace(second=0)
+    out = []
+    while m < b:
+        out.append(m)
+        m += dt.timedelta(minutes=1)
+    return out
+
+
+def part1_2():
+    print("=" * 100)
+    print("1 and 2. Search completeness, and Tempo's count beside the span metrics' count, per minute")
+    print("   (span metrics count spans and Tempo counts traces; where one trace holds one such span the")
+    print("   two should agree. 'over' is the span metrics' count above the nearest bucket bound at or")
+    print("   under the query's duration.)")
+    for (label, a, b), what, q, sel, bound in CHECKS:
+        t0, t1 = ts(a), ts(b)
+        print("\n%s - %s" % (label, what))
+        print("  %s" % q)
+        whole, met = search(q, t0, t1)
+        print("  whole window: %d traces; %s" % (len(whole), done(met)))
+        mins = minutes_of(t0, t1)
+        try:
+            pr, le, les = prom_minutes(sel, mins, bound)
+        except Exception as e:  # keep going; the Tempo side still prints
+            pr, le, les = [(None, None)] * len(mins), None, []
+            print("  span metrics unavailable: %s" % e)
+        if bound is not None:
+            print("  bucket bounds (ms): %s; nearest at or under %s ms: %s" % (les, bound, le))
+        print("  minute   tempo  complete         metrics(all)  metrics(over)")
+        for m, (n, over) in zip(mins, pr):
+            got, mm = search(q, m, m + dt.timedelta(minutes=1))
+            full = "%s/%s" % (mm.get("completedJobs", "?"), mm.get("totalJobs", "?"))
+            print("  +%-6s %6d  %-15s %12s  %13s" % (
+                str(m - t0.replace(second=0))[2:7], len(got), full,
+                "-" if n is None else "%.0f" % n, "-" if over is None else "%.0f" % over))
+
+
+def attr(attrs, key):
+    for x in attrs or []:
+        if x.get("key") == key:
+            return next(iter((x.get("value") or {}).values()), "")
+    return ""
+
+
+def email_spans(trace_id):
+    t = get(TEMPO, "/api/traces/" + trace_id, {})
+    out, root = [], None
+    for g in t.get("batches") or t.get("resourceSpans") or []:
+        svc = attr((g.get("resource") or {}).get("attributes"), "service.name")
+        for ss in g.get("scopeSpans") or []:
+            for s in ss.get("spans") or []:
+                st = int(s.get("startTimeUnixNano") or 0)
+                if not s.get("parentSpanId") and (root is None or st < root[0]):
+                    root = (st, svc, s.get("name"))
+                if svc == "email":
+                    err = (s.get("status") or {}).get("code") in ("STATUS_CODE_ERROR", 2, "2")
+                    out.append((st, s.get("name"), (int(s.get("endTimeUnixNano") or 0) - st) / 1e6, err))
+    return sorted(out), root
+
+
+def part3():
+    label, a, b = EMAIL
+    t0, t1 = ts(a), ts(b)
+    print("\n" + "=" * 100)
+    print("3. The email traces in the email label's window, placed (onset %s, fix %s)" % (a[11:19], b[11:19]))
+    found, met = search('{ resource.service.name = "email" }', t0, t1, 2000, 50)
+    print("  search over the window: %d traces; %s" % (len(found), done(met)))
+    buckets, names, placed = {}, {}, []
+    for tr in found:
+        sp, root = email_spans(tr["traceID"])
+        if not sp:
+            placed.append((None, tr["traceID"], root))
+            continue
+        first = sp[0][0] / 1e9
+        rel = first - t0.timestamp()
+        placed.append((rel, tr["traceID"], root))
+        side = "before onset" if rel < 0 else ("after fix" if first >= t1.timestamp() else "inside")
+        key = (side, int(rel // 30) * 30)
+        buckets[key] = buckets.get(key, 0) + 1
+        for s in sp:
+            k = (side, s[1], s[3])
+            names[k] = names.get(k, 0) + 1
+    print("  first email span of each trace, by 30 s from the onset:")
+    for (side, sec), n in sorted(buckets.items(), key=lambda kv: kv[0][1]):
+        print("    %-13s %+6ds .. %+6ds  %4d traces" % (side, sec, sec + 30, n))
+    print("  email span names (side, name, in error):")
+    for (side, name, err), n in sorted(names.items()):
+        print("    %-13s %-40s %-5s %d" % (side, name, "ERROR" if err else "ok", n))
+    none = [p for p in placed if p[0] is None]
+    if none:
+        print("  traces the search matched with no email span on fetch: %d (first %s)" % (len(none), none[0][1]))
+    inside = sorted(p for p in placed if p[0] is not None and 0 <= p[0] < (t1 - t0).total_seconds())
+    for rel, tid, root in inside[:3] + inside[-3:]:
+        print("  inside at %+.1fs: %s  root %s/%s at %+.1fs" % (
+            rel, tid, root[1] if root else "?", root[2] if root else "?",
+            (root[0] / 1e9 - t0.timestamp()) if root else 0))
+    print("  email spans per minute from the span metrics (all kinds), onset-10m to fix+5m:")
+    mins = minutes_of(t0 - dt.timedelta(minutes=10), t1 + dt.timedelta(minutes=5))
+    pr, _, _ = prom_minutes('service_name="email"', mins, None)
+    for m, (n, _) in zip(mins, pr):
+        rel = (m - t0.replace(second=0)).total_seconds() / 60
+        print("    %s (%+3.0f min)  %6.1f" % (m.strftime("%H:%M"), rel, n))
+
+
+def part4():
+    label, a, b = EMAIL
+    t0, t1 = ts(a), ts(b)
+    print("\n" + "=" * 100)
+    print("4. checkout's failing HTTP POST to email - duration per minute across the whole window")
+    q = '{ resource.service.name = "checkout" && name = "HTTP POST" && status = error }'
+    print("  %s" % q)
+    total = 0
+    for m in minutes_of(t0, t1):
+        got, mm = search(q, max(m, t0), min(m + dt.timedelta(minutes=1), t1), 2000, 20)
+        durs = sorted(int(s.get("durationNanos") or 0) / 1e6 for tr in got for s in spans_of(tr))
+        total += len(durs)
+        if not durs:
+            print("  +%-6s  0 spans  (%s)" % (str(m - t0.replace(second=0))[2:7], done(mm)))
+            continue
+        pick = lambda p: durs[min(len(durs) - 1, int(p * len(durs)))]
+        print("  +%-6s %4d spans  min %6.1f  median %6.1f  p90 %6.1f  max %6.1f ms   over 10 ms: %d  (jobs %s/%s)" % (
+            str(m - t0.replace(second=0))[2:7], len(durs), durs[0], pick(0.5), pick(0.9), durs[-1],
+            sum(1 for d in durs if d > 10), mm.get("completedJobs", "?"), mm.get("totalJobs", "?")))
+    print("  total failing POSTs read: %d" % total)
+
+
+def main():
+    now = dt.datetime.now(dt.timezone.utc)
+    print("audit (second pass) run at %s UTC\n" % now.strftime("%Y-%m-%d %H:%M:%S"))
+    part1_2()
+    part3()
+    part4()
+
+
+if __name__ == "__main__":
+    main()

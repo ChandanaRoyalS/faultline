@@ -1,0 +1,66 @@
+audit (third pass) run at 2026-09-30 08:06:29 UTC
+
+====================================================================================================
+payment label (onset 01:24:16, fix 01:34:36)
+
+  slow Charge from checkout - durations (the label says about 301 ms)
+    { resource.service.name = "checkout" && name = "oteldemo.PaymentService/Charge" && duration > 250ms }
+    0 traces in the window (92 returned, 92 outside it removed; jobs 2 of 2)
+    matched spans: no spans
+
+  all Charge from checkout
+    { resource.service.name = "checkout" && name = "oteldemo.PaymentService/Charge" }
+    0 traces in the window (292 returned, 292 outside it removed; jobs 2 of 2)
+
+  payment's server span under each slow Charge - durations (the label says 0.3 ms)
+    { resource.service.name = "checkout" && name = "oteldemo.PaymentService/Charge" && duration > 250ms } > { resource.service.name = "payment" }
+    0 traces in the window (92 returned, 92 outside it removed; jobs 2 of 2)
+    matched spans: no spans
+
+  PlaceOrder above each slow Charge - durations (the label says about 310 ms)
+    { resource.service.name = "checkout" && name = "oteldemo.PaymentService/Charge" && duration > 250ms } << { name = "oteldemo.CheckoutService/PlaceOrder" }
+    0 traces in the window (92 returned, 92 outside it removed; jobs 2 of 2)
+    matched spans: no spans
+
+  slow traces holding any span in error
+    { resource.service.name = "checkout" && name = "oteldemo.PaymentService/Charge" && duration > 250ms } && { status = error }
+    0 traces in the window (0 returned, 0 outside it removed; jobs 2 of 2)  - the label says none
+
+====================================================================================================
+email label (onset 02:32:57, fix 02:43:29)
+
+  checkout's failing HTTP POST - durations (the label says about 2 ms)
+    { resource.service.name = "checkout" && name = "HTTP POST" && status = error }
+    0 traces in the window (89 returned, 89 outside it removed; jobs 1 of 1)
+    matched spans: no spans
+
+  failing HTTP POST with any span beneath it
+    { resource.service.name = "checkout" && name = "HTTP POST" && status = error } > { }
+    0 traces in the window (0 returned, 0 outside it removed; jobs 1 of 1)  - the label says nothing beneath it
+
+  email spans of any kind
+    { resource.service.name = "email" }
+    0 traces in the window (131 returned, 131 outside it removed; jobs 1 of 1)  - the label says none
+
+====================================================================================================
+R6 (onset 05:04:02, fix 05:15:34)
+
+  catalog server spans in error
+    { resource.service.name = "product-catalog" && kind = server && status = error }
+    947 traces in the window (947 returned, 0 outside it removed; jobs 1 of 1)
+    matched spans: 947 spans  min 0.2  median 0.5  p90 0.9  max 3.7 ms
+
+  of those, over a database span not in error
+    { resource.service.name = "product-catalog" && kind = server && status = error } > { name = "sql.conn.query" && status != error }
+    947 traces in the window (947 returned, 0 outside it removed; jobs 1 of 1)  - the label says every one
+
+  catalog server spans in error over a database span in error
+    { resource.service.name = "product-catalog" && kind = server && status = error } > { name = "sql.conn.query" && status = error }
+    0 traces in the window (0 returned, 0 outside it removed; jobs 1 of 1)  - the label says none
+
+====================================================================================================
+Tempo's time bounds - does a search return traces outside [start, end)?
+  email window, every trace          02:32..02:43   500 returned,    0 start after the end,   0 ended before the start; newest starts 02:43:28 (jobs 1 of 1)
+  R6 window, every trace             05:04..05:15   500 returned,    0 start after the end,   0 ended before the start; newest starts 05:15:28 (jobs 1 of 1)
+  30 to 20 minutes ago, every trace  07:36..07:46   500 returned,    0 start after the end,   0 ended before the start; newest starts 07:46:28 (jobs 2 of 2)
+  10 to 5 minutes ago, every trace   07:56..08:01   500 returned,    0 start after the end,   0 ended before the start; newest starts 08:01:28 (jobs 4 of 5)

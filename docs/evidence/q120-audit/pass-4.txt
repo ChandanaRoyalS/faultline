@@ -1,0 +1,98 @@
+audit (fourth pass) run at 2026-09-30 08:18:32 UTC
+
+====================================================================================================
+payment label (onset 01:24:16, fix 01:34:36)
+
+  slow Charge; related = payment's server span beneath it (the label: about 301 ms over 0.3 ms)
+    { resource.service.name = "checkout" && name = "oteldemo.PaymentService/Charge" && duration > 250ms }
+    search reported 92 traces; 0 with no start time; starts 06:47:15 .. 06:57:12
+    matched spans before onset: none
+    matched spans inside:       92  min 300.7  median 301.2  p90 302.4  max 304.3 ms (01:24:22 .. 01:34:19)
+    matched spans after fix:    none
+    related span, for each matched span inside: 92  min 0.2  median 0.3  p90 0.5  max 1.3 ms
+    trace ede5d04a7cb3b149d84b9a7f881b079d  fetched root starts 06:47:15  search reported 06:47:15
+    trace 21b32e4a9a35357ca40607d170a2a9d3  fetched root starts 06:47:32  search reported 06:47:32
+    trace f1d0ebaa672cc9c64e75010a3002c0f4  fetched root starts 06:57:10  search reported 06:57:10
+    trace 16a9070c09b7e5aefd8fa75e7b5d51b8  fetched root starts 06:57:12  search reported 06:57:12
+
+  slow Charge; related = PlaceOrder above it (the label: about 310 ms)
+    { resource.service.name = "checkout" && name = "oteldemo.PaymentService/Charge" && duration > 250ms }
+    search reported 92 traces; 0 with no start time; starts 06:47:15 .. 06:57:12
+    matched spans before onset: none
+    matched spans inside:       92  min 300.7  median 301.2  p90 302.4  max 304.3 ms (01:24:22 .. 01:34:19)
+    matched spans after fix:    none
+    related span, for each matched span inside: 92  min 309.3  median 313.5  p90 319.3  max 329.1 ms
+    trace ede5d04a7cb3b149d84b9a7f881b079d  fetched root starts 06:47:15  search reported 06:47:15
+    trace 21b32e4a9a35357ca40607d170a2a9d3  fetched root starts 06:47:32  search reported 06:47:32
+    trace f1d0ebaa672cc9c64e75010a3002c0f4  fetched root starts 06:57:10  search reported 06:57:10
+    trace 16a9070c09b7e5aefd8fa75e7b5d51b8  fetched root starts 06:57:12  search reported 06:57:12
+
+  all Charge from checkout
+    { resource.service.name = "checkout" && name = "oteldemo.PaymentService/Charge" }
+    search reported 292 traces; 0 with no start time; starts 06:47:15 .. 07:22:44
+    matched spans before onset: none
+    matched spans inside:       92  min 300.7  median 301.2  p90 302.4  max 304.3 ms (01:24:22 .. 01:34:19)
+    matched spans after fix:    200  min 0.6  median 1.0  p90 1.7  max 6.2 ms (01:35:00 .. 01:59:51)
+    trace ede5d04a7cb3b149d84b9a7f881b079d  fetched root starts 06:47:15  search reported 06:47:15
+    trace 21b32e4a9a35357ca40607d170a2a9d3  fetched root starts 06:47:32  search reported 06:47:32
+    trace 151370143b207aba5bf5fd3417e977ef  fetched root starts 07:22:44  search reported 07:22:44
+    trace ad1df9a58b9dc3f96da7cc9b2724e570  fetched root starts 07:22:44  search reported 07:22:44
+
+====================================================================================================
+email label (onset 02:32:57, fix 02:43:29)
+
+  checkout's failing HTTP POST; related = the PlaceOrder above it
+    { resource.service.name = "checkout" && name = "HTTP POST" && status = error }
+    search reported 89 traces; 0 with no start time; starts 07:55:57 .. 08:06:23
+    matched spans before onset: none
+    matched spans inside:       88  min 1.7  median 2.4  p90 3.8  max 106.2 ms (02:33:04 .. 02:43:18)
+    matched spans after fix:    1  min 0.4  median 0.4  p90 0.4  max 0.4 ms (02:43:30 .. 02:43:30)
+    related span, for each matched span inside: 88  min 8.2  median 14.1  p90 21.7  max 132.1 ms
+    trace b0a807528a56994f09763675e3b62e37  fetched root starts 07:55:57  search reported 07:55:57
+    trace 192f3c1712e7d10f16521a7a8be86f43  fetched root starts 07:56:05  search reported 07:56:05
+    trace 3a88757a3ebc9476e1113b9653e8dedf  fetched root starts 08:06:12  search reported 08:06:12
+    trace cde51fe9fe6e4894968e42a1bdbe81dd  fetched root starts 08:06:23  search reported 08:06:23
+
+  email spans of any kind
+    { resource.service.name = "email" }
+    search reported 131 traces; 0 with no start time; starts 08:06:29 .. 08:22:37
+    matched spans before onset: none
+    matched spans inside:       none
+    matched spans after fix:    524  min 0.0  median 1.1  p90 2.7  max 37.2 ms (02:43:36 .. 02:59:44)
+    trace b7ac5b58da3ef696707d1a2bb66951f9  fetched root starts 08:06:29  search reported 08:06:29
+    trace ba02fca2fa9293ac73e74ff9e849b20e  fetched root starts 08:06:37  search reported 08:06:37
+    trace 2b773081f6a96f0644e64a40bfed5af9  fetched root starts 08:22:34  search reported 08:22:34
+    trace 8d7ec05ae3b63d9f94f931eb35eae9f9  fetched root starts 08:22:37  search reported 08:22:37
+
+====================================================================================================
+R6 (onset 05:04:02, fix 05:15:34) - the control: a window where the third pass kept every trace
+
+  catalog server spans in error
+    { resource.service.name = "product-catalog" && kind = server && status = error }
+    search reported 947 traces; 0 with no start time; starts 05:04:03 .. 05:15:33
+    matched spans before onset: none
+    matched spans inside:       947  min 0.2  median 0.5  p90 0.9  max 3.7 ms (05:04:03 .. 05:15:33)
+    matched spans after fix:    none
+    trace dedeecb2f9ff8457751161e3868456aa  fetched root starts 05:04:03  search reported 05:04:03
+    trace a9c253d2308cb26b4c0c76f7c37a363a  fetched root starts 05:04:03  search reported 05:04:03
+    trace a3ce3a6d69dd8f59a9dac156f71182f9  fetched root starts 05:15:33  search reported 05:15:33
+    trace 4bdfe9162fa8592c351e13d8d8c0a57e  fetched root starts 05:15:33  search reported 05:15:33
+
+====================================================================================================
+Tempo's bounds, searched the way the trace tool searches - one service per query
+  checkout         06:18..06:33   286 returned     0 start after the end    0 ended before the start    0 no start  (starts 11:41:36 .. 12:15:39)
+  checkout         07:18..07:33   262 returned     0 start after the end    0 ended before the start    0 no start  (starts 12:41:27 .. 13:13:13)
+  checkout         07:48..07:58    89 returned     0 start after the end    0 ended before the start    0 no start  (starts 13:11:39 .. 07:57:24)
+  checkout         08:08..08:13    80 returned     0 start after the end    0 ended before the start    0 no start  (starts 13:31:27 .. 13:38:47)
+  frontend         06:18..06:33   500 returned     0 start after the end    0 ended before the start    0 no start  (starts 11:41:36 .. 06:33:31)
+  frontend         07:18..07:33   500 returned     0 start after the end    0 ended before the start    0 no start  (starts 12:41:34 .. 07:33:31)
+  frontend         07:48..07:58   500 returned     0 start after the end    0 ended before the start    0 no start  (starts 13:11:39 .. 07:58:31)
+  frontend         08:08..08:13   500 returned     0 start after the end    0 ended before the start    0 no start  (starts 13:35:58 .. 08:13:31)
+  product-catalog  06:18..06:33   500 returned     0 start after the end    0 ended before the start    0 no start  (starts 11:41:36 .. 06:33:31)
+  product-catalog  07:18..07:33   500 returned     0 start after the end    0 ended before the start    0 no start  (starts 12:41:34 .. 07:33:31)
+  product-catalog  07:48..07:58   500 returned     0 start after the end    0 ended before the start    0 no start  (starts 13:11:39 .. 07:58:31)
+  product-catalog  08:08..08:13   488 returned     0 start after the end    0 ended before the start    0 no start  (starts 13:31:27 .. 08:13:29)
+  email            06:18..06:33   286 returned     0 start after the end    0 ended before the start    0 no start  (starts 11:41:36 .. 12:15:39)
+  email            07:18..07:33   262 returned     0 start after the end    0 ended before the start    0 no start  (starts 12:41:27 .. 13:13:13)
+  email            07:48..07:58    89 returned     0 start after the end    0 ended before the start    0 no start  (starts 13:11:39 .. 07:57:24)
+  email            08:08..08:13    79 returned     0 start after the end    0 ended before the start    0 no start  (starts 13:31:27 .. 08:13:05)

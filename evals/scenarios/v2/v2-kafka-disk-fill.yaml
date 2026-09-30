@@ -9,6 +9,10 @@
 # kafka holds 52 JVM runtime series; checkout produces 0.19 orders a second to one topic, which
 # accounting (0.19 consumer spans a second, 58 lines per five minutes) and fraud-detection (0.37,
 # 29 lines) read; checkout writes no log lines at all (its logger routes into OTLP).
+# Q120's audit, 2026-09-30: the traces item below was read while Tempo's search saw only its
+# ingester's last minutes. By the repair the window was past the 24 h retention and was deleted,
+# so it could not be re-read; it stands as read, a sample of the fault's newest minutes
+# (docs/evidence/q120-audit/README.md).
 id: v2-kafka-disk-fill
 title: The broker's only disk is full - it halts, cannot start again, and every order hangs
 fault_class: disk_fill

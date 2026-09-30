@@ -1,0 +1,162 @@
+"""Read-only: Q120 audit, third pass - the whole-window negatives the labels state, and Tempo's end bound.
+
+Run from anywhere, with the world up:
+    python3 ~/Downloads/audit_q120_c.py > ~/Downloads/audit-q120-c.txt 2>&1
+
+The second pass showed that a search's `end` was not applied to the traces it returned on the
+payment and email windows: a search ending at the email fix returned 131 traces whose email spans
+all began after the fix, and each "per minute" count was the count from that minute to the end of
+the block. On R6's window the per-minute counts summed to the whole. So this pass filters every
+result to the window itself, client side, by the trace's own start time, and prints how many the
+filter removed. It checks, over the whole fault and not three sampled trees:
+
+  payment  - slow Charge (over 250 ms) durations; payment's server span beneath each; PlaceOrder
+             above each; any span in error in a slow trace (the label says none)
+  email    - checkout's failing HTTP POST with anything beneath it (the label says nothing)
+  R6       - catalog server spans in error, and how many sit over a database span not in error
+             (R6's (d) says every one)
+  bound    - for three windows, one of them the last half hour's, how many returned traces start
+             after the search's end or end before its start - whether the trace tool, which does
+             not filter, can be handed traces from outside the window it asked about
+
+Structural TraceQL (`>`, `<<`) is used; if this Tempo refuses one, the error prints and the rest
+runs. Stdlib only, Python 3.9-safe. Nothing is written anywhere.
+"""
+
+import datetime as dt
+import json
+import urllib.error
+import urllib.parse
+import urllib.request
+
+TEMPO = "http://localhost:3200"
+
+PAY = ("2026-09-30T01:24:16+00:00", "2026-09-30T01:34:36+00:00")
+EMAIL = ("2026-09-30T02:32:57+00:00", "2026-09-30T02:43:29+00:00")
+R6 = ("2026-09-30T05:04:02+00:00", "2026-09-30T05:15:34+00:00")
+
+SLOW = '{ resource.service.name = "checkout" && name = "oteldemo.PaymentService/Charge" && duration > 250ms }'
+
+
+def ts(s):
+    return dt.datetime.fromisoformat(s)
+
+
+def search(q, a, b, limit=3000, spss=50):
+    url = TEMPO + "/api/search?" + urllib.parse.urlencode({
+        "q": q, "start": str(int(a.timestamp())), "end": str(int(b.timestamp())),
+        "limit": str(limit), "spss": str(spss)})
+    try:
+        with urllib.request.urlopen(url, timeout=180) as r:
+            d = json.load(r)
+    except urllib.error.HTTPError as e:
+        return None, "HTTP %s: %s" % (e.code, e.read().decode("utf-8", "replace")[:300])
+    m = d.get("metrics") or {}
+    return d.get("traces") or [], "jobs %s of %s" % (m.get("completedJobs", "?"), m.get("totalJobs", "?"))
+
+
+def start_s(t):
+    return int(t.get("startTimeUnixNano") or 0) / 1e9
+
+
+def inside(traces, a, b):
+    lo, hi = a.timestamp(), b.timestamp()
+    keep = [t for t in traces if lo <= start_s(t) < hi]
+    return keep, len(traces) - len(keep)
+
+
+def spans(traces):
+    out = []
+    for t in traces:
+        sets = t.get("spanSets") or ([t["spanSet"]] if t.get("spanSet") else [])
+        for ss in sets:
+            out.extend(ss.get("spans") or [])
+    return out
+
+
+def dist(ms):
+    if not ms:
+        return "no spans"
+    ms = sorted(ms)
+    at = lambda p: ms[min(len(ms) - 1, int(p * len(ms)))]
+    return "%d spans  min %.1f  median %.1f  p90 %.1f  max %.1f ms" % (len(ms), ms[0], at(0.5), at(0.9), ms[-1])
+
+
+def check(title, q, win, want=None, durations=False):
+    a, b = ts(win[0]), ts(win[1])
+    got, note = search(q, a, b)
+    print("\n  %s" % title)
+    print("    %s" % q)
+    if got is None:
+        print("    REFUSED - %s" % note)
+        return None
+    keep, dropped = inside(got, a, b)
+    line = "    %d traces in the window (%d returned, %d outside it removed; %s)" % (
+        len(keep), len(got), dropped, note)
+    if want is not None:
+        line += "  - the label says %s" % want
+    print(line)
+    if durations:
+        print("    matched spans: " + dist([int(s.get("durationNanos") or 0) / 1e6 for s in spans(keep)]))
+    return keep
+
+
+def bound_probe(name, q, a, b):
+    got, note = search(q, a, b, 500, 1)
+    if got is None:
+        print("  %-34s REFUSED - %s" % (name, note))
+        return
+    lo, hi = a.timestamp(), b.timestamp()
+    after = sum(1 for t in got if start_s(t) >= hi)
+    ended_before = sum(1 for t in got
+                       if start_s(t) + float(t.get("durationMs") or 0) / 1000 < lo)
+    newest = max((start_s(t) for t in got), default=0)
+    print("  %-34s %s..%s  %4d returned, %4d start after the end, %3d ended before the start;"
+          " newest starts %s (%s)" % (
+              name, a.strftime("%H:%M"), b.strftime("%H:%M"), len(got), after, ended_before,
+              dt.datetime.fromtimestamp(newest, dt.timezone.utc).strftime("%H:%M:%S") if newest else "-", note))
+
+
+def main():
+    now = dt.datetime.now(dt.timezone.utc)
+    print("audit (third pass) run at %s UTC" % now.strftime("%Y-%m-%d %H:%M:%S"))
+
+    print("\n" + "=" * 100)
+    print("payment label (onset %s, fix %s)" % (PAY[0][11:19], PAY[1][11:19]))
+    check("slow Charge from checkout - durations (the label says about 301 ms)", SLOW, PAY, durations=True)
+    check("all Charge from checkout", '{ resource.service.name = "checkout" && name = "oteldemo.PaymentService/Charge" }',
+          PAY)
+    check("payment's server span under each slow Charge - durations (the label says 0.3 ms)",
+          SLOW + ' > { resource.service.name = "payment" }', PAY, durations=True)
+    check("PlaceOrder above each slow Charge - durations (the label says about 310 ms)",
+          SLOW + ' << { name = "oteldemo.CheckoutService/PlaceOrder" }', PAY, durations=True)
+    check("slow traces holding any span in error", SLOW + ' && { status = error }', PAY, want="none")
+
+    print("\n" + "=" * 100)
+    print("email label (onset %s, fix %s)" % (EMAIL[0][11:19], EMAIL[1][11:19]))
+    fail = '{ resource.service.name = "checkout" && name = "HTTP POST" && status = error }'
+    check("checkout's failing HTTP POST - durations (the label says about 2 ms)", fail, EMAIL, durations=True)
+    check("failing HTTP POST with any span beneath it", fail + ' > { }', EMAIL, want="nothing beneath it")
+    check("email spans of any kind", '{ resource.service.name = "email" }', EMAIL, want="none")
+
+    print("\n" + "=" * 100)
+    print("R6 (onset %s, fix %s)" % (R6[0][11:19], R6[1][11:19]))
+    srv = '{ resource.service.name = "product-catalog" && kind = server && status = error }'
+    check("catalog server spans in error", srv, R6, durations=True)
+    check("of those, over a database span not in error",
+          srv + ' > { name = "sql.conn.query" && status != error }', R6, want="every one")
+    check("catalog server spans in error over a database span in error",
+          srv + ' > { name = "sql.conn.query" && status = error }', R6, want="none")
+
+    print("\n" + "=" * 100)
+    print("Tempo's time bounds - does a search return traces outside [start, end)?")
+    bound_probe("email window, every trace", "{}", ts(EMAIL[0]), ts(EMAIL[1]))
+    bound_probe("R6 window, every trace", "{}", ts(R6[0]), ts(R6[1]))
+    bound_probe("30 to 20 minutes ago, every trace", "{}", now - dt.timedelta(minutes=30),
+                now - dt.timedelta(minutes=20))
+    bound_probe("10 to 5 minutes ago, every trace", "{}", now - dt.timedelta(minutes=10),
+                now - dt.timedelta(minutes=5))
+
+
+if __name__ == "__main__":
+    main()
