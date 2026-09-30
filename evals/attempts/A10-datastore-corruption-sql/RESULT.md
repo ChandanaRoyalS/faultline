@@ -89,3 +89,14 @@ row 4 (`v2-postgresql-reviews-corruption`) waits its turn.
 | 04:29:30 | no-traffic alerts cleared |
 | 04:31:30 | checkout's error rate cleared |
 | 04:32:30 | all clear (4m30s after the restore); quiet to 04:37:30 |
+
+## Addendum, 2026-09-30 - the registered fallback would not have done what it said
+
+The registration's fallback - *recreate the container, whose init script reloads the catalog as
+shipped* - rested on its claim that the container has no volume. Read off the running container
+later the same day (`disk_fill` row 2's precondition), `/var/lib/postgresql/data` is an anonymous
+Docker volume, which the postgres image declares, and `docker compose up --force-recreate` keeps a
+container's anonymous volumes: the recreate would have restarted Postgres on the same corrupted
+rows. A reload needs `--renew-anon-volumes`. The fallback was never used here, in R6, or in either
+recording of the scenario - every restore wrote the saved copy back and matched the fingerprint -
+so no verdict moves.
