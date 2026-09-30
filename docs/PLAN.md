@@ -4617,6 +4617,16 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-09-30: A9 run - records that are not orders on the `orders` topic page nothing; row 2 of
+`datastore_corruption` is blocked; Q118 opened.***
+
+- **The fault**: fraud-detection died and restarted 14 times with its errors at 0 %; accounting
+  logged every parse failure and carried on. No rule fired on either.
+- **The only page was the tool**: Kafka's command-line tools carry the tracing agent in that
+  container and reported as `kafka`; latency, then no-traffic, fired on the writer's own spans
+  (**Q118**).
+- **Reverted** by stopping the writer; both groups at lag 0. Next in the row: row 3, a new tool.
+
 ***2026-09-30: A9 registered - `datastore_corruption` row 2's tool attempted by hand first: records
 that are not orders, written onto the `orders` topic.***
 

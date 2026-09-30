@@ -1,0 +1,258 @@
+A9 — records that are not orders on the `orders` topic (evals/attempts/a9-orders-poison.sh) — one run.
+Run 2026-09-30, times UTC. One terminal, pasted verbatim from Chandana's Mac: the pre-state check,
+the writer in the background (its own output captured to ~/Downloads/a9-producer.log and printed
+after it ended), watch.py 12, shape.py for both consumers, the consumer groups after the writer
+and after watch.py 10, the two containers' restart counts, and both consumers' logs. Trailing spaces
+are trimmed; nothing else is changed.
+
+PASS  loki /ready                                  200
+PASS  tempo /ready                                 200
+PASS  promtail running                             running
+PASS  cart store-command spans (Q116)              2.83/s over 10m (defined: about 2)
+PASS  no container but grafana >= 85 % memory      none
+PASS  nothing firing                               none
+PASS  kafka running (Q114)                         running restarts=0 started=2026-09-29T03:57:22.310992764Z
+PASS  kafka tmpfs under 50 % used                  1%
+PASS  kafka log directory writable by the broker's user writable
+
+ALL PASS
+03:05:19 A9 inject
+03:05:19  quiet
+03:05:49  quiet
+03:06:19  quiet
+03:06:49  quiet
+03:07:19  quiet
+03:07:49  quiet
+03:08:19  quiet
+03:08:49  quiet
+03:09:19  quiet
+03:09:49  quiet
+03:10:19  quiet
+03:10:49  ServiceHighLatency/kafka
+03:11:19  ServiceHighLatency/kafka
+03:11:49  ServiceHighLatency/kafka
+03:12:19  ServiceHighLatency/kafka
+03:12:49  ServiceHighLatency/kafka
+03:13:19  ServiceHighLatency/kafka
+03:13:49  ServiceHighLatency/kafka
+03:14:19  ServiceHighLatency/kafka
+03:14:49  ServiceHighLatency/kafka
+03:15:19  ServiceHighLatency/kafka
+03:15:49  ServiceHighLatency/kafka
+03:16:19  ServiceHighLatency/kafka
+03:16:49  ServiceHighLatency/kafka
+== firing ==
+  ServiceHighLatency/kafka
+
+== per service, [5m] ==
+  service                 err%    p95ms   req/s
+  accounting              0.00       90   0.679
+  ad                      0.72        3   0.579
+  cart                    0.00        2   4.342
+  checkout                0.00       22   2.200
+  currency                0.00        2   0.496
+  email                   0.00        4   0.633
+  flagd                   0.24        2   1.762
+  fraud-detection         0.00       92   0.050
+  frontend                0.00       35  12.746
+  frontend-proxy          0.00       38   6.025
+  image-provider          0.00        2   0.100
+  kafka                   0.00     1380   0.100
+  load-generator          0.00       42   5.283
+  payment                 0.00        2   0.317
+  product-catalog         0.00        4   5.608
+  product-reviews         0.00       40   0.954
+  quote                   0.00        2   0.475
+  recommendation          0.00        4   0.662
+  shipping                0.00        2   0.500
+
+== silent: running, and no span metrics in [5m] ==
+  none
+
+== quote's clock (Q98) ==
+  lagging: none of quote's own metrics are landing
+  docker restart quote, then wait five minutes before recording (Q98)
+
+== docker state (not agent-visible) ==
+  alertmanager         exited     Exited (255) 29 hours ago
+  faultline-minio-1    exited     Exited (255) 8 days ago
+  faultline-postgres-1 exited     Exited (255) 8 days ago
+  faultline-prometheus-self-1 exited     Exited (255) 9 days ago
+  faultline-redis-1    exited     Exited (255) 8 days ago
+  nostalgic_volhard    created    Created
+  (only containers not plainly running are listed)
+
+== last 8 log lines: fraud-detection ==
+  at com.google.protobuf.AbstractParser.parsePartialFrom(AbstractParser.java:135)
+  at com.google.protobuf.AbstractParser.parseFrom(AbstractParser.java:168)
+  at com.google.protobuf.AbstractParser.parseFrom(AbstractParser.java:180)
+  at com.google.protobuf.AbstractParser.parseFrom(AbstractParser.java:185)
+  at com.google.protobuf.AbstractParser.parseFrom(AbstractParser.java:25)
+  at oteldemo.Demo$OrderResult.parseFrom(Demo.java:22557)
+  at frauddetection.MainKt.main(main.kt:64)
+  at frauddetection.MainKt.main(main.kt)
+== firing ==
+  ServiceHighLatency/kafka
+
+== per service, [5m] ==
+  service                 err%    p95ms   req/s
+  accounting              0.00       90   0.679
+  ad                      0.72        3   0.579
+  cart                    0.00        2   4.342
+  checkout                0.00       22   2.200
+  currency                0.00        2   0.496
+  email                   0.00        4   0.633
+  flagd                   0.24        2   1.762
+  fraud-detection         0.00       92   0.050
+  frontend                0.00       35  12.746
+  frontend-proxy          0.00       38   6.025
+  image-provider          0.00        2   0.100
+  kafka                   0.00     1380   0.100
+  load-generator          0.00       42   5.283
+  payment                 0.00        2   0.317
+  product-catalog         0.00        4   5.608
+  product-reviews         0.00       40   0.954
+  quote                   0.00        2   0.475
+  recommendation          0.00        4   0.662
+  shipping                0.00        2   0.500
+
+== silent: running, and no span metrics in [5m] ==
+  none
+
+== quote's clock (Q98) ==
+  lagging: none of quote's own metrics are landing
+  docker restart quote, then wait five minutes before recording (Q98)
+
+== docker state (not agent-visible) ==
+  alertmanager         exited     Exited (255) 29 hours ago
+  faultline-minio-1    exited     Exited (255) 8 days ago
+  faultline-postgres-1 exited     Exited (255) 8 days ago
+  faultline-prometheus-self-1 exited     Exited (255) 9 days ago
+  faultline-redis-1    exited     Exited (255) 8 days ago
+  nostalgic_volhard    created    Created
+  (only containers not plainly running are listed)
+
+== last 8 log lines: accounting ==
+        Order parsing failed:
+        Google.Protobuf.InvalidProtocolBufferException: Protocol message contained a tag with an invalid wire type.
+           at Google.Protobuf.UnknownFieldSet.MergeFieldFrom(ParseContext& ctx)
+           at Google.Protobuf.UnknownFieldSet.MergeFieldFrom(UnknownFieldSet unknownFields, ParseContext& ctx)
+           at Oteldemo.OrderResult.pb::Google.Protobuf.IBufferMessage.InternalMergeFrom(ParseContext& input) in /src/Accounting/obj/Release/net10.0/linux-arm64/src/protos/Demo.cs:line 7789
+           at Accounting.Consumer.ProcessMessage(Message`2 message) in /src/Accounting/Consumer.cs:line 90
+  info: Accounting.Consumer[174880625]
+        Order details: { "orderId": "5c59c18c-bc7d-11f1-8d95-4e3f7105814a", "shippingTrackingId": "de000690-6e64-4e5f-afa3-6f41424581fb", "shippingCost": { "currencyCode": "USD", "units": "269", "nanos"
+03:17:20 A9 writer ended - revert
+OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+[otel.javaagent 2026-09-30 03:05:19:670 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 2.23.0
+03:06:09 a9: 6 written
+03:07:09 a9: 12 written
+03:08:09 a9: 18 written
+03:09:09 a9: 24 written
+03:10:09 a9: 30 written
+03:11:09 a9: 36 written
+03:12:09 a9: 42 written
+03:13:09 a9: 48 written
+03:14:09 a9: 54 written
+03:15:09 a9: 60 written
+03:16:09 a9: 66 written
+03:17:09 a9: 72 written
+03:17:20 a9: done
+OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+[otel.javaagent 2026-09-30 03:17:20:515 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 2.23.0
+
+GROUP           TOPIC           PARTITION  CURRENT-OFFSET  LOG-END-OFFSET  LAG             CONSUMER-ID                                  HOST            CLIENT-ID
+accounting      orders          0          2391            2391            0               rdkafka-7421fc4e-0edb-4220-97a8-d8d5eabe6165 /172.18.0.9     rdkafka
+GROUP
+Consumer group 'fraud-detection' has no active members.
+  TOPIC           PARTITION  CURRENT-OFFSET  LOG-END-OFFSET  LAG             CONSUMER-ID     HOST            CLIENT-ID
+fraud-detection orders          0          2388            2391            3               -               -               -03:17:22  ServiceHighLatency/kafka
+03:17:52  ServiceHighLatency/kafka
+03:18:22  ServiceHighLatency/kafka
+03:18:52  ServiceHighLatency/kafka
+03:19:22  ServiceHighLatency/kafka
+03:19:52  ServiceHighLatency/kafka
+03:20:22  ServiceHighLatency/kafka
+03:20:52  ServiceHighLatency/kafka
+03:21:22  ServiceHighLatency/kafka
+03:21:52  ServiceHighLatency/kafka
+03:22:22  ServiceHighLatency/kafka
+03:22:52  quiet
+03:23:22  quiet
+03:23:52  quiet
+03:24:22  quiet
+03:24:52  quiet
+03:25:22  quiet
+03:25:52  ServiceNoTraffic/kafka
+03:26:22  ServiceNoTraffic/kafka
+03:26:52  ServiceNoTraffic/kafka
+03:26:52 A9 after recovery
+OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+[otel.javaagent 2026-09-30 03:26:52:761 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 2.23.0
+
+GROUP           TOPIC           PARTITION  CURRENT-OFFSET  LOG-END-OFFSET  LAG             CONSUMER-ID                                  HOST            CLIENT-ID
+accounting      orders          0          2464            2464            0               rdkafka-7421fc4e-0edb-4220-97a8-d8d5eabe6165 /172.18.0.9     rdkafka
+GROUP           TOPIC           PARTITION  CURRENT-OFFSET  LOG-END-OFFSET  LAG             CONSUMER-ID                                                     HOST            CLIENT-ID
+fraud-detection orders          0          2464            2464            0               consumer-fraud-detection-1-79f69316-12c4-412e-bc1f-6e308c6c6df9 /172.18.0.29    consumer-fraud-detection-1/fraud-detection restarts=14 started=2026-09-30T03:18:59.466111221Z
+/accounting restarts=0 started=2026-09-29T03:57:22.474710222Z
+===== fraud-detection log, whole lines, no Consumed-record lines
+===== accounting parse failures, whole
+      Order parsing failed:
+      Google.Protobuf.InvalidProtocolBufferException: Protocol message contained a tag with an invalid wire type.
+         at Google.Protobuf.UnknownFieldSet.MergeFieldFrom(ParseContext& ctx)
+         at Google.Protobuf.UnknownFieldSet.MergeFieldFrom(UnknownFieldSet unknownFields, ParseContext& ctx)
+         at Oteldemo.OrderResult.pb::Google.Protobuf.IBufferMessage.InternalMergeFrom(ParseContext& input) in /src/Accounting/obj/Release/net10.0/linux-arm64/src/protos/Demo.cs:line 7789
+--
+      Order parsing failed:
+      Google.Protobuf.InvalidProtocolBufferException: Protocol message contained a tag with an invalid wire type.
+         at Google.Protobuf.UnknownFieldSet.MergeFieldFrom(ParseContext& ctx)
+         at Google.Protobuf.UnknownFieldSet.MergeFieldFrom(UnknownFieldSet unknownFields, ParseContext& ctx)
+         at Oteldemo.OrderResult.pb::Google.Protobuf.IBufferMessage.InternalMergeFrom(ParseContext& input) in /src/Accounting/obj/Release/net10.0/linux-arm64/src/protos/Demo.cs:line 7789
+--
+      Order parsing failed:
+      Google.Protobuf.InvalidProtocolBufferException: Protocol message contained a tag with an invalid wire type.
+         at Google.Protobuf.UnknownFieldSet.MergeFieldFrom(ParseContext& ctx)
+         at Google.Protobuf.UnknownFieldSet.MergeFieldFrom(UnknownFieldSet unknownFields, ParseContext& ctx)
+         at Oteldemo.OrderResult.pb::Google.Protobuf.IBufferMessage.InternalMergeFrom(ParseContext& input) in /src/Accounting/obj/Release/net10.0/linux-arm64/src/protos/Demo.cs:line 7789
+--
+      Order parsing failed:
+      Google.Protobuf.InvalidProtocolBufferException: Protocol message contained a tag with an invalid wire type.
+         at Google.Protobuf.UnknownFieldSet.MergeFieldFrom(ParseContext& ctx)
+         at Google.Protobuf.UnknownFieldSet.MergeFieldFrom(UnknownFieldSet unknownFields, ParseContext& ctx)
+         at Oteldemo.OrderResult.pb::Google.Protobuf.IBufferMessage.InternalMergeFrom(ParseContext& input) in /src/Accounting/obj/Release/net10.0/linux-arm64/src/protos/Demo.cs:line 7789
+--
+      Order parsing failed:
+      Google.Protobuf.InvalidProtocolBufferException: Protocol message contained a tag with an invalid wire type.
+         at Google.Protobuf.UnknownFieldSet.MergeFieldFrom(ParseContext& ctx)
+         at Google.Protobuf.UnknownFieldSet.MergeFieldFrom(UnknownFieldSet unknownFields, ParseContext& ctx)
+         at Oteldemo.OrderResult.pb::Google.Protobuf.IBufferMessage.InternalMergeFrom(ParseContext& input) in /src/Accounting/obj/Release/net10.0/linux-arm64/src/protos/Demo.cs:line 7789
+--
+      Order parsing failed:
+      Google.Protobuf.InvalidProtocolBufferException: Protocol message contained a tag with an invalid wire type.
+         at Google.Protobuf.UnknownFieldSet.MergeFieldFrom(ParseContext& ctx)
+         at Google.Protobuf.UnknownFieldSet.MergeFieldFrom(UnknownFieldSet unknownFields, ParseContext& ctx)
+         at Oteldemo.OrderResult.pb::Google.Protobuf.IBufferMessage.InternalMergeFrom(ParseContext& input) in /src/Accounting/obj/Release/net10.0/linux-arm64/src/protos/Demo.cs:line 7789
+--
+      Order parsing failed:
+      Google.Protobuf.InvalidProtocolBufferException: Protocol message contained a tag with an invalid wire type.
+         at Google.Protobuf.UnknownFieldSet.MergeFieldFrom(ParseContext& ctx)
+         at Google.Protobuf.UnknownFieldSet.MergeFieldFrom(UnknownFieldSet unknownFields, ParseContext& ctx)
+         at Oteldemo.OrderResult.pb::Google.Protobuf.IBufferMessage.InternalMergeFrom(ParseContext& input) in /src/Accounting/obj/Release/net10.0/linux-arm64/src/protos/Demo.cs:line 7789
+--
+      Order parsing failed:
+      Google.Protobuf.InvalidProtocolBufferException: Protocol message contained a tag with an invalid wire type.
+         at Google.Protobuf.UnknownFieldSet.MergeFieldFrom(ParseContext& ctx)
+         at Google.Protobuf.UnknownFieldSet.MergeFieldFrom(UnknownFieldSet unknownFields, ParseContext& ctx)
+         at Oteldemo.OrderResult.pb::Google.Protobuf.IBufferMessage.InternalMergeFrom(ParseContext& input) in /src/Accounting/obj/Release/net10.0/linux-arm64/src/protos/Demo.cs:line 7789
+--
+      Order parsing failed:
+      Google.Protobuf.InvalidProtocolBufferException: Protocol message contained a tag with an invalid wire type.
+         at Google.Protobuf.UnknownFieldSet.MergeFieldFrom(ParseContext& ctx)
+         at Google.Protobuf.UnknownFieldSet.MergeFieldFrom(UnknownFieldSet unknownFields, ParseContext& ctx)
+         at Oteldemo.OrderResult.pb::Google.Protobuf.IBufferMessage.InternalMergeFrom(ParseContext& input) in /src/Accounting/obj/Release/net10.0/linux-arm64/src/protos/Demo.cs:line 7789
+--
+      Order parsing failed:
+      Google.Protobuf.InvalidProtocolBufferException: Protocol message contained a tag with an invalid wire type.
+         at Google.Protobuf.UnknownFieldSet.MergeFieldFrom(ParseContext& ctx)
+         at Google.Protobuf.UnknownFieldSet.MergeFieldFrom(UnknownFieldSet unknownFields, ParseContext& ctx)
+         at Oteldemo.OrderResult.pb::Google.Protobuf.IBufferMessage.InternalMergeFrom(ParseContext& input) in /src/Accounting/obj/Release/net10.0/linux-arm64/src/protos/Demo.cs:line 7789
+--
