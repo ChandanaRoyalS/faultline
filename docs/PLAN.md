@@ -4617,6 +4617,20 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-09-30: `disk_fill` rows 2 and 3 measured and blocked on their own precondition; T7.1's
+candidate rows close at 39 valid scenarios of 44 slots.***
+
+- **The gate, read off the running containers**: Postgres writes to an anonymous volume on the
+  Docker VM's disk and valkey-cart to its overlay layer - 870 GB shared by everything, no cap.
+  Only kafka has the capped tmpfs the class needs.
+- **Not revised** (the owner's decision): capping either moves `compose_digest`, which on the
+  2026-09-27 precedent re-records every v2 bundle, for at most two dev scenarios.
+- **A correction**: A10's registered fallback assumed Postgres had no volume; a recreate keeps
+  anonymous volumes, so it would not have reloaded the catalog. Never used; A10's RESULT carries it.
+- **Where T7.1 stands**: 39 valid of 44 slots, 29 dev and 10 holdout, 9 classes plus the injection
+  row; `datastore_corruption` (2) and `disk_fill` (1) without holdout, named as gaps. Owed from it:
+  Q120's audit of six labels read through a blind Tempo. By the plan's triage, T7.2 and T7.5 next.
+
 ***2026-09-30: `datastore_corruption` row 4, `v2-postgresql-reviews-corruption`, measured and blocked -
 it cannot page on this load; the row stands at two of four with no holdout.***
 
