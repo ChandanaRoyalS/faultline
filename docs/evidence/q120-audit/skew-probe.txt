@@ -1,0 +1,272 @@
+skew probe run at 2026-09-30 08:21:37.728 UTC
+
+====================================================================================================
+1. the audit's sample traces, span by span
+
+  trace ede5d04a7cb3b149d84b9a7f881b079d
+    2026-09-29 06:47:15.649  quote            POST /getquote                                    0.2ms  php/opentelemetry 1.10.0 inst -
+    2026-09-29 06:47:15.649  quote            {closure}                                         0.1ms  php/opentelemetry 1.10.0 inst -
+    2026-09-29 06:47:15.649  quote            calculate-quote                                   0.0ms  php/opentelemetry 1.10.0 inst -
+    2026-09-30 01:24:22.566  load-generator   user_checkout_multi                             347.9ms  python/opentelemetry 1.39.1 inst -
+    2026-09-30 01:24:22.591  load-generator   POST                                            322.9ms  python/opentelemetry 1.39.1 inst -
+    2026-09-30 01:24:22.591  frontend-proxy   ingress                                         322.0ms  cpp/envoy 5251fec52ee063192dcd8bd0615c6283e7b12b6c/1.34.12/Clean/RELEASE/BoringSSL inst -
+    2026-09-30 01:24:22.592  frontend         grpc.oteldemo.CheckoutService/PlaceOrder        318.7ms  nodejs/opentelemetry 2.2.0 inst -
+    2026-09-30 01:24:22.592  frontend         POST /api/checkout                              321.0ms  nodejs/opentelemetry 2.2.0 inst -
+    2026-09-30 01:24:22.592  frontend         executing api route (pages) /api/checkout       320.6ms  nodejs/opentelemetry 2.2.0 inst -
+    2026-09-30 01:24:22.592  frontend         POST                                            321.6ms  nodejs/opentelemetry 2.2.0 inst -
+    2026-09-30 01:24:22.592  frontend-proxy   router frontend egress                          321.9ms  cpp/envoy 5251fec52ee063192dcd8bd0615c6283e7b12b6c/1.34.12/Clean/RELEASE/BoringSSL inst -
+    2026-09-30 01:24:22.593  checkout         oteldemo.CheckoutService/PlaceOrder             317.7ms  go/opentelemetry 1.39.0 inst -
+    2026-09-30 01:24:22.593  checkout         prepareOrderItemsAndShippingQuoteFromCart         9.8ms  go/opentelemetry 1.39.0 inst -
+    2026-09-30 01:24:22.593  checkout         oteldemo.CartService/GetCart                      0.8ms  go/opentelemetry 1.39.0 inst -
+    2026-09-30 01:24:22.593  cart             POST /oteldemo.CartService/GetCart                0.4ms  dotnet/opentelemetry 1.14.0 inst 14b6b825-e6d
+    2026-09-30 01:24:22.593  cart             HGET                                              0.3ms  dotnet/opentelemetry 1.14.0 inst 14b6b825-e6d
+    2026-09-30 01:24:22.594  checkout         oteldemo.ProductCatalogService/GetProduct         0.9ms  go/opentelemetry 1.39.0 inst -
+    2026-09-30 01:24:22.594  product-catalog  oteldemo.ProductCatalogService/GetProduct         0.5ms  go/opentelemetry 1.39.0 inst -
+    2026-09-30 01:24:22.594  product-catalog  sql.conn.query                                    0.4ms  go/opentelemetry 1.39.0 inst -
+    2026-09-30 01:24:22.595  checkout         oteldemo.CurrencyService/Convert                  1.7ms  go/opentelemetry 1.39.0 inst -
+    2026-09-30 01:24:22.595  currency         Currency/Convert                                  0.7ms  cpp/opentelemetry 1.24.0 inst -
+    2026-09-30 01:24:22.597  checkout         oteldemo.ProductCatalogService/GetProduct         0.8ms  go/opentelemetry 1.39.0 inst -
+    2026-09-30 01:24:22.597  product-catalog  oteldemo.ProductCatalogService/GetProduct         0.5ms  go/opentelemetry 1.39.0 inst -
+    2026-09-30 01:24:22.597  product-catalog  sql.conn.query                                    0.4ms  go/opentelemetry 1.39.0 inst -
+    2026-09-30 01:24:22.597  checkout         oteldemo.CurrencyService/Convert                  1.2ms  go/opentelemetry 1.39.0 inst -
+    2026-09-30 01:24:22.598  currency         Currency/Convert                                  0.4ms  cpp/opentelemetry 1.24.0 inst -
+    2026-09-30 01:24:22.599  checkout         HTTP POST                                         2.8ms  go/opentelemetry 1.39.0 inst -
+    2026-09-30 01:24:22.600  shipping         /get-quote                                        1.3ms  rust/opentelemetry 0.31.0 inst -
+    2026-09-30 01:24:22.600  shipping         POST quote                                        1.2ms  rust/opentelemetry 0.31.0 inst -
+    2026-09-30 01:24:22.602  checkout         oteldemo.CurrencyService/Convert                  1.3ms  go/opentelemetry 1.39.0 inst -
+    2026-09-30 01:24:22.602  currency         Currency/Convert                                  0.4ms  cpp/opentelemetry 1.24.0 inst -
+    2026-09-30 01:24:22.603  payment          grpc.oteldemo.PaymentService/Charge               0.4ms  nodejs/opentelemetry 2.2.0 inst -
+    2026-09-30 01:24:22.603  checkout         oteldemo.PaymentService/Charge                  301.1ms  go/opentelemetry 1.39.0 inst -
+    2026-09-30 01:24:22.604  payment          charge                                            0.2ms  nodejs/opentelemetry 2.2.0 inst -
+    2026-09-30 01:24:22.904  checkout         HTTP POST                                         0.4ms  go/opentelemetry 1.39.0 inst -
+    2026-09-30 01:24:22.904  shipping         /ship-order                                       0.0ms  rust/opentelemetry 0.31.0 inst -
+    2026-09-30 01:24:22.905  checkout         oteldemo.CartService/EmptyCart                    2.1ms  go/opentelemetry 1.39.0 inst -
+    2026-09-30 01:24:22.905  cart             POST /oteldemo.CartService/EmptyCart              1.7ms  dotnet/opentelemetry 1.14.0 inst 14b6b825-e6d
+    2026-09-30 01:24:22.905  cart             flagd.evaluation.v1.Service/ResolveBoolean        0.9ms  dotnet/opentelemetry 1.14.0 inst 14b6b825-e6d
+    2026-09-30 01:24:22.905  cart             POST                                              0.9ms  dotnet/opentelemetry 1.14.0 inst 14b6b825-e6d
+    2026-09-30 01:24:22.905  flagd            flagd.evaluation.v1.Service/ResolveBoolean        0.1ms  go/opentelemetry 1.37.0 inst -
+    2026-09-30 01:24:22.905  flagd            resolveBoolean                                    0.1ms  go/opentelemetry 1.37.0 inst -
+    2026-09-30 01:24:22.905  flagd            resolveBoolean                                    0.0ms  go/opentelemetry 1.37.0 inst -
+    2026-09-30 01:24:22.906  cart             HMSET                                             0.4ms  dotnet/opentelemetry 1.14.0 inst 14b6b825-e6d
+    2026-09-30 01:24:22.906  cart             EXPIRE                                            0.2ms  dotnet/opentelemetry 1.14.0 inst 14b6b825-e6d
+    2026-09-30 01:24:22.907  checkout         HTTP POST                                         4.0ms  go/opentelemetry 1.39.0 inst -
+    2026-09-30 01:24:22.907  email            POST /send_order_confirmation                     3.1ms  ruby/opentelemetry 1.10.0 inst -
+    2026-09-30 01:24:22.908  email            send_email                                        2.0ms  ruby/opentelemetry 1.10.0 inst -
+    2026-09-30 01:24:22.909  email            sinatra.render_template                           0.2ms  ruby/opentelemetry 1.10.0 inst -
+    2026-09-30 01:24:22.909  email            sinatra.render_template                           0.1ms  ruby/opentelemetry 1.10.0 inst -
+    2026-09-30 01:24:22.911  frontend         grpc.oteldemo.ProductCatalogService/GetProdu      1.4ms  nodejs/opentelemetry 2.2.0 inst -
+    2026-09-30 01:24:22.911  frontend         grpc.oteldemo.ProductCatalogService/GetProdu      1.4ms  nodejs/opentelemetry 2.2.0 inst -
+    2026-09-30 01:24:22.911  checkout         orders publish                                    0.1ms  go/opentelemetry 1.39.0 inst -
+    2026-09-30 01:24:22.912  product-catalog  oteldemo.ProductCatalogService/GetProduct         0.6ms  go/opentelemetry 1.39.0 inst -
+    2026-09-30 01:24:22.912  product-catalog  sql.conn.query                                    0.5ms  go/opentelemetry 1.39.0 inst -
+    2026-09-30 01:24:22.912  product-catalog  oteldemo.ProductCatalogService/GetProduct         0.4ms  go/opentelemetry 1.39.0 inst -
+    2026-09-30 01:24:22.912  product-catalog  sql.conn.query                                    0.3ms  go/opentelemetry 1.39.0 inst -
+
+  trace 16a9070c09b7e5aefd8fa75e7b5d51b8
+    2026-09-29 06:57:12.352  quote            POST /getquote                                    0.2ms  php/opentelemetry 1.10.0 inst -
+    2026-09-29 06:57:12.352  quote            {closure}                                         0.1ms  php/opentelemetry 1.10.0 inst -
+    2026-09-29 06:57:12.352  quote            calculate-quote                                   0.0ms  php/opentelemetry 1.10.0 inst -
+    2026-09-30 01:34:19.325  load-generator   user_checkout_single                            326.6ms  python/opentelemetry 1.39.1 inst -
+    2026-09-30 01:34:19.332  frontend         POST                                            319.1ms  nodejs/opentelemetry 2.2.0 inst -
+    2026-09-30 01:34:19.332  frontend         grpc.oteldemo.CheckoutService/PlaceOrder        316.4ms  nodejs/opentelemetry 2.2.0 inst -
+    2026-09-30 01:34:19.332  frontend         executing api route (pages) /api/checkout       318.3ms  nodejs/opentelemetry 2.2.0 inst -
+    2026-09-30 01:34:19.332  frontend         POST /api/checkout                              318.6ms  nodejs/opentelemetry 2.2.0 inst -
+    2026-09-30 01:34:19.332  load-generator   POST                                            320.3ms  python/opentelemetry 1.39.1 inst -
+    2026-09-30 01:34:19.332  frontend-proxy   ingress                                         319.3ms  cpp/envoy 5251fec52ee063192dcd8bd0615c6283e7b12b6c/1.34.12/Clean/RELEASE/BoringSSL inst -
+    2026-09-30 01:34:19.332  frontend-proxy   router frontend egress                          319.2ms  cpp/envoy 5251fec52ee063192dcd8bd0615c6283e7b12b6c/1.34.12/Clean/RELEASE/BoringSSL inst -
+    2026-09-30 01:34:19.333  checkout         oteldemo.CheckoutService/PlaceOrder             315.5ms  go/opentelemetry 1.39.0 inst -
+    2026-09-30 01:34:19.333  checkout         prepareOrderItemsAndShippingQuoteFromCart         5.0ms  go/opentelemetry 1.39.0 inst -
+    2026-09-30 01:34:19.333  checkout         oteldemo.CartService/GetCart                      0.5ms  go/opentelemetry 1.39.0 inst -
+    2026-09-30 01:34:19.333  cart             POST /oteldemo.CartService/GetCart                0.3ms  dotnet/opentelemetry 1.14.0 inst 14b6b825-e6d
+    2026-09-30 01:34:19.333  cart             HGET                                              0.2ms  dotnet/opentelemetry 1.14.0 inst 14b6b825-e6d
+    2026-09-30 01:34:19.333  checkout         oteldemo.ProductCatalogService/GetProduct         0.7ms  go/opentelemetry 1.39.0 inst -
+    2026-09-30 01:34:19.333  product-catalog  oteldemo.ProductCatalogService/GetProduct         0.4ms  go/opentelemetry 1.39.0 inst -
+    2026-09-30 01:34:19.334  product-catalog  sql.conn.query                                    0.4ms  go/opentelemetry 1.39.0 inst -
+    2026-09-30 01:34:19.334  checkout         oteldemo.CurrencyService/Convert                  1.2ms  go/opentelemetry 1.39.0 inst -
+    2026-09-30 01:34:19.334  currency         Currency/Convert                                  0.5ms  cpp/opentelemetry 1.24.0 inst -
+    2026-09-30 01:34:19.335  checkout         HTTP POST                                         1.4ms  go/opentelemetry 1.39.0 inst -
+    2026-09-30 01:34:19.335  shipping         /get-quote                                        1.0ms  rust/opentelemetry 0.31.0 inst -
+    2026-09-30 01:34:19.335  shipping         POST quote                                        1.0ms  rust/opentelemetry 0.31.0 inst -
+    2026-09-30 01:34:19.337  checkout         oteldemo.CurrencyService/Convert                  1.1ms  go/opentelemetry 1.39.0 inst -
+    2026-09-30 01:34:19.337  currency         Currency/Convert                                  0.4ms  cpp/opentelemetry 1.24.0 inst -
+    2026-09-30 01:34:19.338  payment          grpc.oteldemo.PaymentService/Charge               0.3ms  nodejs/opentelemetry 2.2.0 inst -
+    2026-09-30 01:34:19.338  payment          charge                                            0.2ms  nodejs/opentelemetry 2.2.0 inst -
+    2026-09-30 01:34:19.338  checkout         oteldemo.PaymentService/Charge                  302.0ms  go/opentelemetry 1.39.0 inst -
+    2026-09-30 01:34:19.640  checkout         HTTP POST                                         0.4ms  go/opentelemetry 1.39.0 inst -
+    2026-09-30 01:34:19.640  shipping         /ship-order                                       0.1ms  rust/opentelemetry 0.31.0 inst -
+    2026-09-30 01:34:19.640  checkout         oteldemo.CartService/EmptyCart                    3.5ms  go/opentelemetry 1.39.0 inst -
+    2026-09-30 01:34:19.641  cart             POST /oteldemo.CartService/EmptyCart              2.9ms  dotnet/opentelemetry 1.14.0 inst 14b6b825-e6d
+    2026-09-30 01:34:19.641  cart             flagd.evaluation.v1.Service/ResolveBoolean        1.5ms  dotnet/opentelemetry 1.14.0 inst 14b6b825-e6d
+    2026-09-30 01:34:19.641  cart             POST                                              1.3ms  dotnet/opentelemetry 1.14.0 inst 14b6b825-e6d
+    2026-09-30 01:34:19.642  flagd            flagd.evaluation.v1.Service/ResolveBoolean        0.2ms  go/opentelemetry 1.37.0 inst -
+    2026-09-30 01:34:19.642  flagd            resolveBoolean                                    0.1ms  go/opentelemetry 1.37.0 inst -
+    2026-09-30 01:34:19.642  flagd            resolveBoolean                                    0.0ms  go/opentelemetry 1.37.0 inst -
+    2026-09-30 01:34:19.643  cart             HMSET                                             0.4ms  dotnet/opentelemetry 1.14.0 inst 14b6b825-e6d
+    2026-09-30 01:34:19.643  cart             EXPIRE                                            0.4ms  dotnet/opentelemetry 1.14.0 inst 14b6b825-e6d
+    2026-09-30 01:34:19.644  checkout         HTTP POST                                         4.0ms  go/opentelemetry 1.39.0 inst -
+    2026-09-30 01:34:19.645  email            POST /send_order_confirmation                     3.2ms  ruby/opentelemetry 1.10.0 inst -
+    2026-09-30 01:34:19.645  email            send_email                                        2.5ms  ruby/opentelemetry 1.10.0 inst -
+    2026-09-30 01:34:19.646  email            sinatra.render_template                           0.2ms  ruby/opentelemetry 1.10.0 inst -
+    2026-09-30 01:34:19.646  email            sinatra.render_template                           0.1ms  ruby/opentelemetry 1.10.0 inst -
+    2026-09-30 01:34:19.648  checkout         orders publish                                    0.1ms  go/opentelemetry 1.39.0 inst -
+    2026-09-30 01:34:19.649  frontend         grpc.oteldemo.ProductCatalogService/GetProdu      1.5ms  nodejs/opentelemetry 2.2.0 inst -
+    2026-09-30 01:34:19.649  product-catalog  oteldemo.ProductCatalogService/GetProduct         0.6ms  go/opentelemetry 1.39.0 inst -
+    2026-09-30 01:34:19.650  product-catalog  sql.conn.query                                    0.5ms  go/opentelemetry 1.39.0 inst -
+
+  trace b0a807528a56994f09763675e3b62e37
+    2026-09-29 07:55:57.502  quote            POST /getquote                                    0.4ms  php/opentelemetry 1.10.0 inst -
+    2026-09-29 07:55:57.503  quote            {closure}                                         0.2ms  php/opentelemetry 1.10.0 inst -
+    2026-09-29 07:55:57.503  quote            calculate-quote                                   0.1ms  php/opentelemetry 1.10.0 inst -
+    2026-09-30 02:33:04.425  load-generator   user_checkout_single                            158.8ms  python/opentelemetry 1.39.1 inst -
+    2026-09-30 02:33:04.444  load-generator   POST                                            139.4ms  python/opentelemetry 1.39.1 inst -
+    2026-09-30 02:33:04.444  frontend-proxy   ingress                                         138.7ms  cpp/envoy 5251fec52ee063192dcd8bd0615c6283e7b12b6c/1.34.12/Clean/RELEASE/BoringSSL inst -
+    2026-09-30 02:33:04.444  frontend-proxy   router frontend egress                          138.5ms  cpp/envoy 5251fec52ee063192dcd8bd0615c6283e7b12b6c/1.34.12/Clean/RELEASE/BoringSSL inst -
+    2026-09-30 02:33:04.446  frontend         POST /api/checkout                              136.6ms  nodejs/opentelemetry 2.2.0 inst -
+    2026-09-30 02:33:04.446  frontend         POST                                            136.9ms  nodejs/opentelemetry 2.2.0 inst -
+    2026-09-30 02:33:04.447  frontend         executing api route (pages) /api/checkout       135.5ms  nodejs/opentelemetry 2.2.0 inst -
+    2026-09-30 02:33:04.448  frontend         grpc.oteldemo.CheckoutService/PlaceOrder        133.4ms  nodejs/opentelemetry 2.2.0 inst -
+    2026-09-30 02:33:04.449  checkout         oteldemo.CheckoutService/PlaceOrder             132.1ms  go/opentelemetry 1.39.0 inst -
+    2026-09-30 02:33:04.449  checkout         prepareOrderItemsAndShippingQuoteFromCart        17.8ms  go/opentelemetry 1.39.0 inst -
+    2026-09-30 02:33:04.449  checkout         oteldemo.CartService/GetCart                      2.8ms  go/opentelemetry 1.39.0 inst -
+    2026-09-30 02:33:04.450  cart             POST /oteldemo.CartService/GetCart                2.1ms  dotnet/opentelemetry 1.14.0 inst 14b6b825-e6d
+    2026-09-30 02:33:04.450  cart             HGET                                              0.9ms  dotnet/opentelemetry 1.14.0 inst 14b6b825-e6d
+    2026-09-30 02:33:04.452  checkout         oteldemo.ProductCatalogService/GetProduct         1.1ms  go/opentelemetry 1.39.0 inst -
+    2026-09-30 02:33:04.452  product-catalog  oteldemo.ProductCatalogService/GetProduct         0.8ms  go/opentelemetry 1.39.0 inst -
+    2026-09-30 02:33:04.452  product-catalog  sql.conn.query                                    0.7ms  go/opentelemetry 1.39.0 inst -
+    2026-09-30 02:33:04.453  checkout         oteldemo.CurrencyService/Convert                  6.9ms  go/opentelemetry 1.39.0 inst -
+    2026-09-30 02:33:04.458  currency         Currency/Convert                                  1.2ms  cpp/opentelemetry 1.24.0 inst -
+    2026-09-30 02:33:04.460  checkout         HTTP POST                                         4.8ms  go/opentelemetry 1.39.0 inst -
+    2026-09-30 02:33:04.461  shipping         /get-quote                                        3.1ms  rust/opentelemetry 0.31.0 inst -
+    2026-09-30 02:33:04.462  shipping         POST quote                                        2.7ms  rust/opentelemetry 0.31.0 inst -
+    2026-09-30 02:33:04.465  checkout         oteldemo.CurrencyService/Convert                  2.0ms  go/opentelemetry 1.39.0 inst -
+    2026-09-30 02:33:04.465  currency         Currency/Convert                                  0.9ms  cpp/opentelemetry 1.24.0 inst -
+    2026-09-30 02:33:04.467  checkout         oteldemo.PaymentService/Charge                    2.1ms  go/opentelemetry 1.39.0 inst -
+    2026-09-30 02:33:04.468  payment          grpc.oteldemo.PaymentService/Charge               0.8ms  nodejs/opentelemetry 2.2.0 inst -
+    2026-09-30 02:33:04.468  payment          charge                                            0.4ms  nodejs/opentelemetry 2.2.0 inst -
+    2026-09-30 02:33:04.469  checkout         HTTP POST                                         0.2ms  go/opentelemetry 1.39.0 inst -
+    2026-09-30 02:33:04.469  shipping         /ship-order                                       0.0ms  rust/opentelemetry 0.31.0 inst -
+    2026-09-30 02:33:04.469  checkout         oteldemo.CartService/EmptyCart                    5.2ms  go/opentelemetry 1.39.0 inst -
+    2026-09-30 02:33:04.469  cart             POST /oteldemo.CartService/EmptyCart              4.6ms  dotnet/opentelemetry 1.14.0 inst 14b6b825-e6d
+    2026-09-30 02:33:04.470  cart             flagd.evaluation.v1.Service/ResolveBoolean        3.0ms  dotnet/opentelemetry 1.14.0 inst 14b6b825-e6d
+    2026-09-30 02:33:04.470  cart             POST                                              2.8ms  dotnet/opentelemetry 1.14.0 inst 14b6b825-e6d
+    2026-09-30 02:33:04.471  flagd            flagd.evaluation.v1.Service/ResolveBoolean        0.1ms  go/opentelemetry 1.37.0 inst -
+    2026-09-30 02:33:04.471  flagd            resolveBoolean                                    0.1ms  go/opentelemetry 1.37.0 inst -
+    2026-09-30 02:33:04.471  flagd            resolveBoolean                                    0.0ms  go/opentelemetry 1.37.0 inst -
+    2026-09-30 02:33:04.473  cart             HMSET                                             0.4ms  dotnet/opentelemetry 1.14.0 inst 14b6b825-e6d
+    2026-09-30 02:33:04.473  cart             EXPIRE                                            0.8ms  dotnet/opentelemetry 1.14.0 inst 14b6b825-e6d
+    2026-09-30 02:33:04.474  checkout         HTTP POST                                       106.2ms  go/opentelemetry 1.39.0 inst -
+    2026-09-30 02:33:04.581  frontend         grpc.oteldemo.ProductCatalogService/GetProdu      1.4ms  nodejs/opentelemetry 2.2.0 inst -
+    2026-09-30 02:33:04.581  checkout         orders publish                                    0.1ms  go/opentelemetry 1.39.0 inst -
+    2026-09-30 02:33:04.582  product-catalog  oteldemo.ProductCatalogService/GetProduct         0.6ms  go/opentelemetry 1.39.0 inst -
+    2026-09-30 02:33:04.582  product-catalog  sql.conn.query                                    0.5ms  go/opentelemetry 1.39.0 inst -
+
+  trace cde51fe9fe6e4894968e42a1bdbe81dd
+    2026-09-29 08:06:23.361  quote            POST /getquote                                    0.2ms  php/opentelemetry 1.10.0 inst -
+    2026-09-29 08:06:23.361  quote            {closure}                                         0.1ms  php/opentelemetry 1.10.0 inst -
+    2026-09-29 08:06:23.361  quote            calculate-quote                                   0.0ms  php/opentelemetry 1.10.0 inst -
+    2026-09-30 02:43:30.300  load-generator   user_checkout_single                             28.0ms  python/opentelemetry 1.39.1 inst -
+    2026-09-30 02:43:30.311  load-generator   POST                                             17.1ms  python/opentelemetry 1.39.1 inst -
+    2026-09-30 02:43:30.311  frontend-proxy   ingress                                          16.1ms  cpp/envoy 5251fec52ee063192dcd8bd0615c6283e7b12b6c/1.34.12/Clean/RELEASE/BoringSSL inst -
+    2026-09-30 02:43:30.312  frontend         POST /api/checkout                               15.0ms  nodejs/opentelemetry 2.2.0 inst -
+    2026-09-30 02:43:30.312  frontend         executing api route (pages) /api/checkout        14.5ms  nodejs/opentelemetry 2.2.0 inst -
+    2026-09-30 02:43:30.312  frontend         POST                                             15.5ms  nodejs/opentelemetry 2.2.0 inst -
+    2026-09-30 02:43:30.312  frontend         grpc.oteldemo.CheckoutService/PlaceOrder         12.9ms  nodejs/opentelemetry 2.2.0 inst -
+    2026-09-30 02:43:30.312  frontend-proxy   router frontend egress                           15.8ms  cpp/envoy 5251fec52ee063192dcd8bd0615c6283e7b12b6c/1.34.12/Clean/RELEASE/BoringSSL inst -
+    2026-09-30 02:43:30.313  checkout         oteldemo.CheckoutService/PlaceOrder              12.1ms  go/opentelemetry 1.39.0 inst -
+    2026-09-30 02:43:30.313  checkout         prepareOrderItemsAndShippingQuoteFromCart         8.3ms  go/opentelemetry 1.39.0 inst -
+    2026-09-30 02:43:30.313  checkout         oteldemo.CartService/GetCart                      1.0ms  go/opentelemetry 1.39.0 inst -
+    2026-09-30 02:43:30.313  cart             POST /oteldemo.CartService/GetCart                0.5ms  dotnet/opentelemetry 1.14.0 inst 14b6b825-e6d
+    2026-09-30 02:43:30.313  cart             HGET                                              0.3ms  dotnet/opentelemetry 1.14.0 inst 14b6b825-e6d
+    2026-09-30 02:43:30.314  checkout         oteldemo.ProductCatalogService/GetProduct         0.7ms  go/opentelemetry 1.39.0 inst -
+    2026-09-30 02:43:30.314  product-catalog  oteldemo.ProductCatalogService/GetProduct         0.4ms  go/opentelemetry 1.39.0 inst -
+    2026-09-30 02:43:30.314  product-catalog  sql.conn.query                                    0.3ms  go/opentelemetry 1.39.0 inst -
+    2026-09-30 02:43:30.315  checkout         oteldemo.CurrencyService/Convert                  1.6ms  go/opentelemetry 1.39.0 inst -
+    2026-09-30 02:43:30.315  currency         Currency/Convert                                  0.6ms  cpp/opentelemetry 1.24.0 inst -
+    2026-09-30 02:43:30.316  checkout         HTTP POST                                         2.4ms  go/opentelemetry 1.39.0 inst -
+    2026-09-30 02:43:30.317  shipping         /get-quote                                        1.3ms  rust/opentelemetry 0.31.0 inst -
+    2026-09-30 02:43:30.317  shipping         POST quote                                        1.2ms  rust/opentelemetry 0.31.0 inst -
+    2026-09-30 02:43:30.319  checkout         oteldemo.CurrencyService/Convert                  2.4ms  go/opentelemetry 1.39.0 inst -
+    2026-09-30 02:43:30.319  currency         Currency/Convert                                  1.0ms  cpp/opentelemetry 1.24.0 inst -
+    2026-09-30 02:43:30.321  checkout         oteldemo.PaymentService/Charge                    1.3ms  go/opentelemetry 1.39.0 inst -
+    2026-09-30 02:43:30.322  payment          charge                                            0.2ms  nodejs/opentelemetry 2.2.0 inst -
+    2026-09-30 02:43:30.322  payment          grpc.oteldemo.PaymentService/Charge               0.5ms  nodejs/opentelemetry 2.2.0 inst -
+    2026-09-30 02:43:30.323  checkout         HTTP POST                                         0.2ms  go/opentelemetry 1.39.0 inst -
+    2026-09-30 02:43:30.323  shipping         /ship-order                                       0.0ms  rust/opentelemetry 0.31.0 inst -
+    2026-09-30 02:43:30.323  checkout         oteldemo.CartService/EmptyCart                    1.7ms  go/opentelemetry 1.39.0 inst -
+    2026-09-30 02:43:30.323  cart             POST /oteldemo.CartService/EmptyCart              1.5ms  dotnet/opentelemetry 1.14.0 inst 14b6b825-e6d
+    2026-09-30 02:43:30.323  cart             flagd.evaluation.v1.Service/ResolveBoolean        1.0ms  dotnet/opentelemetry 1.14.0 inst 14b6b825-e6d
+    2026-09-30 02:43:30.323  cart             POST                                              0.9ms  dotnet/opentelemetry 1.14.0 inst 14b6b825-e6d
+    2026-09-30 02:43:30.323  flagd            flagd.evaluation.v1.Service/ResolveBoolean        0.1ms  go/opentelemetry 1.37.0 inst -
+    2026-09-30 02:43:30.323  flagd            resolveBoolean                                    0.1ms  go/opentelemetry 1.37.0 inst -
+    2026-09-30 02:43:30.323  flagd            resolveBoolean                                    0.0ms  go/opentelemetry 1.37.0 inst -
+    2026-09-30 02:43:30.324  cart             HMSET                                             0.2ms  dotnet/opentelemetry 1.14.0 inst 14b6b825-e6d
+    2026-09-30 02:43:30.324  cart             EXPIRE                                            0.1ms  dotnet/opentelemetry 1.14.0 inst 14b6b825-e6d
+    2026-09-30 02:43:30.324  checkout         HTTP POST                                         0.4ms  go/opentelemetry 1.39.0 inst -
+    2026-09-30 02:43:30.325  frontend         grpc.oteldemo.ProductCatalogService/GetProdu      1.3ms  nodejs/opentelemetry 2.2.0 inst -
+    2026-09-30 02:43:30.325  checkout         orders publish                                    0.1ms  go/opentelemetry 1.39.0 inst -
+    2026-09-30 02:43:30.326  product-catalog  oteldemo.ProductCatalogService/GetProduct         0.6ms  go/opentelemetry 1.39.0 inst -
+    2026-09-30 02:43:30.326  product-catalog  sql.conn.query                                    0.5ms  go/opentelemetry 1.39.0 inst -
+
+====================================================================================================
+2. the last 30 minutes (07:51:37 .. 08:20:37)
+  150 traces read, 2377 spans; 9 traces hold a span over an hour before their median
+       9 spans  quote            POST /getquote                           php/opentelemetry 1.10.0   inst -            offsets 18:37:07
+       9 spans  quote            {closure}                                php/opentelemetry 1.10.0   inst -            offsets 18:37:07
+       9 spans  quote            calculate-quote                          php/opentelemetry 1.10.0   inst -            offsets 18:37:07
+
+====================================================================================================
+2. R6's window (05:04:02 .. 05:15:34)
+  150 traces read, 2420 spans; 18 traces hold a span over an hour before their median
+      18 spans  quote            POST /getquote                           php/opentelemetry 1.10.0   inst -            offsets 18:37:07
+      18 spans  quote            {closure}                                php/opentelemetry 1.10.0   inst -            offsets 18:37:07
+      18 spans  quote            calculate-quote                          php/opentelemetry 1.10.0   inst -            offsets 18:37:07
+
+====================================================================================================
+2. the payment window (01:24:16 .. 01:34:36)
+  150 traces read, 2614 spans; 23 traces hold a span over an hour before their median
+      23 spans  quote            POST /getquote                           php/opentelemetry 1.10.0   inst -            offsets 18:37:07
+      23 spans  quote            {closure}                                php/opentelemetry 1.10.0   inst -            offsets 18:37:07
+      23 spans  quote            calculate-quote                          php/opentelemetry 1.10.0   inst -            offsets 18:37:07
+
+====================================================================================================
+3. clocks and start times
+  this computer:  2026-09-30 08:21:44
+  Docker VM (read in postgresql): 2026-09-30 08:21:44
+  containers by start time:
+    2026-09-28T22:20:23.011981626Z /opensearch
+    2026-09-28T22:20:23.021150917Z /valkey-cart
+    2026-09-28T22:20:23.047395959Z /prometheus
+    2026-09-28T22:20:23.053223084Z /jaeger
+    2026-09-28T22:20:23.057300001Z /postgresql
+    2026-09-28T22:20:23.076082626Z /flagd
+    2026-09-28T22:20:23.078431542Z /shipping
+    2026-09-28T22:20:23.084244251Z /image-provider
+    2026-09-28T22:20:23.085851042Z /grafana
+    2026-09-28T22:20:23.128460792Z /currency
+    2026-09-28T22:20:23.129344001Z /recommendation
+    2026-09-28T22:20:23.132526709Z /frontend-proxy
+    2026-09-28T22:20:23.133781126Z /quote
+    2026-09-28T22:20:23.133942667Z /flagd-ui
+    2026-09-28T22:20:23.139842376Z /frontend
+    2026-09-28T22:20:23.155281292Z /llm
+    2026-09-28T22:20:25.022258002Z /product-catalog
+    2026-09-28T23:28:02.09531813Z /payment
+    2026-09-28T23:37:14.652761802Z /ad
+    2026-09-29T00:09:29.641729837Z /loki
+    2026-09-29T00:09:29.715044087Z /promtail
+    2026-09-29T00:09:29.793586712Z /tempo
+    2026-09-29T00:34:10.03561155Z /cart
+    2026-09-29T00:34:13.216606718Z /product-reviews
+    2026-09-29T01:58:02.705732963Z /otel-collector
+    2026-09-29T03:57:22.310992764Z /kafka
+    2026-09-29T03:57:22.474710222Z /accounting
+    2026-09-29T03:57:37.334377965Z /checkout
+    2026-09-29T05:15:32.284388545Z /load-generator
+    2026-09-30T02:43:30.03385968Z /email
+    2026-09-30T03:18:59.466111221Z /fraud-detection
+  frontend        process start: OCI runtime exec failed: exec failed: unable to start container process: exec: "sh": executable file not found in $PATH
+|
+  load-generator  process start: sh: 1: ps: not found|
+  checkout        process start: OCI runtime exec failed: exec failed: unable to start container process: exec: "sh": executable file not found in $PATH
+|
+  email           process start: PID   USER     TIME  COMMAND|    1 root      0:25 {ruby} puma 7.1.0 (tcp://0.0.0.0:6060) [email_server]| 1475 root      0:00 ps|

@@ -1,0 +1,143 @@
+"""Read-only: which spans carry timestamps hours in the past, from which process, since when.
+
+    python3 ~/Downloads/skew_probe.py > ~/Downloads/skew-probe.txt 2>&1
+
+The Q120 audit's fourth pass found traces whose earliest span starts 18h37m07s before the rest of
+the trace: a payment trace whose Charge ran at 2026-09-30 01:24:22 has a span that starts at
+06:47:15 the day before. Tempo's trace start is its earliest span, so such a trace overlaps every
+search window between the two, which is why the audit's searches returned traces from after their
+end. This prints, and changes nothing:
+
+  1. four of those traces span by span - service, name, full start time, duration, and the
+     resource that sent it (SDK, language, instance);
+  2. 150 traces from the last 30 minutes, 150 from R6's window (05:04-05:15, where no trace was
+     skewed) and 150 from the payment window: every span more than one hour before its trace's
+     median span, grouped by service, span name, SDK and instance, with the offsets seen;
+  3. every container's start time, the Docker VM's clock against this computer's, and the
+     frontend's and load generator's process start times.
+Stdlib only, Python 3.9-safe.
+"""
+
+import datetime as dt
+import json
+import statistics
+import subprocess
+import time
+import urllib.parse
+import urllib.request
+
+TEMPO = "http://localhost:3200"
+SAMPLES = ["ede5d04a7cb3b149d84b9a7f881b079d", "16a9070c09b7e5aefd8fa75e7b5d51b8",
+           "b0a807528a56994f09763675e3b62e37", "cde51fe9fe6e4894968e42a1bdbe81dd"]
+
+
+def get(path, params=None):
+    url = TEMPO + path + ("?" + urllib.parse.urlencode(params) if params else "")
+    with urllib.request.urlopen(url, timeout=180) as r:
+        return json.load(r)
+
+
+def full(sec):
+    return dt.datetime.fromtimestamp(sec, dt.timezone.utc).strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+
+
+def attr(attrs, key):
+    for x in attrs or []:
+        if x.get("key") == key:
+            return str(next(iter((x.get("value") or {}).values()), ""))
+    return ""
+
+
+def spans(trace_id):
+    t = get("/api/traces/" + trace_id)
+    out = []
+    for g in t.get("batches") or t.get("resourceSpans") or []:
+        ra = (g.get("resource") or {}).get("attributes")
+        res = {"svc": attr(ra, "service.name"), "sdk": attr(ra, "telemetry.sdk.name"),
+               "lang": attr(ra, "telemetry.sdk.language"), "ver": attr(ra, "telemetry.sdk.version"),
+               "inst": attr(ra, "service.instance.id")[:12]}
+        for ss in g.get("scopeSpans") or []:
+            scope = (ss.get("scope") or {}).get("name", "")
+            for s in ss.get("spans") or []:
+                st = int(s.get("startTimeUnixNano") or 0) / 1e9
+                en = int(s.get("endTimeUnixNano") or 0) / 1e9
+                d = dict(res)
+                d.update({"name": s.get("name"), "start": st, "ms": (en - st) * 1000, "scope": scope,
+                          "id": s.get("spanId"), "parent": s.get("parentSpanId") or ""})
+                out.append(d)
+    return out
+
+
+def show(trace_id):
+    sp = sorted(spans(trace_id), key=lambda s: s["start"])
+    print("\n  trace %s" % trace_id)
+    for s in sp:
+        print("    %s  %-16s %-44s %8.1fms  %s/%s %s inst %s" % (
+            full(s["start"]), s["svc"][:16], (s["name"] or "")[:44], s["ms"], s["lang"], s["sdk"],
+            s["ver"], s["inst"] or "-"))
+
+
+def survey(title, a, b):
+    print("\n" + "=" * 100)
+    print("2. %s (%s .. %s)" % (title, full(a)[11:19], full(b)[11:19]))
+    d = get("/api/search", {"q": "{}", "start": str(int(a)), "end": str(int(b)), "limit": "150"})
+    traces = d.get("traces") or []
+    groups, skewed_traces, total_spans = {}, 0, 0
+    for t in traces:
+        sp = spans(t["traceID"])
+        if not sp:
+            continue
+        total_spans += len(sp)
+        med = statistics.median(s["start"] for s in sp)
+        bad = [s for s in sp if med - s["start"] > 3600]
+        if bad:
+            skewed_traces += 1
+        for s in bad:
+            k = (s["svc"], s["name"], s["lang"] + "/" + s["sdk"] + " " + s["ver"], s["inst"] or "-")
+            groups.setdefault(k, []).append(round(med - s["start"]))
+    print("  %d traces read, %d spans; %d traces hold a span over an hour before their median" % (
+        len(traces), total_spans, skewed_traces))
+    for k, offs in sorted(groups.items(), key=lambda kv: -len(kv[1])):
+        o = sorted(set(offs))
+        print("    %4d spans  %-16s %-40s %-26s inst %-12s offsets %s%s" % (
+            len(offs), k[0][:16], (k[1] or "")[:40], k[2][:26], k[3],
+            ", ".join(str(dt.timedelta(seconds=x)) for x in o[:4]), " ..." if len(o) > 4 else ""))
+
+
+def sh(cmd):
+    r = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+    return (r.stdout + r.stderr).strip()
+
+
+def main():
+    now = time.time()
+    print("skew probe run at %s UTC" % full(now))
+    print("\n" + "=" * 100)
+    print("1. the audit's sample traces, span by span")
+    for tid in SAMPLES:
+        try:
+            show(tid)
+        except Exception as e:
+            print("\n  trace %s - %s" % (tid, e))
+
+    survey("the last 30 minutes", now - 1800, now - 60)
+    survey("R6's window", dt.datetime(2026, 9, 30, 5, 4, 2, tzinfo=dt.timezone.utc).timestamp(),
+           dt.datetime(2026, 9, 30, 5, 15, 34, tzinfo=dt.timezone.utc).timestamp())
+    survey("the payment window", dt.datetime(2026, 9, 30, 1, 24, 16, tzinfo=dt.timezone.utc).timestamp(),
+           dt.datetime(2026, 9, 30, 1, 34, 36, tzinfo=dt.timezone.utc).timestamp())
+
+    print("\n" + "=" * 100)
+    print("3. clocks and start times")
+    print("  this computer:  %s" % sh("date -u '+%Y-%m-%d %H:%M:%S'"))
+    print("  Docker VM (read in postgresql): %s" % sh("docker exec postgresql date -u '+%Y-%m-%d %H:%M:%S'"))
+    print("  containers by start time:")
+    out = sh("docker ps -q | xargs docker inspect -f '{{.State.StartedAt}} {{.Name}}' | sort")
+    for line in out.splitlines():
+        print("    " + line)
+    for name in ("frontend", "load-generator", "checkout", "email"):
+        print("  %-15s process start: %s" % (name, sh(
+            "docker exec %s sh -c 'ps -o pid,lstart,etime,args 2>/dev/null || ps' 2>&1 | head -4 | tr '\\n' '|'" % name)))
+
+
+if __name__ == "__main__":
+    main()

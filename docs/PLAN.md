@@ -4617,6 +4617,22 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-09-30: Q120's audit - every trace claim still readable holds across the whole fault; no
+label corrected; Q120 closed; quote's clock found 18h37m07s behind - Q121 opened.***
+
+- **Not re-readable**: four labels' windows were past Tempo's 24 h retention by the repair. Their
+  trace items stand as read, a sample of the newest minutes, and each header now says so.
+- **Re-read whole**, each matched span placed by its own timestamps: the payment label (92 slow
+  Charges, 300.7-304.3 ms, over payment spans of 0.2-1.3 ms), the email label (88 failing POSTs,
+  median 2.4 ms, nothing beneath; no email span from onset to fix) and R6 (947 catalog errors, all
+  over database queries that succeeded - its RESULT gains an addendum). All held.
+- **Misread twice first**: every order calls quote, and quote's spans are stamped 18h37m07s
+  early, so each order trace overlaps every search window back to then. That skewed both the
+  per-minute counts and a filter on the search's own start times. Only quote is off.
+- **Q121**: what the skew does to `trace_query` (the order it keeps, and rule 0 of the hop) and
+  the remedies, each the owner's decision, before T7.2's first run. Evidence:
+  `docs/evidence/q120-audit/`. By the plan's triage, T7.2 and T7.5 next.
+
 ***2026-09-30: `disk_fill` rows 2 and 3 measured and blocked on their own precondition; T7.1's
 candidate rows close at 39 valid scenarios of 44 slots.***
 

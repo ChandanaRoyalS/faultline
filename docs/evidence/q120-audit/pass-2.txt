@@ -1,0 +1,229 @@
+audit (second pass) run at 2026-09-30 08:00:33 UTC
+
+====================================================================================================
+1 and 2. Search completeness, and Tempo's count beside the span metrics' count, per minute
+   (span metrics count spans and Tempo counts traces; where one trace holds one such span the
+   two should agree. 'over' is the span metrics' count above the nearest bucket bound at or
+   under the query's duration.)
+
+v2-inj-payment-dependency-latency-log-checkout - Charge from checkout over 250 ms (evidence)
+  { resource.service.name = "checkout" && name = "oteldemo.PaymentService/Charge" && duration > 250ms }
+  whole window: 92 traces; jobs 2 of 2, traces inspected ?, blocks 2
+  bucket bounds (ms): [2.0, 4.0, 6.0, 8.0, 10.0, 50.0, 100.0, 200.0, 400.0, 800.0, 1000.0, 1400.0, 2000.0, 5000.0, 10000.0, 15000.0]; nearest at or under 250 ms: 200.0
+  minute   tempo  complete         metrics(all)  metrics(over)
+  +00:00      92  2/2                        0              0
+  +01:00      86  2/2                        0              0
+  +02:00      73  2/2                        0              0
+  +03:00      67  2/2                        0              0
+  +04:00      64  2/2                        0              0
+  +05:00      53  2/2                        0              0
+  +06:00      37  2/2                        0              0
+  +07:00      27  2/2                        0              0
+  +08:00      21  2/2                        0              0
+  +09:00      11  2/2                        0              0
+  +10:00       7  2/2                        0              0
+
+v2-inj-payment-dependency-latency-log-checkout - all Charge from checkout
+  { resource.service.name = "checkout" && name = "oteldemo.PaymentService/Charge" }
+  whole window: 292 traces; jobs 2 of 2, traces inspected ?, blocks 2
+  minute   tempo  complete         metrics(all)  metrics(over)
+  +00:00     296  2/2                        0              -
+  +01:00     286  2/2                        0              -
+  +02:00     273  2/2                        0              -
+  +03:00     267  2/2                        0              -
+  +04:00     264  2/2                        0              -
+  +05:00     253  2/2                        0              -
+  +06:00     237  2/2                        0              -
+  +07:00     227  2/2                        0              -
+  +08:00     221  2/2                        0              -
+  +09:00     211  2/2                        0              -
+  +10:00     207  2/2                        0              -
+
+v2-inj-payment-dependency-latency-log-checkout - payment server spans over 50 ms (negative)
+  { resource.service.name = "payment" && kind = server && duration > 50ms }
+  whole window: 0 traces; jobs 2 of 2, traces inspected ?, blocks 2
+  bucket bounds (ms): [2.0, 4.0, 6.0, 8.0, 10.0, 50.0, 100.0, 200.0, 400.0, 800.0, 1000.0, 1400.0, 2000.0, 5000.0, 10000.0, 15000.0]; nearest at or under 50 ms: 50.0
+  minute   tempo  complete         metrics(all)  metrics(over)
+  +00:00       0  2/2                        0              0
+  +01:00       0  2/2                        0              0
+  +02:00       0  2/2                        0              0
+  +03:00       0  2/2                        0              0
+  +04:00       0  2/2                        0              0
+  +05:00       0  2/2                        0              0
+  +06:00       0  2/2                        0              0
+  +07:00       0  2/2                        0              0
+  +08:00       0  2/2                        0              0
+  +09:00       0  2/2                        0              0
+  +10:00       0  2/2                        0              0
+
+v2-inj-email-wrong-image-log-checkout - checkout spans in error (evidence)
+  { resource.service.name = "checkout" && status = error }
+  whole window: 89 traces; jobs 1 of 1, traces inspected ?, blocks 1
+  minute   tempo  complete         metrics(all)  metrics(over)
+  +00:00      89  1/1                        0              -
+  +01:00      89  1/1                        0              -
+  +02:00      84  1/1                        0              -
+  +03:00      78  1/1                        0              -
+  +04:00      71  1/1                        0              -
+  +05:00      58  1/1                        0              -
+  +06:00      50  1/1                        0              -
+  +07:00      45  1/1                        0              -
+  +08:00      31  1/1                        0              -
+  +09:00      24  1/1                        0              -
+  +10:00      14  1/1                        0              -
+  +11:00       5  1/1                        0              -
+
+v2-inj-email-wrong-image-log-checkout - PlaceOrder in error (negative)
+  { resource.service.name = "checkout" && name = "oteldemo.CheckoutService/PlaceOrder" && status = error }
+  whole window: 0 traces; jobs 1 of 1, traces inspected ?, blocks 1
+  minute   tempo  complete         metrics(all)  metrics(over)
+  +00:00       0  1/1                        0              -
+  +01:00       0  1/1                        0              -
+  +02:00       0  1/1                        0              -
+  +03:00       0  1/1                        0              -
+  +04:00       0  1/1                        0              -
+  +05:00       0  1/1                        0              -
+  +06:00       0  1/1                        0              -
+  +07:00       0  1/1                        0              -
+  +08:00       0  1/1                        0              -
+  +09:00       0  1/1                        0              -
+  +10:00       0  1/1                        0              -
+  +11:00       0  1/1                        0              -
+
+v2-inj-email-wrong-image-log-checkout - email spans of any kind
+  { resource.service.name = "email" }
+  whole window: 131 traces; jobs 1 of 1, traces inspected ?, blocks 1
+  minute   tempo  complete         metrics(all)  metrics(over)
+  +00:00     138  1/1                        0              -
+  +01:00     131  1/1                        0              -
+  +02:00     131  1/1                        0              -
+  +03:00     131  1/1                        0              -
+  +04:00     131  1/1                        0              -
+  +05:00     131  1/1                        0              -
+  +06:00     131  1/1                        0              -
+  +07:00     131  1/1                        0              -
+  +08:00     131  1/1                        0              -
+  +09:00     131  1/1                        0              -
+  +10:00     131  1/1                        0              -
+  +11:00     131  1/1                        0              -
+
+R6 (v2-postgresql-catalog-corruption rehearsal) - product-catalog spans in error (evidence)
+  { resource.service.name = "product-catalog" && status = error }
+  whole window: 947 traces; jobs 1 of 1, traces inspected ?, blocks 1
+  minute   tempo  complete         metrics(all)  metrics(over)
+  +00:00      84  1/1                        0              -
+  +01:00      87  1/1                        0              -
+  +02:00      77  1/1                        0              -
+  +03:00      93  1/1                        0              -
+  +04:00      73  1/1                        0              -
+  +05:00      64  1/1                        0              -
+  +06:00      85  1/1                        0              -
+  +07:00      89  1/1                        0              -
+  +08:00      74  1/1                        0              -
+  +09:00      77  1/1                        0              -
+  +10:00      89  1/1                        0              -
+  +11:00      55  1/1                        0              -
+
+R6 (v2-postgresql-catalog-corruption rehearsal) - database spans in error (negative)
+  { resource.service.name = "product-catalog" && name = "sql.conn.query" && status = error }
+  whole window: 0 traces; jobs 1 of 1, traces inspected ?, blocks 1
+  minute   tempo  complete         metrics(all)  metrics(over)
+  +00:00       0  1/1                        0              -
+  +01:00       0  1/1                        0              -
+  +02:00       0  1/1                        0              -
+  +03:00       0  1/1                        0              -
+  +04:00       0  1/1                        0              -
+  +05:00       0  1/1                        0              -
+  +06:00       0  1/1                        0              -
+  +07:00       0  1/1                        0              -
+  +08:00       0  1/1                        0              -
+  +09:00       0  1/1                        0              -
+  +10:00       0  1/1                        0              -
+  +11:00       0  1/1                        0              -
+
+====================================================================================================
+3. The email traces in the email label's window, placed (onset 02:32:57, fix 02:43:29)
+  search over the window: 131 traces; jobs 1 of 1, traces inspected ?, blocks 1
+  first email span of each trace, by 30 s from the onset:
+    after fix       +630s ..   +660s     5 traces
+    after fix       +660s ..   +690s     3 traces
+    after fix       +690s ..   +720s     1 traces
+    after fix       +720s ..   +750s     3 traces
+    after fix       +750s ..   +780s     4 traces
+    after fix       +780s ..   +810s     5 traces
+    after fix       +810s ..   +840s     2 traces
+    after fix       +840s ..   +870s     4 traces
+    after fix       +870s ..   +900s     1 traces
+    after fix       +900s ..   +930s     8 traces
+    after fix       +930s ..   +960s     5 traces
+    after fix       +960s ..   +990s     5 traces
+    after fix       +990s ..  +1020s     4 traces
+    after fix      +1020s ..  +1050s     2 traces
+    after fix      +1050s ..  +1080s     2 traces
+    after fix      +1080s ..  +1110s     4 traces
+    after fix      +1110s ..  +1140s     3 traces
+    after fix      +1140s ..  +1170s     3 traces
+    after fix      +1170s ..  +1200s     5 traces
+    after fix      +1200s ..  +1230s     7 traces
+    after fix      +1230s ..  +1260s     4 traces
+    after fix      +1260s ..  +1290s     4 traces
+    after fix      +1290s ..  +1320s     3 traces
+    after fix      +1320s ..  +1350s     5 traces
+    after fix      +1350s ..  +1380s     5 traces
+    after fix      +1380s ..  +1410s     6 traces
+    after fix      +1410s ..  +1440s     5 traces
+    after fix      +1440s ..  +1470s     6 traces
+    after fix      +1470s ..  +1500s     1 traces
+    after fix      +1500s ..  +1530s     3 traces
+    after fix      +1530s ..  +1560s     3 traces
+    after fix      +1560s ..  +1590s     7 traces
+    after fix      +1590s ..  +1620s     3 traces
+  email span names (side, name, in error):
+    after fix     POST /send_order_confirmation            ok    131
+    after fix     send_email                               ok    131
+    after fix     sinatra.render_template                  ok    262
+  email spans per minute from the span metrics (all kinds), onset-10m to fix+5m:
+    02:22 (-10 min)     0.0
+    02:23 ( -9 min)     0.0
+    02:24 ( -8 min)     0.0
+    02:25 ( -7 min)     0.0
+    02:26 ( -6 min)     0.0
+    02:27 ( -5 min)     0.0
+    02:28 ( -4 min)     0.0
+    02:29 ( -3 min)     0.0
+    02:30 ( -2 min)     0.0
+    02:31 ( -1 min)     0.0
+    02:32 ( +0 min)     0.0
+    02:33 ( +1 min)     0.0
+    02:34 ( +2 min)     0.0
+    02:35 ( +3 min)     0.0
+    02:36 ( +4 min)     0.0
+    02:37 ( +5 min)     0.0
+    02:38 ( +6 min)     0.0
+    02:39 ( +7 min)     0.0
+    02:40 ( +8 min)     0.0
+    02:41 ( +9 min)     0.0
+    02:42 (+10 min)     0.0
+    02:43 (+11 min)     0.0
+    02:44 (+12 min)     0.0
+    02:45 (+13 min)     0.0
+    02:46 (+14 min)     0.0
+    02:47 (+15 min)     0.0
+    02:48 (+16 min)     0.0
+
+====================================================================================================
+4. checkout's failing HTTP POST to email - duration per minute across the whole window
+  { resource.service.name = "checkout" && name = "HTTP POST" && status = error }
+  +00:00    89 spans  min    0.4  median    2.4  p90    3.8  max  106.2 ms   over 10 ms: 2  (jobs 1/1)
+  +01:00    89 spans  min    0.4  median    2.4  p90    3.8  max  106.2 ms   over 10 ms: 2  (jobs 1/1)
+  +02:00    84 spans  min    0.4  median    2.3  p90    3.8  max   16.4 ms   over 10 ms: 1  (jobs 1/1)
+  +03:00    78 spans  min    0.4  median    2.3  p90    3.8  max   16.4 ms   over 10 ms: 1  (jobs 1/1)
+  +04:00    71 spans  min    0.4  median    2.3  p90    3.8  max   16.4 ms   over 10 ms: 1  (jobs 1/1)
+  +05:00    58 spans  min    0.4  median    2.4  p90    3.9  max   16.4 ms   over 10 ms: 1  (jobs 1/1)
+  +06:00    50 spans  min    0.4  median    2.5  p90    4.0  max   16.4 ms   over 10 ms: 1  (jobs 1/1)
+  +07:00    45 spans  min    0.4  median    2.4  p90    4.0  max   16.4 ms   over 10 ms: 1  (jobs 1/1)
+  +08:00    31 spans  min    0.4  median    2.5  p90    3.9  max   16.4 ms   over 10 ms: 1  (jobs 1/1)
+  +09:00    24 spans  min    0.4  median    2.7  p90    4.0  max   16.4 ms   over 10 ms: 1  (jobs 1/1)
+  +10:00    14 spans  min    0.4  median    2.5  p90    3.7  max    6.4 ms   over 10 ms: 0  (jobs 1/1)
+  +11:00     5 spans  min    0.4  median    2.8  p90    3.7  max    3.7 ms   over 10 ms: 0  (jobs 1/1)
+  total failing POSTs read: 638

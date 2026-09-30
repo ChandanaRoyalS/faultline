@@ -8,6 +8,10 @@
 # frontend (GetCart 0.74/s and AddItem 0.51/s, 12 % of its non-internal spans) and checkout
 # (GetCart and EmptyCart 0.17/s each, 15 % of its); cart holds 42 .NET runtime series and writes
 # 160 lines a minute, the store 5 lines per five-minute save and none between.
+# Q120's audit, 2026-09-30: the traces item below was read while Tempo's search saw only its
+# ingester's last minutes. By the repair the window was past the 24 h retention and was deleted,
+# so it could not be re-read; it stands as read, a sample of the fault's newest minutes
+# (docs/evidence/q120-audit/README.md).
 id: v2-cart-store-corruption
 title: Every cart in the store is unreadable - the store answers, and what it holds cannot be parsed
 fault_class: datastore_corruption

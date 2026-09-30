@@ -61,3 +61,15 @@ five to seven minutes. **The verdicts stand**: the eighteen traces were real, ea
 fingerprint whole, and none contradicted another. What changes is their weight: they are the
 fault's newest minute, not a sample of its eleven, and VISIBLE's (d) rests on that minute. The
 whole window is re-read once Q120's repair is accepted, and any difference is added here.
+
+## Addendum, 2026-09-30 - the whole window re-read (Q120's audit)
+
+Re-read at 08:18 UTC, after Q120's repair, with every matched trace fetched whole and each
+matched span placed by its own timestamps (`docs/evidence/q120-audit/`, pass 4). **(d) holds
+across the whole fault and not only its last minute.** There were 947 catalog server spans in
+error from 05:04:03 to 05:15:33, spread over every minute of the window (55 to 93 a minute).
+They took 0.2 to 3.7 ms, median 0.5. **All 947 sit over a `sql.conn.query` span not in error,
+and none over one in error.** Trees drawn from the window's start, middle and end show the same
+shape as the eighteen the read-back returned: GetProduct in error with `Product Not Found` for an
+id the table holds, over a database query that succeeded. The verdicts stand, now on the whole
+fault.

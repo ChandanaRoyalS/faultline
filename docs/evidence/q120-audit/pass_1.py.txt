@@ -1,0 +1,139 @@
+"""Read-only: Q120's audit - the trace claims of seven read-backs, re-read whole where Tempo still can.
+
+Run from the repository root, with the world up:
+    python3 ~/Downloads/audit_q120.py > ~/Downloads/audit-q120.txt 2>&1
+
+Tempo's search was blind to its stored blocks from 2026-09-28 14:55 to the repair at 2026-09-30
+06:39, so every trace read-back in that span saw only the ingester's last five to seven minutes.
+For each window below this prints, per minute, how many traces a search finds now (any, and the
+window's own evidence query), so the audit can say what the old read-back could not have seen;
+and it draws trees from the start, the middle and the end of the fault, so a narrative's
+"every trace had this shape" can be checked across the whole fault and not its last minutes.
+Tempo keeps blocks 24 h (`block_retention`), so windows older than that print as empty - that is
+retention, not the defect, and the audit records them as not re-readable. Nothing is written.
+"""
+
+import datetime as dt
+import json
+import urllib.parse
+import urllib.request
+
+TEMPO = "http://localhost:3200"
+
+WINDOWS = [
+    # (label, onset, fix, evidence query, what the narrative claims about it)
+    ("v2-cart-store-corruption", "2026-09-29T00:20:23+00:00", "2026-09-29T00:31:39+00:00",
+     '{ resource.service.name = "cart" && status = error }', "cart's span in error under 1 ms over an HGET that succeeded"),
+    ("v2-kafka-disk-fill", "2026-09-29T02:30:05+00:00", "2026-09-29T02:41:20+00:00",
+     '{ resource.service.name = "checkout" && name = "orders publish" }', "the publish held tens of seconds under completed orders"),
+    ("v2-inj-kafka-disk-fill-log-checkout", "2026-09-29T03:46:50+00:00", "2026-09-29T03:57:21+00:00",
+     '{ resource.service.name = "checkout" && name = "orders publish" }', "as the base"),
+    ("v2-inj-cart-flag-failure-log-checkout", "2026-09-29T05:56:09+00:00", "2026-09-29T06:07:25+00:00",
+     '{ resource.service.name = "cart" && name =~ ".*EmptyCart" && status = error }', "EmptyCart in error over a flag lookup, no store call"),
+    ("v2-inj-payment-dependency-latency-log-checkout", "2026-09-30T01:24:16+00:00", "2026-09-30T01:34:36+00:00",
+     '{ resource.service.name = "checkout" && name = "oteldemo.PaymentService/Charge" && duration > 250ms }',
+     "every slow trace - Charge about 301 ms over payment's own 0.3 ms span"),
+    ("v2-inj-email-wrong-image-log-checkout", "2026-09-30T02:32:57+00:00", "2026-09-30T02:43:29+00:00",
+     '{ resource.service.name = "checkout" && status = error }', "the POST to email failing in about 2 ms, no such host, nothing beneath"),
+    ("R6 (v2-postgresql-catalog-corruption rehearsal)", "2026-09-30T05:04:02+00:00", "2026-09-30T05:15:34+00:00",
+     '{ resource.service.name = "product-catalog" && status = error }', "catalog spans in error over database spans that are not"),
+]
+
+EXTRA = {
+    "v2-inj-payment-dependency-latency-log-checkout": [
+        ("all Charge client spans", '{ resource.service.name = "checkout" && name = "oteldemo.PaymentService/Charge" }'),
+        ("payment server spans over 50 ms (predicted none)", '{ resource.service.name = "payment" && kind = server && duration > 50ms }'),
+    ],
+    "v2-inj-email-wrong-image-log-checkout": [
+        ("email spans of any kind (the narrative says none)", '{ resource.service.name = "email" }'),
+        ("checkout PlaceOrder in error (the narrative says none)", '{ resource.service.name = "checkout" && name = "oteldemo.CheckoutService/PlaceOrder" && status = error }'),
+    ],
+    "R6 (v2-postgresql-catalog-corruption rehearsal)": [
+        ("database spans in error (predicted none)", '{ resource.service.name = "product-catalog" && name = "sql.conn.query" && status = error }'),
+    ],
+}
+
+
+def get(path, params):
+    url = TEMPO + path + "?" + urllib.parse.urlencode(params)
+    with urllib.request.urlopen(url, timeout=60) as r:
+        return json.load(r)
+
+
+def search(q, a, b, limit=500):
+    return get("/api/search", {"q": q, "start": str(int(a.timestamp())), "end": str(int(b.timestamp())),
+                               "limit": str(limit)}).get("traces") or []
+
+
+def attr(attrs, key):
+    for a in attrs or []:
+        if a.get("key") == key:
+            return next(iter((a.get("value") or {}).values()), "")
+    return ""
+
+
+def show(trace_id):
+    t = get("/api/traces/" + trace_id, {})
+    spans = []
+    for g in t.get("batches") or t.get("resourceSpans") or []:
+        svc = attr((g.get("resource") or {}).get("attributes"), "service.name")
+        for ss in g.get("scopeSpans") or []:
+            for s in ss.get("spans") or []:
+                st = s.get("status") or {}
+                spans.append({"id": s.get("spanId"), "parent": s.get("parentSpanId") or "", "svc": svc,
+                              "name": s.get("name"), "start": int(s.get("startTimeUnixNano") or 0),
+                              "ms": (int(s.get("endTimeUnixNano") or 0) - int(s.get("startTimeUnixNano") or 0)) / 1e6,
+                              "err": st.get("code") in ("STATUS_CODE_ERROR", 2, "2"),
+                              "msg": (st.get("message") or "").replace("\n", " ")[:160]})
+    ids = {s["id"] for s in spans}
+    kids = {}
+    for s in spans:
+        kids.setdefault(s["parent"] if s["parent"] in ids else "", []).append(s)
+    for v in kids.values():
+        v.sort(key=lambda s: s["start"])
+
+    def walk(p, d):
+        for s in kids.get(p, []):
+            print("      " + "  " * d + "%s/%s %.1fms%s" % (s["svc"], s["name"], s["ms"],
+                  ("  ERROR: " + s["msg"]) if s["err"] else ""))
+            walk(s["id"], d + 1)
+    walk("", 0)
+
+
+def main():
+    now = dt.datetime.now(dt.timezone.utc)
+    print("audit run at %s UTC\n" % now.strftime("%Y-%m-%d %H:%M:%S"))
+    for label, a, b, q, claim in WINDOWS:
+        t0, t1 = dt.datetime.fromisoformat(a), dt.datetime.fromisoformat(b)
+        print("=" * 100)
+        print("%s   onset %s  fix %s   (age of onset %.1f h)" % (label, a[11:19], b[11:19], (now - t0).total_seconds() / 3600))
+        print("  claim: %s" % claim)
+        print("  evidence query: %s" % q)
+        whole_any = search("{}", t0, t1, 100)
+        if not whole_any:
+            print("  NOTHING in Tempo for the window at all - not re-readable (retention is 24 h)\n")
+            continue
+        print("  minute   any(<=100)  evidence(<=500)")
+        m = t0.replace(second=0)
+        found_by_min = []
+        while m < t1:
+            n = m + dt.timedelta(minutes=1)
+            anyc = len(search("{}", m, n, 100))
+            ev = search(q, m, n, 500)
+            found_by_min.append((m, ev))
+            print("  +%-6s %8d  %8d" % (str(m - t0.replace(second=0))[2:7], anyc, len(ev)))
+            m = n
+        for name, eq in EXTRA.get(label, []):
+            print("  %-58s %d (limit 500)" % (name, len(search(eq, t0, t1, 500))))
+        nonempty = [x for x in found_by_min if x[1]]
+        picks = [nonempty[0], nonempty[len(nonempty) // 2], nonempty[-1]] if nonempty else []
+        for m, ev in picks:
+            ev.sort(key=lambda t: int(t.get("startTimeUnixNano") or 0))
+            tid = ev[0]["traceID"]
+            print("  trace from minute +%s: %s" % (str(m - t0.replace(second=0))[2:7], tid))
+            show(tid)
+        print()
+
+
+if __name__ == "__main__":
+    main()

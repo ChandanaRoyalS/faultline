@@ -1,0 +1,218 @@
+"""Read-only: Q120 audit, fourth pass - place every matched span by its own timestamps.
+
+Run from anywhere, with the world up:
+    python3 ~/Downloads/audit_q120_d.py > ~/Downloads/audit-q120-d.txt 2>&1
+
+The third pass filtered search results to the window by the start time the search reports for
+each trace, and on the payment and email windows it removed every trace - including all 89 failing
+POSTs to email, which exist only during the fault. So the search's own start times are not taken
+on trust here. For each query this prints what the search reported (how many traces, how many with
+no start time, the earliest and latest start), then fetches every trace whole and places the
+matched span by its own start time: before the onset, inside the fault, or after the fix. The
+durations are those of the fetched spans inside the fault, so they do not depend on the search's
+metadata at all.
+
+The last section repeats the bound probe the way the agent's trace tool searches - one service,
+`{ resource.service.name = "<svc>" }` - on the last two hours: whether any trace comes back that
+starts after the search's end or ended before its start.
+
+Stdlib only, Python 3.9-safe. Nothing is written anywhere.
+"""
+
+import datetime as dt
+import json
+import urllib.error
+import urllib.parse
+import urllib.request
+
+TEMPO = "http://localhost:3200"
+
+PAY = ("2026-09-30T01:24:16+00:00", "2026-09-30T01:34:36+00:00")
+EMAIL = ("2026-09-30T02:32:57+00:00", "2026-09-30T02:43:29+00:00")
+R6 = ("2026-09-30T05:04:02+00:00", "2026-09-30T05:15:34+00:00")
+
+
+def ts(s):
+    return dt.datetime.fromisoformat(s)
+
+
+def hms(sec):
+    return dt.datetime.fromtimestamp(sec, dt.timezone.utc).strftime("%H:%M:%S") if sec else "-"
+
+
+def get(path, params, timeout=180):
+    url = TEMPO + path + ("?" + urllib.parse.urlencode(params) if params else "")
+    with urllib.request.urlopen(url, timeout=timeout) as r:
+        return json.load(r)
+
+
+def search(q, a, b, limit=3000, spss=5):
+    try:
+        d = get("/api/search", {"q": q, "start": str(int(a.timestamp())), "end": str(int(b.timestamp())),
+                                "limit": str(limit), "spss": str(spss)})
+    except urllib.error.HTTPError as e:
+        return None, "HTTP %s: %s" % (e.code, e.read().decode("utf-8", "replace")[:300])
+    return d.get("traces") or [], ""
+
+
+def attr(attrs, key):
+    for x in attrs or []:
+        if x.get("key") == key:
+            return next(iter((x.get("value") or {}).values()), "")
+    return ""
+
+
+_CACHE = {}
+
+
+def fetch(trace_id):
+    if trace_id in _CACHE:
+        return _CACHE[trace_id]
+    t = get("/api/traces/" + trace_id, None)
+    out = []
+    for g in t.get("batches") or t.get("resourceSpans") or []:
+        svc = attr((g.get("resource") or {}).get("attributes"), "service.name")
+        for ss in g.get("scopeSpans") or []:
+            for s in ss.get("spans") or []:
+                st = int(s.get("startTimeUnixNano") or 0)
+                en = int(s.get("endTimeUnixNano") or 0)
+                out.append({"id": s.get("spanId"), "parent": s.get("parentSpanId") or "", "svc": svc,
+                            "name": s.get("name"), "kind": s.get("kind"), "start": st / 1e9,
+                            "ms": (en - st) / 1e6,
+                            "err": (s.get("status") or {}).get("code") in ("STATUS_CODE_ERROR", 2, "2")})
+    _CACHE[trace_id] = out
+    return out
+
+
+def reported(traces):
+    starts = [int(t.get("startTimeUnixNano") or 0) / 1e9 for t in traces]
+    zero = sum(1 for s in starts if s == 0)
+    nz = [s for s in starts if s]
+    return "search reported %d traces; %d with no start time; starts %s .. %s" % (
+        len(traces), zero, hms(min(nz)) if nz else "-", hms(max(nz)) if nz else "-")
+
+
+def dist(ms):
+    if not ms:
+        return "none"
+    ms = sorted(ms)
+    at = lambda p: ms[min(len(ms) - 1, int(p * len(ms)))]
+    return "%d  min %.1f  median %.1f  p90 %.1f  max %.1f ms" % (len(ms), ms[0], at(0.5), at(0.9), ms[-1])
+
+
+def place(title, q, win, pick, extra=None):
+    """pick(spans) -> the matched spans of one fetched trace; extra(spans, span) -> a related span."""
+    a, b = ts(win[0]), ts(win[1])
+    lo, hi = a.timestamp(), b.timestamp()
+    got, err = search(q, a, b)
+    print("\n  %s" % title)
+    print("    %s" % q)
+    if got is None:
+        print("    REFUSED - %s" % err)
+        return
+    print("    " + reported(got))
+    side = {"before onset": [], "inside": [], "after fix": []}
+    rel, mismatch, first_last = [], 0, []
+    for t in got:
+        sp = fetch(t["traceID"])
+        matched = pick(sp)
+        if not matched:
+            mismatch += 1
+            continue
+        for s in matched:
+            k = "before onset" if s["start"] < lo else ("after fix" if s["start"] >= hi else "inside")
+            side[k].append(s)
+            if k == "inside" and extra:
+                r = extra(sp, s)
+                if r is not None:
+                    rel.append(r["ms"])
+        root_start = min(x["start"] for x in sp)
+        rep = int(t.get("startTimeUnixNano") or 0) / 1e9
+        first_last.append((root_start, rep, t["traceID"]))
+    for k in ("before onset", "inside", "after fix"):
+        ss = side[k]
+        span = (" (%s .. %s)" % (hms(min(s["start"] for s in ss)), hms(max(s["start"] for s in ss)))) if ss else ""
+        print("    matched spans %-13s %s%s" % (k + ":", dist([s["ms"] for s in ss]), span))
+    if extra:
+        print("    related span, for each matched span inside: %s" % dist(rel))
+    if mismatch:
+        print("    fetched traces with no matching span: %d" % mismatch)
+    first_last.sort()
+    for root_start, rep, tid in first_last[:2] + first_last[-2:]:
+        print("    trace %s  fetched root starts %s  search reported %s" % (tid, hms(root_start), hms(rep)))
+
+
+def by_id(sp):
+    return {s["id"]: s for s in sp}
+
+
+def main():
+    now = dt.datetime.now(dt.timezone.utc)
+    print("audit (fourth pass) run at %s UTC" % now.strftime("%Y-%m-%d %H:%M:%S"))
+
+    slow_q = '{ resource.service.name = "checkout" && name = "oteldemo.PaymentService/Charge" && duration > 250ms }'
+    charge = lambda sp: [s for s in sp if s["svc"] == "checkout" and s["name"] == "oteldemo.PaymentService/Charge"]
+    slow = lambda sp: [s for s in charge(sp) if s["ms"] > 250]
+
+    def payment_child(sp, s):
+        kids = [k for k in sp if k["parent"] == s["id"] and k["svc"] == "payment"]
+        return kids[0] if kids else None
+
+    def place_order_above(sp, s):
+        ids = by_id(sp)
+        p = ids.get(s["parent"])
+        while p is not None and p["name"] != "oteldemo.CheckoutService/PlaceOrder":
+            p = ids.get(p["parent"])
+        return p
+
+    print("\n" + "=" * 100)
+    print("payment label (onset %s, fix %s)" % (PAY[0][11:19], PAY[1][11:19]))
+    place("slow Charge; related = payment's server span beneath it (the label: about 301 ms over 0.3 ms)",
+          slow_q, PAY, slow, payment_child)
+    place("slow Charge; related = PlaceOrder above it (the label: about 310 ms)", slow_q, PAY, slow,
+          place_order_above)
+    place("all Charge from checkout", '{ resource.service.name = "checkout" && name = "oteldemo.PaymentService/Charge" }',
+          PAY, charge)
+
+    print("\n" + "=" * 100)
+    print("email label (onset %s, fix %s)" % (EMAIL[0][11:19], EMAIL[1][11:19]))
+    post = lambda sp: [s for s in sp if s["svc"] == "checkout" and s["name"] == "HTTP POST" and s["err"]]
+
+    def place_order_parent(sp, s):
+        return place_order_above(sp, s)
+    place("checkout's failing HTTP POST; related = the PlaceOrder above it",
+          '{ resource.service.name = "checkout" && name = "HTTP POST" && status = error }', EMAIL, post,
+          place_order_parent)
+    place("email spans of any kind", '{ resource.service.name = "email" }', EMAIL,
+          lambda sp: [s for s in sp if s["svc"] == "email"])
+
+    print("\n" + "=" * 100)
+    print("R6 (onset %s, fix %s) - the control: a window where the third pass kept every trace" % (R6[0][11:19], R6[1][11:19]))
+    place("catalog server spans in error",
+          '{ resource.service.name = "product-catalog" && kind = server && status = error }', R6,
+          lambda sp: [s for s in sp if s["svc"] == "product-catalog" and s["err"]
+                      and s["kind"] in ("SPAN_KIND_SERVER", 2, "2")])
+
+    print("\n" + "=" * 100)
+    print("Tempo's bounds, searched the way the trace tool searches - one service per query")
+    for svc in ("checkout", "frontend", "product-catalog", "email"):
+        for back_from, back_to in ((120, 105), (60, 45), (30, 20), (10, 5)):
+            a, b = now - dt.timedelta(minutes=back_from), now - dt.timedelta(minutes=back_to)
+            got, err = search('{ resource.service.name = "%s" }' % svc, a, b, 500, 1)
+            if got is None:
+                print("  %-16s %s..%s REFUSED - %s" % (svc, a.strftime("%H:%M"), b.strftime("%H:%M"), err))
+                continue
+            lo, hi = a.timestamp(), b.timestamp()
+            st = [int(t.get("startTimeUnixNano") or 0) / 1e9 for t in got]
+            after = sum(1 for s in st if s >= hi)
+            before = sum(1 for t, s in zip(got, st) if s and s + float(t.get("durationMs") or 0) / 1000 < lo)
+            zero = sum(1 for s in st if s == 0)
+            nz = [s for s in st if s]
+            print("  %-16s %s..%s  %4d returned  %4d start after the end  %3d ended before the start"
+                  "  %3d no start  (starts %s .. %s)" % (
+                      svc, a.strftime("%H:%M"), b.strftime("%H:%M"), len(got), after, before, zero,
+                      hms(min(nz)) if nz else "-", hms(max(nz)) if nz else "-"))
+
+
+if __name__ == "__main__":
+    main()
