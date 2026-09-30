@@ -4617,6 +4617,16 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-09-30: A9 registered - `datastore_corruption` row 2's tool attempted by hand first: records
+that are not orders, written onto the `orders` topic.***
+
+- **Why first**: rows 2 to 4 of `datastore_corruption` need a new tool each, and the T7.0 bar is an
+  attempt by hand, then a rehearsal through the injector, then the scenario.
+- **Read at source**: accounting catches a parse failure and moves on; fraud-detection does not, so
+  its process dies on every bad record and compose restarts it.
+- **Predicted**: a page on fraud-detection within eight minutes, nothing on accounting; distinct on
+  both consumers' logs naming the same parse failure; reverts by stopping the writer.
+
 ***2026-09-30: `v2/injection-4` rehearsed and labeled (holdout) - `v2-inj-email-wrong-image-log-checkout`,
 valid on the second recording; Q117 opened; the `injection` row is full.***
 
