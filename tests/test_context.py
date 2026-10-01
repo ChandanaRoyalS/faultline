@@ -16,11 +16,14 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from faultline.context.catalog import GraphPresence, ServiceCatalog
+from faultline.context.catalog import KNOWN_ABSENT_V2, GraphPresence, ServiceCatalog
 from faultline.context.graph import (
     ARTIFACT_EDGES,
+    ARTIFACT_EDGES_V2,
     EDGE_KINDS,
     SNAPSHOT,
+    SNAPSHOT_V2,
+    Direction,
     EdgeKind,
     ServiceGraph,
 )
@@ -31,7 +34,7 @@ from faultline.orchestrator.cap import InvestigationCap
 from faultline.orchestrator.core import Orchestrator
 from faultline.orchestrator.correlation import TimeOverlapPolicy
 from faultline.orchestrator.store import InMemoryIncidentStore
-from injector.world import SERVICE_CONTAINERS
+from injector.world import SERVICE_CONTAINERS, SERVICE_CONTAINERS_V2
 
 SETTLE = timedelta(minutes=5)
 EDGES_TABLE = SNAPSHOT.parent / "edges.txt"
@@ -503,3 +506,163 @@ def test_two_unrelated_incidents_are_live_at_once_and_the_cap_can_count_to_two()
     assert len(live) == 2, "two concurrent incidents - impossible under TimeOverlapPolicy"
     assert sorted(i.state.value for i in live) == ["queued", "triaging"]
     assert store.active_count() == 1, "the cap held, for the first time"
+
+
+# --- the v2 world (Q122) -------------------------------------------------------
+#
+# Every number below was measured from v2's snapshot of record, or by Q122's presence probe
+# (`docs/evidence/t7.2-topology/q122-presence.txt`), and was predicted in
+# `evals/runs/PREREGISTRATION-Q122-v2-graph.md` before the code existed.
+
+V2_TABLE = SNAPSHOT_V2.parent / "q121-v2-graph.txt"
+
+
+def graph_v2() -> ServiceGraph:
+    return ServiceGraph.from_snapshot(world="v2")
+
+
+def catalog_v2() -> ServiceCatalog:
+    return ServiceCatalog.from_snapshot(world="v2")
+
+
+def test_v2_the_snapshot_is_the_capture_of_record() -> None:
+    """38 entries: 22 cross-service edges and 16 self-edges over 17 services. The rules leave
+    20 edges over 15 nodes - `load-generator` goes with its two edges, `accounting` with its
+    self-edge."""
+    payload = json.loads(SNAPSHOT_V2.read_text())
+
+    assert len(payload["data"]) == 38
+    assert sum(1 for e in payload["data"] if e["parent"] == e["child"]) == 16
+    assert len(graph_v2().edges) == 20
+    assert len(graph_v2().nodes) == 15
+
+
+def test_v2_self_edges_and_the_synthetic_client_are_gone() -> None:
+    g = graph_v2()
+
+    assert not any(e.parent == e.child for e in g.edges), "a service calling itself"
+    assert not (g.edge_set & ARTIFACT_EDGES_V2)
+    assert not g.has("load-generator"), "its only edges were the excluded ones"
+    assert not g.has("accounting"), "its only edge was a self-edge"
+    assert ("frontend-proxy", "frontend") in g.edge_set, "v2's proxy carries the storefront"
+    assert g.has("fraud-detection"), "its flag read keeps it a node"
+
+
+def test_v2_every_node_is_a_v2_service_and_every_edge_is_unmeasured() -> None:
+    """v1's kinds name v1's services and were measured on v1's bundles. Nothing has measured
+    v2's, and saying so is the point of `UNMEASURED`."""
+    g = graph_v2()
+
+    assert g.nodes <= set(SERVICE_CONTAINERS_V2)
+    assert {e.kind for e in g.edges} == {EdgeKind.UNMEASURED}
+
+
+def test_v2_the_snapshot_and_the_printed_table_agree() -> None:
+    """The capture's printed 1 h table and its saved reply, the same check v1's pair has."""
+    text = V2_TABLE.read_text()
+    block = text.split("lookback 1h", 1)[1].split("=" * 20, 1)[0]
+    rendered = {
+        (parts[1], parts[2])
+        for line in block.splitlines()
+        if line.startswith(" ") and (parts := line.split()) and parts[0].isdigit()
+    }
+    captured = {(e["parent"], e["child"]) for e in json.loads(SNAPSHOT_V2.read_text())["data"]}
+
+    assert rendered == captured
+
+
+def test_v2_the_catalog_says_why_each_absent_service_is_absent() -> None:
+    """Each presence as Q122's probe measured it."""
+    c = catalog_v2()
+    expected = {
+        "load-generator": GraphPresence.ARTIFACT_ONLY,
+        "accounting": GraphPresence.UNLINKED,
+        "image-provider": GraphPresence.UNLINKED,
+        "llm": GraphPresence.UNINSTRUMENTED,
+        "flagd-ui": GraphPresence.UNEXERCISED,
+        "valkey-cart": GraphPresence.INFRASTRUCTURE,
+        "postgresql": GraphPresence.INFRASTRUCTURE,
+        "kafka": GraphPresence.INFRASTRUCTURE,
+    }
+
+    assert {name: c.get(name).presence for name in expected} == expected  # type: ignore[union-attr]
+    assert set(KNOWN_ABSENT_V2) == set(expected)
+    assert set(KNOWN_ABSENT_V2) <= set(SERVICE_CONTAINERS_V2)
+    assert not (set(KNOWN_ABSENT_V2) & graph_v2().nodes), "an entry a node would shadow"
+    for name in ("checkout", "frontend-proxy", "fraud-detection", "flagd"):
+        assert c.usable(name), name
+    assert len(c.services) == 23
+
+
+def _reach(seed: str) -> list[tuple[str, Direction, int]]:
+    radius = ContextSettings().hop_radius
+    return [(r.service, r.direction, r.hops) for r in graph_v2().blast_radius([seed], radius).reach]
+
+
+def test_v2_blast_radius_from_checkout_reaches_the_order_path() -> None:
+    """Q122's defect, closed: at `4279baa` this reached nothing. Order is part of the contract."""
+    up, down = Direction.ALSO_AFFECTED, Direction.CANDIDATE_CAUSE
+
+    assert _reach("checkout") == [
+        ("frontend", up, 1),
+        ("frontend-proxy", up, 2),
+        ("product-catalog", down, 1),
+        ("currency", down, 1),
+        ("cart", down, 1),
+        ("email", down, 1),
+        ("payment", down, 1),
+        ("shipping", down, 1),
+    ]
+    assert len(graph_v2().blast_radius(["checkout"], 2).unmeasured_edges) == 8
+
+
+def test_v2_blast_radius_from_quote_and_from_accounting() -> None:
+    up = Direction.ALSO_AFFECTED
+
+    assert _reach("quote") == [("shipping", up, 1), ("checkout", up, 2)]
+    assert _reach("accounting") == [], "UNLINKED: nothing reaches it, and it reaches nothing"
+
+
+def test_v2_flagd_reaches_most_of_the_storefront_on_unmeasured_flag_reads() -> None:
+    """The consequence the registration named. v1's flag service emitted no spans, so this never
+    arose there. Every edge here is a flag read nobody has measured."""
+    up = Direction.ALSO_AFFECTED
+
+    assert _reach("flagd") == [
+        ("ad", up, 1),
+        ("recommendation", up, 1),
+        ("cart", up, 1),
+        ("fraud-detection", up, 1),
+        ("product-reviews", up, 1),
+        ("frontend", up, 2),
+        ("checkout", up, 2),
+    ]
+    assert len(graph_v2().blast_radius(["flagd"], 2).unmeasured_edges) == 10
+
+
+def test_a_graph_answers_in_its_own_world_whatever_the_process_says(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """`canonical_service` follows the process's world. A graph must not: a v1 graph read in a
+    v2 process would otherwise lose every container-name lookup, and the reverse would turn
+    `frontend-proxy` into v1's `frontendproxy`."""
+    monkeypatch.setenv("FAULTLINE_TOOLS_WORLD", "v2")
+    v1 = ServiceGraph.from_snapshot(world="v1")
+    assert v1.world == "v1"
+    assert v1.has("cart-service"), "v1's container name, canonicalised in v1"
+    assert ServiceGraph.from_snapshot().world == "v2", "the default follows the process"
+
+    monkeypatch.setenv("FAULTLINE_TOOLS_WORLD", "v1")
+    v2 = ServiceGraph.from_snapshot(world="v2")
+    assert v2.has("frontend-proxy")
+    assert ServiceCatalog.from_snapshot(world="v2").usable("frontend-proxy")
+    assert ServiceGraph.from_snapshot().world == "v1"
+
+
+def test_v1_is_unchanged_by_the_world_aware_loader() -> None:
+    """With no world named, the process's default is v1, and v1's graph and catalog are what they
+    were: the counts the guard above pins, and v1's five known-absent services."""
+    assert graph().world == "v1"
+    assert len(graph().edges) == 15
+    assert catalog().get("featureflagservice").presence is GraphPresence.UNINSTRUMENTED  # type: ignore[union-attr]
+    assert catalog().get("accounting") is None, "a v2 name means nothing to v1"

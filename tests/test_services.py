@@ -14,20 +14,21 @@ import re
 from pathlib import Path
 from typing import Any
 
+import pytest
 import yaml
 
 from faultline.context.runbooks import load_runbooks
 from faultline.context.services import catalog_path, load_services
-from injector.world import SERVICE_CONTAINERS, canonical_service
+from injector.world import SERVICE_CONTAINERS, SERVICE_CONTAINERS_V2, canonical_service
 
 ALERT_RULES = Path("compose/prometheus/alert-rules.yml")
 SNAPSHOT = Path("docs/evidence/t2.4-dependency-graph/dependencies.json")
 MODULE = Path("src/faultline/context/services.py")
 
 
-def alert_thresholds() -> dict[str, float]:
+def alert_thresholds(path: Path = ALERT_RULES) -> dict[str, float]:
     """The numbers the rules compare against, read out of the rules themselves."""
-    rules: Any = yaml.safe_load(ALERT_RULES.read_text())
+    rules: Any = yaml.safe_load(path.read_text())
     found: dict[str, float] = {}
     for group in rules["groups"]:
         for rule in group.get("rules", []):
@@ -150,3 +151,68 @@ def test_only_the_loader_names_the_catalog_file() -> None:
 
 def test_the_catalog_is_repository_data() -> None:
     assert catalog_path().parent.name == "knowledge"
+
+
+# --- the v2 world (Q122) -------------------------------------------------------
+
+ALERT_RULES_V2 = Path("compose/prometheus/alert-rules-v2.yml")
+SNAPSHOT_V2 = Path("docs/evidence/t7.2-topology/q121-v2-dependencies-1h.json")
+
+
+def measured_edges_v2() -> set[tuple[str, str]]:
+    """v2's snapshot of record, self-edges aside. v2's names are their own canonical form."""
+    data: Any = json.loads(SNAPSHOT_V2.read_text())["data"]
+    return {(e["parent"], e["child"]) for e in data if e["parent"] != e["child"]}
+
+
+def test_v2_every_service_the_world_has_is_in_its_catalog_exactly_once() -> None:
+    directory = load_services("v2")
+    names = [s.name for s in directory.services]
+    assert sorted(names) == sorted(SERVICE_CONTAINERS_V2)
+    assert len(names) == len(set(names))
+    for service in directory.services:
+        assert SERVICE_CONTAINERS_V2[service.name] == service.container
+
+
+def test_v2_the_declared_dependencies_are_exactly_the_measured_ones() -> None:
+    """v1 checks declared against measured in one direction, because its catalog was seeded once
+    and maintained by hand. v2's was generated from its snapshot of record on the day it was
+    committed, so here the two are equal - all 22 cross-service edges, the load generator's two
+    included, as v1 declares `loadgenerator -> frontend`."""
+    declared = {
+        (service.name, child)
+        for service in load_services("v2").services
+        for child in service.depends_on
+    }
+    assert declared == measured_edges_v2()
+    assert len(declared) == 22
+
+
+def test_v2_the_slo_numbers_are_the_v2_thresholds_that_page() -> None:
+    thresholds = alert_thresholds(ALERT_RULES_V2)
+    directory = load_services("v2")
+
+    assert len(directory.applications) == 19
+    for service in directory.applications:
+        assert service.slo is not None, f"{service.name} is an application with no SLO"
+        assert service.slo.error_ratio == thresholds["ServiceHighErrorRate"]
+        assert service.slo.p95_latency_ms == thresholds["ServiceHighLatency"]
+        assert service.slo.source == str(ALERT_RULES_V2)
+    for service in directory.services:
+        if service.kind != "application":
+            assert service.slo is None, f"{service.name} is {service.kind} and carries an SLO"
+
+
+def test_v2_owners_are_synthetic_and_no_runbook_is_linked() -> None:
+    """No v2 runbook exists, and v1's carry v1's generated edge tables - a link to one would
+    send an investigation to a graph its world does not have."""
+    for service in load_services("v2").services:
+        assert service.owner.startswith("demo/"), service.name
+        assert service.runbooks == [], service.name
+
+
+def test_the_directory_follows_the_process_world(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("FAULTLINE_TOOLS_WORLD", "v2")
+    assert load_services().get("checkout") is not None
+    monkeypatch.setenv("FAULTLINE_TOOLS_WORLD", "v1")
+    assert load_services().get("checkoutservice") is not None

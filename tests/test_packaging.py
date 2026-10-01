@@ -23,6 +23,10 @@ REPO_DATA = {
     # The fourth, found by the first live investigation: `ServiceGraph.from_snapshot` reads the
     # committed dependency graph (ADR-0017) and the image had no docs/ at all (defect thirty).
     "docs/evidence/t2.4-dependency-graph/dependencies.json": "faultline.context.graph.SNAPSHOT",
+    # v2's, loaded in place from its capture (Q122).
+    "docs/evidence/t7.2-topology/q121-v2-dependencies-1h.json": (
+        "faultline.context.graph.SNAPSHOT_V2"
+    ),
 }
 
 

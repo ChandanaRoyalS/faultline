@@ -4,6 +4,12 @@ The snapshot is `docs/evidence/t2.4-dependency-graph/dependencies.json` - the ca
 the runtime input are deliberately the same file, so there is no second copy to drift from
 the evidence it is documented by.
 
+**One snapshot per world since Q122** (2026-10-01). v2's is
+`docs/evidence/t7.2-topology/q121-v2-dependencies-1h.json`, loaded in place by the same rule.
+Which one loads follows `ToolSettings.world`, the setting `injector.world.canonical_service`
+already follows, so with the setting unset nothing about v1 changes. A graph carries the world
+it was loaded for and answers in that world's names, whatever the process's.
+
 **The blast-radius query lives here** (T2.4's *"graph traversal API with 'blast radius of
 service X' as the core query"*, Phase 2 audit finding D4). `ServiceGraph.blast_radius` is the
 traversal; `agents/triage.py` adds what only an incident knows - severity, entry times,
@@ -25,7 +31,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 
-from injector.world import canonical_service
+from injector.world import container_services
 
 
 def repo_root() -> Path:
@@ -36,6 +42,23 @@ def repo_root() -> Path:
 
 
 SNAPSHOT = repo_root() / "docs" / "evidence" / "t2.4-dependency-graph" / "dependencies.json"
+
+SNAPSHOT_V2 = repo_root() / "docs" / "evidence" / "t7.2-topology" / "q121-v2-dependencies-1h.json"
+"""v2's snapshot of record (Q122): Jaeger's `/api/dependencies` over the hour after quote's clock
+was reset, 2026-10-01 09:05 UTC. Its 22 cross-service edges equal the 168 h capture's (Q121's
+RESULT, question 2). **Loaded in place**, the owner's choice, so that, as for v1, the capture and
+the runtime input are one file."""
+
+SNAPSHOTS: dict[str, Path] = {"v1": SNAPSHOT, "v2": SNAPSHOT_V2}
+
+
+def current_world() -> str:
+    """The world this process observes: `ToolSettings.world`, default `v1`."""
+    # Lazy for the reason `injector.world._world` is: `faultline.tools` imports `injector.world`.
+    from faultline.tools.settings import ToolSettings
+
+    return ToolSettings().world
+
 
 ARTIFACT_EDGES: frozenset[tuple[str, str]] = frozenset(
     {
@@ -56,6 +79,23 @@ Excluding these is the one judgement call in loading the graph, which is part of
 snapshot is committed: in a file the decision is visible in a diff, in a runtime query it is
 a filter nobody sees.
 """
+
+ARTIFACT_EDGES_V2: frozenset[tuple[str, str]] = frozenset(
+    {
+        ("load-generator", "frontend-proxy"),
+        ("load-generator", "flagd"),
+    }
+)
+"""v2's synthetic client, both of its edges: into the proxy, and its own flag reads.
+
+**`frontend-proxy -> frontend` is not one.** v1's proxy had only its route to Jaeger; v2's
+carries the storefront (`docs/design/t7.2-topology.md`).
+"""
+
+ARTIFACT_EDGES_BY_WORLD: dict[str, frozenset[tuple[str, str]]] = {
+    "v1": ARTIFACT_EDGES,
+    "v2": ARTIFACT_EDGES_V2,
+}
 
 
 class Direction(StrEnum):
@@ -164,6 +204,14 @@ ever broke their callee: nothing recorded says what `checkoutservice -> payments
 when payment fails.
 """
 
+EDGE_KINDS_BY_WORLD: dict[str, dict[tuple[str, str], EdgeKind]] = {
+    "v1": EDGE_KINDS,
+    "v2": {},
+}
+"""**v2 has no measured kinds, so every v2 edge loads `UNMEASURED`** (Q122). v1's kinds were
+measured on v1's services from v1's bundles; carrying them across by name would assert of v2
+what nothing on v2 has shown. Triage already reports the unmeasured edges it crosses."""
+
 
 @dataclass(frozen=True, slots=True)
 class Edge:
@@ -182,22 +230,36 @@ class ServiceGraph:
     services are related, and a caller and a callee are equally related either way round.
     """
 
-    def __init__(self, edges: list[Edge]) -> None:
+    def __init__(self, edges: list[Edge], world: str | None = None) -> None:
         self.edges = edges
+        self.world = world or current_world()
+        """The world whose names this graph holds and answers in."""
+        self._names = container_services(self.world)
         self._adjacent: dict[str, set[str]] = defaultdict(set)
         for edge in edges:
             self._adjacent[edge.parent].add(edge.child)
             self._adjacent[edge.child].add(edge.parent)
 
     @classmethod
-    def from_snapshot(cls, path: Path = SNAPSHOT) -> ServiceGraph:
-        """Load, canonicalise, and drop the artifact edges."""
-        payload = json.loads(path.read_text())
+    def from_snapshot(cls, path: Path | None = None, world: str | None = None) -> ServiceGraph:
+        """Load, canonicalise, and drop the artifact edges and the self-edges.
+
+        `world` defaults to the process's, and `path` to that world's snapshot.
+
+        **Self-edges are dropped in every world.** v1's capture has none. v2's Jaeger counts calls
+        inside a service (`frontend -> frontend`, 32,432 in the hour), and a service calling
+        itself is not a dependency (Q122).
+        """
+        world = world or current_world()
+        names = container_services(world)
+        artifacts = ARTIFACT_EDGES_BY_WORLD[world]
+        kinds = EDGE_KINDS_BY_WORLD[world]
+        payload = json.loads((path or SNAPSHOTS[world]).read_text())
         edges: list[Edge] = []
         for entry in payload.get("data", []):
-            parent = canonical_service(entry["parent"])
-            child = canonical_service(entry["child"])
-            if (parent, child) in ARTIFACT_EDGES:
+            parent = names.get(entry["parent"], entry["parent"])
+            child = names.get(entry["child"], entry["child"])
+            if parent == child or (parent, child) in artifacts:
                 continue
             edges.append(
                 Edge(
@@ -206,10 +268,14 @@ class ServiceGraph:
                     call_count=int(entry["callCount"]),
                     # Absent means unmeasured. Deliberately not `.get(..., SYNC)`: defaulting
                     # to the common case is how an unmeasured edge becomes an asserted one.
-                    kind=EDGE_KINDS.get((parent, child), EdgeKind.UNMEASURED),
+                    kind=kinds.get((parent, child), EdgeKind.UNMEASURED),
                 )
             )
-        return cls(edges)
+        return cls(edges, world)
+
+    def canonical(self, service: str) -> str:
+        """`injector.world.canonical_service`, in this graph's world rather than the process's."""
+        return self._names.get(service, service)
 
     @property
     def nodes(self) -> frozenset[str]:
@@ -227,7 +293,7 @@ class ServiceGraph:
         return frozenset((e.parent, e.child) for e in self.edges)
 
     def neighbours(self, service: str) -> frozenset[str]:
-        return frozenset(self._adjacent.get(canonical_service(service), frozenset()))
+        return frozenset(self._adjacent.get(self.canonical(service), frozenset()))
 
     def has(self, service: str) -> bool:
         """Whether this service is a node with at least one edge.
@@ -235,11 +301,11 @@ class ServiceGraph:
         There is no other kind: nodes come from edges, so a service with no edges is not in
         the graph at all. `ServiceCatalog` is where a service can exist and be edgeless.
         """
-        return canonical_service(service) in self._adjacent
+        return self.canonical(service) in self._adjacent
 
     def hops(self, source: str, target: str) -> int | None:
         """Undirected shortest path length, or `None` if unreachable or unknown."""
-        start, goal = canonical_service(source), canonical_service(target)
+        start, goal = self.canonical(source), self.canonical(target)
         if start not in self._adjacent or goal not in self._adjacent:
             return None
         if start == goal:
@@ -263,7 +329,7 @@ class ServiceGraph:
 
     def kind_of(self, parent: str, child: str) -> EdgeKind:
         """The measured kind of one directed edge, or `UNMEASURED` if there is no such edge."""
-        source, target = canonical_service(parent), canonical_service(child)
+        source, target = self.canonical(parent), self.canonical(child)
         for edge in self.edges:
             if edge.parent == source and edge.child == target:
                 return edge.kind
@@ -314,7 +380,7 @@ class ServiceGraph:
         ordered: list[str] = []
         found: set[str] = set()
         for seed in seeds:
-            service = canonical_service(seed)
+            service = self.canonical(seed)
             if service not in found:
                 found.add(service)
                 ordered.append(service)
