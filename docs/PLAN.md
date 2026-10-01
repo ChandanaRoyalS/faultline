@@ -4617,6 +4617,22 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-10-01: T7.2 step 5 decided - a committed topology snapshot per world and application;
+Q122 opened (the v2 world has no topology); Q121 measured again.***
+
+- **Decided** (the owner's choice, of three): capture each application's graph offline from its
+  own Jaeger, commit it, and load it by world and application. Never query it in a scored run
+  (ADR-0017, ADR-0008).
+- **Q122**: the graph is v1's 2026-08-24 snapshot alone. On v2 every service but `frontend` is
+  unknown to it, measured: blast radius from `checkout` reaches nothing and triage has no start.
+  Nothing scored rests on it. It is fixed before any scored v2 run.
+- **The v2 capture**: 17 services and 22 cross-service edges at 72 h and 168 h. Self-edges are
+  new in v2. Kafka's consumers have no incoming edge, and five services never appear. Shorter
+  windows lose the order path, because quote's skew is now **36h06m (Q121)**: it grew 17h29m over
+  a night the Mac slept.
+- **Next**: Q122's build, registered first. Q121's remedy is better landed before the snapshot of
+  record.
+
 ***2026-10-01: T7.2 step 1c - FITS: astronomy-shop and SREGym's whole stack run on the deployment
 beside the world; T7.2 runs there. Scoping step 5 next.***
 

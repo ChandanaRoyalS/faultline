@@ -1,0 +1,77 @@
+"""Read-only: the v2 world's service dependency graph, as Jaeger computes it (Q122, T7.2 step 5).
+
+Run on the Mac, with the v2 world up:
+    python3 ~/Downloads/capture_v2_graph.py > ~/Downloads/v2-graph.txt 2>&1
+
+T2.4's snapshot (docs/evidence/t2.4-dependency-graph/) was captured from the v1 world on
+2026-08-24 and is the only graph Faultline loads, so on v2 every service but `frontend` is
+unknown to the catalog. This reads the same API T2.4 read, the same way - `GET
+/jaeger/ui/api/dependencies` through frontend-proxy on :8080, with T2.4's check that the reply
+is JSON and not the UI's HTML - and, if that path does not answer, Jaeger's own query port. It
+asks for four lookbacks (1 h, 24 h, 72 h, 168 h), because the store is in memory and bounded, and
+because quote's spans are stamped 18h37m early (Q121), which may move the shipping -> quote edge
+out of a short window. For each it prints the edges as T2.4's table did, and it writes every
+reply unmodified to ~/Downloads/v2-dependencies-<lookback>.json. Nothing in the world is changed.
+"""
+
+import json
+import os
+import time
+import urllib.error
+import urllib.request
+
+CANDIDATES = [
+    "http://localhost:8080/jaeger/ui/api/dependencies",
+    "http://localhost:16686/jaeger/ui/api/dependencies",
+    "http://localhost:16686/api/dependencies",
+]
+LOOKBACKS = [("1h", 3600), ("24h", 86400), ("72h", 259200), ("168h", 604800)]
+
+
+def fetch(url):
+    with urllib.request.urlopen(url, timeout=30) as r:
+        ctype = r.headers.get("content-type", "")
+        body = r.read()
+    return ctype, body
+
+
+def main():
+    now_ms = int(time.time() * 1000)
+    print("v2 graph capture at %s UTC" % time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()))
+    base = None
+    for url in CANDIDATES:
+        try:
+            ctype, body = fetch("%s?endTs=%d&lookback=%d" % (url, now_ms, 3600 * 1000))
+        except (urllib.error.URLError, OSError) as e:
+            print("  %s -> %s" % (url, e))
+            continue
+        print("  %s -> content-type %s, %d bytes" % (url, ctype, len(body)))
+        if "json" in ctype:
+            base = url
+            break
+    if base is None:
+        print("no endpoint answered JSON - nothing captured")
+        return
+    print("using %s\n" % base)
+    for name, seconds in LOOKBACKS:
+        url = "%s?endTs=%d&lookback=%d" % (base, now_ms, seconds * 1000)
+        ctype, body = fetch(url)
+        data = json.loads(body)
+        edges = sorted(data.get("data") or [], key=lambda e: (-int(e.get("callCount", 0)), e["parent"], e["child"]))
+        nodes = sorted({e["parent"] for e in edges} | {e["child"] for e in edges})
+        print("=" * 80)
+        print("lookback %s  endTs=%d  (%s)" % (name, now_ms, url))
+        print("%d edges, %d nodes" % (len(edges), len(nodes)))
+        print("%8s  %-24s %-24s" % ("calls", "parent", "child"))
+        for e in edges:
+            print("%8d  %-24s %-24s" % (int(e.get("callCount", 0)), e["parent"], e["child"]))
+        print("nodes: %s\n" % ", ".join(nodes))
+        path = os.path.expanduser("~/Downloads/v2-dependencies-%s.json" % name)
+        with open(path, "w") as f:
+            json.dump(data, f, indent=2)
+            f.write("\n")
+        print("%s reply written to %s\n" % (name, path))
+
+
+if __name__ == "__main__":
+    main()
