@@ -1,0 +1,85 @@
+Wed Sep 30 12:40:43 UTC 2026
+==> Step 1: Create Kind cluster
+Creating cluster "kind" ...
+ • Ensuring node image (ghcr.io/sregym/kind-node:sha-b97d6810e994bb7354b4bc15c6bc81cb66e816b9) 🖼  ...
+ ✓ Ensuring node image (ghcr.io/sregym/kind-node:sha-b97d6810e994bb7354b4bc15c6bc81cb66e816b9) 🖼
+ • Preparing nodes 📦 📦 📦 📦   ...
+ ✓ Preparing nodes 📦 📦 📦 📦 
+ • Writing configuration 📜  ...
+ ✓ Writing configuration 📜
+ • Starting control-plane 🕹️  ...
+ ✓ Starting control-plane 🕹️
+ • Installing StorageClass 💾  ...
+ ✓ Installing StorageClass 💾
+ • Joining worker nodes 🚜  ...
+ ✓ Joining worker nodes 🚜
+Set kubectl context to "kind-kind"
+You can now use your cluster with:
+
+kubectl cluster-info --context kind-kind
+
+Thanks for using kind! 😊
+==> Step 2: Install Calico CNI
+poddisruptionbudget.policy/calico-kube-controllers created
+serviceaccount/calico-kube-controllers created
+serviceaccount/calico-node created
+serviceaccount/calico-cni-plugin created
+configmap/calico-config created
+customresourcedefinition.apiextensions.k8s.io/bgpconfigurations.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/bgpfilters.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/bgppeers.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/blockaffinities.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/caliconodestatuses.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/clusterinformations.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/felixconfigurations.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/globalnetworkpolicies.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/globalnetworksets.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/hostendpoints.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/ipamblocks.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/ipamconfigs.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/ipamhandles.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/ippools.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/ipreservations.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/kubecontrollersconfigurations.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/networkpolicies.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/networksets.crd.projectcalico.org created
+clusterrole.rbac.authorization.k8s.io/calico-kube-controllers created
+clusterrole.rbac.authorization.k8s.io/calico-node created
+clusterrole.rbac.authorization.k8s.io/calico-cni-plugin created
+clusterrolebinding.rbac.authorization.k8s.io/calico-kube-controllers created
+clusterrolebinding.rbac.authorization.k8s.io/calico-node created
+clusterrolebinding.rbac.authorization.k8s.io/calico-cni-plugin created
+daemonset.apps/calico-node created
+deployment.apps/calico-kube-controllers created
+==> Step 3: Wait for Calico to be ready
+Waiting for daemon set "calico-node" rollout to finish: 0 of 4 updated pods are available...
+Waiting for daemon set "calico-node" rollout to finish: 1 of 4 updated pods are available...
+Waiting for daemon set "calico-node" rollout to finish: 2 of 4 updated pods are available...
+Waiting for daemon set "calico-node" rollout to finish: 3 of 4 updated pods are available...
+daemon set "calico-node" successfully rolled out
+pod/calico-node-27z4m condition met
+pod/calico-node-m884f condition met
+pod/calico-node-n2xck condition met
+pod/calico-node-tdrxq condition met
+==> Step 3b: Confirm all nodes are Ready
+node/kind-control-plane condition met
+node/kind-worker condition met
+node/kind-worker2 condition met
+node/kind-worker3 condition met
+==> Step 4: Delete SREGym cluster baseline cache
+
+✅ Cluster setup complete!
+
+setup exit=0
+
+real	1m9.801s
+user	0m3.415s
+sys	0m2.719s
+Wed Sep 30 12:41:53 UTC 2026
+NAME                 STATUS   ROLES           AGE   VERSION   INTERNAL-IP   EXTERNAL-IP   OS-IMAGE                         KERNEL-VERSION      CONTAINER-RUNTIME
+kind-control-plane   Ready    control-plane   43s   v1.32.1   172.22.0.2    <none>        Debian GNU/Linux 12 (bookworm)   6.8.0-142-generic   containerd://2.0.2
+kind-worker          Ready    <none>          33s   v1.32.1   172.22.0.5    <none>        Debian GNU/Linux 12 (bookworm)   6.8.0-142-generic   containerd://2.0.2
+kind-worker2         Ready    <none>          33s   v1.32.1   172.22.0.4    <none>        Debian GNU/Linux 12 (bookworm)   6.8.0-142-generic   containerd://2.0.2
+kind-worker3         Ready    <none>          33s   v1.32.1   172.22.0.3    <none>        Debian GNU/Linux 12 (bookworm)   6.8.0-142-generic   containerd://2.0.2
+running: 39
+/home/deploy/.kube

@@ -4617,6 +4617,18 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-10-01: T7.2 step 1c, attempt 1 INCONCLUSIVE - SREGym ignores `KUBECONFIG`; the retry
+registered as Addendum 1.***
+
+- **What failed**: steps 1-6 ran as registered. The deploy stopped in 13 s, before touching the
+  cluster, because SREGym's API proxy loads `~/.kube/config` by fixed path, deliberately, and the
+  registration had moved the kubeconfig. The cause was the registration's, not the host's size.
+- **Also corrected**: kubectl's cache goes to `~/.kube` regardless. Step 8 ran after the deploy
+  instead of beside it, and its overnight ssh failure was the Mac's: the VM read healthy at 06:07,
+  with the cluster idle 17 h beside the world and nothing paged.
+- **The retry**: the kubeconfig at `~/.kube/config`, the idle cluster reused with a fresh P1 as
+  the reference, and step 8 started first. Thresholds and predictions unchanged.
+
 ***2026-09-30: T7.2 step 1c registered - astronomy-shop deployed by SREGym beside the world.***
 
 - **The path**: SREGym's own `--use-external-harness` mode. It deploys its whole stack and one

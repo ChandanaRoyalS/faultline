@@ -1,0 +1,43 @@
+key-like variables in env: 0
+total 12
+drwxr-x---  3 deploy deploy 4096 Sep 30 12:41 .
+drwxr-x--- 12 deploy deploy 4096 Sep 30 12:41 ..
+drwxr-x---  4 deploy deploy 4096 Sep 30 12:41 cache
+Wed Sep 30 12:49:52 UTC 2026
+[09/30/26 12:50:05] INFO     all.sregym.profile - Deployment profile: full      
+[09/30/26 12:50:05] INFO     __main__ - 🔧 Config — agent: demo, agent_model:   
+                             gpt-5, judge_backend: api, judge_model: gpt-5,     
+                             reasoning_effort: agent default, jev_model:        
+                             disabled, deployment_profile: full,                
+                             internet_access: filtered, container_hardening: on,
+                             agent_api_base: unset, judge_api_base: unset       
+Traceback (most recent call last):
+  File "/home/deploy/t7.2-1c/SREGym/main.py", line 1147, in <module>
+    main(args)
+  File "/home/deploy/t7.2-1c/SREGym/main.py", line 836, in main
+    return _run_benchmark(args, judge_backend=backend, agent_image=agent_image)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/deploy/t7.2-1c/SREGym/main.py", line 931, in _run_benchmark
+    conductor = Conductor(config=conductor_config)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/deploy/t7.2-1c/SREGym/sregym/conductor/conductor.py", line 93, in __init__
+    self.k8s_proxy = KubernetesAPIProxy(
+                     ^^^^^^^^^^^^^^^^^^^
+  File "/home/deploy/t7.2-1c/SREGym/sregym/service/k8s_proxy.py", line 376, in __init__
+    config.load_kube_config(config_file=default_kubeconfig)
+  File "/home/deploy/t7.2-1c/SREGym/.venv/lib/python3.12/site-packages/kubernetes/config/kube_config.py", line 819, in load_kube_config
+    loader = _get_kube_config_loader(
+             ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/deploy/t7.2-1c/SREGym/.venv/lib/python3.12/site-packages/kubernetes/config/kube_config.py", line 776, in _get_kube_config_loader
+    raise ConfigException(
+kubernetes.config.config_exception.ConfigException: Invalid kube-config file. No configuration found.
+deploy exit=1
+Wed Sep 30 12:50:06 UTC 2026
+
+real	0m13.385s
+user	0m11.271s
+sys	0m1.561s
+ls: cannot access '/home/deploy/cache_dir': No such file or directory
+ls: cannot access '/home/deploy/.config/helm': No such file or directory
+ls: cannot access '/home/deploy/.cache/helm': No such file or directory
+ls: cannot access '/home/deploy/.local/share/helm': No such file or directory
