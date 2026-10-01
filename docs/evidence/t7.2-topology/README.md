@@ -44,5 +44,6 @@ decided when Q122 is built.
 
 | file | what it is |
 |---|---|
-| `g3_vm.sh.txt` | the run's every stage on the VM, fixed by the registration: 1c's setup and deploy, the read while the fault is in, SREGym's own recovery, the hour's hold and the capture, and the teardown |
+| `g3_vm.sh.txt` | the run's every stage on the VM, fixed by the registration (as amended by its Addendum 1, in `recover` only): 1c's setup and deploy, the read while the fault is in, SREGym's own recovery, the hour's hold and the capture, and the teardown |
 | `g3_ports.sh.txt` | 1c's step 8 watcher with its output renamed, run on the Mac; the VM's address is withheld in it |
+| `g3-preread.txt` to `g3-faultread.txt` | steps 1 to 8 as run, 2026-10-01 23:11-23:46 UTC, read in the registration's Addendum 1. The VM's address is withheld in `g3-host-on.txt`, as in 1c |

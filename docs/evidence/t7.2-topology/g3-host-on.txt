@@ -1,0 +1,8 @@
+-A INPUT ! -i lo -p tcp -m tcp --dport 8000 -j DROP
+-A INPUT ! -i lo -p tcp -m tcp --dport 9954 -j DROP
+fs.inotify.max_user_instances = 128
+fs.inotify.max_user_watches = 124032
+fs.inotify.max_user_instances = 1024
+fs.inotify.max_user_watches = 1048576
+reboot pending: no
+Connection to <the VM> closed.
