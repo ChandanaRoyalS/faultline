@@ -21,3 +21,4 @@ repository does not record the VM's address. No other byte in any capture is cha
 |---|---|
 | `c1_preread.sh.txt` → `1c-preread.txt` | the deployment read-only before 1c's registration, 2026-09-30 11:36 UTC; the Docker Hub reply's `docker-ratelimit-source` line has the VM's address withheld as above. The script's last check (`git status`) never ran: `docker compose exec` read the rest of the script from stdin |
 | `kind_measure_1c.py.txt` | 1c's sampler: 1b's with its directory, kubeconfig, reported paths and headers changed, and nothing else |
+| `1c-*.txt` (step1 to step7, P0, status) | 1c's attempt 1, 2026-09-30, and the status read of 2026-10-01 06:07 UTC; INCONCLUSIVE, read in the registration's Addendum 1. The VM's address is withheld in `1c-step1-firewall.txt` and `1c-step4.txt`, as above |

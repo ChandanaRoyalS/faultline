@@ -176,3 +176,71 @@ measured here**. Whether each needs its own fit check is scoping step 6's questi
 
 The captures go to `docs/evidence/t7.2-kind-host/1c-*.txt` verbatim, except the VM's address,
 which is withheld as in 1b. Scoping step 5 follows only on FITS.
+
+## Addendum 1, 2026-10-01 - attempt 1 INCONCLUSIVE, and the retry, registered before it runs
+
+**What happened.** Steps 1 to 6 ran as registered on 2026-09-30:
+
+- **Step 1** (11:47). The kill switch was on and confirmed, both `iptables` rules were listed back,
+  and no reboot was pending.
+- **P0** (11:48-11:58). MemAvailable 11.91-12.11 GiB, mean 12.05. Load1 at most 0.94. Nothing
+  restarted and no alert fired.
+- **Steps 3-5** (12:38-12:39). kind, kubectl and Helm v4.3.0 were installed, all three `OK`
+  against their checksums. inotify was raised from 128 / 124,032. SREGym was checked out at
+  `46c853db`, with only `SREGym-applications` (`887d093e`) and its `astronomy-shop` (`7d7b0747`).
+  `uv sync --frozen` ran on the system Python 3.12.3.
+- **Step 6** (12:40:43-12:41:53). The cluster came up `Ready`, with 39 containers running.
+
+**Step 7 failed in 13 seconds**, at 12:50, before deploying anything. The conductor builds a
+Kubernetes API proxy in its constructor, and that proxy loads **`~/.kube/config` by fixed path**.
+`sregym/service/k8s_proxy.py:373-376` says so in its own comment: *"Always load from the default
+kubeconfig path, ignoring KUBECONFIG env var"*. This registration had put the kubeconfig at
+`~/t7.2-1c/kubeconfig` through `KUBECONFIG`, so the run stopped with
+`ConfigException: Invalid kube-config file. No configuration found`.
+
+**The cause is this registration's design, not the host's size**, so by the outcome table the
+attempt is **INCONCLUSIVE**. Nothing reached the cluster. No model key was in the environment
+(`key-like variables in env: 0`). `~/cache_dir` and the three Helm homes were never created.
+
+**Two more things this registration got wrong:**
+
+- **"Nothing is written to `~/.kube`."** kubectl writes its discovery cache to `~/.kube/cache`
+  whatever `KUBECONFIG` says, and step 7's listing shows it there since step 6. T3 removes
+  `~/.kube`, which was absent at the pre-read.
+- **Step 8 was to run alongside step 7, and it ran after it.** With no deploy there was no port to
+  find, so its loop waited. Its `ssh` later failed overnight (`Connection reset by peer`, then
+  `port 22: Operation timed out`).
+
+**That failure was not the VM's.** A read-only status read at 2026-10-01 06:07 UTC found:
+
+- up 21h00m, so no reboot since 1b's;
+- 39 running, the four nodes up 17 hours;
+- the 35's restart counts unchanged since boot (checkout and accounting 6, fraud-detection 1, all
+  from 09:07 on 09-30);
+- the kill switch `true`, firing alerts 0, both rules present, inotify 1024;
+- `https://faultline.chandanasorakundla.com/healthz` answering `{"status":"ok"}`.
+
+The likeliest cause is the Mac's own sleep or network change. **So the cluster from step 6 has
+idled about 17 hours beside the world, with the kill switch on**, and nothing paged.
+
+**The retry differs from the registration in these points only:**
+
+1. **`~/.kube/config` holds the kubeconfig.** `install -m 600 ~/t7.2-1c/kubeconfig ~/.kube/config`
+   copies the same cluster's file, and `KUBECONFIG` is unset for step 7. `kind_measure_1c.py`
+   keeps reading `~/t7.2-1c/kubeconfig`, which is the identical file. T3 still removes `~/.kube`.
+2. **The idle cluster is reused**, and step 6 is not repeated. Just before the retry,
+   **P1**: `kind_measure_1c.py P1 600` with the idle cluster. **P1's end replaces P0's end** as
+   the reference for the 35's state and the world's alerts in the outcome table, because P0 is a
+   day old and P1 sits directly before the deploy. P0 stays the no-cluster baseline that the
+   memory predictions are stated against.
+3. **Step 8 starts first**, in a second terminal and under `caffeinate`, so it waits through the
+   deploy and checks both ports once the port-forward listens.
+
+Everything else stands as registered: the 45-minute wall limit, the environment, the stop rule,
+the thresholds, the predictions and the teardown. **The prediction is unchanged: FITS.** One is
+added: **P1 reads like 1b's P2**, with a minimum of 10.4-11.0 GiB, because it is the same idle
+cluster on the same host. If the retry fails again for a cause that is not size, it is
+INCONCLUSIVE again, and any further attempt is a second addendum.
+
+The captures of attempt 1 are in `docs/evidence/t7.2-kind-host/1c-*.txt`, with the VM's address
+withheld.

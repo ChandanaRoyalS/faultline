@@ -1,0 +1,14 @@
+ 06:07:11 up 21:00,  1 user,  load average: 0.54, 0.83, 0.97
+running: 39
+kind-control-plane Up 17 hours
+kind-worker3 Up 17 hours
+kind-worker2 Up 17 hours
+kind-worker Up 17 hours
+/checkout-service restarts=6 started=2026-09-30T09:07:12.205536274Z
+/frauddetection-service restarts=1 started=2026-09-30T09:06:58.659529237Z
+/accounting-service restarts=6 started=2026-09-30T09:07:12.302958608Z
+{"status":"ok","kill_switch":true}
+firing alerts: 0 []
+-A INPUT ! -i lo -p tcp -m tcp --dport 8000 -j DROP
+-A INPUT ! -i lo -p tcp -m tcp --dport 9954 -j DROP
+1024
