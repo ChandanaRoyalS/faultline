@@ -1,0 +1,92 @@
+"""Read-only: how far quote's spans sit from the shipping call that made them (Q121).
+
+Run on the Mac, with the v2 world up:
+    python3 ~/Downloads/quote_offset.py <label> > ~/Downloads/q121-<label>.txt 2>&1
+
+For up to 40 traces from the last ten minutes that hold a quote span, this fetches the trace
+whole from Tempo and pairs each quote server span (`POST /getquote`) with its parent, shipping's
+client span. It prints the offset `quote start - shipping start` per pair, and the minimum,
+median and maximum. A clock that is right puts quote a fraction of a millisecond after shipping.
+Q121's skew puts it about 36 hours before. It also prints quote's container start time and the
+time on this computer and in the Docker VM. Nothing is changed.
+"""
+
+import datetime as dt
+import json
+import statistics
+import subprocess
+import sys
+import time
+import urllib.parse
+import urllib.request
+
+TEMPO = "http://localhost:3200"
+
+
+def get(path, params=None):
+    url = TEMPO + path + ("?" + urllib.parse.urlencode(params) if params else "")
+    with urllib.request.urlopen(url, timeout=60) as r:
+        return json.load(r)
+
+
+def attr(attrs, key):
+    for x in attrs or []:
+        if x.get("key") == key:
+            return str(next(iter((x.get("value") or {}).values()), ""))
+    return ""
+
+
+def spans(trace_id):
+    t = get("/api/traces/" + trace_id)
+    out = {}
+    for g in t.get("batches") or t.get("resourceSpans") or []:
+        svc = attr((g.get("resource") or {}).get("attributes"), "service.name")
+        for ss in g.get("scopeSpans") or []:
+            for s in ss.get("spans") or []:
+                out[s.get("spanId")] = {"svc": svc, "name": s.get("name"), "parent": s.get("parentSpanId") or "",
+                                        "start": int(s.get("startTimeUnixNano") or 0)}
+    return out
+
+
+def human(ns):
+    sign = "-" if ns < 0 else "+"
+    sec = abs(ns) / 1e9
+    if sec >= 1:
+        return "%s%s" % (sign, dt.timedelta(seconds=round(sec)))
+    return "%s%.3f ms" % (sign, abs(ns) / 1e6)
+
+
+def sh(cmd):
+    r = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+    return (r.stdout + r.stderr).strip()
+
+
+def main():
+    label = sys.argv[1] if len(sys.argv) > 1 else "?"
+    now = time.time()
+    print("quote offset, %s, at %s UTC" % (label, time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(now))))
+    print("this computer: %s   Docker VM: %s" % (sh("date -u '+%H:%M:%S'"),
+                                                sh("docker exec postgresql date -u '+%H:%M:%S'")))
+    print("quote container: %s" % sh("docker inspect -f '{{.State.Status}} started {{.State.StartedAt}} restarts {{.RestartCount}}' quote"))
+    found = get("/api/search", {"q": '{ resource.service.name = "quote" }', "start": str(int(now - 600)),
+                                "end": str(int(now)), "limit": "40"}).get("traces") or []
+    offsets = []
+    for tr in found:
+        sp = spans(tr["traceID"])
+        for s in sp.values():
+            if s["svc"] == "quote" and s["parent"] in sp and sp[s["parent"]]["svc"] == "shipping":
+                parent = sp[s["parent"]]
+                off = s["start"] - parent["start"]
+                offsets.append(off)
+                print("  %s  shipping %s at %s  quote %s  offset %s" % (
+                    tr["traceID"][:16], parent["name"],
+                    dt.datetime.fromtimestamp(parent["start"] / 1e9, dt.timezone.utc).strftime("%H:%M:%S.%f")[:-3],
+                    s["name"], human(off)))
+    print("\n%d traces searched, %d quote spans paired with shipping's call" % (len(found), len(offsets)))
+    if offsets:
+        print("offset min %s  median %s  max %s" % (human(min(offsets)), human(int(statistics.median(offsets))),
+                                                   human(max(offsets))))
+
+
+if __name__ == "__main__":
+    main()

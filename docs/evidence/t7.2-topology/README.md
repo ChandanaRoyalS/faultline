@@ -21,3 +21,9 @@ at the time.
 **This is not the snapshot of record.** The order path's edges appear only once the lookback
 clears quote's skew (Q121). Which reply, or which later capture, becomes Q122's snapshot is
 decided when Q122 is built.
+
+**Q121's remedy** ([`PREREGISTRATION-Q121-quote-restart.md`](../../../evals/runs/PREREGISTRATION-Q121-quote-restart.md)):
+
+| file | what it is |
+|---|---|
+| `quote_offset.py.txt` | the read-only measure of quote's offset from shipping's call, fixed by the registration and used before, after and an hour after the restart |

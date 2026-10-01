@@ -4617,6 +4617,17 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-10-01: Q121's remedy registered - quote restarted on the v2 world before Q122's graph of
+record is taken.***
+
+- **The owner's call**: fix the clock first. One `docker restart quote`, gated on the world check.
+  Quote's offset from shipping's call is measured before, two minutes after and an hour after,
+  with the Mac kept awake.
+- **Then the capture**: an hour of fresh traffic, compared with the 168 h reply. The 1 h reply is
+  the snapshot of record if the cross-service edges match, and the 168 h reply if not.
+- **Predicted**: about -36 h before, +0.1 to +5 ms after; the hour gives the same 22 edges. Q121
+  stays open either way, because a restart lasts only until the next sleep.
+
 ***2026-10-01: T7.2 step 5 decided - a committed topology snapshot per world and application;
 Q122 opened (the v2 world has no topology); Q121 measured again.***
 
