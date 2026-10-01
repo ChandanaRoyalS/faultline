@@ -1,0 +1,284 @@
+1c sampler, phase P2, 600 s, run at 2026-10-01 06:51:53 UTC on ubuntu (6.8.0-142-generic)
+uptime: 06:51:53 up 21:45,  2 users,  load average: 0.90, 2.67, 2.35
+
+====================================================================================================
+start at 06:51:53 UTC
+  containers: 39 running of 42
+    accounting-service                 running  restarts 6   oom False started 2026-09-30T09:07:12  10.74MiB / 300MiB  0.40%
+    ad-service                         running  restarts 0   oom False started 2026-09-30T09:06:47  240.9MiB / 700MiB  0.30%
+    alertmanager                       running  restarts 0   oom False started 2026-09-30T09:19:19  18.29MiB / 200MiB  0.08%
+    cart-service                       running  restarts 0   oom False started 2026-09-30T09:06:47  100.7MiB / 400MiB  0.09%
+    checkout-service                   running  restarts 6   oom False started 2026-09-30T09:07:12  14.84MiB / 120MiB  0.00%
+    currency-service                   running  restarts 0   oom False started 2026-09-30T09:06:47  3.863MiB / 100MiB  0.05%
+    email-service                      running  restarts 0   oom False started 2026-09-30T09:06:47  190.7MiB / 250MiB  0.01%
+    faultline-deploy-caddy-1           running  restarts 0   oom False started 2026-09-30T09:06:47  21.19MiB / 15.56GiB  0.00%
+    faultline-deploy-egress-1          running  restarts 0   oom False started 2026-09-30T09:06:47  13.19MiB / 15.56GiB  0.02%
+    faultline-deploy-executor-1        running  restarts 0   oom False started 2026-09-30T11:47:50  51.64MiB / 15.56GiB  0.17%
+    faultline-deploy-faultline-1       running  restarts 0   oom False started 2026-09-30T09:06:47  165.6MiB / 15.56GiB  35.71%
+    faultline-deploy-orchestrator-1    running  restarts 0   oom False started 2026-09-30T09:06:47  55.67MiB / 15.56GiB  0.03%
+    faultline-deploy-postgres-1        running  restarts 0   oom False started 2026-09-30T09:06:47  41.03MiB / 15.56GiB  7.60%
+    faultline-deploy-prometheus-self-1 running  restarts 0   oom False started 2026-09-30T09:06:47  35.05MiB / 15.56GiB  0.15%
+    faultline-deploy-redis-1           running  restarts 0   oom False started 2026-09-30T09:06:47  4.762MiB / 15.56GiB  0.49%
+    faultline-minio-1                  exited   restarts 0   oom False started 2026-09-15T04:30:12  -  -
+    faultline-postgres-1               exited   restarts 0   oom False started 2026-09-15T04:30:11  -  -
+    faultline-redis-1                  exited   restarts 0   oom False started 2026-09-15T04:30:11  -  -
+    feature-flag-service               running  restarts 0   oom False started 2026-09-30T09:06:47  21.02MiB / 200MiB  0.18%
+    frauddetection-service             running  restarts 1   oom False started 2026-09-30T09:06:58  171.4MiB / 500MiB  0.33%
+    frontend                           running  restarts 0   oom False started 2026-09-30T09:06:47  151.6MiB / 500MiB  0.47%
+    frontend-proxy                     running  restarts 0   oom False started 2026-09-30T09:19:19  25.83MiB / 300MiB  0.46%
+    grafana                            running  restarts 0   oom False started 2026-09-30T09:19:17  71.46MiB / 15.56GiB  0.03%
+    jaeger                             running  restarts 0   oom False started 2026-09-30T09:06:47  168.3MiB / 275MiB  0.15%
+    kafka                              running  restarts 0   oom False started 2026-09-30T09:06:47  573.8MiB / 2GiB  1.06%
+    kind-control-plane                 running  restarts 0   oom False started 2026-09-30T12:41:00  1.522GiB / 15.56GiB  22.20%
+    kind-worker                        running  restarts 0   oom False started 2026-09-30T12:41:00  2.381GiB / 15.56GiB  17.02%
+    kind-worker2                       running  restarts 0   oom False started 2026-09-30T12:41:00  1.315GiB / 15.56GiB  9.96%
+    kind-worker3                       running  restarts 0   oom False started 2026-09-30T12:41:00  2.292GiB / 15.56GiB  19.83%
+    load-generator                     running  restarts 0   oom False started 2026-09-30T09:06:47  74.54MiB / 300MiB  0.43%
+    loki                               running  restarts 0   oom False started 2026-09-30T09:19:18  92.28MiB / 400MiB  0.74%
+    otel-col                           running  restarts 0   oom False started 2026-09-30T09:06:47  108.5MiB / 600MiB  1.28%
+    payment-service                    running  restarts 0   oom False started 2026-09-30T09:06:47  75.16MiB / 320MiB  0.16%
+    postgres                           running  restarts 0   oom False started 2026-09-30T09:06:47  21.09MiB / 200MiB  0.00%
+    product-catalog-service            running  restarts 0   oom False started 2026-09-30T09:06:47  10.96MiB / 120MiB  0.21%
+    prometheus                         running  restarts 0   oom False started 2026-09-30T09:19:17  86.96MiB / 15.56GiB  0.11%
+    promtail                           running  restarts 0   oom False started 2026-09-30T09:19:18  70.21MiB / 200MiB  0.90%
+    quoteservice                       running  restarts 0   oom False started 2026-09-30T09:06:47  30.7MiB / 200MiB  0.00%
+    recommendation-service             running  restarts 0   oom False started 2026-09-30T09:06:47  51.36MiB / 800MiB  0.13%
+    redis-cart                         running  restarts 0   oom False started 2026-09-30T09:06:47  17.3MiB / 20MiB  0.19%
+    shipping-service                   running  restarts 0   oom False started 2026-09-30T09:06:47  4.844MiB / 120MiB  0.31%
+    tempo                              running  restarts 0   oom False started 2026-09-30T09:19:18  169.8MiB / 400MiB  0.36%
+  platform container memory: anon 0.07 GiB  file 0.03 GiB (active 0.01, inactive 0.01)  shmem 0.00 GiB
+  firing alerts (0): none
+  kind clusters: kind
+    node kind-control-plane   Ready   control-plane   18h   v1.32.1   172.22.0.2   <none>   Debian GNU/Linux 12 (bookworm)   6.8.0-142-generic   containerd://2.0.2
+    node kind-worker          Ready   <none>          18h   v1.32.1   172.22.0.5   <none>   Debian GNU/Linux 12 (bookworm)   6.8.0-142-generic   containerd://2.0.2
+    node kind-worker2         Ready   <none>          18h   v1.32.1   172.22.0.4   <none>   Debian GNU/Linux 12 (bookworm)   6.8.0-142-generic   containerd://2.0.2
+    node kind-worker3         Ready   <none>          18h   v1.32.1   172.22.0.3   <none>   Debian GNU/Linux 12 (bookworm)   6.8.0-142-generic   containerd://2.0.2
+  pods: 67
+    astronomy-shop       accounting-5897477844-w6knv                                1/1   Running   0               7m12s
+    astronomy-shop       ad-77f4765ccf-fzrgc                                        1/1   Running   0               7m12s
+    astronomy-shop       cart-74587775fc-svlrd                                      1/1   Running   0               7m12s
+    astronomy-shop       checkout-6c769b88b5-6zw69                                  1/1   Running   0               7m12s
+    astronomy-shop       currency-7b6cd9c94c-f8zq8                                  1/1   Running   0               7m11s
+    astronomy-shop       email-74f9c666b6-5jk79                                     1/1   Running   0               7m10s
+    astronomy-shop       flagd-6cdbb9c4bd-54zfw                                     2/2   Running   0               7m9s
+    astronomy-shop       fraud-detection-57856d89-kk6vs                             1/1   Running   0               7m10s
+    astronomy-shop       frontend-fdf474f6f-98fxc                                   1/1   Running   0               5m26s
+    astronomy-shop       frontend-proxy-84f445bb4b-hvgkp                            1/1   Running   0               7m12s
+    astronomy-shop       grafana-948cdf675-hwx8z                                    4/4   Running   0               7m9s
+    astronomy-shop       image-provider-86b767dd45-c5c2n                            1/1   Running   0               7m10s
+    astronomy-shop       jaeger-6d665c6cb8-bdxw8                                    1/1   Running   0               7m12s
+    astronomy-shop       kafka-6fb5bb8f77-k9m9s                                     1/1   Running   0               7m12s
+    astronomy-shop       llm-74d9597c76-mznq9                                       1/1   Running   0               7m12s
+    astronomy-shop       load-generator-5d945c566-wctn2                             2/2   Running   0               7m11s
+    astronomy-shop       locust-fetcher                                             1/1   Running   0               5m31s
+    astronomy-shop       opensearch-0                                               1/1   Running   0               7m12s
+    astronomy-shop       otel-collector-agent-48tvr                                 1/1   Running   0               5m27s
+    astronomy-shop       otel-collector-agent-5wgz2                                 1/1   Running   0               5m29s
+    astronomy-shop       otel-collector-agent-g58jc                                 1/1   Running   0               5m23s
+    astronomy-shop       payment-556cf8d457-47z2f                                   1/1   Running   0               7m12s
+    astronomy-shop       postgresql-6bd9b846cb-585p2                                1/1   Running   0               7m11s
+    astronomy-shop       product-catalog-77497fdc44-sfsdt                           1/1   Running   3 (6m30s ago)   7m10s
+    astronomy-shop       product-reviews-7bccd49cb7-4jmtb                           1/1   Running   0               7m12s
+    astronomy-shop       quote-7c77885dc4-ztwjg                                     1/1   Running   0               7m11s
+    astronomy-shop       recommendation-5bb649dccb-mfkwg                            1/1   Running   0               7m12s
+    astronomy-shop       shipping-6d777796df-cg7v4                                  1/1   Running   0               7m10s
+    astronomy-shop       valkey-cart-cbcc554f6-lw9jw                                1/1   Running   0               7m11s
+    kube-system          calico-kube-controllers-75cd4cc5b9-ncggg                   1/1   Running   0               18h
+    kube-system          calico-node-27z4m                                          1/1   Running   0               18h
+    kube-system          calico-node-m884f                                          1/1   Running   0               18h
+    kube-system          calico-node-n2xck                                          1/1   Running   0               18h
+    kube-system          calico-node-tdrxq                                          1/1   Running   0               18h
+    kube-system          coredns-668d6bf9bc-2nm7k                                   1/1   Running   0               18h
+    kube-system          coredns-668d6bf9bc-4mlqv                                   1/1   Running   0               18h
+    kube-system          etcd-kind-control-plane                                    1/1   Running   0               18h
+    kube-system          kube-apiserver-kind-control-plane                          1/1   Running   0               18h
+    kube-system          kube-controller-manager-kind-control-plane                 1/1   Running   0               18h
+    kube-system          kube-proxy-4kg7v                                           1/1   Running   0               18h
+    kube-system          kube-proxy-5s7zb                                           1/1   Running   0               18h
+    kube-system          kube-proxy-6jtkz                                           1/1   Running   0               18h
+    kube-system          kube-proxy-7wsv5                                           1/1   Running   0               18h
+    kube-system          kube-scheduler-kind-control-plane                          1/1   Running   0               18h
+    kube-system          metrics-server-676dc447b9-nlm58                            1/1   Running   0               10m
+    local-path-storage   local-path-provisioner-58cc7856b6-gw2hp                    1/1   Running   0               18h
+    observe              jaeger-agent-6ccbcc486d-97xkf                              1/1   Running   0               8m25s
+    observe              otel-collector-5774f5c78-f6tdt                             1/1   Running   0               8m24s
+    observe              prometheus-alertmanager-0                                  1/1   Running   0               9m14s
+    observe              prometheus-kube-state-metrics-55bbb6475c-lj87f             1/1   Running   0               9m14s
+    observe              prometheus-prometheus-blackbox-exporter-6cdc44b585-9lpln   1/1   Running   0               9m14s
+    observe              prometheus-prometheus-node-exporter-c4npp                  1/1   Running   0               9m15s
+    observe              prometheus-prometheus-node-exporter-fhdj8                  1/1   Running   0               9m15s
+    observe              prometheus-prometheus-node-exporter-lvkmj                  1/1   Running   0               9m15s
+    observe              prometheus-prometheus-node-exporter-mjsvz                  1/1   Running   0               9m15s
+    observe              prometheus-prometheus-pushgateway-74bd87dc4f-shbh6         1/1   Running   0               9m14s
+    observe              prometheus-server-869d9dd88b-9bgvl                         2/2   Running   0               9m14s
+    openebs              openebs-localpv-provisioner-65dd55b8dc-lc6wl               1/1   Running   0               9m44s
+    openebs              openebs-ndm-cluster-exporter-848db89c6-qq5gn               1/1   Running   0               9m44s
+    openebs              openebs-ndm-h6fxf                                          1/1   Running   0               9m45s
+    openebs              openebs-ndm-n44vv                                          1/1   Running   0               9m45s
+    openebs              openebs-ndm-node-exporter-kdskt                            1/1   Running   0               9m44s
+    openebs              openebs-ndm-node-exporter-wcb87                            1/1   Running   0               9m44s
+    openebs              openebs-ndm-node-exporter-wtnx5                            1/1   Running   0               9m44s
+    openebs              openebs-ndm-operator-5849bb84b8-h2qg4                      1/1   Running   0               9m45s
+    openebs              openebs-ndm-qfs7h                                          1/1   Running   0               9m45s
+    sregym               mcp-server-695489844f-lhzxw                                1/1   Running   0               8m17s
+  tools (login PATH): kind=/home/deploy/t7.2-1c/bin/kind kubectl=/home/deploy/t7.2-1c/bin/kubectl helm=/home/deploy/t7.2-1c/bin/helm uv=/home/deploy/.local/bin/uv
+  tools (1c dir): helm kind kubectl
+  inotify: instances 1024 watches 1048576
+  ~/.kube exists: True
+  ~/cache_dir exists: True
+  ~/t7.2-1c exists: True
+
+====================================================================================================
+samples every 30 s
+  time      avail GiB  load1  mem-some avg10/avg60  mem-full avg10/avg60  cpu-some avg10/avg60  alerts
+  06:51:56      5.99   0.90      0.00 /   0.00          0.00 /   0.00          3.35 /   3.29  0
+  06:52:26      6.04   0.84      0.00 /   0.00          0.00 /   0.00          3.04 /   3.18  0
+  06:52:56      6.03   0.94      0.00 /   0.00          0.00 /   0.00          2.60 /   2.88  0
+  06:53:26      6.03   0.70      0.00 /   0.00          0.00 /   0.00          3.04 /   2.94  0
+  06:53:56      6.02   1.14      0.00 /   0.00          0.00 /   0.00          2.73 /   2.81  0
+  06:54:26      6.07   0.94      0.00 /   0.00          0.00 /   0.00          2.61 /   2.70  0
+  06:54:56      5.89   1.31      0.00 /   0.00          0.00 /   0.00          3.14 /   2.74  0
+  06:55:26      5.87   1.17      0.00 /   0.00          0.00 /   0.00          2.76 /   2.74  0
+  06:55:56      5.83   1.39      0.00 /   0.00          0.00 /   0.00          2.91 /   2.84  0
+  06:56:26      5.85   1.43      0.00 /   0.00          0.00 /   0.00          2.48 /   2.73  0
+  06:56:56      5.86   1.41      0.00 /   0.00          0.00 /   0.00          2.52 /   2.67  0
+  06:57:26      6.00   1.33      0.00 /   0.00          0.00 /   0.00          2.71 /   2.65  0
+  06:57:56      5.98   1.80      0.00 /   0.00          0.00 /   0.00          2.34 /   2.59  0
+  06:58:26      5.97   1.15      0.00 /   0.00          0.00 /   0.00          3.12 /   2.78  0
+  06:58:56      5.98   1.33      0.00 /   0.00          0.00 /   0.00          2.48 /   2.68  0
+  06:59:26      5.98   1.36      0.00 /   0.00          0.00 /   0.00          2.94 /   2.73  0
+  06:59:56      6.01   1.15      0.00 /   0.00          0.00 /   0.00          2.50 /   2.65  0
+  07:00:26      5.95   1.08      0.00 /   0.00          0.00 /   0.00          3.19 /   2.91  0
+  07:00:56      5.91   1.17      0.00 /   0.00          0.00 /   0.00          2.46 /   2.73  0
+  07:01:26      5.97   2.13      0.00 /   0.00          0.00 /   0.00          3.12 /   2.85  0
+  07:01:56      5.98   2.06      0.00 /   0.00          0.00 /   0.00          2.48 /   2.76  0
+
+====================================================================================================
+end at 07:01:56 UTC
+  containers: 39 running of 42
+    accounting-service                 running  restarts 6   oom False started 2026-09-30T09:07:12  10.77MiB / 300MiB  0.27%
+    ad-service                         running  restarts 0   oom False started 2026-09-30T09:06:47  241.2MiB / 700MiB  0.09%
+    alertmanager                       running  restarts 0   oom False started 2026-09-30T09:19:19  22.75MiB / 200MiB  0.09%
+    cart-service                       running  restarts 0   oom False started 2026-09-30T09:06:47  100.5MiB / 400MiB  0.09%
+    checkout-service                   running  restarts 6   oom False started 2026-09-30T09:07:12  15.24MiB / 120MiB  0.02%
+    currency-service                   running  restarts 0   oom False started 2026-09-30T09:06:47  3.875MiB / 100MiB  0.05%
+    email-service                      running  restarts 0   oom False started 2026-09-30T09:06:47  190.8MiB / 250MiB  0.01%
+    faultline-deploy-caddy-1           running  restarts 0   oom False started 2026-09-30T09:06:47  21.23MiB / 15.56GiB  0.00%
+    faultline-deploy-egress-1          running  restarts 0   oom False started 2026-09-30T09:06:47  13.19MiB / 15.56GiB  0.02%
+    faultline-deploy-executor-1        running  restarts 0   oom False started 2026-09-30T11:47:50  51.64MiB / 15.56GiB  0.20%
+    faultline-deploy-faultline-1       running  restarts 0   oom False started 2026-09-30T09:06:47  168.9MiB / 15.56GiB  0.20%
+    faultline-deploy-orchestrator-1    running  restarts 0   oom False started 2026-09-30T09:06:47  55.67MiB / 15.56GiB  0.02%
+    faultline-deploy-postgres-1        running  restarts 0   oom False started 2026-09-30T09:06:47  41.03MiB / 15.56GiB  0.00%
+    faultline-deploy-prometheus-self-1 running  restarts 0   oom False started 2026-09-30T09:06:47  64.79MiB / 15.56GiB  0.14%
+    faultline-deploy-redis-1           running  restarts 0   oom False started 2026-09-30T09:06:47  4.758MiB / 15.56GiB  0.51%
+    faultline-minio-1                  exited   restarts 0   oom False started 2026-09-15T04:30:12  -  -
+    faultline-postgres-1               exited   restarts 0   oom False started 2026-09-15T04:30:11  -  -
+    faultline-redis-1                  exited   restarts 0   oom False started 2026-09-15T04:30:11  -  -
+    feature-flag-service               running  restarts 0   oom False started 2026-09-30T09:06:47  20.41MiB / 200MiB  0.34%
+    frauddetection-service             running  restarts 1   oom False started 2026-09-30T09:06:58  171.6MiB / 500MiB  0.37%
+    frontend                           running  restarts 0   oom False started 2026-09-30T09:06:47  151.9MiB / 500MiB  2.26%
+    frontend-proxy                     running  restarts 0   oom False started 2026-09-30T09:19:19  25.83MiB / 300MiB  0.95%
+    grafana                            running  restarts 0   oom False started 2026-09-30T09:19:17  71.86MiB / 15.56GiB  0.02%
+    jaeger                             running  restarts 0   oom False started 2026-09-30T09:06:47  168.3MiB / 275MiB  0.20%
+    kafka                              running  restarts 0   oom False started 2026-09-30T09:06:47  574.5MiB / 2GiB  1.03%
+    kind-control-plane                 running  restarts 0   oom False started 2026-09-30T12:41:00  1.581GiB / 15.56GiB  19.12%
+    kind-worker                        running  restarts 0   oom False started 2026-09-30T12:41:00  2.426GiB / 15.56GiB  16.13%
+    kind-worker2                       running  restarts 0   oom False started 2026-09-30T12:41:00  1.334GiB / 15.56GiB  25.75%
+    kind-worker3                       running  restarts 0   oom False started 2026-09-30T12:41:00  2.314GiB / 15.56GiB  19.65%
+    load-generator                     running  restarts 0   oom False started 2026-09-30T09:06:47  74.54MiB / 300MiB  1.20%
+    loki                               running  restarts 0   oom False started 2026-09-30T09:19:18  89.02MiB / 400MiB  0.41%
+    otel-col                           running  restarts 0   oom False started 2026-09-30T09:06:47  97.13MiB / 600MiB  1.34%
+    payment-service                    running  restarts 0   oom False started 2026-09-30T09:06:47  75.52MiB / 320MiB  0.00%
+    postgres                           running  restarts 0   oom False started 2026-09-30T09:06:47  21.09MiB / 200MiB  0.73%
+    product-catalog-service            running  restarts 0   oom False started 2026-09-30T09:06:47  11.01MiB / 120MiB  0.58%
+    prometheus                         running  restarts 0   oom False started 2026-09-30T09:19:17  82.69MiB / 15.56GiB  0.08%
+    promtail                           running  restarts 0   oom False started 2026-09-30T09:19:18  70.5MiB / 200MiB  0.89%
+    quoteservice                       running  restarts 0   oom False started 2026-09-30T09:06:47  30.7MiB / 200MiB  0.01%
+    recommendation-service             running  restarts 0   oom False started 2026-09-30T09:06:47  51.36MiB / 800MiB  0.14%
+    redis-cart                         running  restarts 0   oom False started 2026-09-30T09:06:47  17.76MiB / 20MiB  0.20%
+    shipping-service                   running  restarts 0   oom False started 2026-09-30T09:06:47  4.848MiB / 120MiB  0.15%
+    tempo                              running  restarts 0   oom False started 2026-09-30T09:19:18  156.8MiB / 400MiB  0.98%
+  platform container memory: anon 0.07 GiB  file 0.03 GiB (active 0.01, inactive 0.01)  shmem 0.00 GiB
+  firing alerts (0): none
+  kind clusters: kind
+    node kind-control-plane   Ready   control-plane   18h   v1.32.1   172.22.0.2   <none>   Debian GNU/Linux 12 (bookworm)   6.8.0-142-generic   containerd://2.0.2
+    node kind-worker          Ready   <none>          18h   v1.32.1   172.22.0.5   <none>   Debian GNU/Linux 12 (bookworm)   6.8.0-142-generic   containerd://2.0.2
+    node kind-worker2         Ready   <none>          18h   v1.32.1   172.22.0.4   <none>   Debian GNU/Linux 12 (bookworm)   6.8.0-142-generic   containerd://2.0.2
+    node kind-worker3         Ready   <none>          18h   v1.32.1   172.22.0.3   <none>   Debian GNU/Linux 12 (bookworm)   6.8.0-142-generic   containerd://2.0.2
+  pods: 67
+    astronomy-shop       accounting-5897477844-w6knv                                1/1   Running   0             17m
+    astronomy-shop       ad-77f4765ccf-fzrgc                                        1/1   Running   0             17m
+    astronomy-shop       cart-74587775fc-svlrd                                      1/1   Running   0             17m
+    astronomy-shop       checkout-6c769b88b5-6zw69                                  1/1   Running   0             17m
+    astronomy-shop       currency-7b6cd9c94c-f8zq8                                  1/1   Running   0             17m
+    astronomy-shop       email-74f9c666b6-5jk79                                     1/1   Running   0             17m
+    astronomy-shop       flagd-6cdbb9c4bd-54zfw                                     2/2   Running   0             17m
+    astronomy-shop       fraud-detection-57856d89-kk6vs                             1/1   Running   0             17m
+    astronomy-shop       frontend-fdf474f6f-98fxc                                   1/1   Running   0             15m
+    astronomy-shop       frontend-proxy-84f445bb4b-hvgkp                            1/1   Running   0             17m
+    astronomy-shop       grafana-948cdf675-hwx8z                                    4/4   Running   0             17m
+    astronomy-shop       image-provider-86b767dd45-c5c2n                            1/1   Running   0             17m
+    astronomy-shop       jaeger-6d665c6cb8-bdxw8                                    1/1   Running   0             17m
+    astronomy-shop       kafka-6fb5bb8f77-k9m9s                                     1/1   Running   0             17m
+    astronomy-shop       llm-74d9597c76-mznq9                                       1/1   Running   0             17m
+    astronomy-shop       load-generator-5d945c566-wctn2                             2/2   Running   0             17m
+    astronomy-shop       locust-fetcher                                             1/1   Running   0             15m
+    astronomy-shop       opensearch-0                                               1/1   Running   0             17m
+    astronomy-shop       otel-collector-agent-48tvr                                 1/1   Running   0             15m
+    astronomy-shop       otel-collector-agent-5wgz2                                 1/1   Running   0             15m
+    astronomy-shop       otel-collector-agent-g58jc                                 1/1   Running   0             15m
+    astronomy-shop       payment-556cf8d457-47z2f                                   1/1   Running   0             17m
+    astronomy-shop       postgresql-6bd9b846cb-585p2                                1/1   Running   0             17m
+    astronomy-shop       product-catalog-77497fdc44-sfsdt                           1/1   Running   3 (16m ago)   17m
+    astronomy-shop       product-reviews-7bccd49cb7-4jmtb                           1/1   Running   0             17m
+    astronomy-shop       quote-7c77885dc4-ztwjg                                     1/1   Running   0             17m
+    astronomy-shop       recommendation-5bb649dccb-mfkwg                            1/1   Running   0             17m
+    astronomy-shop       shipping-6d777796df-cg7v4                                  1/1   Running   0             17m
+    astronomy-shop       valkey-cart-cbcc554f6-lw9jw                                1/1   Running   0             17m
+    kube-system          calico-kube-controllers-75cd4cc5b9-ncggg                   1/1   Running   0             18h
+    kube-system          calico-node-27z4m                                          1/1   Running   0             18h
+    kube-system          calico-node-m884f                                          1/1   Running   0             18h
+    kube-system          calico-node-n2xck                                          1/1   Running   0             18h
+    kube-system          calico-node-tdrxq                                          1/1   Running   0             18h
+    kube-system          coredns-668d6bf9bc-2nm7k                                   1/1   Running   0             18h
+    kube-system          coredns-668d6bf9bc-4mlqv                                   1/1   Running   0             18h
+    kube-system          etcd-kind-control-plane                                    1/1   Running   0             18h
+    kube-system          kube-apiserver-kind-control-plane                          1/1   Running   0             18h
+    kube-system          kube-controller-manager-kind-control-plane                 1/1   Running   0             18h
+    kube-system          kube-proxy-4kg7v                                           1/1   Running   0             18h
+    kube-system          kube-proxy-5s7zb                                           1/1   Running   0             18h
+    kube-system          kube-proxy-6jtkz                                           1/1   Running   0             18h
+    kube-system          kube-proxy-7wsv5                                           1/1   Running   0             18h
+    kube-system          kube-scheduler-kind-control-plane                          1/1   Running   0             18h
+    kube-system          metrics-server-676dc447b9-nlm58                            1/1   Running   0             20m
+    local-path-storage   local-path-provisioner-58cc7856b6-gw2hp                    1/1   Running   0             18h
+    observe              jaeger-agent-6ccbcc486d-97xkf                              1/1   Running   0             18m
+    observe              otel-collector-5774f5c78-f6tdt                             1/1   Running   0             18m
+    observe              prometheus-alertmanager-0                                  1/1   Running   0             19m
+    observe              prometheus-kube-state-metrics-55bbb6475c-lj87f             1/1   Running   0             19m
+    observe              prometheus-prometheus-blackbox-exporter-6cdc44b585-9lpln   1/1   Running   0             19m
+    observe              prometheus-prometheus-node-exporter-c4npp                  1/1   Running   0             19m
+    observe              prometheus-prometheus-node-exporter-fhdj8                  1/1   Running   0             19m
+    observe              prometheus-prometheus-node-exporter-lvkmj                  1/1   Running   0             19m
+    observe              prometheus-prometheus-node-exporter-mjsvz                  1/1   Running   0             19m
+    observe              prometheus-prometheus-pushgateway-74bd87dc4f-shbh6         1/1   Running   0             19m
+    observe              prometheus-server-869d9dd88b-9bgvl                         2/2   Running   0             19m
+    openebs              openebs-localpv-provisioner-65dd55b8dc-lc6wl               1/1   Running   0             19m
+    openebs              openebs-ndm-cluster-exporter-848db89c6-qq5gn               1/1   Running   0             19m
+    openebs              openebs-ndm-h6fxf                                          1/1   Running   0             19m
+    openebs              openebs-ndm-n44vv                                          1/1   Running   0             19m
+    openebs              openebs-ndm-node-exporter-kdskt                            1/1   Running   0             19m
+    openebs              openebs-ndm-node-exporter-wcb87                            1/1   Running   0             19m
+    openebs              openebs-ndm-node-exporter-wtnx5                            1/1   Running   0             19m
+    openebs              openebs-ndm-operator-5849bb84b8-h2qg4                      1/1   Running   0             19m
+    openebs              openebs-ndm-qfs7h                                          1/1   Running   0             19m
+    sregym               mcp-server-695489844f-lhzxw                                1/1   Running   0             18m
+  tools (login PATH): kind=/home/deploy/t7.2-1c/bin/kind kubectl=/home/deploy/t7.2-1c/bin/kubectl helm=/home/deploy/t7.2-1c/bin/helm uv=/home/deploy/.local/bin/uv
+  tools (1c dir): helm kind kubectl
+  inotify: instances 1024 watches 1048576
+  ~/.kube exists: True
+  ~/cache_dir exists: True
+  ~/t7.2-1c exists: True
+
+====================================================================================================
+SUMMARY P2: samples 21; avail GiB min 5.83 mean 5.96 max 6.07; load1 max 2.13; mem-some avg60 max 0.00; mem-full avg60 max 0.00; cpu-some avg60 max 3.29; restarted in window none; oom-flagged none; stopped in window none; alerts that fired in the window and were not firing at its start none

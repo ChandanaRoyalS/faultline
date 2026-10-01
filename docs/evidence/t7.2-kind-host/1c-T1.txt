@@ -1,0 +1,3 @@
+3255633 /bin/sh -c kubectl port-forward svc/mcp-server 9954:9954 -n sregym --address 0.0.0.0
+3255634 kubectl port-forward svc/mcp-server 9954:9954 -n sregym --address 0.0.0.0
+3333887 bash -c export PATH=$HOME/t7.2-1c/bin:$PATH; pgrep -af "kubectl port-forward svc/"; pkill -f "kubectl port-forward svc/"; sleep 2; pgrep -af "kubectl port-forward" || echo "no port-forward left"; kind delete cluster; docker network rm kind; docker image rm ghcr.io/sregym/kind-node@sha256:ccab5d6cdca66e0b83a77c2711b641fa788024fe217526980da028ac07385b93; docker image ls --digests | grep -i sregym || echo "no sregym image left"; echo "running: $(docker ps -q | wc -l)"; ss -ltn | grep -E ":(8000|9954) " || echo "8000 and 9954 closed"

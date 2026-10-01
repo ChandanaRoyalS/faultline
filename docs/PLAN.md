@@ -4617,6 +4617,20 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-10-01: T7.2 step 1c - FITS: astronomy-shop and SREGym's whole stack run on the deployment
+beside the world; T7.2 runs there. Scoping step 5 next.***
+
+- **The retry**, under Addendum 1. SREGym's own path deployed its `full` stack and the
+  `wrong_dns_policy` problem in 5m31s, adding about 5.9 GiB. The minimum available was **5.83
+  GiB** against FITS's 3.0. All 67 pods were ready, none restarted in the window and none was
+  OOM-killed (catalog's three startup restarts were `Error`, exit 1). The world was untouched, no
+  alert fired, no incident opened, and both of SREGym's public listeners were closed from outside.
+- **Predictions**: FITS, the memory drop, the load and the pressure held. The deploy time (faster)
+  and P1's idle figure (lower) did not.
+- **A teardown mistake, recorded**: T1's `pkill -f` matched its own shell and stopped before
+  deleting the cluster. It was finished with anchored patterns, and the port-forward was found
+  gone. P3 of record is the one after.
+
 ***2026-10-01: T7.2 step 1c, attempt 1 INCONCLUSIVE - SREGym ignores `KUBECONFIG`; the retry
 registered as Addendum 1.***
 
