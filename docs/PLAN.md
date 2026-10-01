@@ -4617,6 +4617,21 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-10-01: Q122's build registered - the v2 graph loaded by world, after a read-only
+presence probe.***
+
+- **Decided by the owner**: the snapshot of record is loaded in place, keeping ADR-0017's
+  one-file rule; `accounting`, which leaves the graph once self-edges go, gets a new presence,
+  `UNLINKED`.
+- **Step 1, before any code**: a read-only probe of Tempo on the Mac. It makes up the
+  `llm`/`image-provider` measurement the design note owed and Q121's registration left out, and
+  checks the snapshot against a census of whole traces.
+- **Step 2**: world-aware `from_snapshot`, v2's artifact rules, `KNOWN_ABSENT_V2`,
+  `knowledge/services-v2.yaml`, and v2 counterparts of the pinned tests. v1 unchanged, and
+  neither stamp moves (`cap:91279a09`, `prompts:9ce16b66bbcc`).
+- **Corrected**: `fraud-detection` is in the v2 graph (its flagd read). The design note said
+  otherwise. The setting is `FAULTLINE_TOOLS_WORLD`, not `FAULTLINE_WORLD`.
+
 ***2026-10-01: Q121's remedy run - quote's clock reset by a restart; Q122's v2 snapshot of
 record taken.***
 
