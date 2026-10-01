@@ -1,0 +1,18 @@
+#!/bin/zsh
+# T7.2 1c step 8, read-only: wait until SREGym's MCP port-forward listens on the VM, then show what
+# each port is bound to and try both from outside. Both must fail (000). Run on the Mac, before step 7:
+#   caffeinate -i zsh ~/Downloads/c1_step8.sh
+VM=deploy@<the VM>
+HOST=<the VM>
+OUT=~/Downloads/1c-step8.txt
+echo "waiting for :9954 on the VM from $(date -u '+%H:%M:%S') UTC"
+until ssh -o ConnectTimeout=10 -o BatchMode=yes "$VM" 'ss -ltn | grep -q ":9954 "' 2>/dev/null; do sleep 15; done
+{
+  echo "port-forward seen at $(date -u '+%Y-%m-%d %H:%M:%S') UTC"
+  echo "bound on the VM:"
+  ssh -o ConnectTimeout=10 "$VM" 'ss -ltn | grep -E ":(8000|9954) "'
+  for p in 9954 8000; do
+    printf "from outside :%s -> " $p
+    curl -sS -o /dev/null -m 8 -w '%{http_code}\n' "http://$HOST:$p/" 2>&1 | tail -1
+  done
+} | tee "$OUT"

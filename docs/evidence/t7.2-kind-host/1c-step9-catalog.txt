@@ -1,0 +1,11 @@
+Thu Oct  1 07:05:32 UTC 2026
+product-catalog: restarts=3 last=Error exit=1 at=2026-10-01T06:45:26Z
+{"limits":{"memory":"20Mi"},"requests":{"memory":"20Mi"}}
+LAST SEEN   TYPE      REASON      OBJECT                                 MESSAGE
+20m         Normal    Scheduled   pod/product-catalog-77497fdc44-sfsdt   Successfully assigned astronomy-shop/product-catalog-77497fdc44-sfsdt to kind-worker2
+20m         Normal    Pulling     pod/product-catalog-77497fdc44-sfsdt   Pulling image "ghcr.io/open-telemetry/demo:2.2.0-product-catalog"
+20m         Normal    Pulled      pod/product-catalog-77497fdc44-sfsdt   Successfully pulled image "ghcr.io/open-telemetry/demo:2.2.0-product-catalog" in 1.847s (22.121s including waiting). Image size: 7806693 bytes.
+19m         Normal    Created     pod/product-catalog-77497fdc44-sfsdt   Created container: product-catalog
+19m         Normal    Started     pod/product-catalog-77497fdc44-sfsdt   Started container product-catalog
+19m         Normal    Pulled      pod/product-catalog-77497fdc44-sfsdt   Container image "ghcr.io/open-telemetry/demo:2.2.0-product-catalog" already present on machine
+19m         Warning   BackOff     pod/product-catalog-77497fdc44-sfsdt   Back-off restarting failed container product-catalog in pod product-catalog-77497fdc44-sfsdt_astronomy-shop(7cd8bb5c-5d5f-4fb0-9323-c878dd07e953)

@@ -1,0 +1,274 @@
+key-like variables in env: 0
+Thu Oct  1 06:41:20 UTC 2026
+[10/01/26 06:41:25] INFO     all.sregym.profile - Deployment profile: full      
+[10/01/26 06:41:25] INFO     __main__ - 🔧 Config — agent: demo, agent_model:   
+                             gpt-5, judge_backend: api, judge_model: gpt-5,     
+                             reasoning_effort: agent default, jev_model:        
+                             disabled, deployment_profile: full,                
+                             internet_access: filtered, container_hardening: on,
+                             agent_api_base: unset, judge_api_base: unset       
+╭───────────────────────────── SREGym API Server ──────────────────────────────╮
+│  ____  ____  _____ ____                                                      │
+│ / ___||  _ \| ____/ ___|_   _ _ __ ___                                       │
+│ \___ \| |_) |  _|| |  _| | | | '_ ` _ \                                      │
+│  ___) |  _ <| |__| |_| | |_| | | | | | |                                     │
+│ |____/|_| \_\_____\____|\__, |_| |_| |_|                                     │
+│                         |___/                                                │
+│                                                                              │
+╰─────────────────────────── http://127.0.0.1:8000 ────────────────────────────╯
+Available Endpoints                                                             
+
+ • POST /submit: { "stage": "diagnosis", "solution": "<your-solution>" } →      
+   grades the named stage                                                       
+ • GET /status: returns { "stage": "setup" | "diagnosis" | "mitigation" |       
+   "tearing_down" | "done" }                                                    
+/home/deploy/t7.2-1c/SREGym/.venv/lib/python3.12/site-packages/websockets/legacy/__init__.py:6: DeprecationWarning: websockets.legacy is deprecated; see https://websockets.readthedocs.io/en/stable/howto/upgrade.html for upgrade instructions
+  warnings.warn(  # deprecated in 14.0 - 2024-11-09
+/home/deploy/t7.2-1c/SREGym/.venv/lib/python3.12/site-packages/uvicorn/protocols/websockets/websockets_impl.py:17: DeprecationWarning: websockets.server.WebSocketServerProtocol is deprecated
+  from websockets.server import WebSocketServerProtocol
+[10/01/26 06:41:26] INFO     uvicorn.error - Started server process [3240623]   
+                    INFO     uvicorn.error - Waiting for application startup.   
+                    INFO     uvicorn.error - Application startup complete.      
+                    INFO     uvicorn.error - Uvicorn running on                 
+                             http://127.0.0.1:8000 (Press CTRL+C to quit)       
+[06:41:26] 🎯 Running single problem:                                main.py:300
+           wrong_dns_policy_astronomy_shop                                      
+                                                                     main.py:378
+           🔍 Starting problem: wrong_dns_policy_astronomy_shop                 
+           (Attempt 1 of 1)                                                     
+[10/01/26 06:41:27] INFO     all.application - Namespace astronomy-shop not     
+                             found. Creating namespace.                         
+                    INFO     all.application - Namespace astronomy-shop created 
+                             successfully: namespace/astronomy-shop created     
+                                                                                
+                    INFO     all.sregym.conductor - [Session Start] Problem ID: 
+                             wrong_dns_policy_astronomy_shop                    
+                    INFO     all.sregym.conductor - [STAGE] Start testing on    
+                             problem: wrong_dns_policy_astronomy_shop           
+                    INFO     all.sregym.conductor - Fixing Kubernetes... to     
+                             normal state.                                      
+                    INFO     all.sregym.conductor - [FIX] Imbalance leftover if 
+                             any                                                
+                    INFO     all.sregym.conductor - [FIX] KubeletCrash leftover 
+                             if any                                             
+Starting kubelet in kind-worker...
+Kubelet started in kind-worker
+Starting kubelet in kind-worker2...
+Kubelet started in kind-worker2
+Starting kubelet in kind-worker3...
+Kubelet started in kind-worker3
+Waiting for worker nodes {'kind-worker2', 'kind-worker', 'kind-worker3'} to become Ready...
+All worker nodes are Ready.
+                    INFO     all.sregym.conductor - [FIX]                       
+                             KubeletEvictionThresholdMisconfig leftover if any  
+Recovering disk pressure in kind-worker...
+Waiting for node kind-worker to become Ready...
+Node kind-worker is Ready.
+Recovering disk pressure in kind-worker2...
+Waiting for node kind-worker2 to become Ready...
+Node kind-worker2 is Ready.
+Recovering disk pressure in kind-worker3...
+Waiting for node kind-worker3 to become Ready...
+Node kind-worker3 is Ready.
+[10/01/26 06:41:28] INFO     all.sregym.conductor - [FIX] Calico                
+                             IPPool/strictAffinity leftover if any              
+[10/01/26 06:41:29] INFO     all.sregym.conductor - [FIX] Calico route-reflector
+                             label drift leftovers if any                       
+                    INFO     all.sregym.conductor - [FIX] Stale CoreDNS NXDOMAIN
+                             templates if any                                   
+No NXDOMAIN templates found in CoreDNS config; nothing to do
+                    INFO     all.sregym.conductor - [FIX] Leftover dm-flakey    
+                             infrastructure if any                              
+[dm-flakey] ⚠️ Could not remove dm-flakey on kind-control-plane (may not exist): No running Khaos pod found on node kind-control-plane
+[dm-flakey] ⚠️ Could not remove dm-flakey on kind-worker (may not exist): No running Khaos pod found on node kind-worker
+[dm-flakey] ⚠️ Could not remove dm-flakey on kind-worker2 (may not exist): No running Khaos pod found on node kind-worker2
+[dm-flakey] ⚠️ Could not remove dm-flakey on kind-worker3 (may not exist): No running Khaos pod found on node kind-worker3
+                    INFO     all.sregym.conductor - [FIX] NightlyRebalanceOOM   
+                             kube-system actor leftover if any                  
+[10/01/26 06:41:30] INFO     all.sregym.conductor - [FIX] Clock drift leftover  
+                             if any                                             
+No leftover node-probe pods found; nothing to do
+                    INFO     all.sregym.conductor - Fix Kubernetes completed.   
+                    INFO     all.sregym.conductor - No tasklist.yml found.      
+                             Defaulting to running diagnosis and mitigation for 
+                             this problem.                                      
+                    INFO     all.sregym.conductor - Undeploying app leftovers...
+                    INFO     all.infra.helm - Helm Uninstall: astronomy-shop in 
+                             namespace astronomy-shop                           
+[06:41:30] Waiting for namespace deletion...                      kubectl.py:341
+[06:41:36] Namespace 'astronomy-shop' has been deleted.           kubectl.py:349
+[10/01/26 06:41:36] INFO     all.infra.kubectl - Namespace 'astronomy-shop'     
+                             deleted successfully.                              
+                    INFO     all.sregym.conductor - App leftovers undeployed.   
+                    INFO     all.sregym.conductor - Deploying app...            
+                    INFO     all.sregym.conductor - [DEPLOY] No persisted       
+                             baseline state found, capturing and saving...      
+                    INFO     all.infra.cluster_state - Capturing cluster        
+                             baseline state...                                  
+                    INFO     all.infra.cluster_state - Baseline state snapshot  
+                             saved to                                           
+                             /home/deploy/cache_dir/cluster_baseline_state.json 
+                    INFO     all.sregym.conductor - [DEPLOY] Setting up         
+                             metrics-server…                                    
+[06:41:37] Waiting for all pods in namespace 'kube-system' to be  kubectl.py:204
+           ready...                                                             
+[06:42:05] All pods in namespace 'kube-system' are ready.         kubectl.py:245
+[10/01/26 06:42:06] ERROR    all.infra.kubectl - Command failed (exit 1):       
+                             kubectl get --raw                                  
+                             /apis/metrics.k8s.io/v1beta1/nodes                 
+                             --request-timeout=10s                              
+                               stderr: Error from server (ServiceUnavailable):  
+                             the server is currently unable to handle the       
+                             request                                            
+[10/01/26 06:42:08] ERROR    all.infra.kubectl - Command failed (exit 1):       
+                             kubectl get --raw                                  
+                             /apis/metrics.k8s.io/v1beta1/nodes                 
+                             --request-timeout=10s                              
+                               stderr: Error from server (ServiceUnavailable):  
+                             the server is currently unable to handle the       
+                             request                                            
+[10/01/26 06:42:10] INFO     all.sregym.conductor - [DEPLOY] Setting up OpenEBS…
+[06:42:12] Waiting for all pods in namespace 'openebs' to be      kubectl.py:204
+           ready...                                                             
+[06:42:30] All pods in namespace 'openebs' are ready.             kubectl.py:245
+[10/01/26 06:42:30] INFO     all.sregym.conductor - [DEPLOY] Ensuring OpenEBS   
+                             LocalPV-Device StorageClass…                       
+[10/01/26 06:42:31] INFO     all.sregym.conductor - [DEPLOY]                    
+                             StorageClass/openebs-device already exists; leaving
+                             it unchanged                                       
+                    INFO     all.sregym.conductor - [DEPLOY] Deploying          
+                             Prometheus…                                        
+                    INFO     all.infra.helm - Helm Uninstall: prometheus in     
+                             namespace observe                                  
+                    INFO     all.infra.helm - Helm Install: prometheus in       
+                             namespace observe                                  
+                    INFO     all.infra.helm - Chart dependencies not satisfied  
+                             for                                                
+                             /home/deploy/t7.2-1c/SREGym/sregym/observer/prometh
+                             eus/prometheus (['unpacked', 'unpacked', 'wrong    
+                             version', 'unpacked']); updating                   
+[06:42:42] Waiting for all pods in namespace 'observe' to be      kubectl.py:204
+           ready...                                                             
+[06:43:31] All pods in namespace 'observe' are ready.             kubectl.py:245
+[10/01/26 06:43:31] INFO     all.sregym.conductor - [DEPLOY] Deploying Jaeger…  
+[10/01/26 06:43:32] INFO     all.sregym.jaeger - Jaeger deployed successfully.  
+                    INFO     all.sregym.conductor - [DEPLOY] Deploying OTel     
+                             Collector…                                         
+[10/01/26 06:43:38] INFO     all.sregym.otel_collector - OTel Collector deployed
+                             successfully.                                      
+                    INFO     all.sregym.conductor - [DEPLOY] Skipping Loki      
+                             deployment (external harness mode)                 
+                    INFO     all.sregym.conductor - [DEPLOY] Deploying MCP      
+                             server…                                            
+[10/01/26 06:43:39] INFO     all.sregym.mcp_server - MCP server RBAC resources  
+                             ensured.                                           
+[06:43:39] Waiting for all pods in namespace 'sregym' to be       kubectl.py:204
+           ready...                                                             
+[06:44:29] All pods in namespace 'sregym' are ready.              kubectl.py:245
+[10/01/26 06:44:32] INFO     all.sregym.mcp_server - Port forwarding established
+                             at 9954. MCP_SERVER_PORT set.                      
+                    INFO     all.sregym.mcp_server - MCP server deployed        
+                             successfully.                                      
+                    INFO     all.sregym.conductor - [ENV] Set up necessary      
+                             components: metrics-server, Khaos, OpenEBS,        
+                             Prometheus, Jaeger, Loki                           
+                    INFO     all.sregym.conductor - [DEPLOY] Deploying and      
+                             starting workload                                  
+                    INFO     all.infra.kubectl - Namespace 'astronomy-shop' not 
+                             found. Creating namespace.                         
+                    INFO     all.infra.kubectl - Namespace 'astronomy-shop'     
+                             created successfully.                              
+                    INFO     all.infra.helm - Helm Repo Add: open-telemetry with
+                             url                                                
+                             https://open-telemetry.github.io/opentelemetry-helm
+                             -charts                                            
+[10/01/26 06:44:33] INFO     all.infra.helm - Helm repo open-telemetry added    
+                             successfully: "open-telemetry" has been added to   
+                             your repositories                                  
+                    INFO     all.infra.helm - Helm Repo Add: jaegertracing with 
+                             url https://jaegertracing.github.io/helm-charts    
+                    INFO     all.infra.helm - Helm repo jaegertracing added     
+                             successfully: "jaegertracing" has been added to    
+                             your repositories                                  
+                    INFO     all.infra.helm - Helm Repo Add:                    
+                             prometheus-community with url                      
+                             https://prometheus-community.github.io/helm-charts 
+                    INFO     all.infra.helm - Helm repo prometheus-community    
+                             added successfully: "prometheus-community" has been
+                             added to your repositories                         
+                    INFO     all.infra.helm - Helm Repo Add: grafana with url   
+                             https://grafana.github.io/helm-charts              
+[10/01/26 06:44:34] INFO     all.infra.helm - Helm repo grafana added           
+                             successfully: "grafana" has been added to your     
+                             repositories                                       
+                    INFO     all.infra.helm - Helm Repo Add: opensearch with url
+                             https://opensearch-project.github.io/helm-charts/  
+                    INFO     all.infra.helm - Helm repo opensearch added        
+                             successfully: "opensearch" has been added to your  
+                             repositories                                       
+                    INFO     all.infra.helm - Helm Install: astronomy-shop in   
+                             namespace astronomy-shop                           
+                    INFO     all.infra.helm - Chart dependencies not satisfied  
+                             for                                                
+                             /home/deploy/t7.2-1c/SREGym/SREGym-applications/ast
+                             ronomy-shop/charts/opentelemetry-demo (['missing', 
+                             'missing', 'missing', 'missing', 'missing']);      
+                             updating                                           
+[06:44:44] Waiting for all pods in namespace 'astronomy-shop' to  kubectl.py:204
+           be ready...                                                          
+[06:46:24] All pods in namespace 'astronomy-shop' are ready.      kubectl.py:245
+[10/01/26 06:46:24] INFO     all.sregym.conductor - [ENV] Deploy application:   
+                             OpenTelemetry Demo Astronomy Shop                  
+                    INFO     all.sregym.jaeger - Created ExternalName service   
+                             'jaeger' in namespace 'astronomy-shop' ->          
+                             otel-collector.observe.svc.cluster.local           
+                    INFO     all.sregym.jaeger - Created ExternalName service   
+                             'jaeger-agent' in namespace 'astronomy-shop' ->    
+                             otel-collector.observe.svc.cluster.local           
+[10/01/26 06:46:25] INFO     all.sregym.jaeger - Created ExternalName service   
+                             'jaeger-collector' in namespace 'astronomy-shop' ->
+                             otel-collector.observe.svc.cluster.local           
+                    INFO     all.sregym.jaeger - Created ExternalName service   
+                             'jaeger-query' in namespace 'astronomy-shop' ->    
+                             otel-collector.observe.svc.cluster.local           
+                    INFO     all.sregym.jaeger - Restarted otel-collector-agent 
+                             DaemonSet in namespace 'astronomy-shop'            
+                    INFO     all.infra.workload - Start Workload with Locust    
+                    INFO     all.infra.workload - AstronomyShop has a built-in  
+                             load generator.                                    
+                    INFO     all.infra.workload - Creating locust-fetcher pod...
+Waiting for locust-fetcher pod to be created...
+Pod locust-fetcher created.
+[10/01/26 06:46:30] INFO     all.sregym.conductor - [ENV] Start workload        
+                    INFO     all.sregym.conductor - App deployed.               
+== Fault Injection ==
+Patch result for frontend: deployment.apps/frontend patched
+
+Injected wrong DNS policy fault for service: frontend
+Service: frontend | Namespace: astronomy-shop
+
+[10/01/26 06:46:50] INFO     all.sregym.conductor - [ENV] Injected fault        
+                    INFO     all.sregym.conductor - [STAGE] Go to stage         
+                             diagnosis                                          
+                    INFO     all.sregym.conductor - ✅ Deployment complete.     
+                             Ready for submission. Current stage is: diagnosis  
+[06:46:50] ✅ Fault injected for problem                             main.py:496
+           'wrong_dns_policy_astronomy_shop'. Exiting for external              
+           harness.                                                             
+⠧ Benchmarking demo — wrong_dns_policy_astronomy_shop (attempt 1/1)    0… 0… -:…
+                    WARNING  all.sregym.conductor_api - Shutting down API       
+                             server...                                          
+[10/01/26 06:46:50] INFO     uvicorn.error - Shutting down                      
+                    INFO     uvicorn.error - Finished server process [3240623]  
+                    WARNING  __main__ - ⚠️ No results to write.                  
+deploy exit=0
+
+real	5m30.978s
+user	0m51.582s
+sys	0m9.474s
+Thu Oct  1 06:46:51 UTC 2026
+LISTEN 0      4096         0.0.0.0:9954       0.0.0.0:*          
+ls: cannot access '/home/deploy/.config/helm': No such file or directory
+ls: cannot access '/home/deploy/.cache/helm': No such file or directory
+ls: cannot access '/home/deploy/.local/share/helm': No such file or directory
+/home/deploy/cache_dir
