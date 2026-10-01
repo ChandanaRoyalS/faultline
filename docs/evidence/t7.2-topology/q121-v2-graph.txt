@@ -1,0 +1,188 @@
+v2 graph capture at 2026-10-01 09:05:00 UTC
+  http://localhost:8080/jaeger/ui/api/dependencies -> content-type application/json, 2307 bytes
+using http://localhost:8080/jaeger/ui/api/dependencies
+
+================================================================================
+lookback 1h  endTs=1790845500936  (http://localhost:8080/jaeger/ui/api/dependencies?endTs=1790845500936&lookback=3600000)
+38 edges, 17 nodes
+   calls  parent                   child                   
+   32432  frontend                 frontend                
+    9883  frontend-proxy           frontend-proxy          
+    9881  frontend-proxy           frontend                
+    9819  load-generator           frontend-proxy          
+    9216  cart                     cart                    
+    9214  product-catalog          product-catalog         
+    9024  load-generator           load-generator          
+    7601  frontend                 product-catalog         
+    6264  checkout                 checkout                
+    3686  frontend                 cart                    
+    3433  flagd                    flagd                   
+    2438  product-reviews          product-reviews         
+    1476  email                    email                   
+    1410  checkout                 currency                
+    1388  recommendation           recommendation          
+    1225  load-generator           flagd                   
+     994  accounting               accounting              
+     984  checkout                 cart                    
+     984  checkout                 shipping                
+     984  quote                    quote                   
+     918  checkout                 product-catalog         
+     904  ad                       ad                      
+     795  frontend                 ad                      
+     725  frontend                 product-reviews         
+     694  frontend                 recommendation          
+     694  recommendation           product-catalog         
+     612  cart                     flagd                   
+     492  checkout                 email                   
+     492  fraud-detection          fraud-detection         
+     492  frontend                 checkout                
+     492  shipping                 quote                   
+     492  shipping                 shipping                
+     491  checkout                 payment                 
+     491  payment                  payment                 
+       5  ad                       flagd                   
+       5  fraud-detection          flagd                   
+       5  product-reviews          flagd                   
+       5  recommendation           flagd                   
+nodes: accounting, ad, cart, checkout, currency, email, flagd, fraud-detection, frontend, frontend-proxy, load-generator, payment, product-catalog, product-reviews, quote, recommendation, shipping
+
+1h reply written to /Users/chandana/Downloads/v2-dependencies-1h.json
+
+================================================================================
+lookback 24h  endTs=1790845500936  (http://localhost:8080/jaeger/ui/api/dependencies?endTs=1790845500936&lookback=86400000)
+38 edges, 17 nodes
+   calls  parent                   child                   
+   71808  frontend                 frontend                
+   22104  frontend-proxy           frontend-proxy          
+   22092  frontend-proxy           frontend                
+   21950  load-generator           frontend-proxy          
+   20148  load-generator           load-generator          
+   19105  product-catalog          product-catalog         
+   17808  cart                     cart                    
+   16515  frontend                 product-catalog         
+    8391  frontend                 cart                    
+    6615  flagd                    flagd                   
+    6277  checkout                 checkout                
+    5480  product-reviews          product-reviews         
+    3338  recommendation           recommendation          
+    2825  load-generator           flagd                   
+    2275  accounting               accounting              
+    2061  ad                       ad                      
+    1802  frontend                 ad                      
+    1670  frontend                 product-reviews         
+    1669  frontend                 recommendation          
+    1669  recommendation           product-catalog         
+    1479  email                    email                   
+    1413  checkout                 currency                
+    1124  fraud-detection          fraud-detection         
+     986  checkout                 cart                    
+     986  checkout                 shipping                
+     984  quote                    quote                   
+     920  checkout                 product-catalog         
+     771  cart                     flagd                   
+     493  checkout                 email                   
+     493  frontend                 checkout                
+     493  shipping                 shipping                
+     492  checkout                 payment                 
+     492  payment                  payment                 
+     492  shipping                 quote                   
+      14  ad                       flagd                   
+      14  fraud-detection          flagd                   
+      14  product-reviews          flagd                   
+      14  recommendation           flagd                   
+nodes: accounting, ad, cart, checkout, currency, email, flagd, fraud-detection, frontend, frontend-proxy, load-generator, payment, product-catalog, product-reviews, quote, recommendation, shipping
+
+24h reply written to /Users/chandana/Downloads/v2-dependencies-24h.json
+
+================================================================================
+lookback 72h  endTs=1790845500936  (http://localhost:8080/jaeger/ui/api/dependencies?endTs=1790845500936&lookback=259200000)
+38 edges, 17 nodes
+   calls  parent                   child                   
+   74831  frontend                 frontend                
+   22732  frontend-proxy           frontend-proxy          
+   22720  frontend-proxy           frontend                
+   22578  load-generator           frontend-proxy          
+   21385  product-catalog          product-catalog         
+   20958  cart                     cart                    
+   20776  load-generator           load-generator          
+   17653  frontend                 product-catalog         
+   14233  checkout                 checkout                
+    8391  frontend                 cart                    
+    7874  flagd                    flagd                   
+    5480  product-reviews          product-reviews         
+    3369  email                    email                   
+    3336  recommendation           recommendation          
+    3186  checkout                 currency                
+    2824  load-generator           flagd                   
+    2275  accounting               accounting              
+    2246  checkout                 cart                    
+    2246  checkout                 shipping                
+    2244  quote                    quote                   
+    2063  checkout                 product-catalog         
+    2061  ad                       ad                      
+    1802  frontend                 ad                      
+    1670  frontend                 product-reviews         
+    1668  frontend                 recommendation          
+    1668  recommendation           product-catalog         
+    1401  cart                     flagd                   
+    1124  payment                  payment                 
+    1123  checkout                 email                   
+    1123  checkout                 payment                 
+    1123  fraud-detection          fraud-detection         
+    1123  frontend                 checkout                
+    1123  shipping                 shipping                
+    1122  shipping                 quote                   
+      14  ad                       flagd                   
+      14  fraud-detection          flagd                   
+      14  product-reviews          flagd                   
+      14  recommendation           flagd                   
+nodes: accounting, ad, cart, checkout, currency, email, flagd, fraud-detection, frontend, frontend-proxy, load-generator, payment, product-catalog, product-reviews, quote, recommendation, shipping
+
+72h reply written to /Users/chandana/Downloads/v2-dependencies-72h.json
+
+================================================================================
+lookback 168h  endTs=1790845500936  (http://localhost:8080/jaeger/ui/api/dependencies?endTs=1790845500936&lookback=604800000)
+38 edges, 17 nodes
+   calls  parent                   child                   
+   74831  frontend                 frontend                
+   22732  frontend-proxy           frontend-proxy          
+   22720  frontend-proxy           frontend                
+   22578  load-generator           frontend-proxy          
+   21385  product-catalog          product-catalog         
+   20958  cart                     cart                    
+   20776  load-generator           load-generator          
+   17653  frontend                 product-catalog         
+   14233  checkout                 checkout                
+    8391  frontend                 cart                    
+    7874  flagd                    flagd                   
+    5480  product-reviews          product-reviews         
+    3369  email                    email                   
+    3336  recommendation           recommendation          
+    3186  checkout                 currency                
+    2824  load-generator           flagd                   
+    2275  accounting               accounting              
+    2246  checkout                 cart                    
+    2246  checkout                 shipping                
+    2244  quote                    quote                   
+    2063  checkout                 product-catalog         
+    2061  ad                       ad                      
+    1802  frontend                 ad                      
+    1670  frontend                 product-reviews         
+    1668  frontend                 recommendation          
+    1668  recommendation           product-catalog         
+    1401  cart                     flagd                   
+    1124  payment                  payment                 
+    1123  checkout                 email                   
+    1123  checkout                 payment                 
+    1123  fraud-detection          fraud-detection         
+    1123  frontend                 checkout                
+    1123  shipping                 shipping                
+    1122  shipping                 quote                   
+      14  ad                       flagd                   
+      14  fraud-detection          flagd                   
+      14  product-reviews          flagd                   
+      14  recommendation           flagd                   
+nodes: accounting, ad, cart, checkout, currency, email, flagd, fraud-detection, frontend, frontend-proxy, load-generator, payment, product-catalog, product-reviews, quote, recommendation, shipping
+
+168h reply written to /Users/chandana/Downloads/v2-dependencies-168h.json
+

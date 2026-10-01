@@ -1,0 +1,48 @@
+#!/bin/zsh
+# Q121's remedy, as registered in evals/runs/PREREGISTRATION-Q121-quote-restart.md and its
+# Addendum 1 (step 0: load-generator restarted first). Run on the Mac:
+#   caffeinate -i zsh ~/Downloads/q121_run.sh
+# caffeinate keeps the Mac awake from before the restart to the end of the capture (step 5).
+D=~/Downloads
+cd ~/dev/faultline || exit 1
+echo "== step 0 (Addendum 1): load-generator restarted, $(date -u '+%H:%M:%S') UTC"
+{
+  date -u '+%Y-%m-%d %H:%M:%S UTC'
+  docker inspect -f 'before: {{.State.Status}} started {{.State.StartedAt}} restarts {{.RestartCount}}' load-generator
+  docker stats --no-stream --format 'before: {{.MemUsage}} {{.MemPerc}}' load-generator
+  time docker restart load-generator
+  docker inspect -f 'after:  {{.State.Status}} started {{.State.StartedAt}} restarts {{.RestartCount}}' load-generator
+} > $D/q121-loadgen-restart.txt 2>&1
+cat $D/q121-loadgen-restart.txt
+echo "waiting five minutes for its users to ramp"
+sleep 300
+docker stats --no-stream --format 'after 5 min: {{.MemUsage}} {{.MemPerc}}' load-generator | tee -a $D/q121-loadgen-restart.txt
+echo "== step 1: world check, $(date -u '+%H:%M:%S') UTC"
+python3 $D/world_check.py > $D/q121-worldcheck-2.txt 2>&1
+tail -3 $D/q121-worldcheck-2.txt
+if ! grep -q "ALL PASS" $D/q121-worldcheck-2.txt; then echo "STOP: world check is not ALL PASS after step 0 - load-generator was restarted, quote untouched"; exit 1; fi
+echo "== step 2: before"
+python3 $D/quote_offset.py before > $D/q121-before.txt 2>&1
+tail -2 $D/q121-before.txt
+echo "== step 3: the restart"
+{
+  date -u '+%Y-%m-%d %H:%M:%S UTC'
+  docker inspect -f 'before: {{.State.Status}} started {{.State.StartedAt}} restarts {{.RestartCount}}' quote
+  time docker restart quote
+  docker inspect -f 'after:  {{.State.Status}} started {{.State.StartedAt}} restarts {{.RestartCount}}' quote
+} > $D/q121-restart.txt 2>&1
+cat $D/q121-restart.txt
+if ! docker inspect -f '{{.State.Status}}' quote | grep -q running; then echo "STOP: quote is not running"; exit 1; fi
+echo "== step 4: after (in two minutes)"
+sleep 120
+python3 $D/quote_offset.py after > $D/q121-after.txt 2>&1
+tail -2 $D/q121-after.txt
+if ! grep -q "quote spans paired" $D/q121-after.txt || grep -q " 0 quote spans paired" $D/q121-after.txt; then echo "STOP: no quote span paired after the restart"; exit 1; fi
+echo "== step 6: an hour after the restart (waiting 58 min, $(date -u '+%H:%M:%S') UTC)"
+sleep 3480
+python3 $D/quote_offset.py hour > $D/q121-hour.txt 2>&1
+tail -2 $D/q121-hour.txt
+echo "== step 7: the capture"
+python3 $D/capture_v2_graph.py > $D/q121-v2-graph.txt 2>&1
+grep -E "^lookback|edges," $D/q121-v2-graph.txt
+echo "== done, $(date -u '+%H:%M:%S') UTC"

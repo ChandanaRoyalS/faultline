@@ -4617,6 +4617,21 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-10-01: Q121's remedy run - quote's clock reset by a restart; Q122's v2 snapshot of
+record taken.***
+
+- **The run**:
+  - **load-generator** restarted, 88 % → 44 % of its memory;
+  - **the world check** passed;
+  - **quote** restarted;
+  - **the Mac** held awake for an hour.
+- **Question 1**: as registered it reads *no*. My step-4 read searched ten minutes and caught 26
+  traces from before the restart. In substance it is *yes*: after the restart −0.35 to +24 ms, an
+  hour on +27 to +29 ms, against −36h06m before. The steady +28 ms is unexplained.
+- **Question 2: yes.** An hour of traffic gave exactly the 168 h capture's 22 cross-service edges,
+  so that 1 h reply is **Q122's snapshot of record**.
+- **Next**: Q122's build, registered first. Q121 stays open for its durable guard.
+
 ***2026-10-01: Q121's remedy, Addendum 1 - the gate held; load-generator restarted first.***
 
 - **The world check stopped the run before anything changed**: load-generator at 87.9 % of its
