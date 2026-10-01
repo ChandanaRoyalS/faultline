@@ -27,3 +27,4 @@ decided when Q122 is built.
 | file | what it is |
 |---|---|
 | `quote_offset.py.txt` | the read-only measure of quote's offset from shipping's call, fixed by the registration and used before, after and an hour after the restart |
+| `q121-worldcheck-1.txt` | the first run's world check, 2026-10-01 07:53:05 UTC: NOT READY, load-generator at 87.9 % of its memory. The run stopped there with nothing changed; Addendum 1 follows |

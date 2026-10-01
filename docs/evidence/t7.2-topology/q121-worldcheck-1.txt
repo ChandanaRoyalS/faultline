@@ -1,0 +1,12 @@
+PASS  loki /ready                                  200
+PASS  tempo /ready                                 200
+PASS  promtail running                             running
+PASS  tempo search reaches stored blocks (Q120)    20 trace(s) in the minute 20 min ago
+PASS  cart store-command spans (Q116)              2.03/s over 10m (defined: about 2)
+FAIL  no container but grafana >= 85 % memory      load-generator 87.9%
+PASS  nothing firing                               none
+PASS  kafka running (Q114)                         running restarts=0 started=2026-09-29T03:57:22.310992764Z
+PASS  kafka tmpfs under 50 % used                  2%
+PASS  kafka log directory writable by the broker's user writable
+
+NOT READY - 1 check(s) failed
