@@ -4617,6 +4617,27 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-10-01: T7.2 topology item 3 registered - astronomy-shop's graph under SREGym, against
+v2's.***
+
+- **Decided by the owner.** SREGym cannot deploy without a fault, so the run deploys exactly as
+  1c did, then undoes the fault with SREGym's own recovery commands, verbatim. It holds for 70
+  minutes and captures SREGym's Jaeger (`observe/jaeger-out`, the endpoint its own
+  `get_dependency_graph` reads) at 30 and 60 minutes.
+- **One read-only read while the fault is in**: it measures what option B's live graph would
+  have shown triage.
+- **Read at source.**
+  - The chart is the demo's 2.2.0, v2's tag.
+  - The load is 10 users against v2's 25, with browser traffic off.
+  - SREGym deletes the chart's Jaeger, and its own is v1 1.57, in memory, capped at 25,000
+    traces.
+  - `frontend` exports to a short name the fault's resolver cannot resolve.
+- **Predicted**:
+  - the same 22 cross-service edges;
+  - a fault-time graph with no `frontend` edge and no order path;
+  - MemAvailable at or above 5 GiB through the hold;
+  - $0.
+
 ***2026-10-01: Q122 landed - the v2 world has its dependency graph, loaded by world.***
 
 - **The probe** (read-only, the owner's Mac) fired no stop. Every pair in 138 whole traces is in
