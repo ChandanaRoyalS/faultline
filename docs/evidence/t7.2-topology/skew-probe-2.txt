@@ -1,0 +1,70 @@
+skew probe run at 2026-10-01 07:36:29.810 UTC
+
+====================================================================================================
+1. the audit's sample traces, span by span
+
+  trace ede5d04a7cb3b149d84b9a7f881b079d - HTTP Error 404: Not Found
+
+  trace 16a9070c09b7e5aefd8fa75e7b5d51b8 - HTTP Error 404: Not Found
+
+  trace b0a807528a56994f09763675e3b62e37 - HTTP Error 404: Not Found
+
+  trace cde51fe9fe6e4894968e42a1bdbe81dd - HTTP Error 404: Not Found
+
+====================================================================================================
+2. the last 30 minutes (07:06:29 .. 07:35:29)
+  150 traces read, 1945 spans; 8 traces hold a span over an hour before their median
+       8 spans  quote            POST /getquote                           php/opentelemetry 1.10.0   inst -            offsets 1 day, 12:06:10
+       8 spans  quote            {closure}                                php/opentelemetry 1.10.0   inst -            offsets 1 day, 12:06:10
+       8 spans  quote            calculate-quote                          php/opentelemetry 1.10.0   inst -            offsets 1 day, 12:06:10
+
+====================================================================================================
+2. R6's window (05:04:02 .. 05:15:34)
+  0 traces read, 0 spans; 0 traces hold a span over an hour before their median
+
+====================================================================================================
+2. the payment window (01:24:16 .. 01:34:36)
+  0 traces read, 0 spans; 0 traces hold a span over an hour before their median
+
+====================================================================================================
+3. clocks and start times
+  this computer:  2026-10-01 07:36:31
+  Docker VM (read in postgresql): 2026-10-01 07:36:31
+  containers by start time:
+    2026-09-28T22:20:23.011981626Z /opensearch
+    2026-09-28T22:20:23.021150917Z /valkey-cart
+    2026-09-28T22:20:23.047395959Z /prometheus
+    2026-09-28T22:20:23.053223084Z /jaeger
+    2026-09-28T22:20:23.057300001Z /postgresql
+    2026-09-28T22:20:23.076082626Z /flagd
+    2026-09-28T22:20:23.078431542Z /shipping
+    2026-09-28T22:20:23.084244251Z /image-provider
+    2026-09-28T22:20:23.085851042Z /grafana
+    2026-09-28T22:20:23.128460792Z /currency
+    2026-09-28T22:20:23.129344001Z /recommendation
+    2026-09-28T22:20:23.132526709Z /frontend-proxy
+    2026-09-28T22:20:23.133781126Z /quote
+    2026-09-28T22:20:23.133942667Z /flagd-ui
+    2026-09-28T22:20:23.139842376Z /frontend
+    2026-09-28T22:20:23.155281292Z /llm
+    2026-09-28T22:20:25.022258002Z /product-catalog
+    2026-09-28T23:28:02.09531813Z /payment
+    2026-09-28T23:37:14.652761802Z /ad
+    2026-09-29T00:09:29.641729837Z /loki
+    2026-09-29T00:09:29.715044087Z /promtail
+    2026-09-29T00:09:29.793586712Z /tempo
+    2026-09-29T00:34:10.03561155Z /cart
+    2026-09-29T00:34:13.216606718Z /product-reviews
+    2026-09-29T01:58:02.705732963Z /otel-collector
+    2026-09-29T03:57:22.310992764Z /kafka
+    2026-09-29T03:57:22.474710222Z /accounting
+    2026-09-29T03:57:37.334377965Z /checkout
+    2026-09-29T05:15:32.284388545Z /load-generator
+    2026-09-30T02:43:30.03385968Z /email
+    2026-09-30T03:18:59.466111221Z /fraud-detection
+  frontend        process start: OCI runtime exec failed: exec failed: unable to start container process: exec: "sh": executable file not found in $PATH
+|
+  load-generator  process start: sh: 1: ps: not found|
+  checkout        process start: OCI runtime exec failed: exec failed: unable to start container process: exec: "sh": executable file not found in $PATH
+|
+  email           process start: PID   USER     TIME  COMMAND|    1 root      0:58 {ruby} puma 7.1.0 (tcp://0.0.0.0:6060) [email_server]| 3172 root      0:00 ps|
