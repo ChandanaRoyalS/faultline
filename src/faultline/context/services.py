@@ -16,7 +16,11 @@ from typing import Any
 import yaml
 from pydantic import BaseModel, ConfigDict, Field
 
-CATALOG_NAME = "services.yaml"
+CATALOG_NAMES: dict[str, str] = {"v1": "services.yaml", "v2": "services-v2.yaml"}
+"""One directory per world (Q122). v2's names its 32 services and takes its `depends_on` from
+v2's snapshot of record."""
+
+CATALOG_NAME = CATALOG_NAMES["v1"]
 
 
 class Slo(BaseModel):
@@ -70,15 +74,23 @@ class ServiceDirectory(BaseModel):
         return [s for s in self.services if s.kind == "application"]
 
 
-def catalog_path() -> Path:
+def catalog_path(world: str = "v1") -> Path:
+    name = CATALOG_NAMES[world]
     for parent in Path(__file__).resolve().parents:
-        candidate = parent / "knowledge" / CATALOG_NAME
+        candidate = parent / "knowledge" / name
         if candidate.is_file():
             return candidate
-    raise FileNotFoundError(f"no knowledge/{CATALOG_NAME} above {__file__}")
+    raise FileNotFoundError(f"no knowledge/{name} above {__file__}")
+
+
+def load_services(world: str | None = None) -> ServiceDirectory:
+    """The directory of `world`, default the process's (`ToolSettings.world`)."""
+    from faultline.context.graph import current_world
+
+    return _load(world or current_world())
 
 
 @cache
-def load_services() -> ServiceDirectory:
-    raw: Any = yaml.safe_load(catalog_path().read_text())
+def _load(world: str) -> ServiceDirectory:
+    raw: Any = yaml.safe_load(catalog_path(world).read_text())
     return ServiceDirectory.model_validate(raw)

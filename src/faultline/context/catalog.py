@@ -14,7 +14,6 @@ from dataclasses import dataclass
 from enum import StrEnum
 
 from faultline.context.graph import ServiceGraph
-from injector.world import canonical_service
 
 
 class GraphPresence(StrEnum):
@@ -31,6 +30,17 @@ class GraphPresence(StrEnum):
     """A datastore or broker the services depend on. Emits no spans of its own - its traffic
     appears as *client* spans inside the instrumented service that calls it - so it can be a
     culprit and never a node in a span-derived graph (ADR-0017 Addendum 3, Q27)."""
+
+    UNLINKED = "unlinked"
+    """Emits spans, but no other service's span is its parent or child, so the graph has no edge
+    to it. v2's `accounting` is the first: its work arrives over Kafka, and its consumer spans
+    open traces of their own (Q122). Not `ARTIFACT_ONLY`: nothing about how the world is run was
+    excluded; the hop exists and the trace does not join it."""
+
+    UNEXERCISED = "unexercised"
+    """Nothing reached it while the graph was captured: no span and no log line in the hour. So
+    the graph has no edge for it, and **whether it emits spans is not measured**. v2's `flagd-ui`
+    (Q122)."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -91,6 +101,68 @@ ADR-0017 requires `featureflagservice` to be carried explicitly for exactly this
 see the note on it, and ADR-0017's marked decisions.
 """
 
+_PROBE = "docs/evidence/t7.2-topology/q122-presence.txt"
+
+KNOWN_ABSENT_V2: dict[str, tuple[GraphPresence, str]] = {
+    "load-generator": (
+        GraphPresence.ARTIFACT_ONLY,
+        "Its only cross-service edges are load-generator -> frontend-proxy and load-generator -> "
+        "flagd, excluded as the synthetic client (ARTIFACT_EDGES_V2), as v1's loadgenerator -> "
+        "frontend was. Excluding them removes the node.",
+    ),
+    "accounting": (
+        GraphPresence.UNLINKED,
+        "It emits spans (994 calls inside itself in the snapshot's hour) and no other service's "
+        "span is its parent or child. checkout publishes to Kafka's `orders` topic; accounting's "
+        "consumer spans sit under its own spans in traces of their own, each with one link to "
+        f"another trace ({_PROBE}, part C2). So checkout -> accounting is a real hop the graph "
+        "cannot show, and a blast radius never reaches accounting.",
+    ),
+    "image-provider": (
+        GraphPresence.UNLINKED,
+        "It emits spans (20 traces in the probe's hour), and in the 138 whole traces fetched none "
+        f"of its spans has a parent or a child in another service ({_PROBE}, parts A and B). "
+        "Jaeger's graph has no edge to it either.",
+    ),
+    "llm": (
+        GraphPresence.UNINSTRUMENTED,
+        "It served `POST /v1/chat/completions` in the probe's hour (1,012 log lines, the last a "
+        "200) and Tempo holds no span of its own. Its caller sees it: product-reviews' client "
+        f"spans name `server.address` llm ({_PROBE}, parts A and C1). The demo's model service, "
+        "uninstrumented as v1's flag-service stub was.",
+    ),
+    "flagd-ui": (
+        GraphPresence.UNEXERCISED,
+        "No span and no log line in the probe's hour, with the container running "
+        f"({_PROBE}, part A). Nothing reached it, so whether it emits spans is not measured.",
+    ),
+    "valkey-cart": (
+        GraphPresence.INFRASTRUCTURE,
+        "The cart's datastore, as v1's redis-cart. No span of its own; cart's client spans carry "
+        f"`db.system` redis and `server.address` valkey-cart ({_PROBE}, part C1).",
+    ),
+    "postgresql": (
+        GraphPresence.INFRASTRUCTURE,
+        "The database behind accounting, product-catalog and product-reviews, each of which holds "
+        f"client spans with `db.system` postgresql ({_PROBE}, part C1). No span of its own.",
+    ),
+    "kafka": (
+        GraphPresence.INFRASTRUCTURE,
+        "The broker between checkout's producer spans on `orders` and the consumer spans of "
+        f"accounting and fraud-detection ({_PROBE}, part C2). No span of its own. The consumers' "
+        "traces do not join checkout's, which is why accounting is UNLINKED.",
+    ),
+}
+"""v2's services that exist and are not in its graph, each with the reason, measured by Q122's
+presence probe rather than assumed. **`fraud-detection` is not here**: its flag read keeps it a
+node, though, like `accounting`, nothing reaches it from checkout. The nine telemetry services
+are left out, as on v1."""
+
+KNOWN_ABSENT_BY_WORLD: dict[str, dict[str, tuple[GraphPresence, str]]] = {
+    "v1": KNOWN_ABSENT,
+    "v2": KNOWN_ABSENT_V2,
+}
+
 
 class ServiceCatalog:
     """Graph nodes plus the known-absent services, under one identity scheme.
@@ -106,20 +178,21 @@ class ServiceCatalog:
             service: ServiceEntry(service=service, presence=GraphPresence.PRESENT)
             for service in graph.nodes
         }
-        for name, (presence, reason) in KNOWN_ABSENT.items():
-            service = canonical_service(name)
+        for name, (presence, reason) in KNOWN_ABSENT_BY_WORLD[graph.world].items():
+            service = graph.canonical(name)
             entries.setdefault(service, ServiceEntry(service, presence, reason))
         self._entries = entries
 
     @classmethod
-    def from_snapshot(cls) -> ServiceCatalog:
-        return cls(ServiceGraph.from_snapshot())
+    def from_snapshot(cls, world: str | None = None) -> ServiceCatalog:
+        """The catalog of `world` (default: the process's), over that world's snapshot."""
+        return cls(ServiceGraph.from_snapshot(world=world))
 
     def get(self, service: str | None) -> ServiceEntry | None:
         """The entry for a service, or `None` if the catalog has never heard of it."""
         if service is None:
             return None
-        return self._entries.get(canonical_service(service))
+        return self._entries.get(self.graph.canonical(service))
 
     @property
     def services(self) -> frozenset[str]:

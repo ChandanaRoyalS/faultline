@@ -38,3 +38,4 @@ decided when Q122 is built.
 | file | what it is |
 |---|---|
 | `graph_presence.py.txt` | the read-only presence probe fixed by the registration: which of v2's 32 services Tempo holds spans for, the cross-service pairs in up to ten traces per service checked against the snapshot of record, and the datastore, producer and consumer spans |
+| `q122-presence.txt` | the probe's output, run by the owner 2026-10-01 22:47:39 UTC, read in [Q122's RESULT](../../../evals/attempts/Q122-v2-graph/RESULT.md) |

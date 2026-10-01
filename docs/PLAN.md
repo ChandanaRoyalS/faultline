@@ -4617,6 +4617,25 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-10-01: Q122 landed - the v2 world has its dependency graph, loaded by world.***
+
+- **The probe** (read-only, the owner's Mac) fired no stop. Every pair in 138 whole traces is in
+  the snapshot of record. It placed every absent service:
+  - `accounting` and `image-provider` are `UNLINKED` (spans, no cross-service parent or child);
+  - `llm` is `UNINSTRUMENTED` (it serves requests, with no spans);
+  - `flagd-ui` is `UNEXERCISED` (nothing in the hour);
+  - the three datastores are `INFRASTRUCTURE`.
+- **The build**: blast radius from `checkout` reaches the order path, where at `4279baa` it
+  reached nothing. v1 is unchanged, and `cap:91279a09` / `prompts:9ce16b66bbcc` hold in both
+  worlds.
+- **Predictions**: one wrong (`image-provider` emits spans). The Kafka consumers' links are
+  counted but not resolved.
+- **Queued**:
+  - **Q123**: v2's `ServiceNoTraffic` exclusion of `frontend-proxy` rests on a reason false on
+    v2;
+  - **Q124**: the Mac's v2 `alertmanager` is exited (last started 09-22), so no v2 alert reaches
+    Faultline.
+
 ***2026-10-01: Q122's build registered - the v2 graph loaded by world, after a read-only
 presence probe.***
 

@@ -1,0 +1,353 @@
+# The service catalog for the v2 world (Q122, 2026-10-01).
+#
+# v1's is knowledge/services.yaml, and this follows its rules (ADR-0035):
+# - `depends_on` is every cross-service edge between two of these services in v2's snapshot of
+#   record, docs/evidence/t7.2-topology/q121-v2-dependencies-1h.json, self-edges aside. As on v1
+#   the load generator's edges are declared: they are measured, and excluding them is the graph's
+#   decision, not the catalog's.
+# - The SLOs are compose/prometheus/alert-rules-v2.yml's thresholds, which that file says are
+#   inherited from v1 and have no measured v2 baseline yet.
+# - `kind`, `tier` and `owner` follow each service's v1 counterpart. Services new in v2: flagd and
+#   flagd-ui as v1's flag service; product-reviews and llm as storefront core; image-provider as
+#   storefront edge; postgresql as infrastructure; opensearch as telemetry.
+# - `runbooks` is empty everywhere: no v2 runbook exists, and v1's carry v1's edge tables.
+#
+# tests/test_services.py checks every one of these against its source.
+
+catalog_version: 1
+services:
+  - name: accounting
+    container: accounting
+    kind: application
+    tier: async
+    owner: demo/risk
+    depends_on: []
+    runbooks: []
+    slo:
+      p95_latency_ms: 250
+      error_ratio: 0.05
+      source: compose/prometheus/alert-rules-v2.yml
+  - name: ad
+    container: ad
+    kind: application
+    tier: core
+    owner: demo/storefront
+    depends_on:
+      - flagd
+    runbooks: []
+    slo:
+      p95_latency_ms: 250
+      error_ratio: 0.05
+      source: compose/prometheus/alert-rules-v2.yml
+  - name: alertmanager
+    container: alertmanager
+    kind: telemetry
+    tier: telemetry
+    owner: demo/observability
+    depends_on: []
+    runbooks: []
+    slo: null
+  - name: cart
+    container: cart
+    kind: application
+    tier: core
+    owner: demo/checkout
+    depends_on:
+      - flagd
+    runbooks: []
+    slo:
+      p95_latency_ms: 250
+      error_ratio: 0.05
+      source: compose/prometheus/alert-rules-v2.yml
+  - name: checkout
+    container: checkout
+    kind: application
+    tier: core
+    owner: demo/checkout
+    depends_on:
+      - cart
+      - currency
+      - email
+      - payment
+      - product-catalog
+      - shipping
+    runbooks: []
+    slo:
+      p95_latency_ms: 250
+      error_ratio: 0.05
+      source: compose/prometheus/alert-rules-v2.yml
+  - name: currency
+    container: currency
+    kind: application
+    tier: core
+    owner: demo/checkout
+    depends_on: []
+    runbooks: []
+    slo:
+      p95_latency_ms: 250
+      error_ratio: 0.05
+      source: compose/prometheus/alert-rules-v2.yml
+  - name: email
+    container: email
+    kind: application
+    tier: core
+    owner: demo/comms
+    depends_on: []
+    runbooks: []
+    slo:
+      p95_latency_ms: 250
+      error_ratio: 0.05
+      source: compose/prometheus/alert-rules-v2.yml
+  - name: flagd
+    container: flagd
+    kind: application
+    tier: platform
+    owner: demo/platform
+    depends_on: []
+    runbooks: []
+    slo:
+      p95_latency_ms: 250
+      error_ratio: 0.05
+      source: compose/prometheus/alert-rules-v2.yml
+  - name: flagd-ui
+    container: flagd-ui
+    kind: application
+    tier: platform
+    owner: demo/platform
+    depends_on: []
+    runbooks: []
+    slo:
+      p95_latency_ms: 250
+      error_ratio: 0.05
+      source: compose/prometheus/alert-rules-v2.yml
+  - name: fraud-detection
+    container: fraud-detection
+    kind: application
+    tier: async
+    owner: demo/risk
+    depends_on:
+      - flagd
+    runbooks: []
+    slo:
+      p95_latency_ms: 250
+      error_ratio: 0.05
+      source: compose/prometheus/alert-rules-v2.yml
+  - name: frontend
+    container: frontend
+    kind: application
+    tier: edge
+    owner: demo/storefront
+    depends_on:
+      - ad
+      - cart
+      - checkout
+      - product-catalog
+      - product-reviews
+      - recommendation
+    runbooks: []
+    slo:
+      p95_latency_ms: 250
+      error_ratio: 0.05
+      source: compose/prometheus/alert-rules-v2.yml
+  - name: frontend-proxy
+    container: frontend-proxy
+    kind: application
+    tier: edge
+    owner: demo/storefront
+    depends_on:
+      - frontend
+    runbooks: []
+    slo:
+      p95_latency_ms: 250
+      error_ratio: 0.05
+      source: compose/prometheus/alert-rules-v2.yml
+  - name: grafana
+    container: grafana
+    kind: telemetry
+    tier: telemetry
+    owner: demo/observability
+    depends_on: []
+    runbooks: []
+    slo: null
+  - name: image-provider
+    container: image-provider
+    kind: application
+    tier: edge
+    owner: demo/storefront
+    depends_on: []
+    runbooks: []
+    slo:
+      p95_latency_ms: 250
+      error_ratio: 0.05
+      source: compose/prometheus/alert-rules-v2.yml
+  - name: jaeger
+    container: jaeger
+    kind: telemetry
+    tier: telemetry
+    owner: demo/observability
+    depends_on: []
+    runbooks: []
+    slo: null
+  - name: kafka
+    container: kafka
+    kind: infrastructure
+    tier: infrastructure
+    owner: demo/platform
+    depends_on: []
+    runbooks: []
+    slo: null
+  - name: llm
+    container: llm
+    kind: application
+    tier: core
+    owner: demo/storefront
+    depends_on: []
+    runbooks: []
+    slo:
+      p95_latency_ms: 250
+      error_ratio: 0.05
+      source: compose/prometheus/alert-rules-v2.yml
+  - name: load-generator
+    container: load-generator
+    kind: harness
+    tier: harness
+    owner: demo/harness
+    depends_on:
+      - flagd
+      - frontend-proxy
+    runbooks: []
+    slo: null
+  - name: loki
+    container: loki
+    kind: telemetry
+    tier: telemetry
+    owner: demo/observability
+    depends_on: []
+    runbooks: []
+    slo: null
+  - name: opensearch
+    container: opensearch
+    kind: telemetry
+    tier: telemetry
+    owner: demo/observability
+    depends_on: []
+    runbooks: []
+    slo: null
+  - name: otel-collector
+    container: otel-collector
+    kind: telemetry
+    tier: telemetry
+    owner: demo/observability
+    depends_on: []
+    runbooks: []
+    slo: null
+  - name: payment
+    container: payment
+    kind: application
+    tier: core
+    owner: demo/checkout
+    depends_on: []
+    runbooks: []
+    slo:
+      p95_latency_ms: 250
+      error_ratio: 0.05
+      source: compose/prometheus/alert-rules-v2.yml
+  - name: postgresql
+    container: postgresql
+    kind: infrastructure
+    tier: infrastructure
+    owner: demo/platform
+    depends_on: []
+    runbooks: []
+    slo: null
+  - name: product-catalog
+    container: product-catalog
+    kind: application
+    tier: core
+    owner: demo/catalog
+    depends_on: []
+    runbooks: []
+    slo:
+      p95_latency_ms: 250
+      error_ratio: 0.05
+      source: compose/prometheus/alert-rules-v2.yml
+  - name: product-reviews
+    container: product-reviews
+    kind: application
+    tier: core
+    owner: demo/storefront
+    depends_on:
+      - flagd
+    runbooks: []
+    slo:
+      p95_latency_ms: 250
+      error_ratio: 0.05
+      source: compose/prometheus/alert-rules-v2.yml
+  - name: prometheus
+    container: prometheus
+    kind: telemetry
+    tier: telemetry
+    owner: demo/observability
+    depends_on: []
+    runbooks: []
+    slo: null
+  - name: promtail
+    container: promtail
+    kind: telemetry
+    tier: telemetry
+    owner: demo/observability
+    depends_on: []
+    runbooks: []
+    slo: null
+  - name: quote
+    container: quote
+    kind: application
+    tier: core
+    owner: demo/checkout
+    depends_on: []
+    runbooks: []
+    slo:
+      p95_latency_ms: 250
+      error_ratio: 0.05
+      source: compose/prometheus/alert-rules-v2.yml
+  - name: recommendation
+    container: recommendation
+    kind: application
+    tier: core
+    owner: demo/storefront
+    depends_on:
+      - flagd
+      - product-catalog
+    runbooks: []
+    slo:
+      p95_latency_ms: 250
+      error_ratio: 0.05
+      source: compose/prometheus/alert-rules-v2.yml
+  - name: shipping
+    container: shipping
+    kind: application
+    tier: core
+    owner: demo/checkout
+    depends_on:
+      - quote
+    runbooks: []
+    slo:
+      p95_latency_ms: 250
+      error_ratio: 0.05
+      source: compose/prometheus/alert-rules-v2.yml
+  - name: tempo
+    container: tempo
+    kind: telemetry
+    tier: telemetry
+    owner: demo/observability
+    depends_on: []
+    runbooks: []
+    slo: null
+  - name: valkey-cart
+    container: valkey-cart
+    kind: infrastructure
+    tier: infrastructure
+    owner: demo/platform
+    depends_on: []
+    runbooks: []
+    slo: null

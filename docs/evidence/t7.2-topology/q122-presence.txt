@@ -1,0 +1,94 @@
+v2 graph presence, at 2026-10-01 22:47:39 UTC, window 3600 s
+
+=== A. spans per service, last hour (up to 20 traces) ===
+  accounting       traces 20
+  ad               traces 20
+  alertmanager     traces  0   container: exited started 2026-09-22T07:04:52.562537375Z   log lines in the hour: 0
+  cart             traces 20
+  checkout         traces 20
+  currency         traces 20
+  email            traces 20
+  flagd            traces 20
+  flagd-ui         traces  0   container: running started 2026-09-28T22:20:23.133942667Z   log lines in the hour: 0
+  fraud-detection  traces 20
+  frontend         traces 20
+  frontend-proxy   traces 20
+  grafana          traces  0   container: running started 2026-09-28T22:20:23.085851042Z   log lines in the hour: 205
+  image-provider   traces 20
+  jaeger           traces  0   container: running started 2026-09-28T22:20:23.053223084Z   log lines in the hour: 20
+  kafka            traces  0   container: running started 2026-09-29T03:57:22.310992764Z   log lines in the hour: 948
+  llm              traces  0   container: running started 2026-09-28T22:20:23.155281292Z   log lines in the hour: 1012
+      | [2026-10-01 22:47:26,047] INFO in app: last_message is: 'Based on the tool results, answer the original question about product ID:1YMWWN1N4O. Keep the response brief with no more than 1-2 sentences.'
+      | [2026-10-01 22:47:26,058] INFO in app: llmInaccurateResponse feature flag: False
+      | [2026-10-01 22:47:26,058] INFO in app: product_review_summary is: This dedicated solar scope is highly lauded for its perfect performance in solar observations and eclipse events, thanks to its ISO co
+      | [2026-10-01 22:47:26,058] INFO in app: Processing a response: 'This dedicated solar scope is highly lauded for its perfect performance in solar observations and eclipse events, thanks to its ISO compl
+      | 172.18.0.12 - - [01/Oct/2026 22:47:26] "POST /v1/chat/completions HTTP/1.1" 200 -
+  load-generator   traces 20
+  loki             traces  0   container: running started 2026-09-29T00:09:29.641729837Z   log lines in the hour: 1673
+  opensearch       traces  0   container: running started 2026-09-28T22:20:23.011981626Z   log lines in the hour: 8
+  otel-collector   traces  0   container: running started 2026-09-29T01:58:02.705732963Z   log lines in the hour: 6419
+  payment          traces 20
+  postgresql       traces  0   container: running started 2026-09-28T22:20:23.057300001Z   log lines in the hour: 8
+  product-catalog  traces 20
+  product-reviews  traces 20
+  prometheus       traces  0   container: running started 2026-09-28T22:20:23.047395959Z   log lines in the hour: 20
+  promtail         traces  0   container: running started 2026-09-29T00:09:29.715044087Z   log lines in the hour: 15
+  quote            traces 20
+  recommendation   traces 20
+  shipping         traces 20
+  tempo            traces  0   container: running started 2026-09-29T00:09:29.793586712Z   log lines in the hour: 0
+  valkey-cart      traces  0   container: running started 2026-09-28T22:20:23.021150917Z   log lines in the hour: 25
+
+=== B. cross-service parent -> child pairs in the fetched traces ===
+  138 traces fetched
+     126  frontend         -> product-catalog  in snapshot
+     118  frontend-proxy   -> frontend         in snapshot
+     117  load-generator   -> frontend-proxy   in snapshot
+     106  checkout         -> currency         in snapshot
+      78  checkout         -> cart             in snapshot
+      78  checkout         -> shipping         in snapshot
+      67  checkout         -> product-catalog  in snapshot
+      41  cart             -> flagd            in snapshot
+      39  checkout         -> email            in snapshot
+      39  checkout         -> payment          in snapshot
+      39  frontend         -> checkout         in snapshot
+      39  shipping         -> quote            in snapshot
+      28  frontend         -> cart             in snapshot
+      11  frontend         -> ad               in snapshot
+      11  frontend         -> product-reviews  in snapshot
+      10  frontend         -> recommendation   in snapshot
+      10  recommendation   -> product-catalog  in snapshot
+       9  load-generator   -> flagd            in snapshot
+  snapshot edges not seen in these traces: ad->flagd, fraud-detection->flagd, product-reviews->flagd, recommendation->flagd
+  spans whose parent is not in their trace, by service: none
+
+=== C1. client spans: service, db.system, server.address, peer.service ===
+      10  accounting       db=postgresql   addr=postgresql               peer=-
+     161  cart             db=redis        addr=valkey-cart              peer=-
+      82  cart             db=-            addr=flagd                    peer=-
+     106  checkout         db=-            addr=172.18.0.27              peer=-
+      78  checkout         db=-            addr=172.18.0.19              peer=-
+      78  checkout         db=-            addr=shipping                 peer=-
+      67  checkout         db=-            addr=172.18.0.20              peer=-
+      39  checkout         db=-            addr=172.18.0.22              peer=-
+      39  checkout         db=-            addr=email                    peer=-
+     126  frontend         db=-            addr=product-catalog          peer=-
+      39  frontend         db=-            addr=checkout                 peer=-
+      28  frontend         db=-            addr=cart                     peer=-
+      11  frontend         db=-            addr=ad                       peer=-
+      11  frontend         db=-            addr=product-reviews          peer=-
+      10  frontend         db=-            addr=recommendation           peer=-
+     118  frontend-proxy   db=-            addr=-                        peer=-
+     115  load-generator   db=-            addr=-                        peer=-
+     203  product-catalog  db=postgresql   addr=-                        peer=-
+      11  product-reviews  db=postgresql   addr=postgresql               peer=-
+      10  product-reviews  db=-            addr=-                        peer=-
+      10  product-reviews  db=-            addr=llm                      peer=-
+      10  recommendation   db=-            addr=-                        peer=-
+      39  shipping         db=-            addr=quote                    peer=-
+
+=== C2. producer and consumer spans ===
+      10  accounting       CONSUMER system=kafka  dest=orders     parent=accounting             links=1 (same trace 0)
+      39  checkout         PRODUCER system=kafka  dest=orders     parent=checkout               links=0 (same trace 0)
+      10  fraud-detection  CONSUMER system=kafka  dest=orders     parent=(root)                 links=0 (same trace 0)
+      10  fraud-detection  CONSUMER system=kafka  dest=orders     parent=fraud-detection        links=1 (same trace 0)
