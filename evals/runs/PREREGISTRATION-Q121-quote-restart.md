@@ -91,3 +91,33 @@ remedy, and it is decided separately.
 - **The outputs.** `docs/evidence/t7.2-topology/q121-*.txt` and the new captures, verbatim.
 - **Q121's row** carries the result of question 1.
 - **Q122's row** names the snapshot of record, and Q122's build registration takes it from there.
+
+## Addendum 1, 2026-10-01 - the gate held; load-generator is restarted first
+
+**Step 1 stopped the run at 07:53:05 UTC, before anything changed.** 9 of 10 checks passed. The
+failure was `no container but grafana >= 85 % memory`, with **load-generator at 87.9 %** of its
+limit (`docs/evidence/t7.2-topology/q121-worldcheck-1.txt`). load-generator has run since
+2026-09-28, and a Locust process's memory creeps over days. If it is OOM-killed during the
+measured hour, the traffic behind question 2's capture has a gap.
+
+**By the stop rule the owner decided: restart load-generator too.** The procedure gains a step 0,
+and nothing else changes:
+
+0. **`docker restart load-generator`**, with its start time, restart count and memory read before
+   and after. Then **five minutes** for its users to ramp, and then step 1 as registered: the world
+   check, with the quote restart gated on `ALL PASS` in the same run.
+
+| change | undone by |
+|---|---|
+| `docker restart load-generator` on the Mac's v2 world, once | nothing to undo: same image, configuration and name, with a fresh process. A world check that still fails stops the run |
+
+**What this moves.**
+
+- **Question 1** (does quote's offset reset) does not depend on the load generator.
+- **Question 2's hour** begins after both restarts, so it holds only fresh traffic either way.
+- **What is lost** is the load generator's three-day history, which nothing here measures.
+- **Prediction, added**: load-generator reads well under 85 % after its restart (a fresh Locust
+  process, under 40 %), and the world check is `ALL PASS`.
+
+**If the world check still fails** after step 0, the run stops again and nothing further is done
+until the owner decides. The script gains step 0 and keeps every other step as run.

@@ -4617,6 +4617,13 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-10-01: Q121's remedy, Addendum 1 - the gate held; load-generator restarted first.***
+
+- **The world check stopped the run before anything changed**: load-generator at 87.9 % of its
+  memory after three days up, against the check's 85 %.
+- **The owner's call**: restart load-generator first, wait five minutes, then gate the quote
+  restart on the world check passing. Everything else stays as registered.
+
 ***2026-10-01: Q121's remedy registered - quote restarted on the v2 world before Q122's graph of
 record is taken.***
 
