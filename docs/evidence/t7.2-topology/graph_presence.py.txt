@@ -1,0 +1,183 @@
+"""Read-only: which of v2's services the trace store sees, and how (Q122's build, step 1).
+
+Run on the Mac, with the v2 world up:
+    python3 ~/Downloads/graph_presence.py > ~/Downloads/q122-presence.txt 2>&1
+
+Three parts, over the last hour, and nothing is changed:
+
+A. For every one of v2's 32 services, whether Tempo holds any trace with a span from it
+   (`{ resource.service.name = "<name>" }`, up to 20 traces). For a service with none, its
+   container's state and how many log lines it wrote in the hour. For llm, image-provider and
+   flagd-ui, the last five of those lines too, so that "served requests without a span" and
+   "nothing reached it" can be told apart.
+B. A census of up to 10 whole traces per service that has spans: every cross-service
+   parent-to-child pair found, each marked as in or not in Q122's snapshot of record.
+C. From the same traces: the client spans that name a datastore or a peer
+   (`db.system`, `db.system.name`, `server.address`, `peer.service`), and the producer and
+   consumer spans, with the service of each consumer span's parent and its links.
+"""
+
+import collections
+import json
+import subprocess
+import time
+import urllib.parse
+import urllib.request
+
+TEMPO = "http://localhost:3200"
+WINDOW = 3600
+SEARCH_LIMIT = 20
+TRACES_PER_SERVICE = 10
+
+V2 = [
+    "accounting", "ad", "alertmanager", "cart", "checkout", "currency", "email", "flagd",
+    "flagd-ui", "fraud-detection", "frontend", "frontend-proxy", "grafana", "image-provider",
+    "jaeger", "kafka", "llm", "load-generator", "loki", "opensearch", "otel-collector", "payment",
+    "postgresql", "product-catalog", "product-reviews", "prometheus", "promtail", "quote",
+    "recommendation", "shipping", "tempo", "valkey-cart",
+]
+
+# The snapshot of record's 22 cross-service edges
+# (docs/evidence/t7.2-topology/q121-v2-dependencies-1h.json), self-edges aside.
+SNAPSHOT_EDGES = {
+    ("frontend", "checkout"), ("checkout", "cart"), ("checkout", "currency"),
+    ("checkout", "email"), ("checkout", "payment"), ("checkout", "product-catalog"),
+    ("checkout", "shipping"), ("shipping", "quote"), ("frontend-proxy", "frontend"),
+    ("frontend", "ad"), ("frontend", "cart"), ("frontend", "product-catalog"),
+    ("frontend", "product-reviews"), ("frontend", "recommendation"),
+    ("recommendation", "product-catalog"), ("cart", "flagd"), ("ad", "flagd"),
+    ("fraud-detection", "flagd"), ("product-reviews", "flagd"), ("recommendation", "flagd"),
+    ("load-generator", "flagd"), ("load-generator", "frontend-proxy"),
+}
+
+# The three application services absent from the snapshot. For each one with no spans, the last
+# five lines of its log are printed, so that a request served without a span can be told apart
+# from no request at all.
+READ_LOGS = {"llm", "image-provider", "flagd-ui"}
+
+KINDS = {1: "INTERNAL", 2: "SERVER", 3: "CLIENT", 4: "PRODUCER", 5: "CONSUMER"}
+
+
+def get(path, params=None):
+    url = TEMPO + path + ("?" + urllib.parse.urlencode(params) if params else "")
+    with urllib.request.urlopen(url, timeout=60) as r:
+        return json.load(r)
+
+
+def value(v):
+    return str(next(iter((v or {}).values()), ""))
+
+
+def attrs(items):
+    return {x.get("key"): value(x.get("value")) for x in items or []}
+
+
+def kind(k):
+    if isinstance(k, int):
+        return KINDS.get(k, str(k))
+    return str(k or "").replace("SPAN_KIND_", "") or "UNSPECIFIED"
+
+
+def spans(trace_id):
+    t = get("/api/traces/" + trace_id)
+    out = {}
+    for g in t.get("batches") or t.get("resourceSpans") or []:
+        svc = attrs((g.get("resource") or {}).get("attributes")).get("service.name", "?")
+        for ss in g.get("scopeSpans") or g.get("instrumentationLibrarySpans") or []:
+            for s in ss.get("spans") or []:
+                out[s.get("spanId")] = {
+                    "svc": svc, "kind": kind(s.get("kind")), "name": s.get("name"),
+                    "parent": s.get("parentSpanId") or "", "trace": s.get("traceId") or "",
+                    "attrs": attrs(s.get("attributes")), "links": s.get("links") or [],
+                }
+    return out
+
+
+def sh(cmd):
+    r = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+    return (r.stdout + r.stderr).strip()
+
+
+def main():
+    now = int(time.time())
+    print("v2 graph presence, at %s UTC, window %d s" % (time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(now)), WINDOW))
+
+    print("\n=== A. spans per service, last hour (up to %d traces) ===" % SEARCH_LIMIT)
+    found = {}
+    for name in V2:
+        try:
+            traces = get("/api/search", {"q": '{ resource.service.name = "%s" }' % name,
+                                         "start": str(now - WINDOW), "end": str(now),
+                                         "limit": str(SEARCH_LIMIT)}).get("traces") or []
+        except Exception as exc:  # report and go on: one failed search is not the probe
+            print("  %-16s search failed: %s" % (name, exc))
+            continue
+        found[name] = [t["traceID"] for t in traces]
+        line = "  %-16s traces %2d" % (name, len(traces))
+        if not traces:
+            state = sh("docker inspect -f '{{.State.Status}} started {{.State.StartedAt}}' %s" % name)
+            lines = sh("docker logs --since 1h %s 2>&1 | wc -l" % name)
+            line += "   container: %s   log lines in the hour: %s" % (state, lines)
+        print(line)
+        if not traces and name in READ_LOGS:
+            for text in sh("docker logs --since 1h %s 2>&1 | tail -n 5" % name).splitlines():
+                print("      | %s" % text[:200])
+
+    print("\n=== B. cross-service parent -> child pairs in the fetched traces ===")
+    edges = collections.Counter()
+    orphans = collections.Counter()
+    clients = collections.Counter()
+    messaging = collections.Counter()
+    seen = set()
+    for name, ids in found.items():
+        for tid in ids[:TRACES_PER_SERVICE]:
+            if tid in seen:
+                continue
+            seen.add(tid)
+            try:
+                sp = spans(tid)
+            except Exception as exc:
+                print("  trace %s fetch failed: %s" % (tid[:16], exc))
+                continue
+            for s in sp.values():
+                a = s["attrs"]
+                if s["parent"]:
+                    if s["parent"] in sp:
+                        p = sp[s["parent"]]["svc"]
+                        if p != s["svc"]:
+                            edges[(p, s["svc"])] += 1
+                        parent_svc = p
+                    else:
+                        orphans[s["svc"]] += 1
+                        parent_svc = "(parent not in trace)"
+                else:
+                    parent_svc = "(root)"
+                if s["kind"] == "CLIENT":
+                    target = (a.get("db.system") or a.get("db.system.name") or "",
+                              a.get("server.address") or a.get("net.peer.name") or "",
+                              a.get("peer.service") or "")
+                    clients[(s["svc"],) + target] += 1
+                if s["kind"] in ("PRODUCER", "CONSUMER"):
+                    same = sum(1 for link in s["links"] if link.get("traceId") == s["trace"])
+                    messaging[(s["svc"], s["kind"], a.get("messaging.system", ""),
+                               a.get("messaging.destination.name", ""), parent_svc,
+                               len(s["links"]), same)] += 1
+    print("  %d traces fetched" % len(seen))
+    for (p, c), n in sorted(edges.items(), key=lambda kv: (-kv[1], kv[0])):
+        print("  %6d  %-16s -> %-16s %s" % (n, p, c, "in snapshot" if (p, c) in SNAPSHOT_EDGES else "NOT IN SNAPSHOT"))
+    missing = sorted(SNAPSHOT_EDGES - set(edges))
+    print("  snapshot edges not seen in these traces: %s" % (", ".join("%s->%s" % e for e in missing) or "none"))
+    print("  spans whose parent is not in their trace, by service: %s" % (dict(sorted(orphans.items())) or "none"))
+
+    print("\n=== C1. client spans: service, db.system, server.address, peer.service ===")
+    for (svc, db, addr, peer), n in sorted(clients.items(), key=lambda kv: (kv[0][0], -kv[1])):
+        print("  %6d  %-16s db=%-12s addr=%-24s peer=%s" % (n, svc, db or "-", addr or "-", peer or "-"))
+
+    print("\n=== C2. producer and consumer spans ===")
+    for (svc, k, system, dest, parent, links, same), n in sorted(messaging.items()):
+        print("  %6d  %-16s %-8s system=%-6s dest=%-10s parent=%-22s links=%d (same trace %d)" % (
+            n, svc, k, system or "-", dest or "-", parent, links, same))
+
+
+if __name__ == "__main__":
+    main()

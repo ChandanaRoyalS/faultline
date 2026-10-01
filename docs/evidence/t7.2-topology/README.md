@@ -32,3 +32,9 @@ decided when Q122 is built.
 | `q121-loadgen-restart.txt`, `q121-worldcheck-2.txt` | step 0 and the world check that passed |
 | `q121-before.txt`, `q121-restart.txt`, `q121-after.txt`, `q121-hour.txt` | quote's offset before, the restart, two minutes after (its window reached back before the restart, so 26 of its 40 pairs are pre-restart), an hour after |
 | `q121-v2-graph.txt`, `q121-v2-dependencies-{1h,24h,72h,168h}.json` | the capture an hour after the restart; **`q121-v2-dependencies-1h.json` is Q122's v2 snapshot of record** |
+
+**Q122's build** ([`PREREGISTRATION-Q122-v2-graph.md`](../../../evals/runs/PREREGISTRATION-Q122-v2-graph.md)):
+
+| file | what it is |
+|---|---|
+| `graph_presence.py.txt` | the read-only presence probe fixed by the registration: which of v2's 32 services Tempo holds spans for, the cross-service pairs in up to ten traces per service checked against the snapshot of record, and the datastore, producer and consumer spans |
