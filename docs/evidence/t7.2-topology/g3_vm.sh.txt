@@ -212,7 +212,13 @@ recover)
     kubectl rollout restart deployment frontend -n "$NS"
     kubectl rollout status deployment frontend -n "$NS" --timeout=300s
     echo "frontend dnsPolicy / dnsConfig: $(kubectl -n "$NS" get deploy frontend -o jsonpath='{.spec.template.spec.dnsPolicy} {.spec.template.spec.dnsConfig}')"
-    echo "frontend pod resolv.conf:"; kubectl -n "$NS" exec deploy/frontend -- cat /etc/resolv.conf 2>&1 | sed 's/^/  /'
+    # Addendum 1: the image has no `cat`. SREGym's own check reads each pod's spec, so that is read;
+    # and the file itself through the image's node.
+    echo "frontend pods, as SREGym checks them (name, dnsPolicy, dnsConfig nameservers):"
+    kubectl -n "$NS" get pods --no-headers -o custom-columns=NAME:.metadata.name,POLICY:.spec.dnsPolicy,NAMESERVERS:.spec.dnsConfig.nameservers \
+        | awk '$1 ~ /^frontend-/ && $1 !~ /^frontend-proxy-/' | sed 's/^/  /'
+    echo "frontend pod resolv.conf:"
+    kubectl -n "$NS" exec deploy/frontend -- node -e "process.stdout.write(require('fs').readFileSync('/etc/resolv.conf','utf8'))" 2>&1 | sed 's/^/  /'
     echo "pods in $NS not Running or not ready:"
     kubectl -n "$NS" get pods --no-headers | awk '$3 != "Running" || split($2, r, "/") && r[1] != r[2]' | sed 's/^/  /'
     echo "(end)"

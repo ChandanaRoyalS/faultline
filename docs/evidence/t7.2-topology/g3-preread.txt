@@ -1,0 +1,41 @@
+g3 pre-read at 2026-10-01 23:11:26 UTC on ubuntu, kernel 6.8.0-142-generic, up 1 day, 14 hours, 4 minutes
+== reboot pending: no
+== tools on a login PATH
+  uv       /home/deploy/.local/bin/uv
+  helm     absent
+  kind     absent
+  kubectl  absent
+  python3  /usr/bin/python3
+  git      /usr/bin/git
+== home paths (present or absent now)
+  /home/deploy/cache_dir                   absent
+  /home/deploy/.kube                       absent
+  /home/deploy/.config/helm                absent
+  /home/deploy/.cache/helm                 absent
+  /home/deploy/.local/share/helm           absent
+  /home/deploy/t7.2-1c                     absent
+== ports (SREGym's API 8000, MCP 9954, k8s proxy 16443; this run's Jaeger forward 26686)
+  8000   free
+  9954   free
+  16443  free
+  26686  free
+== firewall rules for 8000 and 9954 now
+  (not readable without a password; read in host-on)
+== memory, load, disk
+                 total        used        free      shared  buff/cache   available
+  Mem:           15936        3863        9887          48        2565       12072
+  Swap:              0           0           0
+  load: 0.54 0.41 0.32 1/1770 138263
+  Filesystem      Size  Used Avail Use% Mounted on
+  /dev/vda1       464G   40G  425G   9% /
+== containers: 35 running; kind nodes: 0; kind network: 0
+== firing alerts on the world (Alertmanager :9093)
+  0: none
+== Docker Hub anonymous pull allowance for this address (HEAD, uses none)
+  ratelimit-limit: 100;w=3600
+  ratelimit-remaining: 100;w=3600
+== the kill switch now
+  387:      FAULTLINE_EXECUTOR_KILL_SWITCH: "0"
+{"status":"ok","kill_switch":false}
+== git status of ~/faultline (empty means committed configuration)
+  (end)

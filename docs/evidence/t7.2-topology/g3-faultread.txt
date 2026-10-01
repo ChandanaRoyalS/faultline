@@ -1,0 +1,14 @@
+waiting 300s, to five minutes after the deploy exited
+fault read at 2026-10-01 23:46:22 UTC, 300s after the deploy exited
+frontend dnsPolicy / dnsConfig: None {"nameservers":["8.8.8.8"]}
+frontend pod resolv.conf:
+  error: Internal error occurred: Internal error occurred: error executing command in container: failed to exec in container: failed to start exec "a15f991adb332e2861029c9de10fa4624dd004a0f564fc1fde885285844f7869": OCI runtime exec failed: exec failed: unable to start container process: exec: "cat": executable file not found in $PATH
+services: {"data":["product-catalog","flagd","image-provider","quote","checkout","currency","email","recommendation","fraud-detection","frontend","shipping","load-generator","accounting","payment","frontend-proxy","cart","ad","product-reviews"],"total":18,"limit":0,"offset":0,"errors":null}
+GET http://127.0.0.1:26686/api/dependencies?endTs=1790898385000&lookback=303000
+  -> HTTP 200, application/json, 173 bytes
+  JSON: yes
+  2 entries: 2 cross-service, 0 self-edges; 4 services
+        604  load-generator     -> frontend-proxy
+         10  cart               -> flagd
+  services: cart, flagd, frontend-proxy, load-generator
+port 26686: closed

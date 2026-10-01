@@ -219,3 +219,41 @@ record's 22, self-edges aside:
   The VM's address is withheld, as in 1b and 1c.
 - **The design note's item 3** records the outcome. On DIFFERENT, a Q-row is opened for loading
   by application.
+
+## Addendum 1, 2026-10-01 - before the recovery: the image has no `cat`
+
+**Steps 1 to 8 ran as registered** (captures `g3-preread.txt` to `g3-faultread.txt`):
+
+- **Step 1** (23:11). The gate passed in full.
+- **Steps 2 to 5** (23:12-23:14).
+  - The kill switch is `true`, both firewall rules are listed, and inotify is raised.
+  - The three tools checked `OK`; SREGym and its submodules are at 1c's commits.
+  - Four nodes are `Ready`, and `~/.kube/config` is identical to the run's kubeconfig.
+- **Step 6.** At 23:38:55 the watcher found 9954 on `0.0.0.0` and 8000 on `127.0.0.1`. **Both
+  answered `000` from outside.**
+- **Step 7** (23:35:37-23:41:22, **5m45s**). Exit 0, with `Fault injected` at 23:41:21.
+- **Step 8** (23:46:22, 300 s after the exit). The deployment reads `dnsPolicy: None` with
+  `8.8.8.8`. The read of the pod's `resolv.conf` failed: **frontend's image has no `cat`**
+  (`exec: "cat": executable file not found`).
+
+**What that changes.** Step 9's pass condition includes *"its pod's `resolv.conf` names no
+`8.8.8.8`"*, and the registered command could not read it. `recover` now reads it two other ways,
+and nothing else in the run changes:
+
+- **What SREGym's own check reads.** `_wait_for_dns_policy_propagation` reads each pod's spec
+  (`spec.dnsConfig.nameservers`), so `recover` prints each frontend pod's `dnsPolicy` and
+  nameservers.
+- **The file itself**, through the image's own `node`.
+
+**Step 9 passes when** the pods' specs show `ClusterFirst` and no `8.8.8.8`, and the file, if
+`node` can read it, names no `8.8.8.8`. If `node` cannot read it either, that is recorded, and the
+spec decides, as it does for SREGym. Every other condition stands.
+
+**The fault read is not a result until the capture** gives question 2 its comparison. It is
+recorded here only as read:
+
+- 2 edges over the 303 s since the deploy exited: `load-generator → frontend-proxy` (604) and
+  `cart → flagd` (10);
+- no edge touching `frontend`, and no order path.
+
+`g3_vm.sh.txt` is replaced by the amended script. Its only change is these lines of `recover`.

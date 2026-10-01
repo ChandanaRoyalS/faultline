@@ -4617,6 +4617,17 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-10-01: T7.2 topology item 3, Addendum 1 - before the recovery: the image has no `cat`.***
+
+- **Steps 1-8 ran as registered.**
+  - The gate passed.
+  - The deploy took 5m45s and exited 0 with `Fault injected`.
+  - Both ports answered `000` from outside.
+- **The fault read** shows `frontend`'s deployment set as the fault sets it, but the pod's
+  `resolv.conf` could not be read: the image has no `cat`.
+- **The change**: `recover` now reads what SREGym's own check reads (each pod's spec), and the
+  file through the image's `node`. Nothing else changes.
+
 ***2026-10-01: T7.2 topology item 3 registered - astronomy-shop's graph under SREGym, against
 v2's.***
 
