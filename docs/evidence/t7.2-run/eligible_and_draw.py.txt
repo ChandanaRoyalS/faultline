@@ -1,0 +1,42 @@
+"""Read-only: the T7.2 run's eligible problems from problems.csv, and the dev draw.
+Eligible = the three applications Faultline has a snapshot for, less the problems SREGym
+cannot run on kind (Khaos-based, or listed as needing a real cluster)."""
+import csv, random
+APPS = {"OpenTelemetry Demo Astronomy Shop": "sregym-astronomy-shop",
+        "Hotel Reservation": "sregym-hotel-reservation",
+        "Social Network": "sregym-social-network"}
+NOT_ON_KIND = {"node_clock_drift_hotel_reservation", "silent_data_corruption", "latent_sector_error"}
+APP_BY_NAME = {"taint_no_toleration_social_network": "Social Network"}  # needs a cluster to instantiate
+SEED = 20261002
+rows = list(csv.DictReader(open("problems.csv")))
+eligible = {a: [] for a in APPS}
+for r in rows:
+    app = r["app"] or APP_BY_NAME.get(r["problem"], "")
+    if app in APPS and r["problem"] not in NOT_ON_KIND:
+        eligible[app].append(r["problem"])
+rng = random.Random(SEED)
+total = 0
+for app, probs in eligible.items():
+    probs.sort()
+    dev = rng.choice(probs)
+    total += len(probs)
+    print(f"{APPS[app]}: {len(probs)} eligible, dev draw: {dev}, scored: {len(probs) - 1}")
+    for p in probs:
+        print(f"  {'DEV ' if p == dev else '    '}{p}")
+print(f"total eligible {total}, scored {total - 3}, seed {SEED}")
+
+# The table the run is registered against: one row per eligible problem.
+FAMILY = dict(line.rstrip("\n").split("\t") for line in open("families.tsv"))
+LITE = {r["problem"] for r in rows if r["lite"] == "True"}
+NEAR_ACCOUNTING = {"kafka_producer_leak", "kafka_queue_problems", "kafka_poison_pill_hol_block",
+                   "secret_rotation_stale_env_credentials_astronomy_shop"}  # Q126's flag
+DEV = set()
+rng = random.Random(SEED)
+for app, probs in eligible.items():
+    DEV.add(rng.choice(probs))
+with open("run-table.tsv", "w") as f:
+    f.write("application\tproblem\tfamily\tsplit\tlite\tq126_flag\n")
+    for app, probs in eligible.items():
+        for p in probs:
+            f.write(f"{APPS[app]}\t{p}\t{FAMILY[p]}\t{'dev' if p in DEV else 'scored'}\t"
+                    f"{'yes' if p in LITE else 'no'}\t{'yes' if p in NEAR_ACCOUNTING else 'no'}\n")

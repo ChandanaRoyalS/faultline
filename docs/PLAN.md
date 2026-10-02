@@ -4617,6 +4617,27 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-10-02: T7.2 scoping step 6 - the SREGym run registered: 108 problems, R = 3, paired
+against Claude Code with Sonnet 4.6, per application, diagnosis only.***
+
+- **The owner's eight decisions** are in
+  [`PREREGISTRATION-T7.2-run.md`](../evals/runs/PREREGISTRATION-T7.2-run.md):
+  - the problems, the baseline and the grader (Claude Sonnet 4.6, as SREGym's paper);
+  - Q126 and Q127, both as shipped and stated;
+  - the verdict rendering, frozen as a template;
+  - Kubernetes state, through Faultline's own `changes` tool;
+  - three dev problems by seed (`20261002`), never scored.
+- **Found registering it**, and now clauses in the registration:
+  - Faultline reads no Kubernetes object state, which every other SREGym agent does;
+  - SREGym hands the agent no alert, so triage has nothing to seed from;
+  - SREGym's paper describes traces as available, which this repository measured as false for
+    both DeathStarBench applications at this commit.
+- **Corrected**: Q128's entry below says step 6 first needs decisions on Q121, Q123 and Q124. It
+  does not: all three concern Faultline's own v2 world, which the run does not use.
+- **Not yet priced by measurement.** The registration's ranges are unmeasured. The dev pilot
+  measures them, and the owner's go follows it. Evidence: `docs/evidence/t7.2-run/`. $0.
+- **Next**: the adapter build, registered before it is coded.
+
 ***2026-10-02: Q128 landed - every application T7.2 runs has a snapshot Faultline loads.***
 
 - **The two new applications.** `FAULTLINE_CONTEXT_APPLICATION=sregym-hotel-reservation` or

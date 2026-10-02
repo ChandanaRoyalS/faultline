@@ -1,0 +1,20 @@
+"""Read-only: instantiate every registered SREGym problem and report its application,
+its diagnosis and mitigation oracles, and whether it is in SREGym-Lite. No cluster is touched."""
+import csv, sys, traceback
+from sregym.conductor.problems.registry import ProblemRegistry
+from sregym.conductor.problem_sets import SREGYM_LITE_PROBLEMS
+
+reg = ProblemRegistry()
+w = csv.writer(sys.stdout, lineterminator="\n")
+w.writerow(["problem", "app", "diagnosis_oracle", "mitigation_oracle", "lite", "emulated_ok", "error"])
+for pid, ctor in reg.PROBLEM_REGISTRY.items():
+    lite = pid in SREGYM_LITE_PROBLEMS
+    emu = pid not in reg.non_emulated_cluster_problems
+    try:
+        p = ctor()
+        app = getattr(getattr(p, "app", None), "app_name", None) or getattr(p, "app_name", "")
+        d = type(getattr(p, "diagnosis_oracle", None)).__name__
+        m = type(getattr(p, "mitigation_oracle", None)).__name__
+        w.writerow([pid, app, d, m, lite, emu, ""])
+    except Exception as e:
+        w.writerow([pid, "", "", "", lite, emu, f"{type(e).__name__}: {str(e)[:120]}"])
