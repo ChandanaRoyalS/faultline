@@ -4617,6 +4617,25 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-10-02: T7.2 topology item 4, Social Network - captured: 8 edges over 6 services; both
+DeathStarBench graphs taken.***
+
+- **The graph.** The 30-minute reply is the snapshot of record, by the registered rule. Its edges
+  run from `nginx-web-server` to both timelines and to compose-post, then to `post-storage` and
+  `social-graph`.
+- **Six write-path services trace and join no edge**, so the prediction of 12 to 18 edges was
+  wrong. The store reached about 40 minutes, not an hour.
+- **Question 2: INCONCLUSIVE.** The same tracing gap as Hotel Reservation's, and Q127 now covers
+  both applications.
+- **Departures**:
+  - the teardown ran twice (12:52, 15:54), and the first chain's outputs are lost, its timing taken
+    from the sudo log;
+  - `media-frontend` served no traffic, so the gate was read as "served traffic", by the owner's
+    decision.
+- **A false alarm of mine**, corrected. The firewall rules were removed by the first teardown, not
+  by anything unknown. ufw's default-deny drops 9954 anyway, and 1c's "rules held" is annotated.
+- **Next**: Q128, loading the two DeathStarBench snapshots.
+
 ***2026-10-02: T7.2 topology item 4, Hotel Reservation - captured: 7 edges over 8 services, from
 five minutes.***
 

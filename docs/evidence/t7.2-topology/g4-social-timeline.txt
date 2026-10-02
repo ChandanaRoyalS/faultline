@@ -1,0 +1,17 @@
+== sudo commands today touching the run or the firewall
+deploy : PWD=/home/deploy ; USER=root ; COMMAND=/usr/sbin/iptables -S INPUT
+deploy : TTY=pts/0 ; PWD=/home/deploy ; USER=root ; COMMAND=/usr/bin/bash /tmp/g4_vm.sh hotel host-on
+deploy : TTY=pts/0 ; PWD=/home/deploy ; USER=root ; COMMAND=/usr/bin/bash /tmp/g4_vm.sh hotel host-off
+deploy : PWD=/home/deploy ; USER=root ; COMMAND=/usr/sbin/iptables -S INPUT
+deploy : TTY=pts/0 ; PWD=/home/deploy ; USER=root ; COMMAND=/usr/bin/bash /tmp/g4_vm.sh social host-on
+deploy : TTY=pts/0 ; PWD=/home/deploy ; USER=root ; COMMAND=/usr/bin/bash /tmp/g4_vm.sh social host-off
+deploy : TTY=pts/0 ; PWD=/home/deploy ; USER=root ; COMMAND=/usr/bin/bash /tmp/g4_vm.sh social host-off
+deploy : TTY=pts/0 ; PWD=/home/deploy ; USER=root ; COMMAND=/usr/sbin/iptables -S INPUT
+deploy : TTY=pts/0 ; PWD=/home/deploy ; USER=root ; COMMAND=/usr/sbin/ufw status verbose
+== executor last started
+2026-10-02T12:52:34.195360227Z
+== docker daemon log since 12:00 about kind
+== /tmp now
+ls: cannot access '/tmp/g4_vm.sh': No such file or directory
+ls: cannot access '/tmp/kind_measure_1c.py': No such file or directory
+Connection to <the VM> closed.

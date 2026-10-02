@@ -1,0 +1,133 @@
+== now Fri Oct  2 15:56:22 UTC 2026
+== booted: 2026-09-30 09:06:37
+reboot   system boot  6.8.0-142-generi Wed Sep 30 09:06   still running
+shutdown system down  6.8.0-139-generi Wed Sep 30 09:06 - 09:06  (00:00)
+reboot   system boot  6.8.0-139-generi Mon Sep 21 13:24 - 09:06 (8+19:41)
+shutdown system down  6.8.0-139-generi Mon Sep 21 13:24 - 13:24  (00:00)
+== INPUT rules now
+-P INPUT DROP
+-A INPUT -j ufw-before-logging-input
+-A INPUT -j ufw-before-input
+-A INPUT -j ufw-after-input
+-A INPUT -j ufw-after-logging-input
+-A INPUT -j ufw-reject-input
+-A INPUT -j ufw-track-input
+== ufw
+Status: active
+Logging: on (low)
+Default: deny (incoming), allow (outgoing), deny (routed)
+New profiles: skip
+
+To                         Action      From
+--                         ------      ----
+22/tcp                     ALLOW IN    Anywhere                  
+80/tcp                     ALLOW IN    Anywhere                  
+443/tcp                    ALLOW IN    Anywhere                  
+8000/tcp                   ALLOW IN    172.18.0.0/16             
+22/tcp (v6)                ALLOW IN    Anywhere (v6)             
+80/tcp (v6)                ALLOW IN    Anywhere (v6)             
+443/tcp (v6)               ALLOW IN    Anywhere (v6)             
+
+== firewall-related services
+● firewalld.service                                                                                      not-found inactive dead      firewalld.service
+  ufw.service                                                                                            loaded    active   exited    Uncomplicated firewall
+== apt today
+Start-Date: 2026-10-02  06:28:49
+Commandline: /usr/bin/unattended-upgrade
+Upgrade: libxpm4:amd64 (1:3.5.17-1ubuntu0.24.04.1, 1:3.5.17-1ubuntu0.24.04.2)
+End-Date: 2026-10-02  06:28:49
+== journal since 08:15 mentioning the firewall
+Oct 02 08:18:40 ubuntu sudo[1646844]:   deploy : PWD=/home/deploy ; USER=root ; COMMAND=/usr/sbin/iptables -S INPUT
+Oct 02 08:39:27 ubuntu kernel: [UFW BLOCK] IN=ens6 OUT= MAC=02:01:b1:4c:70:34:82:01:b1:4c:70:34:08:00 SRC=89.21.67.148 DST=<the VM> LEN=40 TOS=0x00 PREC=0x00 TTL=52 ID=0 PROTO=TCP SPT=52435 DPT=8443 WINDOW=65535 RES=0x00 SYN URGP=0 
+Oct 02 09:09:01 ubuntu kernel: [UFW BLOCK] IN=ens6 OUT= MAC=02:01:b1:4c:70:34:82:01:b1:4c:70:34:08:00 SRC=18.116.8.240 DST=<the VM> LEN=40 TOS=0x00 PREC=0x00 TTL=246 ID=61409 PROTO=TCP SPT=52138 DPT=8443 WINDOW=1024 RES=0x00 SYN URGP=0 
+Oct 02 09:28:02 ubuntu kernel: [UFW BLOCK] IN=ens6 OUT= MAC=02:01:b1:4c:70:34:82:01:b1:4c:70:34:08:00 SRC=47.76.237.112 DST=<the VM> LEN=44 TOS=0x00 PREC=0x00 TTL=237 ID=57820 PROTO=TCP SPT=49186 DPT=8443 WINDOW=1025 RES=0x00 SYN URGP=0 
+Oct 02 09:28:10 ubuntu kernel: [UFW BLOCK] IN=ens6 OUT= MAC=02:01:b1:4c:70:34:82:01:b1:4c:70:34:08:00 SRC=45.79.238.194 DST=<the VM> LEN=44 TOS=0x00 PREC=0x00 TTL=236 ID=18237 PROTO=TCP SPT=53073 DPT=8443 WINDOW=1025 RES=0x00 SYN URGP=0 
+Oct 02 09:28:23 ubuntu kernel: [UFW BLOCK] IN=ens6 OUT= MAC=02:01:b1:4c:70:34:82:01:b1:4c:70:34:08:00 SRC=169.58.78.95 DST=<the VM> LEN=40 TOS=0x00 PREC=0x00 TTL=239 ID=12445 PROTO=TCP SPT=53281 DPT=8443 WINDOW=1024 RES=0x00 SYN URGP=0 
+Oct 02 09:31:21 ubuntu kernel: [UFW BLOCK] IN=ens6 OUT= MAC=02:01:b1:4c:70:34:82:01:b1:4c:70:34:08:00 SRC=207.175.50.61 DST=<the VM> LEN=44 TOS=0x00 PREC=0x00 TTL=247 ID=27703 PROTO=TCP SPT=46913 DPT=8443 WINDOW=1025 RES=0x00 SYN URGP=0 
+Oct 02 09:31:22 ubuntu kernel: [UFW BLOCK] IN=ens6 OUT= MAC=02:01:b1:4c:70:34:82:01:b1:4c:70:34:08:00 SRC=207.175.50.61 DST=<the VM> LEN=44 TOS=0x00 PREC=0x00 TTL=247 ID=13820 PROTO=TCP SPT=46897 DPT=8443 WINDOW=1025 RES=0x00 SYN URGP=0 
+Oct 02 09:31:23 ubuntu kernel: [UFW BLOCK] IN=ens6 OUT= MAC=02:01:b1:4c:70:34:82:01:b1:4c:70:34:08:00 SRC=207.175.50.61 DST=<the VM> LEN=44 TOS=0x00 PREC=0x00 TTL=247 ID=13820 PROTO=TCP SPT=46897 DPT=8443 WINDOW=1025 RES=0x00 SYN URGP=0 
+Oct 02 09:49:18 ubuntu kernel: [UFW BLOCK] IN=ens6 OUT= MAC=02:01:b1:4c:70:34:82:01:b1:4c:70:34:08:00 SRC=66.132.186.239 DST=<the VM> LEN=60 TOS=0x00 PREC=0x00 TTL=53 ID=34160 PROTO=TCP SPT=32758 DPT=8443 WINDOW=42340 RES=0x00 SYN URGP=0 
+Oct 02 10:04:22 ubuntu kernel: [UFW BLOCK] IN=ens6 OUT= MAC=02:01:b1:4c:70:34:82:01:b1:4c:70:34:08:00 SRC=79.124.58.162 DST=<the VM> LEN=40 TOS=0x00 PREC=0x00 TTL=240 ID=780 PROTO=TCP SPT=54085 DPT=8443 WINDOW=1024 RES=0x00 SYN URGP=0 
+Oct 02 10:15:03 ubuntu kernel: [UFW BLOCK] IN=ens6 OUT= MAC=02:01:b1:4c:70:34:82:01:b1:4c:70:34:08:00 SRC=34.38.252.246 DST=<the VM> LEN=44 TOS=0x00 PREC=0x00 TTL=247 ID=25821 PROTO=TCP SPT=47043 DPT=8443 WINDOW=1025 RES=0x00 SYN URGP=0 
+Oct 02 10:15:05 ubuntu kernel: [UFW BLOCK] IN=ens6 OUT= MAC=02:01:b1:4c:70:34:82:01:b1:4c:70:34:08:00 SRC=34.38.252.246 DST=<the VM> LEN=44 TOS=0x00 PREC=0x00 TTL=247 ID=25821 PROTO=TCP SPT=47043 DPT=8443 WINDOW=1025 RES=0x00 SYN URGP=0 
+Oct 02 10:15:25 ubuntu kernel: [UFW BLOCK] IN=ens6 OUT= MAC=02:01:b1:4c:70:34:82:01:b1:4c:70:34:08:00 SRC=5.188.206.66 DST=<the VM> LEN=40 TOS=0x00 PREC=0x00 TTL=239 ID=51623 PROTO=TCP SPT=52180 DPT=8443 WINDOW=1024 RES=0x00 SYN URGP=0 
+Oct 02 10:27:14 ubuntu kernel: [UFW BLOCK] IN=ens6 OUT= MAC=02:01:b1:4c:70:34:82:01:b1:4c:70:34:08:00 SRC=78.128.112.215 DST=<the VM> LEN=40 TOS=0x00 PREC=0x00 TTL=239 ID=34600 PROTO=TCP SPT=55807 DPT=8443 WINDOW=1024 RES=0x00 SYN URGP=0 
+Oct 02 10:36:26 ubuntu kernel: [UFW BLOCK] IN=ens6 OUT= MAC=02:01:b1:4c:70:34:82:01:b1:4c:70:34:08:00 SRC=18.217.208.51 DST=<the VM> LEN=52 TOS=0x00 PREC=0x00 TTL=55 ID=10742 PROTO=TCP SPT=61234 DPT=8443 WINDOW=65535 RES=0x00 SYN URGP=0 
+Oct 02 11:23:53 ubuntu kernel: [UFW BLOCK] IN=ens6 OUT= MAC=02:01:b1:4c:70:34:82:01:b1:4c:70:34:08:00 SRC=79.124.56.110 DST=<the VM> LEN=40 TOS=0x00 PREC=0x00 TTL=240 ID=6256 PROTO=TCP SPT=45022 DPT=8443 WINDOW=1024 RES=0x00 SYN URGP=0 
+Oct 02 11:53:19 ubuntu kernel: [UFW BLOCK] IN=ens6 OUT= MAC=02:01:b1:4c:70:34:82:01:b1:4c:70:34:08:00 SRC=169.58.78.95 DST=<the VM> LEN=40 TOS=0x00 PREC=0x00 TTL=241 ID=4762 PROTO=TCP SPT=41875 DPT=8443 WINDOW=1024 RES=0x00 SYN URGP=0 
+Oct 02 12:25:36 ubuntu kernel: [UFW BLOCK] IN=ens6 OUT= MAC=02:01:b1:4c:70:34:82:01:b1:4c:70:34:08:00 SRC=185.224.128.16 DST=<the VM> LEN=40 TOS=0x00 PREC=0x00 TTL=241 ID=54321 PROTO=TCP SPT=44286 DPT=8443 WINDOW=65535 RES=0x00 SYN URGP=0 
+Oct 02 14:31:44 ubuntu kernel: [UFW BLOCK] IN=ens6 OUT= MAC=02:01:b1:4c:70:34:82:01:b1:4c:70:34:08:00 SRC=169.58.78.95 DST=<the VM> LEN=40 TOS=0x00 PREC=0x00 TTL=240 ID=20832 PROTO=TCP SPT=51498 DPT=8443 WINDOW=1024 RES=0x00 SYN URGP=0 
+Oct 02 14:37:56 ubuntu kernel: [UFW BLOCK] IN=ens6 OUT= MAC=02:01:b1:4c:70:34:82:01:b1:4c:70:34:08:00 SRC=176.32.193.16 DST=<the VM> LEN=40 TOS=0x00 PREC=0x00 TTL=238 ID=63025 PROTO=TCP SPT=60021 DPT=8443 WINDOW=1024 RES=0x00 SYN URGP=0 
+Oct 02 14:38:18 ubuntu kernel: [UFW BLOCK] IN=ens6 OUT= MAC=02:01:b1:4c:70:34:82:01:b1:4c:70:34:08:00 SRC=185.136.15.90 DST=<the VM> LEN=40 TOS=0x00 PREC=0x00 TTL=243 ID=9053 PROTO=TCP SPT=46702 DPT=8443 WINDOW=1024 RES=0x00 SYN URGP=0 
+Oct 02 15:31:15 ubuntu kernel: [UFW BLOCK] IN=ens6 OUT= MAC=02:01:b1:4c:70:34:82:01:b1:4c:70:34:08:00 SRC=172.237.155.29 DST=<the VM> LEN=52 TOS=0x00 PREC=0x00 TTL=52 ID=64113 PROTO=TCP SPT=40244 DPT=8443 WINDOW=65535 RES=0x00 SYN URGP=0 
+Oct 02 15:36:37 ubuntu kernel: [UFW BLOCK] IN=ens6 OUT= MAC=02:01:b1:4c:70:34:82:01:b1:4c:70:34:08:00 SRC=78.128.112.215 DST=<the VM> LEN=40 TOS=0x00 PREC=0x00 TTL=239 ID=3081 PROTO=TCP SPT=54649 DPT=8443 WINDOW=1024 RES=0x00 SYN URGP=0 
+Oct 02 15:56:22 ubuntu sudo[3560077]:   deploy : TTY=pts/0 ; PWD=/home/deploy ; USER=root ; COMMAND=/usr/sbin/iptables -S INPUT
+Oct 02 15:56:22 ubuntu sudo[3560081]:   deploy : TTY=pts/0 ; PWD=/home/deploy ; USER=root ; COMMAND=/usr/sbin/ufw status verbose
+== listening now
+0.0.0.0:10000
+0.0.0.0:22
+0.0.0.0:3000
+0.0.0.0:3100
+0.0.0.0:3200
+0.0.0.0:32768
+0.0.0.0:32770
+0.0.0.0:32771
+0.0.0.0:32772
+0.0.0.0:32773
+0.0.0.0:32775
+0.0.0.0:32776
+0.0.0.0:32777
+0.0.0.0:32778
+0.0.0.0:32779
+0.0.0.0:32780
+0.0.0.0:32782
+0.0.0.0:32783
+0.0.0.0:32784
+0.0.0.0:32785
+0.0.0.0:32786
+0.0.0.0:32787
+0.0.0.0:32788
+0.0.0.0:32794
+0.0.0.0:32796
+0.0.0.0:32797
+0.0.0.0:4318
+0.0.0.0:443
+0.0.0.0:80
+0.0.0.0:8080
+0.0.0.0:9090
+0.0.0.0:9093
+127.0.0.53%lo:53
+127.0.0.54:53
+[::]:10000
+[::]:22
+[::]:3000
+[::]:3100
+[::]:3200
+[::]:32768
+[::]:32770
+[::]:32771
+[::]:32772
+[::]:32773
+[::]:32775
+[::]:32776
+[::]:32777
+[::]:32778
+[::]:32779
+[::]:32780
+[::]:32782
+[::]:32783
+[::]:32784
+[::]:32785
+[::]:32786
+[::]:32787
+[::]:32788
+[::]:32794
+[::]:32796
+[::]:32797
+[::]:4318
+[::]:443
+[::]:80
+[::]:8080
+[::]:9090
+[::]:9093
+Connection to <the VM> closed.

@@ -35,7 +35,7 @@ the reference for the 35 and for the alerts.
 | alerts | none not firing at P1's end | **none**: 0 at P1's end, at P2's start, in all 21 samples and at its end |
 | memory PSI `some` avg60, max | < 5 | **0.00** |
 | load1, max | < 8 | **2.13** |
-| the ports, from outside, while 9954 was served | both fail | **`000` and `000`**. At 06:44:30 the VM showed `127.0.0.1:8000`, from `API_BIND_HOST`, and `0.0.0.0:9954`, from the hard-coded port-forward, as read at source. The firewall rules held |
+| the ports, from outside, while 9954 was served | both fail | **`000` and `000`**. At 06:44:30 the VM showed `127.0.0.1:8000`, from `API_BIND_HOST`, and `0.0.0.0:9954`, from the hard-coded port-forward, as read at source. The firewall rules held. **Note, 2026-10-02** ([item 4's Social Network RESULT](../T7.2-graph4-social/RESULT.md)): ufw's default-deny `INPUT` policy also drops both ports, so `000` tested ufw and the rules together, never the rules alone |
 
 The stop rule never fired. The lowest sample was 5.83 GiB, against its 1.0 GiB floor.
 
