@@ -4617,6 +4617,19 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-10-02: Q125's build registered - the dependency snapshot loaded by application.***
+
+- **Decided by the owner.**
+  - A new `ContextSettings.application` (unset means by world, as now), with one entry,
+    `sregym-astronomy-shop` → `g3-deps-60m.json` in v2's names.
+  - v2's absent-service reasons reused, checked against SREGym's service list, with what was not
+    checked said so.
+- **A process world that differs from the application's is an error**, not a silent mix of names.
+- **Predicted**: the application's graph equals v2's loaded graph, nothing moves with it unset,
+  and both stamps hold.
+- **Noticed**: `hop_radius`'s docstring quotes v1's figures alone. Radius 2 declines 39 % of v2's
+  pairs, against v1's 28 %, so the v2 row is added.
+
 ***2026-10-02: T7.2 topology item 3 - DIFFERENT by one edge; SREGym's live graph loses
 everything around the fault.***
 
