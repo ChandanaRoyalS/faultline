@@ -327,8 +327,8 @@ cleanup)
 incidents)
     cd ~/faultline/deploy || exit 1
     docker compose exec -T postgres psql -U faultline faultline \
-        -c "select id, state, opened_at from incidents where opened_at > now() - interval '${2:-6} hours' order by opened_at" < /dev/null
-    echo "rows above: incidents in the last ${2:-6} hours (none if empty)"
+        -c "select id, state, opened_at from incidents where opened_at > now() - interval '${3:-6} hours' order by opened_at" < /dev/null
+    echo "rows above: incidents in the last ${3:-6} hours (none if empty)"
     ;;
 
 *)

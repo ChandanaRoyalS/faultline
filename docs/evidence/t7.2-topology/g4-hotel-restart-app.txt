@@ -1,0 +1,28 @@
+restart at 2026-10-02 02:55:05 UTC
+restarting: frontend geo profile rate recommendation reservation search user
+deployment.apps/frontend restarted
+deployment.apps/geo restarted
+deployment.apps/profile restarted
+deployment.apps/rate restarted
+deployment.apps/recommendation restarted
+deployment.apps/reservation restarted
+deployment.apps/search restarted
+deployment.apps/user restarted
+Waiting for deployment "frontend" rollout to finish: 1 old replicas are pending termination...
+Waiting for deployment "frontend" rollout to finish: 1 old replicas are pending termination...
+deployment "frontend" successfully rolled out
+Waiting for deployment "geo" rollout to finish: 1 old replicas are pending termination...
+Waiting for deployment "geo" rollout to finish: 1 old replicas are pending termination...
+deployment "geo" successfully rolled out
+deployment "profile" successfully rolled out
+Waiting for deployment "rate" rollout to finish: 1 old replicas are pending termination...
+deployment "rate" successfully rolled out
+deployment "recommendation" successfully rolled out
+deployment "reservation" successfully rolled out
+deployment "search" successfully rolled out
+Waiting for deployment "user" rollout to finish: 1 old replicas are pending termination...
+Waiting for deployment "user" rollout to finish: 1 old replicas are pending termination...
+deployment "user" successfully rolled out
+Jaeger services at 2026-10-02 02:56:09 UTC: {"data":["reservation","user","profile","geo","recommendation","search","jaeger-all-in-one","frontend","rate"],"total":9,"limit":0,"offset":0,"errors":null}
+pods in hotel-reservation not Running or not ready:
+(end)
