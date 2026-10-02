@@ -4617,6 +4617,19 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-10-02: T7.2 adapter stage 0 - PASS: Faultline runs in SREGym's hardened agent container,
+its database outside it.***
+
+- **On the second run, under Addendum 1, all six checks went as predicted.**
+  [RESULT](../evals/attempts/T7.2-adapter-stage0/RESULT.md).
+  - Faultline installs in about a minute, and its embedding model runs.
+  - The model API is reachable.
+  - Postgres with pgvector answers through SREGym's own egress proxy: 50 round trips in 61 ms.
+- **What the first run's failure taught**: the run needs docker0-only firewall rules for SREGym's
+  API, its MCP server and the benchmark database, registered with the pilot.
+- **The VM is as it was.** $0.
+- **Next**: the adapter build, as registered.
+
 ***2026-10-02: T7.2 adapter stage 0, Addendum 1 - five of six checks pass; the database check
 failed on a firewall drop the registration said could not happen.***
 

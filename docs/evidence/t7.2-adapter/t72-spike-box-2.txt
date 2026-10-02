@@ -1,0 +1,29 @@
+box at 2026-10-02 23:49:37 UTC
+key-like variables in env: 0
+image: ghcr.io/sregym/agent-base:sha-b97d6810e994bb7354b4bc15c6bc81cb66e816b9@sha256:92e8b52af763c6e165144d314ec25b1ad3ba0e0f1b0a28ffa4a1760e92ec6b61
+filtered: True; hardened: True
+inside at 2026-10-02 23:49:40 UTC, uid=0(root) gid=0(root) groups=0(root), Python 3.12.13
+CapEff:	0000000000000002
+CapBnd:	0000000000000002
+NoNewPrivs:	1
+proxy set: yes; CA bundle: /etc/evaluation-egress/ca-certificates.crt
+key-like variables in env: 0
+A apt-get update rc=100 in 0s (last line: E: Sub-process http returned an error code (112))
+B pip install rc=0 in 64s; faultline 0.0.1
+  site-packages: 1.8G	/usr/local/lib/python3.12/dist-packages
+C embedding model rc=0 in 13s (dims=384)
+D api.anthropic.com/v1/models -> 401
+E postgres through the proxy rc=0 in 0s
+  PostgreSQL 16.15 (Debian 16.15-1.pgdg12+2) on x86_64-pc-linux-gnu
+  vector distance: 1.0
+  50 round trips: 61 ms
+  tunnel: tunnel: 127.0.0.1:15432 -> host.docker.internal:55432
+  tunnel: tunnel: proxy answered 'HTTP/1.1 200 Connection established'
+F http://host.docker.internal:55480/ -> 200
+inside done at 2026-10-02 23:50:59 UTC
+
+container exit 0
+requests the egress filter blocked: 0
+egress proxy and network removed
+box exit 0 at 2026-10-02 23:51:02 UTC
+left behind: none; networks: 0

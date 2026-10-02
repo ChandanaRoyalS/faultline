@@ -25,3 +25,10 @@ withheld.
 | `t72-spike-pg-up.txt` | the throwaway Postgres 16, listening on 172.17.0.1:55432 only |
 | `t72-spike-box.txt` | the first box: A to D and F as predicted, **E failed** |
 | `t72-spike-e-read.txt` | the read-only diagnosis: Docker's DNAT skips docker0, ufw logged 9 blocks on 55432 (Addendum 1) |
+| `t72-spike-e-blocks.txt` | Addendum 1: the 9 blocks, one connection from the proxy (172.17.0.3) on docker0 |
+| `t72-spike-host-on-e.txt` | Addendum 1: the rule for 55432 from docker0 |
+| `t72-spike-box-2.txt` | the second box: **all six as predicted, E passing**, 50 round trips in 61 ms |
+| `t72-spike-pg-down.txt`, `t72-spike-host-off-e.txt`, `t72-spike-host-off.txt`, `t72-spike-cleanup.txt` | the database, both rules, the directory and the two pulled images removed |
+| `t72-spike-postread.txt` | after: both ports free, 11.72 GB available, no alert, `git status` empty |
+
+The result is [`evals/attempts/T7.2-adapter-stage0/RESULT.md`](../../../evals/attempts/T7.2-adapter-stage0/RESULT.md).
