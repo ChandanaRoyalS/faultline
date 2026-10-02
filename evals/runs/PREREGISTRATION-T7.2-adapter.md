@@ -296,6 +296,9 @@ The dev pilot's registration, with the build's result: the three dev problems, R
 measuring cost, time and that every piece works, and the run's operating design, including the
 firewall for 8000 and 9954.
 
+**Stage 0: PASS on 2026-10-02, under Addendum 1**
+([RESULT](../attempts/T7.2-adapter-stage0/RESULT.md)).
+
 ## Addendum 1 - check E failed on a firewall drop that this registration said could not happen
 
 **Written 2026-10-02, after the first `box` and before anything is changed or re-run.** The
