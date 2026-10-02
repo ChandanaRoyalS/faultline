@@ -4617,6 +4617,21 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-10-02: T7.2 topology item 3 - DIFFERENT by one edge; SREGym's live graph loses
+everything around the fault.***
+
+- **Question 1: DIFFERENT, as registered.** SREGym's clean hour has 21 of v2's 22 cross-service
+  edges, all four rare flag reads among them; it lacks `load-generator → flagd`. Loaded with v2's
+  rules, which discard that edge, the graphs are identical.
+- **The owner's call**: as registered. Astronomy-shop gets its own snapshot of record, and
+  loading by application is **Q125**.
+- **Question 2: YES.** With the fault in, the live graph held no edge around `frontend` and no
+  order path, so option B's cost is now measured.
+- **Found**: astronomy-shop's `accounting` OOM-loops under SREGym before any fault (**Q126**, for
+  scoping step 6).
+- **The VM** is back as it was: no cluster, rules and inotify restored, kill switch off, no
+  incident, 35 running.
+
 ***2026-10-01: T7.2 topology item 3, Addendum 1 - before the recovery: the image has no `cat`.***
 
 - **Steps 1-8 ran as registered.**

@@ -1,0 +1,495 @@
+hold from 2026-10-01 23:55:01 UTC
+1c sampler, phase W, 4200 s, run at 2026-10-01 23:55:01 UTC on ubuntu (6.8.0-142-generic)
+uptime: 23:55:01 up 1 day, 14:48,  2 users,  load average: 0.92, 1.25, 1.67
+
+====================================================================================================
+start at 23:55:01 UTC
+  containers: 39 running of 42
+    accounting-service                 running  restarts 6   oom False started 2026-09-30T09:07:12  9.77MiB / 300MiB  0.31%
+    ad-service                         running  restarts 0   oom False started 2026-09-30T09:06:47  239.9MiB / 700MiB  0.17%
+    alertmanager                       running  restarts 0   oom False started 2026-09-30T09:19:19  15.93MiB / 200MiB  0.10%
+    cart-service                       running  restarts 0   oom False started 2026-09-30T09:06:47  97.3MiB / 400MiB  0.46%
+    checkout-service                   running  restarts 6   oom False started 2026-09-30T09:07:12  13.34MiB / 120MiB  0.00%
+    currency-service                   running  restarts 0   oom False started 2026-09-30T09:06:47  5.66MiB / 100MiB  0.07%
+    email-service                      running  restarts 1   oom False started 2026-10-01T18:30:47  83.15MiB / 250MiB  0.01%
+    faultline-deploy-caddy-1           running  restarts 0   oom False started 2026-09-30T09:06:47  21.88MiB / 15.56GiB  0.00%
+    faultline-deploy-egress-1          running  restarts 0   oom False started 2026-09-30T09:06:47  13.23MiB / 15.56GiB  0.02%
+    faultline-deploy-executor-1        running  restarts 0   oom False started 2026-10-01T23:12:15  51.65MiB / 15.56GiB  0.24%
+    faultline-deploy-faultline-1       running  restarts 0   oom False started 2026-09-30T09:06:47  284.4MiB / 15.56GiB  21.67%
+    faultline-deploy-orchestrator-1    running  restarts 0   oom False started 2026-09-30T09:06:47  55.67MiB / 15.56GiB  0.03%
+    faultline-deploy-postgres-1        running  restarts 0   oom False started 2026-09-30T09:06:47  41.69MiB / 15.56GiB  0.00%
+    faultline-deploy-prometheus-self-1 running  restarts 0   oom False started 2026-09-30T09:06:47  32.57MiB / 15.56GiB  0.10%
+    faultline-deploy-redis-1           running  restarts 0   oom False started 2026-09-30T09:06:47  4.66MiB / 15.56GiB  0.54%
+    faultline-minio-1                  exited   restarts 0   oom False started 2026-09-15T04:30:12  -  -
+    faultline-postgres-1               exited   restarts 0   oom False started 2026-09-15T04:30:11  -  -
+    faultline-redis-1                  exited   restarts 0   oom False started 2026-09-15T04:30:11  -  -
+    feature-flag-service               running  restarts 0   oom False started 2026-09-30T09:06:47  21.04MiB / 200MiB  0.22%
+    frauddetection-service             running  restarts 1   oom False started 2026-09-30T09:06:58  163.6MiB / 500MiB  0.38%
+    frontend                           running  restarts 0   oom False started 2026-09-30T09:06:47  150.1MiB / 500MiB  1.24%
+    frontend-proxy                     running  restarts 0   oom False started 2026-09-30T09:19:19  26.04MiB / 300MiB  0.61%
+    grafana                            running  restarts 0   oom False started 2026-09-30T09:19:17  49.92MiB / 15.56GiB  0.03%
+    jaeger                             running  restarts 0   oom False started 2026-09-30T09:06:47  167.9MiB / 275MiB  0.55%
+    kafka                              running  restarts 0   oom False started 2026-09-30T09:06:47  571.5MiB / 2GiB  6.64%
+    kind-control-plane                 running  restarts 0   oom False started 2026-10-01T23:13:35  1.709GiB / 15.56GiB  49.87%
+    kind-worker                        running  restarts 0   oom False started 2026-10-01T23:13:35  2.316GiB / 15.56GiB  24.23%
+    kind-worker2                       running  restarts 0   oom False started 2026-10-01T23:13:35  1.758GiB / 15.56GiB  26.34%
+    kind-worker3                       running  restarts 0   oom False started 2026-10-01T23:13:35  2.147GiB / 15.56GiB  13.16%
+    load-generator                     running  restarts 0   oom False started 2026-09-30T09:06:47  94.18MiB / 300MiB  0.94%
+    loki                               running  restarts 0   oom False started 2026-09-30T09:19:18  71.29MiB / 400MiB  0.66%
+    otel-col                           running  restarts 0   oom False started 2026-09-30T09:06:47  100.7MiB / 600MiB  1.30%
+    payment-service                    running  restarts 0   oom False started 2026-09-30T09:06:47  66.94MiB / 320MiB  0.00%
+    postgres                           running  restarts 0   oom False started 2026-09-30T09:06:47  19.84MiB / 200MiB  0.00%
+    product-catalog-service            running  restarts 0   oom False started 2026-09-30T09:06:47  11MiB / 120MiB  0.09%
+    prometheus                         running  restarts 0   oom False started 2026-09-30T09:19:17  77.35MiB / 15.56GiB  0.04%
+    promtail                           running  restarts 0   oom False started 2026-09-30T09:19:18  74.91MiB / 200MiB  0.79%
+    quoteservice                       running  restarts 0   oom False started 2026-09-30T09:06:47  30.86MiB / 200MiB  0.00%
+    recommendation-service             running  restarts 0   oom False started 2026-09-30T09:06:47  43.95MiB / 800MiB  0.15%
+    redis-cart                         running  restarts 0   oom False started 2026-09-30T09:06:47  18.87MiB / 20MiB  0.25%
+    shipping-service                   running  restarts 0   oom False started 2026-09-30T09:06:47  4.789MiB / 120MiB  0.01%
+    tempo                              running  restarts 0   oom False started 2026-09-30T09:19:18  157.4MiB / 400MiB  1.21%
+  platform container memory: anon 0.07 GiB  file 0.03 GiB (active 0.01, inactive 0.02)  shmem 0.00 GiB
+  firing alerts (0): none
+  kind clusters: kind
+    node kind-control-plane   Ready   control-plane   41m   v1.32.1   172.22.0.3   <none>   Debian GNU/Linux 12 (bookworm)   6.8.0-142-generic   containerd://2.0.2
+    node kind-worker          Ready   <none>          41m   v1.32.1   172.22.0.4   <none>   Debian GNU/Linux 12 (bookworm)   6.8.0-142-generic   containerd://2.0.2
+    node kind-worker2         Ready   <none>          41m   v1.32.1   172.22.0.5   <none>   Debian GNU/Linux 12 (bookworm)   6.8.0-142-generic   containerd://2.0.2
+    node kind-worker3         Ready   <none>          41m   v1.32.1   172.22.0.2   <none>   Debian GNU/Linux 12 (bookworm)   6.8.0-142-generic   containerd://2.0.2
+  pods: 67
+    astronomy-shop       accounting-5897477844-rmx6l                                1/1   Running   0             15m
+    astronomy-shop       ad-77f4765ccf-hfz56                                        1/1   Running   0             15m
+    astronomy-shop       cart-74587775fc-g9b2r                                      1/1   Running   0             15m
+    astronomy-shop       checkout-6c769b88b5-w2bsm                                  1/1   Running   0             15m
+    astronomy-shop       currency-7b6cd9c94c-7tgch                                  1/1   Running   0             15m
+    astronomy-shop       email-74f9c666b6-tpnrc                                     1/1   Running   0             15m
+    astronomy-shop       flagd-6cdbb9c4bd-kw2zq                                     2/2   Running   0             15m
+    astronomy-shop       fraud-detection-57856d89-czb6s                             1/1   Running   0             15m
+    astronomy-shop       frontend-555cdd8d6c-l8w66                                  1/1   Running   0             2m33s
+    astronomy-shop       frontend-proxy-84f445bb4b-phhg8                            1/1   Running   0             15m
+    astronomy-shop       grafana-948cdf675-q4mcj                                    4/4   Running   0             15m
+    astronomy-shop       image-provider-86b767dd45-hph8x                            1/1   Running   0             15m
+    astronomy-shop       jaeger-6d665c6cb8-lb64c                                    1/1   Running   0             15m
+    astronomy-shop       kafka-6fb5bb8f77-lbmcw                                     1/1   Running   0             15m
+    astronomy-shop       llm-74d9597c76-nbs5p                                       1/1   Running   0             15m
+    astronomy-shop       load-generator-5d945c566-489x8                             2/2   Running   0             15m
+    astronomy-shop       locust-fetcher                                             1/1   Running   0             14m
+    astronomy-shop       opensearch-0                                               1/1   Running   0             15m
+    astronomy-shop       otel-collector-agent-2wkn2                                 1/1   Running   0             14m
+    astronomy-shop       otel-collector-agent-dlnsq                                 1/1   Running   0             14m
+    astronomy-shop       otel-collector-agent-dmjd9                                 1/1   Running   0             14m
+    astronomy-shop       payment-556cf8d457-c4hs7                                   1/1   Running   0             15m
+    astronomy-shop       postgresql-6bd9b846cb-mhjwn                                1/1   Running   0             15m
+    astronomy-shop       product-catalog-77497fdc44-rttpx                           1/1   Running   4 (15m ago)   15m
+    astronomy-shop       product-reviews-7bccd49cb7-9d9fw                           1/1   Running   0             15m
+    astronomy-shop       quote-7c77885dc4-dhjtb                                     1/1   Running   0             15m
+    astronomy-shop       recommendation-5bb649dccb-b5lmj                            1/1   Running   0             15m
+    astronomy-shop       shipping-6d777796df-g2kqk                                  1/1   Running   0             15m
+    astronomy-shop       valkey-cart-cbcc554f6-xbnx9                                1/1   Running   0             15m
+    kube-system          calico-kube-controllers-75cd4cc5b9-w8lg9                   1/1   Running   0             41m
+    kube-system          calico-node-6gvff                                          1/1   Running   0             41m
+    kube-system          calico-node-dlch6                                          1/1   Running   0             41m
+    kube-system          calico-node-kjd4f                                          1/1   Running   0             41m
+    kube-system          calico-node-srsvn                                          1/1   Running   0             41m
+    kube-system          coredns-668d6bf9bc-648mr                                   1/1   Running   0             41m
+    kube-system          coredns-668d6bf9bc-klzsb                                   1/1   Running   0             41m
+    kube-system          etcd-kind-control-plane                                    1/1   Running   0             41m
+    kube-system          kube-apiserver-kind-control-plane                          1/1   Running   0             41m
+    kube-system          kube-controller-manager-kind-control-plane                 1/1   Running   0             41m
+    kube-system          kube-proxy-2bvnj                                           1/1   Running   0             41m
+    kube-system          kube-proxy-lnddg                                           1/1   Running   0             41m
+    kube-system          kube-proxy-n4cgb                                           1/1   Running   0             41m
+    kube-system          kube-proxy-rplsc                                           1/1   Running   0             41m
+    kube-system          kube-scheduler-kind-control-plane                          1/1   Running   0             41m
+    kube-system          metrics-server-676dc447b9-2jm9t                            1/1   Running   0             19m
+    local-path-storage   local-path-provisioner-58cc7856b6-bp7z2                    1/1   Running   0             41m
+    observe              jaeger-agent-6ccbcc486d-746mw                              1/1   Running   0             17m
+    observe              otel-collector-5774f5c78-f8q8v                             1/1   Running   0             17m
+    observe              prometheus-alertmanager-0                                  1/1   Running   0             18m
+    observe              prometheus-kube-state-metrics-55bbb6475c-4vvv7             1/1   Running   0             18m
+    observe              prometheus-prometheus-blackbox-exporter-6cdc44b585-wmvjl   1/1   Running   0             18m
+    observe              prometheus-prometheus-node-exporter-g9x4p                  1/1   Running   0             18m
+    observe              prometheus-prometheus-node-exporter-kncjr                  1/1   Running   0             18m
+    observe              prometheus-prometheus-node-exporter-ljq7g                  1/1   Running   0             18m
+    observe              prometheus-prometheus-node-exporter-mnt8l                  1/1   Running   0             18m
+    observe              prometheus-prometheus-pushgateway-74bd87dc4f-rdc6r         1/1   Running   0             18m
+    observe              prometheus-server-869d9dd88b-4trrt                         2/2   Running   0             18m
+    openebs              openebs-localpv-provisioner-65dd55b8dc-vmvs4               1/1   Running   0             18m
+    openebs              openebs-ndm-7smd4                                          1/1   Running   0             18m
+    openebs              openebs-ndm-8lmdf                                          1/1   Running   0             18m
+    openebs              openebs-ndm-bcb4n                                          1/1   Running   0             18m
+    openebs              openebs-ndm-cluster-exporter-848db89c6-cq25x               1/1   Running   0             18m
+    openebs              openebs-ndm-node-exporter-k87zs                            1/1   Running   0             18m
+    openebs              openebs-ndm-node-exporter-kn4vx                            1/1   Running   0             18m
+    openebs              openebs-ndm-node-exporter-zzrpx                            1/1   Running   0             18m
+    openebs              openebs-ndm-operator-5849bb84b8-b8l4c                      1/1   Running   0             18m
+    sregym               mcp-server-695489844f-tgzcs                                1/1   Running   0             17m
+  tools (login PATH): kind=/home/deploy/t7.2-1c/bin/kind kubectl=/home/deploy/t7.2-1c/bin/kubectl helm=/home/deploy/t7.2-1c/bin/helm uv=/home/deploy/.local/bin/uv
+  tools (1c dir): helm kind kubectl
+  inotify: instances 1024 watches 1048576
+  ~/.kube exists: True
+  ~/cache_dir exists: True
+  ~/t7.2-1c exists: True
+
+====================================================================================================
+samples every 30 s
+  time      avail GiB  load1  mem-some avg10/avg60  mem-full avg10/avg60  cpu-some avg10/avg60  alerts
+  23:55:04      5.94   0.92      0.04 /   0.02          0.04 /   0.02          4.51 /   3.45  0
+  23:55:34      5.93   0.55      0.00 /   0.01          0.00 /   0.01          3.10 /   3.33  0
+  23:56:04      6.01   1.02      0.00 /   0.00          0.00 /   0.00          3.48 /   3.37  0
+  23:56:34      6.02   0.85      0.00 /   0.00          0.00 /   0.00          3.14 /   3.31  0
+  23:57:04      5.98   1.15      0.00 /   0.00          0.00 /   0.00          3.39 /   3.32  0
+  23:57:34      5.99   1.10      0.00 /   0.00          0.00 /   0.00          2.97 /   3.19  0
+  23:58:04      5.96   1.84      0.00 /   0.00          0.00 /   0.00          3.28 /   3.17  0
+  23:58:34      5.94   1.17      0.00 /   0.00          0.00 /   0.00          3.06 /   3.13  0
+  23:59:04      5.95   1.19      0.00 /   0.00          0.00 /   0.00          4.45 /   3.45  0
+  23:59:34      5.94   0.95      0.00 /   0.00          0.00 /   0.00          3.00 /   3.29  0
+  00:00:04      5.72   1.25      0.00 /   0.00          0.00 /   0.00         11.26 /   4.77  0
+  00:00:34      5.73   1.00      0.00 /   0.00          0.00 /   0.00          3.80 /   4.52  0
+  00:01:04      5.78   1.02      0.00 /   0.00          0.00 /   0.00          3.55 /   4.06  0
+  00:01:34      5.73   1.34      0.00 /   0.00          0.00 /   0.00          3.26 /   3.81  0
+  00:02:04      5.73   1.42      0.00 /   0.00          0.00 /   0.00          3.33 /   3.64  0
+  00:02:34      5.74   1.41      0.00 /   0.00          0.00 /   0.00          3.19 /   3.50  0
+  00:03:04      5.72   1.86      0.00 /   0.00          0.00 /   0.00          3.56 /   3.52  0
+  00:03:34      5.73   1.90      0.00 /   0.00          0.00 /   0.00          3.02 /   3.39  0
+  00:04:04      5.92   1.48      0.00 /   0.00          0.00 /   0.00          4.07 /   3.55  0
+  00:04:34      5.96   1.42      0.00 /   0.00          0.00 /   0.00          3.06 /   3.35  0
+  00:05:04      5.75   1.47      0.00 /   0.00          0.00 /   0.00          3.64 /   3.48  0
+  00:05:34      5.84   1.45      0.00 /   0.00          0.00 /   0.00          3.35 /   3.42  0
+  00:06:04      5.68   1.38      0.00 /   0.00          0.00 /   0.00          3.66 /   3.54  0
+  00:06:34      5.66   1.55      0.00 /   0.00          0.00 /   0.00          3.31 /   3.45  0
+  00:07:04      5.67   1.21      0.00 /   0.00          0.00 /   0.00          3.81 /   3.53  0
+  00:07:34      5.68   0.97      0.00 /   0.00          0.00 /   0.00          3.19 /   3.44  0
+  00:08:04      5.69   1.18      0.00 /   0.00          0.00 /   0.00          3.80 /   3.58  0
+  00:08:34      5.76   1.03      0.00 /   0.00          0.00 /   0.00          2.97 /   3.38  0
+  00:09:04      5.79   1.30      0.00 /   0.00          0.00 /   0.00          4.11 /   3.52  0
+  00:09:34      5.76   1.51      0.00 /   0.00          0.00 /   0.00          3.29 /   3.40  0
+  00:10:04      5.75   1.63      0.00 /   0.00          0.00 /   0.00          3.99 /   3.50  0
+  00:10:34      5.77   1.28      0.00 /   0.00          0.00 /   0.00          3.50 /   3.53  0
+  00:11:04      5.76   2.05      0.00 /   0.00          0.00 /   0.00          3.47 /   3.50  0
+  00:11:34      5.77   1.82      0.00 /   0.00          0.00 /   0.00          3.26 /   3.38  0
+  00:12:04      5.77   1.90      0.00 /   0.00          0.00 /   0.00          3.34 /   3.36  0
+  00:12:34      5.78   1.26      0.00 /   0.00          0.00 /   0.00          3.38 /   3.41  0
+  00:13:04      5.78   1.50      0.00 /   0.00          0.00 /   0.00          3.33 /   3.42  0
+  00:13:34      5.75   1.66      0.00 /   0.00          0.00 /   0.00          3.19 /   3.35  0
+  00:14:04      5.75   1.12      0.00 /   0.00          0.00 /   0.00          3.47 /   3.37  0
+  00:14:34      5.75   1.24      0.00 /   0.00          0.00 /   0.00          3.29 /   3.41  0
+  00:15:04      5.66   1.08      0.00 /   0.00          0.00 /   0.00          3.80 /   3.52  0
+  00:15:34      5.39   1.17      0.00 /   0.00          0.00 /   0.00          3.13 /   3.41  0
+  00:16:04      5.37   1.69      0.00 /   0.00          0.00 /   0.00          3.58 /   3.51  0
+  00:16:34      5.52   1.86      0.00 /   0.00          0.00 /   0.00          3.60 /   3.47  0
+  00:17:04      5.54   1.78      0.00 /   0.00          0.00 /   0.00          3.78 /   3.47  0
+  00:17:34      5.52   1.35      0.00 /   0.00          0.00 /   0.00          3.64 /   3.50  0
+  00:18:04      5.51   1.29      0.00 /   0.00          0.00 /   0.00          4.16 /   3.64  0
+  00:18:34      5.52   2.05      0.00 /   0.00          0.00 /   0.00          3.26 /   3.42  0
+  00:19:04      5.52   1.88      0.00 /   0.00          0.00 /   0.00          3.20 /   3.36  0
+  00:19:34      5.54   1.70      0.00 /   0.00          0.00 /   0.00          2.84 /   3.16  0
+  00:20:04      5.57   1.31      0.00 /   0.00          0.00 /   0.00          4.55 /   3.51  0
+  00:20:34      5.62   1.78      0.00 /   0.00          0.00 /   0.00          3.43 /   3.46  0
+  00:21:04      5.52   1.63      0.00 /   0.00          0.00 /   0.00          3.48 /   3.44  0
+  00:21:34      5.54   1.65      0.00 /   0.00          0.00 /   0.00          3.14 /   3.40  0
+  00:22:04      5.54   1.32      0.00 /   0.00          0.00 /   0.00          3.85 /   3.47  0
+  00:22:34      5.49   1.68      0.00 /   0.00          0.00 /   0.00          3.44 /   3.37  0
+  00:23:04      5.48   1.57      0.00 /   0.00          0.00 /   0.00          3.75 /   3.52  0
+  00:23:34      5.48   2.14      0.00 /   0.00          0.00 /   0.00          3.36 /   3.41  0
+  00:24:04      5.51   1.73      0.00 /   0.00          0.00 /   0.00          3.49 /   3.37  0
+  00:24:34      5.50   1.26      0.00 /   0.00          0.00 /   0.00          3.34 /   3.30  0
+  00:25:04      5.54   1.29      0.00 /   0.00          0.00 /   0.00          3.78 /   3.44  0
+  00:25:34      5.61   1.06      0.00 /   0.00          0.00 /   0.00          3.14 /   3.33  0
+  00:26:04      5.64   1.48      0.00 /   0.00          0.00 /   0.00          3.44 /   3.34  0
+  00:26:34      5.67   1.10      0.00 /   0.00          0.00 /   0.00          3.35 /   3.29  0
+  00:27:04      5.68   1.52      0.00 /   0.00          0.00 /   0.00          3.66 /   3.39  0
+  00:27:34      5.67   1.81      0.00 /   0.00          0.00 /   0.00          3.34 /   3.34  0
+  00:28:04      5.67   1.93      0.00 /   0.00          0.00 /   0.00          3.72 /   3.43  0
+  00:28:34      5.67   1.82      0.00 /   0.00          0.00 /   0.00          3.24 /   3.29  0
+  00:29:04      5.66   1.50      0.00 /   0.00          0.00 /   0.00          3.66 /   3.33  0
+  00:29:34      5.66   1.07      0.00 /   0.00          0.00 /   0.00          3.03 /   3.17  0
+  00:30:04      5.60   1.36      0.00 /   0.00          0.00 /   0.00          4.21 /   3.43  0
+  00:30:34      5.62   0.90      0.00 /   0.00          0.00 /   0.00          3.71 /   3.41  0
+  00:31:04      5.55   0.81      0.00 /   0.00          0.00 /   0.00          3.60 /   3.37  0
+  00:31:34      5.36   1.06      0.00 /   0.00          0.00 /   0.00          3.27 /   3.28  0
+  00:32:04      5.32   1.26      0.00 /   0.00          0.00 /   0.00          3.51 /   3.28  0
+  00:32:34      5.37   0.82      0.00 /   0.00          0.00 /   0.00          3.33 /   3.26  0
+  00:33:04      5.44   1.01      0.00 /   0.00          0.00 /   0.00          3.77 /   3.34  0
+  00:33:34      5.44   1.02      0.00 /   0.00          0.00 /   0.00          3.38 /   3.29  0
+  00:34:04      5.43   0.89      0.00 /   0.00          0.00 /   0.00          4.03 /   3.39  0
+  00:34:34      5.45   1.02      0.00 /   0.00          0.00 /   0.00          3.53 /   3.31  0
+  00:35:04      5.43   0.82      0.00 /   0.00          0.00 /   0.00          3.54 /   3.31  0
+  00:35:34      5.38   0.68      0.00 /   0.00          0.00 /   0.00          4.03 /   3.47  0
+  00:36:04      5.40   0.61      0.00 /   0.00          0.00 /   0.00          4.31 /   3.65  0
+  00:36:34      5.52   0.92      0.00 /   0.00          0.00 /   0.00          4.03 /   3.63  0
+  00:37:04      5.50   1.01      0.00 /   0.00          0.00 /   0.00          3.66 /   3.54  0
+  00:37:34      5.47   1.47      0.00 /   0.00          0.00 /   0.00          3.41 /   3.39  0
+  00:38:04      5.45   1.03      0.00 /   0.00          0.00 /   0.00          4.47 /   3.62  0
+  00:38:34      5.47   1.11      0.00 /   0.00          0.00 /   0.00          3.70 /   3.55  0
+  00:39:04      5.49   1.09      0.00 /   0.00          0.00 /   0.00          4.18 /   3.67  0
+  00:39:34      5.44   1.16      0.00 /   0.00          0.00 /   0.00          3.57 /   3.50  0
+  00:40:04      5.45   1.20      0.00 /   0.00          0.00 /   0.00          4.33 /   3.59  0
+  00:40:34      5.43   1.29      0.00 /   0.00          0.00 /   0.00          3.28 /   3.41  0
+  00:41:04      5.43   0.91      0.00 /   0.00          0.00 /   0.00          3.50 /   3.46  0
+  00:41:34      5.43   1.12      0.00 /   0.00          0.00 /   0.00          3.28 /   3.31  0
+  00:42:04      5.43   1.56      0.00 /   0.00          0.00 /   0.00          3.77 /   3.42  0
+  00:42:34      5.42   1.26      0.00 /   0.00          0.00 /   0.00          3.30 /   3.33  0
+  00:43:04      5.45   1.49      0.00 /   0.00          0.00 /   0.00          4.01 /   3.46  0
+  00:43:34      5.42   1.81      0.00 /   0.00          0.00 /   0.00          3.31 /   3.29  0
+  00:44:04      5.42   1.44      0.00 /   0.00          0.00 /   0.00          3.35 /   3.29  0
+  00:44:34      5.44   1.82      0.00 /   0.00          0.00 /   0.00          3.28 /   3.19  0
+  00:45:04      5.55   1.98      0.00 /   0.00          0.00 /   0.00          3.72 /   3.34  0
+  00:45:34      5.32   2.65      0.00 /   0.00          0.00 /   0.00          3.41 /   3.29  0
+  00:46:04      5.32   1.93      0.00 /   0.00          0.00 /   0.00          3.63 /   3.26  0
+  00:46:34      5.46   3.20      0.00 /   0.00          0.00 /   0.00          2.95 /   3.10  0
+  00:47:04      5.55   2.43      0.00 /   0.00          0.00 /   0.00          3.62 /   3.19  0
+  00:47:34      5.56   1.89      0.00 /   0.00          0.00 /   0.00          3.36 /   3.23  0
+  00:48:04      5.51   2.13      0.00 /   0.00          0.00 /   0.00          3.33 /   3.20  0
+  00:48:34      5.53   2.14      0.00 /   0.00          0.00 /   0.00          3.17 /   3.22  0
+  00:49:04      5.47   1.92      0.00 /   0.00          0.00 /   0.00          3.39 /   3.24  0
+  00:49:34      5.51   1.78      0.00 /   0.00          0.00 /   0.00          2.75 /   3.06  0
+  00:50:04      5.51   2.13      0.00 /   0.00          0.00 /   0.00          3.41 /   3.10  0
+  00:50:34      5.45   2.30      0.00 /   0.00          0.00 /   0.00          2.84 /   3.00  0
+  00:51:04      5.47   1.95      0.00 /   0.00          0.00 /   0.00          3.94 /   3.25  0
+  00:51:34      5.46   1.56      0.00 /   0.00          0.00 /   0.00          3.42 /   3.26  0
+  00:52:04      5.45   1.17      0.00 /   0.00          0.00 /   0.00          3.63 /   3.33  0
+  00:52:34      5.48   0.98      0.00 /   0.00          0.00 /   0.00          3.10 /   3.22  0
+  00:53:04      5.46   1.31      0.00 /   0.00          0.00 /   0.00          3.33 /   3.27  0
+  00:53:34      5.44   0.90      0.00 /   0.00          0.00 /   0.00          3.30 /   3.22  0
+  00:54:04      5.47   1.22      0.00 /   0.00          0.00 /   0.00          3.93 /   3.48  0
+  00:54:34      5.44   1.61      0.00 /   0.00          0.00 /   0.00          3.50 /   3.43  0
+  00:55:04      5.36   1.20      0.00 /   0.00          0.00 /   0.00          3.40 /   3.42  0
+  00:55:34      5.18   1.35      0.00 /   0.00          0.00 /   0.00          2.96 /   3.29  0
+  00:56:04      5.29   1.74      0.00 /   0.00          0.00 /   0.00          3.77 /   3.40  0
+  00:56:34      5.39   1.72      0.00 /   0.00          0.00 /   0.00          3.19 /   3.25  0
+  00:57:04      5.38   1.28      0.00 /   0.00          0.00 /   0.00          3.07 /   3.22  0
+  00:57:34      5.42   1.34      0.00 /   0.00          0.00 /   0.00          2.90 /   3.10  0
+  00:58:04      5.40   1.39      0.00 /   0.00          0.00 /   0.00          4.65 /   3.47  0
+  00:58:34      5.42   1.28      0.00 /   0.00          0.00 /   0.00          3.28 /   3.33  0
+  00:59:04      5.40   1.09      0.00 /   0.00          0.00 /   0.00          3.32 /   3.33  0
+  00:59:34      5.38   0.88      0.00 /   0.00          0.00 /   0.00          2.83 /   3.18  0
+  01:00:04      5.35   0.71      0.00 /   0.00          0.00 /   0.00          5.35 /   3.63  0
+  01:00:34      5.32   0.80      0.00 /   0.00          0.00 /   0.00          3.25 /   3.49  0
+  01:01:04      5.12   1.09      0.00 /   0.00          0.00 /   0.00          3.21 /   3.35  0
+  01:01:34      5.16   1.03      0.00 /   0.00          0.00 /   0.00          3.68 /   3.33  0
+  01:02:04      5.22   0.79      0.00 /   0.00          0.00 /   0.00          3.09 /   3.27  0
+  01:02:34      5.21   0.75      0.00 /   0.00          0.00 /   0.00          3.05 /   3.18  0
+  01:03:04      5.24   1.03      0.00 /   0.00          0.00 /   0.00          3.92 /   3.36  0
+  01:03:34      5.29   3.25      0.00 /   0.00          0.00 /   0.00          2.96 /   3.25  0
+  01:04:04      5.29   2.94      0.00 /   0.00          0.00 /   0.00          3.35 /   3.27  0
+  01:04:34      5.32   2.58      0.00 /   0.00          0.00 /   0.00          2.83 /   3.16  0
+  01:05:04      5.27   1.99      0.00 /   0.00          0.00 /   0.00          3.37 /   3.23  0
+
+====================================================================================================
+end at 01:05:04 UTC
+  containers: 39 running of 42
+    accounting-service                 running  restarts 6   oom False started 2026-09-30T09:07:12  9.805MiB / 300MiB  0.32%
+    ad-service                         running  restarts 0   oom False started 2026-09-30T09:06:47  239.9MiB / 700MiB  0.15%
+    alertmanager                       running  restarts 0   oom False started 2026-09-30T09:19:19  15.96MiB / 200MiB  0.13%
+    cart-service                       running  restarts 0   oom False started 2026-09-30T09:06:47  99.61MiB / 400MiB  1.76%
+    checkout-service                   running  restarts 6   oom False started 2026-09-30T09:07:12  13.24MiB / 120MiB  0.00%
+    currency-service                   running  restarts 0   oom False started 2026-09-30T09:06:47  3.789MiB / 100MiB  0.05%
+    email-service                      running  restarts 1   oom False started 2026-10-01T18:30:47  94.46MiB / 250MiB  0.02%
+    faultline-deploy-caddy-1           running  restarts 0   oom False started 2026-09-30T09:06:47  21.84MiB / 15.56GiB  0.00%
+    faultline-deploy-egress-1          running  restarts 0   oom False started 2026-09-30T09:06:47  13.23MiB / 15.56GiB  0.02%
+    faultline-deploy-executor-1        running  restarts 0   oom False started 2026-10-01T23:12:15  51.65MiB / 15.56GiB  0.22%
+    faultline-deploy-faultline-1       running  restarts 0   oom False started 2026-09-30T09:06:47  316MiB / 15.56GiB  17.69%
+    faultline-deploy-orchestrator-1    running  restarts 0   oom False started 2026-09-30T09:06:47  55.67MiB / 15.56GiB  0.04%
+    faultline-deploy-postgres-1        running  restarts 0   oom False started 2026-09-30T09:06:47  41.69MiB / 15.56GiB  0.00%
+    faultline-deploy-prometheus-self-1 running  restarts 0   oom False started 2026-09-30T09:06:47  32.79MiB / 15.56GiB  0.00%
+    faultline-deploy-redis-1           running  restarts 0   oom False started 2026-09-30T09:06:47  4.664MiB / 15.56GiB  0.52%
+    faultline-minio-1                  exited   restarts 0   oom False started 2026-09-15T04:30:12  -  -
+    faultline-postgres-1               exited   restarts 0   oom False started 2026-09-15T04:30:11  -  -
+    faultline-redis-1                  exited   restarts 0   oom False started 2026-09-15T04:30:11  -  -
+    feature-flag-service               running  restarts 0   oom False started 2026-09-30T09:06:47  21.05MiB / 200MiB  0.23%
+    frauddetection-service             running  restarts 1   oom False started 2026-09-30T09:06:58  164MiB / 500MiB  0.39%
+    frontend                           running  restarts 0   oom False started 2026-09-30T09:06:47  151.6MiB / 500MiB  2.91%
+    frontend-proxy                     running  restarts 0   oom False started 2026-09-30T09:19:19  26.16MiB / 300MiB  0.53%
+    grafana                            running  restarts 0   oom False started 2026-09-30T09:19:17  49.73MiB / 15.56GiB  0.01%
+    jaeger                             running  restarts 0   oom False started 2026-09-30T09:06:47  170.4MiB / 275MiB  0.14%
+    kafka                              running  restarts 0   oom False started 2026-09-30T09:06:47  572.1MiB / 2GiB  1.39%
+    kind-control-plane                 running  restarts 0   oom False started 2026-10-01T23:13:35  2.134GiB / 15.56GiB  25.63%
+    kind-worker                        running  restarts 0   oom False started 2026-10-01T23:13:35  2.022GiB / 15.56GiB  21.60%
+    kind-worker2                       running  restarts 0   oom False started 2026-10-01T23:13:35  1.562GiB / 15.56GiB  31.39%
+    kind-worker3                       running  restarts 0   oom True  started 2026-10-01T23:13:35  2.184GiB / 15.56GiB  17.88%
+    load-generator                     running  restarts 0   oom False started 2026-09-30T09:06:47  95.09MiB / 300MiB  1.61%
+    loki                               running  restarts 0   oom False started 2026-09-30T09:19:18  69MiB / 400MiB  0.65%
+    otel-col                           running  restarts 0   oom False started 2026-09-30T09:06:47  100.3MiB / 600MiB  2.04%
+    payment-service                    running  restarts 0   oom False started 2026-09-30T09:06:47  67.02MiB / 320MiB  0.00%
+    postgres                           running  restarts 0   oom False started 2026-09-30T09:06:47  19.84MiB / 200MiB  0.01%
+    product-catalog-service            running  restarts 0   oom False started 2026-09-30T09:06:47  11.08MiB / 120MiB  0.17%
+    prometheus                         running  restarts 0   oom False started 2026-09-30T09:19:17  77.33MiB / 15.56GiB  0.62%
+    promtail                           running  restarts 0   oom False started 2026-09-30T09:19:18  75.63MiB / 200MiB  0.70%
+    quoteservice                       running  restarts 0   oom False started 2026-09-30T09:06:47  30.86MiB / 200MiB  0.00%
+    recommendation-service             running  restarts 0   oom False started 2026-09-30T09:06:47  43.95MiB / 800MiB  0.16%
+    redis-cart                         running  restarts 0   oom False started 2026-09-30T09:06:47  18.51MiB / 20MiB  0.29%
+    shipping-service                   running  restarts 0   oom False started 2026-09-30T09:06:47  4.828MiB / 120MiB  0.00%
+    tempo                              running  restarts 0   oom False started 2026-09-30T09:19:18  283.1MiB / 400MiB  0.31%
+  platform container memory: anon 0.08 GiB  file 0.03 GiB (active 0.01, inactive 0.02)  shmem 0.00 GiB
+  firing alerts (0): none
+  kind clusters: kind
+    node kind-control-plane   Ready   control-plane   111m   v1.32.1   172.22.0.3   <none>   Debian GNU/Linux 12 (bookworm)   6.8.0-142-generic   containerd://2.0.2
+    node kind-worker          Ready   <none>          111m   v1.32.1   172.22.0.4   <none>   Debian GNU/Linux 12 (bookworm)   6.8.0-142-generic   containerd://2.0.2
+    node kind-worker2         Ready   <none>          111m   v1.32.1   172.22.0.5   <none>   Debian GNU/Linux 12 (bookworm)   6.8.0-142-generic   containerd://2.0.2
+    node kind-worker3         Ready   <none>          111m   v1.32.1   172.22.0.2   <none>   Debian GNU/Linux 12 (bookworm)   6.8.0-142-generic   containerd://2.0.2
+  pods: 67
+    astronomy-shop       accounting-5897477844-rmx6l                                1/1   Running   6 (5m15s ago)   85m
+    astronomy-shop       ad-77f4765ccf-hfz56                                        1/1   Running   0               85m
+    astronomy-shop       cart-74587775fc-g9b2r                                      1/1   Running   0               85m
+    astronomy-shop       checkout-6c769b88b5-w2bsm                                  1/1   Running   0               85m
+    astronomy-shop       currency-7b6cd9c94c-7tgch                                  1/1   Running   0               85m
+    astronomy-shop       email-74f9c666b6-tpnrc                                     1/1   Running   0               85m
+    astronomy-shop       flagd-6cdbb9c4bd-kw2zq                                     2/2   Running   0               85m
+    astronomy-shop       fraud-detection-57856d89-czb6s                             1/1   Running   0               85m
+    astronomy-shop       frontend-555cdd8d6c-l8w66                                  1/1   Running   0               72m
+    astronomy-shop       frontend-proxy-84f445bb4b-phhg8                            1/1   Running   0               85m
+    astronomy-shop       grafana-948cdf675-q4mcj                                    4/4   Running   0               85m
+    astronomy-shop       image-provider-86b767dd45-hph8x                            1/1   Running   0               85m
+    astronomy-shop       jaeger-6d665c6cb8-lb64c                                    1/1   Running   0               85m
+    astronomy-shop       kafka-6fb5bb8f77-lbmcw                                     1/1   Running   0               85m
+    astronomy-shop       llm-74d9597c76-nbs5p                                       1/1   Running   0               85m
+    astronomy-shop       load-generator-5d945c566-489x8                             2/2   Running   0               85m
+    astronomy-shop       locust-fetcher                                             1/1   Running   0               84m
+    astronomy-shop       opensearch-0                                               1/1   Running   0               85m
+    astronomy-shop       otel-collector-agent-2wkn2                                 1/1   Running   0               84m
+    astronomy-shop       otel-collector-agent-dlnsq                                 1/1   Running   0               84m
+    astronomy-shop       otel-collector-agent-dmjd9                                 1/1   Running   0               84m
+    astronomy-shop       payment-556cf8d457-c4hs7                                   1/1   Running   0               85m
+    astronomy-shop       postgresql-6bd9b846cb-mhjwn                                1/1   Running   0               85m
+    astronomy-shop       product-catalog-77497fdc44-rttpx                           1/1   Running   4 (85m ago)     85m
+    astronomy-shop       product-reviews-7bccd49cb7-9d9fw                           1/1   Running   0               85m
+    astronomy-shop       quote-7c77885dc4-dhjtb                                     1/1   Running   0               85m
+    astronomy-shop       recommendation-5bb649dccb-b5lmj                            1/1   Running   0               85m
+    astronomy-shop       shipping-6d777796df-g2kqk                                  1/1   Running   0               85m
+    astronomy-shop       valkey-cart-cbcc554f6-xbnx9                                1/1   Running   0               85m
+    kube-system          calico-kube-controllers-75cd4cc5b9-w8lg9                   1/1   Running   0               111m
+    kube-system          calico-node-6gvff                                          1/1   Running   0               111m
+    kube-system          calico-node-dlch6                                          1/1   Running   0               111m
+    kube-system          calico-node-kjd4f                                          1/1   Running   0               111m
+    kube-system          calico-node-srsvn                                          1/1   Running   0               111m
+    kube-system          coredns-668d6bf9bc-648mr                                   1/1   Running   0               111m
+    kube-system          coredns-668d6bf9bc-klzsb                                   1/1   Running   0               111m
+    kube-system          etcd-kind-control-plane                                    1/1   Running   0               111m
+    kube-system          kube-apiserver-kind-control-plane                          1/1   Running   0               111m
+    kube-system          kube-controller-manager-kind-control-plane                 1/1   Running   0               111m
+    kube-system          kube-proxy-2bvnj                                           1/1   Running   0               111m
+    kube-system          kube-proxy-lnddg                                           1/1   Running   0               111m
+    kube-system          kube-proxy-n4cgb                                           1/1   Running   0               111m
+    kube-system          kube-proxy-rplsc                                           1/1   Running   0               111m
+    kube-system          kube-scheduler-kind-control-plane                          1/1   Running   0               111m
+    kube-system          metrics-server-676dc447b9-2jm9t                            1/1   Running   0               89m
+    local-path-storage   local-path-provisioner-58cc7856b6-bp7z2                    1/1   Running   0               111m
+    observe              jaeger-agent-6ccbcc486d-746mw                              1/1   Running   0               87m
+    observe              otel-collector-5774f5c78-f8q8v                             1/1   Running   0               87m
+    observe              prometheus-alertmanager-0                                  1/1   Running   0               88m
+    observe              prometheus-kube-state-metrics-55bbb6475c-4vvv7             1/1   Running   0               88m
+    observe              prometheus-prometheus-blackbox-exporter-6cdc44b585-wmvjl   1/1   Running   0               88m
+    observe              prometheus-prometheus-node-exporter-g9x4p                  1/1   Running   0               88m
+    observe              prometheus-prometheus-node-exporter-kncjr                  1/1   Running   0               88m
+    observe              prometheus-prometheus-node-exporter-ljq7g                  1/1   Running   0               88m
+    observe              prometheus-prometheus-node-exporter-mnt8l                  1/1   Running   0               88m
+    observe              prometheus-prometheus-pushgateway-74bd87dc4f-rdc6r         1/1   Running   0               88m
+    observe              prometheus-server-869d9dd88b-4trrt                         2/2   Running   0               88m
+    openebs              openebs-localpv-provisioner-65dd55b8dc-vmvs4               1/1   Running   0               88m
+    openebs              openebs-ndm-7smd4                                          1/1   Running   0               88m
+    openebs              openebs-ndm-8lmdf                                          1/1   Running   0               88m
+    openebs              openebs-ndm-bcb4n                                          1/1   Running   0               88m
+    openebs              openebs-ndm-cluster-exporter-848db89c6-cq25x               1/1   Running   0               88m
+    openebs              openebs-ndm-node-exporter-k87zs                            1/1   Running   0               88m
+    openebs              openebs-ndm-node-exporter-kn4vx                            1/1   Running   0               88m
+    openebs              openebs-ndm-node-exporter-zzrpx                            1/1   Running   0               88m
+    openebs              openebs-ndm-operator-5849bb84b8-b8l4c                      1/1   Running   0               88m
+    sregym               mcp-server-695489844f-tgzcs                                1/1   Running   0               87m
+  tools (login PATH): kind=/home/deploy/t7.2-1c/bin/kind kubectl=/home/deploy/t7.2-1c/bin/kubectl helm=/home/deploy/t7.2-1c/bin/helm uv=/home/deploy/.local/bin/uv
+  tools (1c dir): helm kind kubectl
+  inotify: instances 1024 watches 1048576
+  ~/.kube exists: True
+  ~/cache_dir exists: True
+  ~/t7.2-1c exists: True
+
+====================================================================================================
+SUMMARY W: samples 141; avail GiB min 5.12 mean 5.56 max 6.02; load1 max 3.25; mem-some avg60 max 0.02; mem-full avg60 max 0.02; cpu-some avg60 max 4.77; restarted in window none; oom-flagged ['kind-worker3']; stopped in window none; alerts that fired in the window and were not firing at its start none
+capture at 2026-10-02 01:05:07 UTC, 72 min after the recovery
+frontend dnsPolicy: ClusterFirst
+pods in astronomy-shop, with restarts:
+  accounting-5897477844-rmx6l        1/1   Running   6 (5m15s ago)   85m
+  ad-77f4765ccf-hfz56                1/1   Running   0               85m
+  cart-74587775fc-g9b2r              1/1   Running   0               85m
+  checkout-6c769b88b5-w2bsm          1/1   Running   0               85m
+  currency-7b6cd9c94c-7tgch          1/1   Running   0               85m
+  email-74f9c666b6-tpnrc             1/1   Running   0               85m
+  flagd-6cdbb9c4bd-kw2zq             2/2   Running   0               85m
+  fraud-detection-57856d89-czb6s     1/1   Running   0               85m
+  frontend-555cdd8d6c-l8w66          1/1   Running   0               72m
+  frontend-proxy-84f445bb4b-phhg8    1/1   Running   0               85m
+  grafana-948cdf675-q4mcj            4/4   Running   0               85m
+  image-provider-86b767dd45-hph8x    1/1   Running   0               85m
+  jaeger-6d665c6cb8-lb64c            1/1   Running   0               85m
+  kafka-6fb5bb8f77-lbmcw             1/1   Running   0               85m
+  llm-74d9597c76-nbs5p               1/1   Running   0               85m
+  load-generator-5d945c566-489x8     2/2   Running   0               85m
+  locust-fetcher                     1/1   Running   0               84m
+  opensearch-0                       1/1   Running   0               85m
+  otel-collector-agent-2wkn2         1/1   Running   0               84m
+  otel-collector-agent-dlnsq         1/1   Running   0               84m
+  otel-collector-agent-dmjd9         1/1   Running   0               84m
+  payment-556cf8d457-c4hs7           1/1   Running   0               85m
+  postgresql-6bd9b846cb-mhjwn        1/1   Running   0               85m
+  product-catalog-77497fdc44-rttpx   1/1   Running   4 (85m ago)     85m
+  product-reviews-7bccd49cb7-9d9fw   1/1   Running   0               85m
+  quote-7c77885dc4-dhjtb             1/1   Running   0               85m
+  recommendation-5bb649dccb-b5lmj    1/1   Running   0               85m
+  shipping-6d777796df-g2kqk          1/1   Running   0               85m
+  valkey-cart-cbcc554f6-xbnx9        1/1   Running   0               85m
+services: {"data":["load-generator","accounting","payment","jaeger-all-in-one","frontend-proxy","cart","ad","product-reviews","product-catalog","flagd","image-provider","quote","checkout","currency","email","recommendation","fraud-detection","frontend","shipping"],"total":19,"limit":0,"offset":0,"errors":null}
+GET http://127.0.0.1:26686/api/dependencies?endTs=1790903110000&lookback=1800000
+  -> HTTP 200, application/json, 1280 bytes
+  JSON: yes
+  21 entries: 21 cross-service, 0 self-edges; 16 services
+       3559  frontend-proxy     -> frontend
+       3529  load-generator     -> frontend-proxy
+       2771  frontend           -> product-catalog
+       1258  frontend           -> cart
+        474  checkout           -> currency
+        350  checkout           -> cart
+        350  checkout           -> shipping
+        299  checkout           -> product-catalog
+        274  frontend           -> ad
+        267  frontend           -> product-reviews
+        254  frontend           -> recommendation
+        254  recommendation     -> product-catalog
+        235  cart               -> flagd
+        175  checkout           -> email
+        175  checkout           -> payment
+        175  frontend           -> checkout
+        175  shipping           -> quote
+          2  ad                 -> flagd
+          2  fraud-detection    -> flagd
+          2  product-reviews    -> flagd
+          2  recommendation     -> flagd
+  services: ad, cart, checkout, currency, email, flagd, fraud-detection, frontend, frontend-proxy, load-generator, payment, product-catalog, product-reviews, quote, recommendation, shipping
+GET http://127.0.0.1:26686/api/dependencies?endTs=1790903110000&lookback=3600000
+  -> HTTP 200, application/json, 1281 bytes
+  JSON: yes
+  21 entries: 21 cross-service, 0 self-edges; 16 services
+       7141  frontend-proxy     -> frontend
+       7081  load-generator     -> frontend-proxy
+       5578  frontend           -> product-catalog
+       2572  frontend           -> cart
+       1004  checkout           -> currency
+        738  checkout           -> cart
+        738  checkout           -> shipping
+        635  checkout           -> product-catalog
+        541  frontend           -> ad
+        521  frontend           -> product-reviews
+        519  frontend           -> recommendation
+        519  recommendation     -> product-catalog
+        489  cart               -> flagd
+        369  checkout           -> email
+        369  checkout           -> payment
+        369  frontend           -> checkout
+        369  shipping           -> quote
+          5  ad                 -> flagd
+          5  fraud-detection    -> flagd
+          5  product-reviews    -> flagd
+          5  recommendation     -> flagd
+  services: ad, cart, checkout, currency, email, flagd, fraud-detection, frontend, frontend-proxy, load-generator, payment, product-catalog, product-reviews, quote, recommendation, shipping
+traces of frontend-proxy held between 62 and 58 minutes ago (up to 20): 20
+traces of frontend held between 62 and 58 minutes ago (up to 20): 20
+traces of checkout held between 62 and 58 minutes ago (up to 20): 20
+port 26686: closed
+hold done at 2026-10-02 01:05:12 UTC

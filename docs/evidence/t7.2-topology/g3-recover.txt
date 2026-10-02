@@ -1,0 +1,18 @@
+recover at 2026-10-01 23:52:31 UTC
+deployment.apps/frontend patched
+deployment.apps/frontend restarted
+Waiting for deployment "frontend" rollout to finish: 0 out of 1 new replicas have been updated...
+Waiting for deployment "frontend" rollout to finish: 0 out of 1 new replicas have been updated...
+Waiting for deployment "frontend" rollout to finish: 1 old replicas are pending termination...
+Waiting for deployment "frontend" rollout to finish: 1 old replicas are pending termination...
+deployment "frontend" successfully rolled out
+frontend dnsPolicy / dnsConfig: ClusterFirst 
+frontend pods, as SREGym checks them (name, dnsPolicy, dnsConfig nameservers):
+  frontend-555cdd8d6c-l8w66          ClusterFirst   <none>
+  frontend-867b8598ff-8r5fh          None           [8.8.8.8]
+frontend pod resolv.conf:
+  error: Internal error occurred: Internal error occurred: error executing command in container: failed to exec in container: failed to start exec "7938bde0c2afdad9b4f13bd70ff4a6f287804b7304769bcbd4f73e480202fc21": OCI runtime exec failed: exec failed: unable to start container process: exec: "node": executable file not found in $PATH
+pods in astronomy-shop not Running or not ready:
+  frontend-867b8598ff-8r5fh          0/1   Completed   0             11m
+(end)
+recovered at 2026-10-01 23:52:34 UTC

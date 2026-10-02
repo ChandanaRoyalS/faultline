@@ -47,3 +47,9 @@ decided when Q122 is built.
 | `g3_vm.sh.txt` | the run's every stage on the VM, fixed by the registration (as amended by its Addendum 1, in `recover` only): 1c's setup and deploy, the read while the fault is in, SREGym's own recovery, the hour's hold and the capture, and the teardown |
 | `g3_ports.sh.txt` | 1c's step 8 watcher with its output renamed, run on the Mac; the VM's address is withheld in it |
 | `g3-preread.txt` to `g3-faultread.txt` | steps 1 to 8 as run, 2026-10-01 23:11-23:46 UTC, read in the registration's Addendum 1. The VM's address is withheld in `g3-host-on.txt`, as in 1c |
+| `g3-recover.txt`, `g3-recover-recheck.txt` | step 9: SREGym's recovery, its first check (the faulted pod still listed), and the read-only re-read that passed |
+| `g3-hold.txt` | step 10: 1c's sampler for 70 minutes, then the capture |
+| `g3-fault-deps.json`, `g3-deps-30m.json`, `g3-deps-60m.json` | SREGym's `/api/dependencies` replies, unmodified: with the fault in, then the clean 30 and 60 minutes. **`g3-deps-60m.json` is astronomy-shop's snapshot of record** (the owner's decision, 2026-10-02) |
+| `g3-accounting.txt` | `accounting`'s last termination and events before teardown: OOM-killed against 120 Mi |
+| `g3-teardown.txt`, `g3-host-off.txt`, `g3-cleanup.txt`, `g3-killswitch-off.txt`, `g3-incidents.txt`, `g3-P3.txt` | the teardown and the after-teardown reading. The VM's address is withheld in `g3-host-off.txt` |
+
