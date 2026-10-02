@@ -4617,6 +4617,19 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-10-02: Q128's build registered - the DeathStarBench snapshots loaded by application.***
+
+- **The registry entries.**
+  - `sregym-hotel-reservation` (7 edges, 8 services) and `sregym-social-network` (8 edges, 6
+    services) join it, with names of no world, read as they are.
+  - Neither has artifact edges, and every edge is `UNMEASURED`.
+- **Absent-service tables of their own**, each with its evidence and what was not read:
+  - Hotel Reservation: 9 datastores and Consul as `INFRASTRUCTURE`;
+  - Social Network: six `UNLINKED` write-path services, `media-frontend` `UNEXERCISED`, and 13
+    datastores.
+- **Noticed**: radius 2 joins 71 % of Hotel Reservation's pairs and **93 %** of Social Network's,
+  so on Social Network it is close to no filter. Recorded for scoping step 6, not changed.
+
 ***2026-10-02: T7.2 topology item 4, Social Network - captured: 8 edges over 6 services; both
 DeathStarBench graphs taken.***
 
