@@ -1,0 +1,16 @@
+teardown at 2026-10-02 01:22:28 UTC
+== port-forward processes:
+225985 /bin/sh -c kubectl port-forward svc/mcp-server 9954:9954 -n sregym --address 0.0.0.0
+225986 kubectl port-forward svc/mcp-server 9954:9954 -n sregym --address 0.0.0.0
+port 26686: closed
+no port-forward left
+8000 closed
+9954 closed
+Deleting cluster "kind" ...
+Deleted nodes: ["kind-worker3" "kind-worker" "kind-control-plane" "kind-worker2"]
+kind
+Untagged: ghcr.io/sregym/kind-node@sha256:ccab5d6cdca66e0b83a77c2711b641fa788024fe217526980da028ac07385b93
+Deleted: sha256:ccab5d6cdca66e0b83a77c2711b641fa788024fe217526980da028ac07385b93
+no sregym image left
+kind nodes: 0
+running: 35
