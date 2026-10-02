@@ -1,0 +1,36 @@
+restart at 2026-10-02 11:17:24 UTC
+restarting: compose-post-service home-timeline-service media-frontend media-service nginx-thrift post-storage-service social-graph-service text-service unique-id-service url-shorten-service user-mention-service user-service user-timeline-service
+deployment.apps/compose-post-service restarted
+deployment.apps/home-timeline-service restarted
+deployment.apps/media-frontend restarted
+deployment.apps/media-service restarted
+deployment.apps/nginx-thrift restarted
+deployment.apps/post-storage-service restarted
+deployment.apps/social-graph-service restarted
+deployment.apps/text-service restarted
+deployment.apps/unique-id-service restarted
+deployment.apps/url-shorten-service restarted
+deployment.apps/user-mention-service restarted
+deployment.apps/user-service restarted
+deployment.apps/user-timeline-service restarted
+Waiting for deployment "compose-post-service" rollout to finish: 1 old replicas are pending termination...
+Waiting for deployment "compose-post-service" rollout to finish: 1 old replicas are pending termination...
+deployment "compose-post-service" successfully rolled out
+Waiting for deployment "home-timeline-service" rollout to finish: 1 old replicas are pending termination...
+deployment "home-timeline-service" successfully rolled out
+Waiting for deployment "media-frontend" rollout to finish: 1 old replicas are pending termination...
+Waiting for deployment "media-frontend" rollout to finish: 1 old replicas are pending termination...
+deployment "media-frontend" successfully rolled out
+deployment "media-service" successfully rolled out
+deployment "nginx-thrift" successfully rolled out
+deployment "post-storage-service" successfully rolled out
+deployment "social-graph-service" successfully rolled out
+deployment "text-service" successfully rolled out
+deployment "unique-id-service" successfully rolled out
+deployment "url-shorten-service" successfully rolled out
+deployment "user-mention-service" successfully rolled out
+deployment "user-service" successfully rolled out
+deployment "user-timeline-service" successfully rolled out
+Jaeger services at 2026-10-02 11:18:51 UTC: {"data":["post-storage-service","social-graph-service","url-shorten-service","user-mention-service","nginx-web-server","jaeger-all-in-one","user-service","media-service","unique-id-service","user-timeline-service","compose-post-service","home-timeline-service","text-service"],"total":13,"limit":0,"offset":0,"errors":null}
+pods in social-network not Running or not ready:
+(end)

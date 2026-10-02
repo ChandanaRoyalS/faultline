@@ -1,0 +1,208 @@
+key-like variables in env: 0
+Fri Oct  2 10:24:55 UTC 2026
+[10/02/26 10:25:09] INFO     all.sregym.profile - Deployment profile: full      
+[10/02/26 10:25:09] INFO     __main__ - 🔧 Config — agent: demo, agent_model:   
+                             gpt-5, judge_backend: api, judge_model: gpt-5,     
+                             reasoning_effort: agent default, jev_model:        
+                             disabled, deployment_profile: full,                
+                             internet_access: filtered, container_hardening: on,
+                             agent_api_base: unset, judge_api_base: unset       
+╭───────────────────────────── SREGym API Server ──────────────────────────────╮
+│  ____  ____  _____ ____                                                      │
+│ / ___||  _ \| ____/ ___|_   _ _ __ ___                                       │
+│ \___ \| |_) |  _|| |  _| | | | '_ ` _ \                                      │
+│  ___) |  _ <| |__| |_| | |_| | | | | | |                                     │
+│ |____/|_| \_\_____\____|\__, |_| |_| |_|                                     │
+│                         |___/                                                │
+│                                                                              │
+╰─────────────────────────── http://127.0.0.1:8000 ────────────────────────────╯
+Available Endpoints                                                             
+
+ • POST /submit: { "stage": "diagnosis", "solution": "<your-solution>" } →      
+   grades the named stage                                                       
+ • GET /status: returns { "stage": "setup" | "diagnosis" | "mitigation" |       
+   "tearing_down" | "done" }                                                    
+/home/deploy/t7.2-1c/SREGym/.venv/lib/python3.12/site-packages/websockets/legacy/__init__.py:6: DeprecationWarning: websockets.legacy is deprecated; see https://websockets.readthedocs.io/en/stable/howto/upgrade.html for upgrade instructions
+  warnings.warn(  # deprecated in 14.0 - 2024-11-09
+/home/deploy/t7.2-1c/SREGym/.venv/lib/python3.12/site-packages/uvicorn/protocols/websockets/websockets_impl.py:17: DeprecationWarning: websockets.server.WebSocketServerProtocol is deprecated
+  from websockets.server import WebSocketServerProtocol
+                    INFO     uvicorn.error - Started server process [2026892]   
+                    INFO     uvicorn.error - Waiting for application startup.   
+                    INFO     uvicorn.error - Application startup complete.      
+                    INFO     uvicorn.error - Uvicorn running on                 
+                             http://127.0.0.1:8000 (Press CTRL+C to quit)       
+[10:25:10] 🎯 Running single problem:                                main.py:300
+           wrong_dns_policy_social_network                                      
+                                                                     main.py:378
+           🔍 Starting problem: wrong_dns_policy_social_network                 
+           (Attempt 1 of 1)                                                     
+[10/02/26 10:25:10] INFO     all.sregym.conductor - [Session Start] Problem ID: 
+                             wrong_dns_policy_social_network                    
+                    INFO     all.sregym.conductor - [STAGE] Start testing on    
+                             problem: wrong_dns_policy_social_network           
+                    INFO     all.sregym.conductor - Fixing Kubernetes... to     
+                             normal state.                                      
+                    INFO     all.sregym.conductor - [FIX] Imbalance leftover if 
+                             any                                                
+                    INFO     all.sregym.conductor - [FIX] KubeletCrash leftover 
+                             if any                                             
+Starting kubelet in kind-worker...
+Kubelet started in kind-worker
+Starting kubelet in kind-worker2...
+Kubelet started in kind-worker2
+Starting kubelet in kind-worker3...
+Kubelet started in kind-worker3
+Waiting for worker nodes {'kind-worker', 'kind-worker2', 'kind-worker3'} to become Ready...
+All worker nodes are Ready.
+[10/02/26 10:25:11] INFO     all.sregym.conductor - [FIX]                       
+                             KubeletEvictionThresholdMisconfig leftover if any  
+Recovering disk pressure in kind-worker...
+Waiting for node kind-worker to become Ready...
+Node kind-worker is Ready.
+Recovering disk pressure in kind-worker2...
+Waiting for node kind-worker2 to become Ready...
+Node kind-worker2 is Ready.
+Recovering disk pressure in kind-worker3...
+Waiting for node kind-worker3 to become Ready...
+Node kind-worker3 is Ready.
+[10/02/26 10:25:12] INFO     all.sregym.conductor - [FIX] Calico                
+                             IPPool/strictAffinity leftover if any              
+[10/02/26 10:25:13] INFO     all.sregym.conductor - [FIX] Calico route-reflector
+                             label drift leftovers if any                       
+                    INFO     all.sregym.conductor - [FIX] Stale CoreDNS NXDOMAIN
+                             templates if any                                   
+No NXDOMAIN templates found in CoreDNS config; nothing to do
+                    INFO     all.sregym.conductor - [FIX] Leftover dm-flakey    
+                             infrastructure if any                              
+[dm-flakey] ⚠️ Could not remove dm-flakey on kind-control-plane (may not exist): No running Khaos pod found on node kind-control-plane
+[dm-flakey] ⚠️ Could not remove dm-flakey on kind-worker (may not exist): No running Khaos pod found on node kind-worker
+[dm-flakey] ⚠️ Could not remove dm-flakey on kind-worker2 (may not exist): No running Khaos pod found on node kind-worker2
+[dm-flakey] ⚠️ Could not remove dm-flakey on kind-worker3 (may not exist): No running Khaos pod found on node kind-worker3
+                    INFO     all.sregym.conductor - [FIX] NightlyRebalanceOOM   
+                             kube-system actor leftover if any                  
+[10/02/26 10:25:14] INFO     all.sregym.conductor - [FIX] Clock drift leftover  
+                             if any                                             
+No leftover node-probe pods found; nothing to do
+                    INFO     all.sregym.conductor - Fix Kubernetes completed.   
+                    INFO     all.sregym.conductor - No tasklist.yml found.      
+                             Defaulting to running diagnosis and mitigation for 
+                             this problem.                                      
+                    INFO     all.sregym.conductor - Undeploying app leftovers...
+                    INFO     all.infra.helm - Helm Uninstall: social-network in 
+                             namespace social-network                           
+                    INFO     all.sregym.conductor - App leftovers undeployed.   
+                    INFO     all.sregym.conductor - Deploying app...            
+                    INFO     all.sregym.conductor - [DEPLOY] No persisted       
+                             baseline state found, capturing and saving...      
+                    INFO     all.infra.cluster_state - Capturing cluster        
+                             baseline state...                                  
+                    INFO     all.infra.cluster_state - Baseline state snapshot  
+                             saved to                                           
+                             /home/deploy/cache_dir/cluster_baseline_state.json 
+                    INFO     all.sregym.conductor - [DEPLOY] Setting up         
+                             metrics-server…                                    
+[10:25:15] Waiting for all pods in namespace 'kube-system' to be  kubectl.py:204
+           ready...                                                             
+[10:25:44] All pods in namespace 'kube-system' are ready.         kubectl.py:245
+[10/02/26 10:25:44] INFO     all.sregym.conductor - [DEPLOY] Setting up OpenEBS…
+[10:25:45] Waiting for all pods in namespace 'openebs' to be      kubectl.py:204
+           ready...                                                             
+[10:26:04] All pods in namespace 'openebs' are ready.             kubectl.py:245
+[10/02/26 10:26:04] INFO     all.sregym.conductor - [DEPLOY] Ensuring OpenEBS   
+                             LocalPV-Device StorageClass…                       
+[10/02/26 10:26:05] INFO     all.sregym.conductor - [DEPLOY]                    
+                             StorageClass/openebs-device already exists; leaving
+                             it unchanged                                       
+                    INFO     all.sregym.conductor - [DEPLOY] Deploying          
+                             Prometheus…                                        
+                    INFO     all.infra.helm - Helm Uninstall: prometheus in     
+                             namespace observe                                  
+                    INFO     all.infra.helm - Helm Install: prometheus in       
+                             namespace observe                                  
+                    INFO     all.infra.helm - Chart dependencies not satisfied  
+                             for                                                
+                             /home/deploy/t7.2-1c/SREGym/sregym/observer/prometh
+                             eus/prometheus (['unpacked', 'unpacked', 'wrong    
+                             version', 'unpacked']); updating                   
+[10:26:17] Waiting for all pods in namespace 'observe' to be      kubectl.py:204
+           ready...                                                             
+[10:27:07] All pods in namespace 'observe' are ready.             kubectl.py:245
+[10/02/26 10:27:07] INFO     all.sregym.conductor - [DEPLOY] Deploying Jaeger…  
+                    INFO     all.sregym.jaeger - Jaeger deployed successfully.  
+                    INFO     all.sregym.conductor - [DEPLOY] Deploying OTel     
+                             Collector…                                         
+[10/02/26 10:27:14] INFO     all.sregym.otel_collector - OTel Collector deployed
+                             successfully.                                      
+                    INFO     all.sregym.conductor - [DEPLOY] Skipping Loki      
+                             deployment (external harness mode)                 
+                    INFO     all.sregym.conductor - [DEPLOY] Deploying MCP      
+                             server…                                            
+                    INFO     all.sregym.mcp_server - MCP server RBAC resources  
+                             ensured.                                           
+[10:27:15] Waiting for all pods in namespace 'sregym' to be       kubectl.py:204
+           ready...                                                             
+[10:28:07] All pods in namespace 'sregym' are ready.              kubectl.py:245
+[10/02/26 10:28:10] INFO     all.sregym.mcp_server - Port forwarding established
+                             at 9954. MCP_SERVER_PORT set.                      
+                    INFO     all.sregym.mcp_server - MCP server deployed        
+                             successfully.                                      
+                    INFO     all.sregym.conductor - [ENV] Set up necessary      
+                             components: metrics-server, Khaos, OpenEBS,        
+                             Prometheus, Jaeger, Loki                           
+                    INFO     all.sregym.conductor - [DEPLOY] Deploying and      
+                             starting workload                                  
+                    INFO     all.application - Namespace social-network not     
+                             found. Creating namespace.                         
+                    INFO     all.application - Namespace social-network created 
+                             successfully: namespace/social-network created     
+                                                                                
+                    INFO     all.infra.helm - Helm Install: social-network in   
+                             namespace social-network                           
+[10:28:12] Waiting for all pods in namespace 'social-network' to  kubectl.py:204
+           be ready...                                                          
+[10:28:58] All pods in namespace 'social-network' are ready.      kubectl.py:245
+[10/02/26 10:28:58] INFO     all.sregym.conductor - [ENV] Deploy application:   
+                             Social Network                                     
+                    INFO     all.sregym.jaeger - Created ExternalName service   
+                             'jaeger' in namespace 'social-network' ->          
+                             otel-collector.observe.svc.cluster.local           
+                    INFO     all.sregym.jaeger - Created ExternalName service   
+                             'jaeger-agent' in namespace 'social-network' ->    
+                             otel-collector.observe.svc.cluster.local           
+[10/02/26 10:28:59] INFO     all.sregym.jaeger - Created ExternalName service   
+                             'jaeger-collector' in namespace 'social-network' ->
+                             otel-collector.observe.svc.cluster.local           
+                    INFO     all.sregym.jaeger - Created ExternalName service   
+                             'jaeger-query' in namespace 'social-network' ->    
+                             otel-collector.observe.svc.cluster.local           
+                    INFO     all.infra.workload - Start Workload with Wrk2      
+                    INFO     all.infra.workload - Checking for existing         
+                             ConfigMap 'wrk2-payload-script'...                 
+                    INFO     all.infra.workload - Creating ConfigMap            
+                             'wrk2-payload-script'...                           
+                    INFO     all.infra.workload - ConfigMap                     
+                             'wrk2-payload-script' created successfully.        
+                    INFO     all.infra.workload - Job created: wrk2-job         
+                    INFO     all.sregym.conductor - [ENV] Start workload        
+                    INFO     all.sregym.conductor - App deployed.               
+== Fault Injection ==
+Patch result for user-service: deployment.apps/user-service patched
+
+Injected wrong DNS policy fault for service: user-service
+Service: user-service | Namespace: social-network
+
+[10/02/26 10:29:39] INFO     all.sregym.conductor - [ENV] Injected fault        
+                    INFO     all.sregym.conductor - [STAGE] Go to stage         
+                             diagnosis                                          
+                    INFO     all.sregym.conductor - ✅ Deployment complete.     
+                             Ready for submission. Current stage is: diagnosis  
+[10:29:39] ✅ Fault injected for problem                             main.py:496
+           'wrong_dns_policy_social_network'. Exiting for external              
+           harness.                                                             
+⠦ Benchmarking demo — wrong_dns_policy_social_network (attempt 1/1)    0… 0… -:…
+                    WARNING  all.sregym.conductor_api - Shutting down API       
+                             server...                                          
+[10/02/26 10:29:39] INFO     uvicorn.error - Shutting down                      
+                    INFO     uvicorn.error - Finished server process [2026892]  
+                    WARNING  __main__ - ⚠️ No results to write.                  
+deploy exit 0 at 2026-10-02 10:29:40 UTC

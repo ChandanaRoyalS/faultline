@@ -1,0 +1,505 @@
+hold from 2026-10-02 11:23:08 UTC
+1c sampler, phase W, 4200 s, run at 2026-10-02 11:23:08 UTC on ubuntu (6.8.0-142-generic)
+uptime: 11:23:08 up 2 days,  2:16,  2 users,  load average: 5.57, 2.65, 1.89
+
+====================================================================================================
+start at 11:23:08 UTC
+  containers: 39 running of 42
+    accounting-service                 running  restarts 6   oom False started 2026-09-30T09:07:12  11.1MiB / 300MiB  0.32%
+    ad-service                         running  restarts 0   oom False started 2026-09-30T09:06:47  237.7MiB / 700MiB  0.08%
+    alertmanager                       running  restarts 0   oom False started 2026-09-30T09:19:19  17.17MiB / 200MiB  0.09%
+    cart-service                       running  restarts 0   oom False started 2026-09-30T09:06:47  113.9MiB / 400MiB  0.75%
+    checkout-service                   running  restarts 6   oom False started 2026-09-30T09:07:12  15.57MiB / 120MiB  0.00%
+    currency-service                   running  restarts 0   oom False started 2026-09-30T09:06:47  5.898MiB / 100MiB  0.06%
+    email-service                      running  restarts 1   oom False started 2026-10-01T18:30:47  146.9MiB / 250MiB  0.16%
+    faultline-deploy-caddy-1           running  restarts 0   oom False started 2026-09-30T09:06:47  19.75MiB / 15.56GiB  0.03%
+    faultline-deploy-egress-1          running  restarts 0   oom False started 2026-09-30T09:06:47  13.64MiB / 15.56GiB  0.01%
+    faultline-deploy-executor-1        running  restarts 0   oom False started 2026-10-02T08:19:43  51.66MiB / 15.56GiB  0.21%
+    faultline-deploy-faultline-1       running  restarts 0   oom False started 2026-09-30T09:06:47  374.6MiB / 15.56GiB  32.02%
+    faultline-deploy-orchestrator-1    running  restarts 0   oom False started 2026-09-30T09:06:47  55.67MiB / 15.56GiB  0.07%
+    faultline-deploy-postgres-1        running  restarts 0   oom False started 2026-09-30T09:06:47  50.33MiB / 15.56GiB  0.00%
+    faultline-deploy-prometheus-self-1 running  restarts 0   oom False started 2026-09-30T09:06:47  40.17MiB / 15.56GiB  0.00%
+    faultline-deploy-redis-1           running  restarts 0   oom False started 2026-09-30T09:06:47  5.199MiB / 15.56GiB  0.56%
+    faultline-minio-1                  exited   restarts 0   oom False started 2026-09-15T04:30:12  -  -
+    faultline-postgres-1               exited   restarts 0   oom False started 2026-09-15T04:30:11  -  -
+    faultline-redis-1                  exited   restarts 0   oom False started 2026-09-15T04:30:11  -  -
+    feature-flag-service               running  restarts 0   oom False started 2026-09-30T09:06:47  21.32MiB / 200MiB  0.33%
+    frauddetection-service             running  restarts 1   oom False started 2026-09-30T09:06:58  169.3MiB / 500MiB  0.44%
+    frontend                           running  restarts 0   oom False started 2026-09-30T09:06:47  150.7MiB / 500MiB  1.43%
+    frontend-proxy                     running  restarts 0   oom False started 2026-09-30T09:19:19  30.88MiB / 300MiB  0.85%
+    grafana                            running  restarts 0   oom False started 2026-09-30T09:19:17  68.78MiB / 15.56GiB  0.09%
+    jaeger                             running  restarts 0   oom False started 2026-09-30T09:06:47  170.8MiB / 275MiB  0.28%
+    kafka                              running  restarts 0   oom False started 2026-09-30T09:06:47  584.2MiB / 2GiB  5.98%
+    kind-control-plane                 running  restarts 0   oom False started 2026-10-02T08:20:22  2.045GiB / 15.56GiB  20.26%
+    kind-worker                        running  restarts 0   oom False started 2026-10-02T08:20:22  1.02GiB / 15.56GiB  21.51%
+    kind-worker2                       running  restarts 0   oom False started 2026-10-02T08:20:22  1.183GiB / 15.56GiB  22.87%
+    kind-worker3                       running  restarts 0   oom False started 2026-10-02T08:20:22  920.3MiB / 15.56GiB  24.95%
+    load-generator                     running  restarts 0   oom False started 2026-09-30T09:06:47  114.4MiB / 300MiB  0.85%
+    loki                               running  restarts 0   oom False started 2026-09-30T09:19:18  96.4MiB / 400MiB  0.71%
+    otel-col                           running  restarts 0   oom False started 2026-09-30T09:06:47  99.01MiB / 600MiB  1.54%
+    payment-service                    running  restarts 0   oom False started 2026-09-30T09:06:47  73.7MiB / 320MiB  0.00%
+    postgres                           running  restarts 0   oom False started 2026-09-30T09:06:47  20.06MiB / 200MiB  0.00%
+    product-catalog-service            running  restarts 0   oom False started 2026-09-30T09:06:47  12.62MiB / 120MiB  0.39%
+    prometheus                         running  restarts 0   oom False started 2026-09-30T09:19:17  90.53MiB / 15.56GiB  0.00%
+    promtail                           running  restarts 0   oom False started 2026-09-30T09:19:18  85.06MiB / 200MiB  0.67%
+    quoteservice                       running  restarts 0   oom False started 2026-09-30T09:06:47  30.9MiB / 200MiB  0.00%
+    recommendation-service             running  restarts 0   oom False started 2026-09-30T09:06:47  44.31MiB / 800MiB  0.13%
+    redis-cart                         running  restarts 0   oom False started 2026-09-30T09:06:47  18.93MiB / 20MiB  0.25%
+    shipping-service                   running  restarts 0   oom False started 2026-09-30T09:06:47  4.855MiB / 120MiB  0.00%
+    tempo                              running  restarts 0   oom False started 2026-09-30T09:19:18  167.9MiB / 400MiB  0.59%
+  platform container memory: anon 0.07 GiB  file 0.02 GiB (active 0.01, inactive 0.02)  shmem 0.00 GiB
+  firing alerts (0): none
+  kind clusters: kind
+    node kind-control-plane   Ready   control-plane   3h2m   v1.32.1   172.22.0.2   <none>   Debian GNU/Linux 12 (bookworm)   6.8.0-142-generic   containerd://2.0.2
+    node kind-worker          Ready   <none>          3h2m   v1.32.1   172.22.0.4   <none>   Debian GNU/Linux 12 (bookworm)   6.8.0-142-generic   containerd://2.0.2
+    node kind-worker2         Ready   <none>          3h2m   v1.32.1   172.22.0.5   <none>   Debian GNU/Linux 12 (bookworm)   6.8.0-142-generic   containerd://2.0.2
+    node kind-worker3         Ready   <none>          3h2m   v1.32.1   172.22.0.3   <none>   Debian GNU/Linux 12 (bookworm)   6.8.0-142-generic   containerd://2.0.2
+  pods: 66
+    kube-system          calico-kube-controllers-75cd4cc5b9-49zzg                   1/1   Running   0     3h2m
+    kube-system          calico-node-j5mtk                                          1/1   Running   0     3h2m
+    kube-system          calico-node-kgq5b                                          1/1   Running   0     3h2m
+    kube-system          calico-node-nwwph                                          1/1   Running   0     3h2m
+    kube-system          calico-node-v6qgc                                          1/1   Running   0     3h2m
+    kube-system          coredns-668d6bf9bc-8xkc4                                   1/1   Running   0     3h2m
+    kube-system          coredns-668d6bf9bc-9w22c                                   1/1   Running   0     3h2m
+    kube-system          etcd-kind-control-plane                                    1/1   Running   0     3h2m
+    kube-system          kube-apiserver-kind-control-plane                          1/1   Running   0     3h2m
+    kube-system          kube-controller-manager-kind-control-plane                 1/1   Running   0     3h2m
+    kube-system          kube-proxy-992nl                                           1/1   Running   0     3h2m
+    kube-system          kube-proxy-cplnm                                           1/1   Running   0     3h2m
+    kube-system          kube-proxy-j65lx                                           1/1   Running   0     3h2m
+    kube-system          kube-proxy-vtmkw                                           1/1   Running   0     3h2m
+    kube-system          kube-scheduler-kind-control-plane                          1/1   Running   0     3h2m
+    kube-system          metrics-server-676dc447b9-5g87f                            1/1   Running   0     57m
+    local-path-storage   local-path-provisioner-58cc7856b6-s2ztv                    1/1   Running   0     3h2m
+    observe              jaeger-agent-6ccbcc486d-pcgnp                              1/1   Running   0     56m
+    observe              otel-collector-5774f5c78-dqcsq                             1/1   Running   0     56m
+    observe              prometheus-alertmanager-0                                  1/1   Running   0     56m
+    observe              prometheus-kube-state-metrics-55bbb6475c-qght4             1/1   Running   0     56m
+    observe              prometheus-prometheus-blackbox-exporter-6cdc44b585-n5pk4   1/1   Running   0     56m
+    observe              prometheus-prometheus-node-exporter-47b6m                  1/1   Running   0     56m
+    observe              prometheus-prometheus-node-exporter-jtlzq                  1/1   Running   0     56m
+    observe              prometheus-prometheus-node-exporter-srlrp                  1/1   Running   0     56m
+    observe              prometheus-prometheus-node-exporter-w7h9r                  1/1   Running   0     56m
+    observe              prometheus-prometheus-pushgateway-74bd87dc4f-tlhrk         1/1   Running   0     56m
+    observe              prometheus-server-869d9dd88b-f87fh                         2/2   Running   0     56m
+    openebs              openebs-localpv-provisioner-65dd55b8dc-kzbw2               1/1   Running   0     57m
+    openebs              openebs-ndm-cluster-exporter-848db89c6-b2rfk               1/1   Running   0     57m
+    openebs              openebs-ndm-gz567                                          1/1   Running   0     57m
+    openebs              openebs-ndm-lnq5n                                          1/1   Running   0     57m
+    openebs              openebs-ndm-lwrbq                                          1/1   Running   0     57m
+    openebs              openebs-ndm-node-exporter-8rbsz                            1/1   Running   0     57m
+    openebs              openebs-ndm-node-exporter-npqp4                            1/1   Running   0     57m
+    openebs              openebs-ndm-node-exporter-xzfdd                            1/1   Running   0     57m
+    openebs              openebs-ndm-operator-5849bb84b8-vbx5j                      1/1   Running   0     57m
+    social-network       compose-post-service-79f75bc86c-49c7n                      1/1   Running   0     5m47s
+    social-network       home-timeline-redis-ff9499c5c-bp8d6                        1/1   Running   0     54m
+    social-network       home-timeline-service-8fdc74db9-hmq97                      1/1   Running   0     5m47s
+    social-network       jaeger-7d8548779-v4s8h                                     1/1   Running   0     55m
+    social-network       media-frontend-54596b5b79-5z2pt                            1/1   Running   0     5m47s
+    social-network       media-memcached-54b5cffb48-r28ns                           1/1   Running   0     54m
+    social-network       media-mongodb-6d47ccb779-l77j2                             1/1   Running   0     54m
+    social-network       media-service-69cb74fd59-9rk98                             1/1   Running   0     5m47s
+    social-network       nginx-thrift-6cc5d685d-vnq7q                               1/1   Running   0     5m47s
+    social-network       post-storage-memcached-5b544b79d8-b7ww4                    1/1   Running   0     54m
+    social-network       post-storage-mongodb-846dcb76b7-vvdsg                      1/1   Running   0     54m
+    social-network       post-storage-service-695db8c747-gngqc                      1/1   Running   0     5m46s
+    social-network       social-graph-mongodb-69ddddf895-g5tcb                      1/1   Running   0     54m
+    social-network       social-graph-redis-f9759b67d-xdbn9                         1/1   Running   0     54m
+    social-network       social-graph-service-5487b9fb85-zsz5v                      1/1   Running   0     5m46s
+    social-network       text-service-7d84675667-6vbkb                              1/1   Running   0     5m46s
+    social-network       unique-id-service-5695c85c66-9h4lw                         1/1   Running   0     5m46s
+    social-network       url-shorten-memcached-999559bdb-xrpxd                      1/1   Running   0     55m
+    social-network       url-shorten-mongodb-6b486f55b8-cx78h                       1/1   Running   0     54m
+    social-network       url-shorten-service-556bbf5f66-vdkmq                       1/1   Running   0     5m46s
+    social-network       user-memcached-554fcf9578-4zpvr                            1/1   Running   0     54m
+    social-network       user-mention-service-768fcd9995-x896p                      1/1   Running   0     5m46s
+    social-network       user-mongodb-75847cfbb-r44hv                               1/1   Running   0     55m
+    social-network       user-service-84b74cf9c5-99p2v                              1/1   Running   0     5m45s
+    social-network       user-timeline-mongodb-658f54fd68-r8wb7                     1/1   Running   0     54m
+    social-network       user-timeline-redis-cbd5f6645-ftztw                        1/1   Running   0     55m
+    social-network       user-timeline-service-6487f4dc99-ct252                     1/1   Running   0     5m45s
+    social-network       wrk2-job-dn679                                             1/1   Running   0     54m
+    sregym               mcp-server-695489844f-hx8ls                                1/1   Running   0     55m
+  tools (login PATH): kind=/home/deploy/t7.2-1c/bin/kind kubectl=/home/deploy/t7.2-1c/bin/kubectl helm=/home/deploy/t7.2-1c/bin/helm uv=/home/deploy/.local/bin/uv
+  tools (1c dir): helm kind kubectl
+  inotify: instances 1024 watches 1048576
+  ~/.kube exists: True
+  ~/cache_dir exists: True
+  ~/t7.2-1c exists: True
+
+====================================================================================================
+samples every 30 s
+  time      avail GiB  load1  mem-some avg10/avg60  mem-full avg10/avg60  cpu-some avg10/avg60  alerts
+  11:23:11      8.48   5.13      0.00 /   0.00          0.00 /   0.00          3.30 /   2.93  0
+  11:23:41      8.52   5.17      0.00 /   0.00          0.00 /   0.00          2.70 /   2.82  0
+  11:24:11      8.49   5.63      0.00 /   0.00          0.00 /   0.00          3.02 /   2.85  0
+  11:24:41      8.49   6.02      0.00 /   0.00          0.00 /   0.00          2.77 /   2.83  0
+  11:25:11      8.51   5.75      0.00 /   0.00          0.00 /   0.00          2.86 /   2.82  0
+  11:25:41      8.50   7.07      0.00 /   0.00          0.00 /   0.00          2.93 /   2.84  0
+  11:26:11      8.48   5.52      0.00 /   0.00          0.00 /   0.00          2.82 /   2.80  0
+  11:26:41      8.49   4.22      0.00 /   0.00          0.00 /   0.00          2.82 /   2.78  0
+  11:27:11      8.51   3.55      0.00 /   0.00          0.00 /   0.00          2.90 /   2.80  0
+  11:27:41      8.49   2.72      0.00 /   0.00          0.00 /   0.00          2.87 /   2.83  0
+  11:28:11      8.49   2.64      0.00 /   0.00          0.00 /   0.00          3.06 /   2.88  0
+  11:28:41      8.47   2.51      0.00 /   0.00          0.00 /   0.00          2.50 /   2.76  0
+  11:29:11      8.48   1.78      0.00 /   0.00          0.00 /   0.00          2.64 /   2.72  0
+  11:29:41      8.49   1.71      0.00 /   0.00          0.00 /   0.00          2.66 /   2.75  0
+  11:30:11      8.42   2.67      0.00 /   0.00          0.00 /   0.00          3.22 /   2.95  0
+  11:30:41      8.41   2.19      0.00 /   0.00          0.00 /   0.00          2.89 /   3.00  0
+  11:31:11      8.37   1.55      0.00 /   0.00          0.00 /   0.00          2.71 /   2.89  0
+  11:31:41      8.34   1.45      0.00 /   0.00          0.00 /   0.00          2.59 /   2.82  0
+  11:32:11      8.36   1.30      0.00 /   0.00          0.00 /   0.00          2.60 /   2.79  0
+  11:32:41      8.43   1.20      0.00 /   0.00          0.00 /   0.00          2.57 /   2.72  0
+  11:33:11      8.47   1.23      0.00 /   0.00          0.00 /   0.00          3.02 /   2.83  0
+  11:33:41      8.43   1.50      0.00 /   0.00          0.00 /   0.00          2.58 /   2.76  0
+  11:34:11      8.47   2.39      0.00 /   0.00          0.00 /   0.00          2.79 /   2.78  0
+  11:34:41      8.46   3.80      0.00 /   0.00          0.00 /   0.00          2.79 /   2.85  0
+  11:35:11      8.31   2.44      0.00 /   0.00          0.00 /   0.00          2.66 /   2.82  0
+  11:35:41      8.35   1.95      0.00 /   0.00          0.00 /   0.00          2.85 /   2.88  0
+  11:36:11      8.43   2.13      0.00 /   0.00          0.00 /   0.00          3.20 /   3.01  0
+  11:36:41      8.46   1.64      0.00 /   0.00          0.00 /   0.00          2.70 /   2.90  0
+  11:37:11      8.47   1.61      0.00 /   0.00          0.00 /   0.00          2.77 /   2.86  0
+  11:37:41      8.45   1.24      0.00 /   0.00          0.00 /   0.00          3.08 /   2.97  0
+  11:38:11      8.45   0.88      0.00 /   0.00          0.00 /   0.00          3.07 /   2.98  0
+  11:38:41      8.42   0.66      0.00 /   0.00          0.00 /   0.00          2.81 /   2.93  0
+  11:39:11      8.42   0.89      0.00 /   0.00          0.00 /   0.00          2.88 /   2.93  0
+  11:39:41      8.42   1.25      0.00 /   0.00          0.00 /   0.00          2.63 /   2.86  0
+  11:40:11      8.42   2.10      0.00 /   0.00          0.00 /   0.00          2.98 /   2.85  0
+  11:40:41      8.43   2.23      0.00 /   0.00          0.00 /   0.00          2.67 /   2.80  0
+  11:41:11      8.42   1.54      0.00 /   0.00          0.00 /   0.00          2.70 /   2.80  0
+  11:41:41      8.41   1.42      0.00 /   0.00          0.00 /   0.00          2.62 /   2.76  0
+  11:42:11      8.42   1.73      0.00 /   0.00          0.00 /   0.00          2.65 /   2.77  0
+  11:42:41      8.39   2.10      0.00 /   0.00          0.00 /   0.00          2.47 /   2.71  0
+  11:43:11      8.40   2.79      0.00 /   0.00          0.00 /   0.00          2.68 /   2.72  0
+  11:43:41      8.39   2.99      0.00 /   0.00          0.00 /   0.00          2.54 /   2.69  0
+  11:44:11      8.40   2.55      0.00 /   0.00          0.00 /   0.00          2.59 /   2.68  0
+  11:44:41      8.40   2.99      0.00 /   0.00          0.00 /   0.00          2.71 /   2.68  0
+  11:45:11      8.40   3.33      0.00 /   0.00          0.00 /   0.00          2.83 /   2.77  0
+  11:45:41      8.19   3.05      0.00 /   0.00          0.00 /   0.00          2.81 /   2.78  0
+  11:46:11      8.24   2.62      0.00 /   0.00          0.00 /   0.00          2.67 /   2.76  0
+  11:46:41      8.33   2.03      0.00 /   0.00          0.00 /   0.00          2.56 /   2.73  0
+  11:47:11      8.37   2.75      0.00 /   0.00          0.00 /   0.00          2.65 /   2.71  0
+  11:47:41      8.34   2.73      0.00 /   0.00          0.00 /   0.00          2.59 /   2.66  0
+  11:48:11      8.38   2.77      0.00 /   0.00          0.00 /   0.00          3.27 /   2.86  0
+  11:48:41      8.37   2.66      0.00 /   0.00          0.00 /   0.00          2.52 /   2.77  0
+  11:49:11      8.37   2.08      0.00 /   0.00          0.00 /   0.00          2.79 /   2.76  0
+  11:49:41      8.34   2.53      0.00 /   0.00          0.00 /   0.00          2.76 /   2.75  0
+  11:50:11      8.20   2.15      0.00 /   0.00          0.00 /   0.00          2.83 /   2.77  0
+  11:50:41      8.24   2.93      0.00 /   0.00          0.00 /   0.00          2.61 /   2.73  0
+  11:51:11      8.30   2.34      0.00 /   0.01          0.00 /   0.01          3.02 /   2.79  0
+  11:51:41      8.31   2.00      0.00 /   0.00          0.00 /   0.00          2.63 /   2.78  0
+  11:52:11      8.32   2.08      0.00 /   0.00          0.00 /   0.00          2.65 /   2.78  0
+  11:52:41      8.32   2.31      0.00 /   0.00          0.00 /   0.00          2.60 /   2.75  0
+  11:53:11      8.29   1.87      0.00 /   0.00          0.00 /   0.00          2.72 /   2.74  0
+  11:53:41      8.33   1.19      0.00 /   0.00          0.00 /   0.00          2.46 /   2.65  0
+  11:54:11      8.31   0.96      0.00 /   0.00          0.00 /   0.00          2.70 /   2.68  0
+  11:54:41      8.33   0.92      0.00 /   0.00          0.00 /   0.00          2.60 /   2.67  0
+  11:55:11      8.32   1.38      0.00 /   0.00          0.00 /   0.00          2.90 /   2.78  0
+  11:55:41      8.31   1.51      0.00 /   0.00          0.00 /   0.00          2.49 /   2.72  0
+  11:56:11      8.30   1.30      0.00 /   0.00          0.00 /   0.00          2.78 /   2.77  0
+  11:56:41      8.30   0.97      0.00 /   0.00          0.00 /   0.00          2.51 /   2.72  0
+  11:57:11      8.29   0.95      0.00 /   0.00          0.00 /   0.00          2.67 /   2.74  0
+  11:57:41      8.27   1.92      0.00 /   0.00          0.00 /   0.00          2.65 /   2.75  0
+  11:58:11      8.31   2.40      0.00 /   0.00          0.00 /   0.00          2.97 /   2.83  0
+  11:58:41      8.29   2.40      0.00 /   0.00          0.00 /   0.00          2.63 /   2.76  0
+  11:59:11      8.27   2.79      0.00 /   0.00          0.00 /   0.00          2.52 /   2.67  0
+  11:59:41      8.28   2.80      0.00 /   0.00          0.00 /   0.00          2.60 /   2.71  0
+  12:00:11      8.30   3.29      0.00 /   0.00          0.00 /   0.00          3.44 /   2.99  0
+  12:00:41      8.20   3.49      0.00 /   0.00          0.00 /   0.00          2.88 /   3.00  0
+  12:01:11      8.11   3.35      0.00 /   0.00          0.00 /   0.00          2.82 /   2.90  0
+  12:01:41      8.13   2.87      0.00 /   0.00          0.00 /   0.00          2.53 /   2.80  0
+  12:02:11      8.13   2.81      0.00 /   0.00          0.00 /   0.00          3.05 /   2.93  0
+  12:02:41      8.13   3.03      0.00 /   0.00          0.00 /   0.00          2.49 /   2.79  0
+  12:03:11      8.21   2.42      0.00 /   0.00          0.00 /   0.00          2.87 /   2.78  0
+  12:03:41      8.27   2.33      0.00 /   0.00          0.00 /   0.00          2.80 /   2.79  0
+  12:04:11      8.26   1.69      0.00 /   0.00          0.00 /   0.00          2.91 /   2.87  0
+  12:04:41      8.27   1.47      0.00 /   0.00          0.00 /   0.00          2.86 /   2.91  0
+  12:05:11      8.26   1.18      0.00 /   0.00          0.00 /   0.00          3.24 /   3.01  0
+  12:05:41      8.26   1.54      0.00 /   0.00          0.00 /   0.00          2.80 /   2.90  0
+  12:06:11      8.27   1.19      0.00 /   0.00          0.00 /   0.00          2.94 /   2.87  0
+  12:06:41      8.30   0.85      0.00 /   0.00          0.00 /   0.00          2.87 /   2.89  0
+  12:07:11      8.29   0.89      0.00 /   0.00          0.00 /   0.00          2.74 /   2.85  0
+  12:07:41      8.29   1.16      0.00 /   0.00          0.00 /   0.00          2.82 /   2.83  0
+  12:08:11      8.27   1.08      0.00 /   0.00          0.00 /   0.00          2.87 /   2.87  0
+  12:08:41      8.27   0.80      0.00 /   0.00          0.00 /   0.00          2.72 /   2.81  0
+  12:09:11      8.28   0.48      0.00 /   0.00          0.00 /   0.00          2.81 /   2.81  0
+  12:09:41      8.27   0.85      0.00 /   0.00          0.00 /   0.00          2.35 /   2.68  0
+  12:10:11      8.18   1.04      0.00 /   0.00          0.00 /   0.00          3.02 /   2.85  0
+  12:10:41      8.14   1.22      0.00 /   0.00          0.00 /   0.00          2.50 /   2.76  0
+  12:11:11      8.24   1.25      0.00 /   0.00          0.00 /   0.00          2.71 /   2.77  0
+  12:11:41      8.26   1.95      0.00 /   0.00          0.00 /   0.00          2.54 /   2.72  0
+  12:12:11      8.25   1.64      0.00 /   0.00          0.00 /   0.00          2.72 /   2.77  0
+  12:12:41      8.27   1.81      0.00 /   0.00          0.00 /   0.00          2.54 /   2.74  0
+  12:13:11      8.28   1.50      0.00 /   0.00          0.00 /   0.00          2.59 /   2.75  0
+  12:13:41      8.28   2.02      0.00 /   0.00          0.00 /   0.00          2.60 /   2.73  0
+  12:14:11      8.26   1.94      0.00 /   0.00          0.00 /   0.00          2.74 /   2.76  0
+  12:14:41      8.26   2.04      0.00 /   0.00          0.00 /   0.00          2.48 /   2.73  0
+  12:15:11      8.27   1.99      0.00 /   0.00          0.00 /   0.00          3.17 /   2.92  0
+  12:15:41      8.16   1.72      0.00 /   0.00          0.00 /   0.00          2.71 /   2.89  0
+  12:16:11      8.11   2.44      0.00 /   0.00          0.00 /   0.00          2.95 /   2.91  0
+  12:16:41      8.21   2.13      0.00 /   0.00          0.00 /   0.00          2.83 /   2.91  0
+  12:17:11      8.22   1.66      0.00 /   0.00          0.00 /   0.00          2.79 /   2.80  0
+  12:17:41      8.21   2.25      0.00 /   0.00          0.00 /   0.00          2.86 /   2.85  0
+  12:18:11      8.21   2.57      0.00 /   0.00          0.00 /   0.00          2.96 /   2.90  0
+  12:18:41      8.23   2.19      0.00 /   0.00          0.00 /   0.00          2.61 /   2.81  0
+  12:19:11      8.24   3.25      0.00 /   0.00          0.00 /   0.00          2.83 /   2.82  0
+  12:19:41      8.22   2.60      0.00 /   0.00          0.00 /   0.00          2.70 /   2.81  0
+  12:20:11      8.07   2.63      0.00 /   0.00          0.00 /   0.00          3.26 /   2.95  0
+  12:20:41      8.14   2.59      0.00 /   0.00          0.00 /   0.00          2.71 /   2.90  0
+  12:21:11      8.21   2.86      0.00 /   0.00          0.00 /   0.00          2.62 /   2.80  0
+  12:21:41      8.23   2.69      0.00 /   0.00          0.00 /   0.00          2.58 /   2.74  0
+  12:22:11      8.18   3.16      0.00 /   0.00          0.00 /   0.00          2.86 /   2.79  0
+  12:22:41      8.19   2.49      0.00 /   0.00          0.00 /   0.00          2.72 /   2.81  0
+  12:23:11      8.21   1.69      0.00 /   0.00          0.00 /   0.00          3.02 /   2.89  0
+  12:23:41      8.21   1.68      0.00 /   0.00          0.00 /   0.00          2.93 /   2.88  0
+  12:24:11      8.19   1.69      0.00 /   0.00          0.00 /   0.00          2.88 /   2.86  0
+  12:24:41      8.17   2.18      0.00 /   0.00          0.00 /   0.00          2.80 /   2.81  0
+  12:25:11      8.17   1.63      0.00 /   0.00          0.00 /   0.00          2.91 /   2.84  0
+  12:25:41      8.19   1.26      0.00 /   0.00          0.00 /   0.00          2.61 /   2.79  0
+  12:26:11      8.19   1.71      0.00 /   0.00          0.00 /   0.00          2.87 /   2.84  0
+  12:26:41      8.17   1.69      0.00 /   0.00          0.00 /   0.00          2.65 /   2.79  0
+  12:27:11      8.17   2.00      0.00 /   0.00          0.00 /   0.00          2.97 /   2.83  0
+  12:27:41      8.18   1.29      0.00 /   0.00          0.00 /   0.00          2.53 /   2.71  0
+  12:28:11      8.20   1.69      0.00 /   0.00          0.00 /   0.00          2.67 /   2.72  0
+  12:28:41      8.17   1.65      0.00 /   0.00          0.00 /   0.00          2.60 /   2.73  0
+  12:29:11      8.19   2.32      0.00 /   0.00          0.00 /   0.00          2.46 /   2.67  0
+  12:29:41      8.20   2.58      0.00 /   0.00          0.00 /   0.00          3.15 /   2.81  0
+  12:30:11      8.12   2.12      0.00 /   0.00          0.00 /   0.00          3.23 /   2.97  0
+  12:30:41      8.10   1.99      0.00 /   0.00          0.00 /   0.00          2.89 /   3.02  0
+  12:31:11      8.03   2.21      0.00 /   0.00          0.00 /   0.00          2.95 /   2.99  0
+  12:31:41      7.99   2.90      0.00 /   0.00          0.00 /   0.00          2.79 /   2.94  0
+  12:32:11      7.98   1.96      0.00 /   0.00          0.00 /   0.00          2.76 /   2.90  0
+  12:32:41      8.01   2.31      0.00 /   0.00          0.00 /   0.00          2.77 /   2.84  0
+  12:33:11      8.15   1.77      0.00 /   0.00          0.00 /   0.00          3.07 /   2.91  0
+
+====================================================================================================
+end at 12:33:11 UTC
+  containers: 39 running of 42
+    accounting-service                 running  restarts 6   oom False started 2026-09-30T09:07:12  11.16MiB / 300MiB  0.32%
+    ad-service                         running  restarts 0   oom False started 2026-09-30T09:06:47  237.6MiB / 700MiB  0.09%
+    alertmanager                       running  restarts 0   oom False started 2026-09-30T09:19:19  17.17MiB / 200MiB  0.11%
+    cart-service                       running  restarts 0   oom False started 2026-09-30T09:06:47  123.8MiB / 400MiB  0.55%
+    checkout-service                   running  restarts 6   oom False started 2026-09-30T09:07:12  14.93MiB / 120MiB  0.00%
+    currency-service                   running  restarts 0   oom False started 2026-09-30T09:06:47  6.016MiB / 100MiB  0.06%
+    email-service                      running  restarts 1   oom False started 2026-10-01T18:30:47  152.1MiB / 250MiB  0.02%
+    faultline-deploy-caddy-1           running  restarts 0   oom False started 2026-09-30T09:06:47  19.75MiB / 15.56GiB  0.00%
+    faultline-deploy-egress-1          running  restarts 0   oom False started 2026-09-30T09:06:47  13.64MiB / 15.56GiB  0.01%
+    faultline-deploy-executor-1        running  restarts 0   oom False started 2026-10-02T08:19:43  51.66MiB / 15.56GiB  0.19%
+    faultline-deploy-faultline-1       running  restarts 0   oom False started 2026-09-30T09:06:47  397.5MiB / 15.56GiB  0.22%
+    faultline-deploy-orchestrator-1    running  restarts 0   oom False started 2026-09-30T09:06:47  55.67MiB / 15.56GiB  0.24%
+    faultline-deploy-postgres-1        running  restarts 0   oom False started 2026-09-30T09:06:47  50.33MiB / 15.56GiB  9.57%
+    faultline-deploy-prometheus-self-1 running  restarts 0   oom False started 2026-09-30T09:06:47  40.2MiB / 15.56GiB  0.04%
+    faultline-deploy-redis-1           running  restarts 0   oom False started 2026-09-30T09:06:47  5.199MiB / 15.56GiB  0.54%
+    faultline-minio-1                  exited   restarts 0   oom False started 2026-09-15T04:30:12  -  -
+    faultline-postgres-1               exited   restarts 0   oom False started 2026-09-15T04:30:11  -  -
+    faultline-redis-1                  exited   restarts 0   oom False started 2026-09-15T04:30:11  -  -
+    feature-flag-service               running  restarts 0   oom False started 2026-09-30T09:06:47  21.32MiB / 200MiB  0.46%
+    frauddetection-service             running  restarts 1   oom False started 2026-09-30T09:06:58  169.3MiB / 500MiB  0.36%
+    frontend                           running  restarts 0   oom False started 2026-09-30T09:06:47  150.3MiB / 500MiB  1.66%
+    frontend-proxy                     running  restarts 0   oom False started 2026-09-30T09:19:19  30.93MiB / 300MiB  0.49%
+    grafana                            running  restarts 0   oom False started 2026-09-30T09:19:17  68.79MiB / 15.56GiB  0.04%
+    jaeger                             running  restarts 0   oom False started 2026-09-30T09:06:47  170MiB / 275MiB  0.25%
+    kafka                              running  restarts 0   oom False started 2026-09-30T09:06:47  584.8MiB / 2GiB  1.19%
+    kind-control-plane                 running  restarts 0   oom False started 2026-10-02T08:20:22  2.158GiB / 15.56GiB  35.18%
+    kind-worker                        running  restarts 0   oom False started 2026-10-02T08:20:22  1.215GiB / 15.56GiB  41.11%
+    kind-worker2                       running  restarts 0   oom False started 2026-10-02T08:20:22  1.214GiB / 15.56GiB  52.27%
+    kind-worker3                       running  restarts 0   oom False started 2026-10-02T08:20:22  927.1MiB / 15.56GiB  54.96%
+    load-generator                     running  restarts 0   oom False started 2026-09-30T09:06:47  115.2MiB / 300MiB  5.92%
+    loki                               running  restarts 0   oom False started 2026-09-30T09:19:18  89.39MiB / 400MiB  0.70%
+    otel-col                           running  restarts 0   oom False started 2026-09-30T09:06:47  106.8MiB / 600MiB  1.80%
+    payment-service                    running  restarts 0   oom False started 2026-09-30T09:06:47  73.75MiB / 320MiB  0.00%
+    postgres                           running  restarts 0   oom False started 2026-09-30T09:06:47  20.06MiB / 200MiB  7.49%
+    product-catalog-service            running  restarts 0   oom False started 2026-09-30T09:06:47  12.75MiB / 120MiB  0.57%
+    prometheus                         running  restarts 0   oom False started 2026-09-30T09:19:17  96.21MiB / 15.56GiB  0.04%
+    promtail                           running  restarts 0   oom False started 2026-09-30T09:19:18  85.79MiB / 200MiB  0.75%
+    quoteservice                       running  restarts 0   oom False started 2026-09-30T09:06:47  30.91MiB / 200MiB  0.00%
+    recommendation-service             running  restarts 0   oom False started 2026-09-30T09:06:47  44.31MiB / 800MiB  0.23%
+    redis-cart                         running  restarts 0   oom False started 2026-09-30T09:06:47  18.02MiB / 20MiB  0.23%
+    shipping-service                   running  restarts 0   oom False started 2026-09-30T09:06:47  4.859MiB / 120MiB  0.01%
+    tempo                              running  restarts 0   oom False started 2026-09-30T09:19:18  174.7MiB / 400MiB  0.63%
+  platform container memory: anon 0.07 GiB  file 0.02 GiB (active 0.01, inactive 0.02)  shmem 0.00 GiB
+  firing alerts (0): none
+  kind clusters: kind
+    node kind-control-plane   Ready   control-plane   4h12m   v1.32.1   172.22.0.2   <none>   Debian GNU/Linux 12 (bookworm)   6.8.0-142-generic   containerd://2.0.2
+    node kind-worker          Ready   <none>          4h12m   v1.32.1   172.22.0.4   <none>   Debian GNU/Linux 12 (bookworm)   6.8.0-142-generic   containerd://2.0.2
+    node kind-worker2         Ready   <none>          4h12m   v1.32.1   172.22.0.5   <none>   Debian GNU/Linux 12 (bookworm)   6.8.0-142-generic   containerd://2.0.2
+    node kind-worker3         Ready   <none>          4h12m   v1.32.1   172.22.0.3   <none>   Debian GNU/Linux 12 (bookworm)   6.8.0-142-generic   containerd://2.0.2
+  pods: 66
+    kube-system          calico-kube-controllers-75cd4cc5b9-49zzg                   1/1   Running   0     4h12m
+    kube-system          calico-node-j5mtk                                          1/1   Running   0     4h12m
+    kube-system          calico-node-kgq5b                                          1/1   Running   0     4h12m
+    kube-system          calico-node-nwwph                                          1/1   Running   0     4h12m
+    kube-system          calico-node-v6qgc                                          1/1   Running   0     4h12m
+    kube-system          coredns-668d6bf9bc-8xkc4                                   1/1   Running   0     4h12m
+    kube-system          coredns-668d6bf9bc-9w22c                                   1/1   Running   0     4h12m
+    kube-system          etcd-kind-control-plane                                    1/1   Running   0     4h12m
+    kube-system          kube-apiserver-kind-control-plane                          1/1   Running   0     4h12m
+    kube-system          kube-controller-manager-kind-control-plane                 1/1   Running   0     4h12m
+    kube-system          kube-proxy-992nl                                           1/1   Running   0     4h12m
+    kube-system          kube-proxy-cplnm                                           1/1   Running   0     4h12m
+    kube-system          kube-proxy-j65lx                                           1/1   Running   0     4h12m
+    kube-system          kube-proxy-vtmkw                                           1/1   Running   0     4h12m
+    kube-system          kube-scheduler-kind-control-plane                          1/1   Running   0     4h12m
+    kube-system          metrics-server-676dc447b9-5g87f                            1/1   Running   0     127m
+    local-path-storage   local-path-provisioner-58cc7856b6-s2ztv                    1/1   Running   0     4h12m
+    observe              jaeger-agent-6ccbcc486d-pcgnp                              1/1   Running   0     126m
+    observe              otel-collector-5774f5c78-dqcsq                             1/1   Running   0     126m
+    observe              prometheus-alertmanager-0                                  1/1   Running   0     126m
+    observe              prometheus-kube-state-metrics-55bbb6475c-qght4             1/1   Running   0     126m
+    observe              prometheus-prometheus-blackbox-exporter-6cdc44b585-n5pk4   1/1   Running   0     126m
+    observe              prometheus-prometheus-node-exporter-47b6m                  1/1   Running   0     126m
+    observe              prometheus-prometheus-node-exporter-jtlzq                  1/1   Running   0     126m
+    observe              prometheus-prometheus-node-exporter-srlrp                  1/1   Running   0     126m
+    observe              prometheus-prometheus-node-exporter-w7h9r                  1/1   Running   0     126m
+    observe              prometheus-prometheus-pushgateway-74bd87dc4f-tlhrk         1/1   Running   0     126m
+    observe              prometheus-server-869d9dd88b-f87fh                         2/2   Running   0     126m
+    openebs              openebs-localpv-provisioner-65dd55b8dc-kzbw2               1/1   Running   0     127m
+    openebs              openebs-ndm-cluster-exporter-848db89c6-b2rfk               1/1   Running   0     127m
+    openebs              openebs-ndm-gz567                                          1/1   Running   0     127m
+    openebs              openebs-ndm-lnq5n                                          1/1   Running   0     127m
+    openebs              openebs-ndm-lwrbq                                          1/1   Running   0     127m
+    openebs              openebs-ndm-node-exporter-8rbsz                            1/1   Running   0     127m
+    openebs              openebs-ndm-node-exporter-npqp4                            1/1   Running   0     127m
+    openebs              openebs-ndm-node-exporter-xzfdd                            1/1   Running   0     127m
+    openebs              openebs-ndm-operator-5849bb84b8-vbx5j                      1/1   Running   0     127m
+    social-network       compose-post-service-79f75bc86c-49c7n                      1/1   Running   0     75m
+    social-network       home-timeline-redis-ff9499c5c-bp8d6                        1/1   Running   0     125m
+    social-network       home-timeline-service-8fdc74db9-hmq97                      1/1   Running   0     75m
+    social-network       jaeger-7d8548779-v4s8h                                     1/1   Running   0     125m
+    social-network       media-frontend-54596b5b79-5z2pt                            1/1   Running   0     75m
+    social-network       media-memcached-54b5cffb48-r28ns                           1/1   Running   0     125m
+    social-network       media-mongodb-6d47ccb779-l77j2                             1/1   Running   0     125m
+    social-network       media-service-69cb74fd59-9rk98                             1/1   Running   0     75m
+    social-network       nginx-thrift-6cc5d685d-vnq7q                               1/1   Running   0     75m
+    social-network       post-storage-memcached-5b544b79d8-b7ww4                    1/1   Running   0     125m
+    social-network       post-storage-mongodb-846dcb76b7-vvdsg                      1/1   Running   0     125m
+    social-network       post-storage-service-695db8c747-gngqc                      1/1   Running   0     75m
+    social-network       social-graph-mongodb-69ddddf895-g5tcb                      1/1   Running   0     125m
+    social-network       social-graph-redis-f9759b67d-xdbn9                         1/1   Running   0     125m
+    social-network       social-graph-service-5487b9fb85-zsz5v                      1/1   Running   0     75m
+    social-network       text-service-7d84675667-6vbkb                              1/1   Running   0     75m
+    social-network       unique-id-service-5695c85c66-9h4lw                         1/1   Running   0     75m
+    social-network       url-shorten-memcached-999559bdb-xrpxd                      1/1   Running   0     125m
+    social-network       url-shorten-mongodb-6b486f55b8-cx78h                       1/1   Running   0     125m
+    social-network       url-shorten-service-556bbf5f66-vdkmq                       1/1   Running   0     75m
+    social-network       user-memcached-554fcf9578-4zpvr                            1/1   Running   0     125m
+    social-network       user-mention-service-768fcd9995-x896p                      1/1   Running   0     75m
+    social-network       user-mongodb-75847cfbb-r44hv                               1/1   Running   0     125m
+    social-network       user-service-84b74cf9c5-99p2v                              1/1   Running   0     75m
+    social-network       user-timeline-mongodb-658f54fd68-r8wb7                     1/1   Running   0     125m
+    social-network       user-timeline-redis-cbd5f6645-ftztw                        1/1   Running   0     125m
+    social-network       user-timeline-service-6487f4dc99-ct252                     1/1   Running   0     75m
+    social-network       wrk2-job-dn679                                             1/1   Running   0     124m
+    sregym               mcp-server-695489844f-hx8ls                                1/1   Running   0     125m
+  tools (login PATH): kind=/home/deploy/t7.2-1c/bin/kind kubectl=/home/deploy/t7.2-1c/bin/kubectl helm=/home/deploy/t7.2-1c/bin/helm uv=/home/deploy/.local/bin/uv
+  tools (1c dir): helm kind kubectl
+  inotify: instances 1024 watches 1048576
+  ~/.kube exists: True
+  ~/cache_dir exists: True
+  ~/t7.2-1c exists: True
+
+====================================================================================================
+SUMMARY W: samples 141; avail GiB min 7.98 mean 8.30 max 8.52; load1 max 7.07; mem-some avg60 max 0.01; mem-full avg60 max 0.01; cpu-some avg60 max 3.02; restarted in window none; oom-flagged none; stopped in window none; alerts that fired in the window and were not firing at its start none
+capture at 2026-10-02 12:33:14 UTC, 75 min after the recovery
+user-service dnsPolicy: ClusterFirst
+pods in social-network, with restarts:
+  compose-post-service-79f75bc86c-49c7n     1/1   Running   0     75m
+  home-timeline-redis-ff9499c5c-bp8d6       1/1   Running   0     125m
+  home-timeline-service-8fdc74db9-hmq97     1/1   Running   0     75m
+  jaeger-7d8548779-v4s8h                    1/1   Running   0     125m
+  media-frontend-54596b5b79-5z2pt           1/1   Running   0     75m
+  media-memcached-54b5cffb48-r28ns          1/1   Running   0     125m
+  media-mongodb-6d47ccb779-l77j2            1/1   Running   0     125m
+  media-service-69cb74fd59-9rk98            1/1   Running   0     75m
+  nginx-thrift-6cc5d685d-vnq7q              1/1   Running   0     75m
+  post-storage-memcached-5b544b79d8-b7ww4   1/1   Running   0     125m
+  post-storage-mongodb-846dcb76b7-vvdsg     1/1   Running   0     125m
+  post-storage-service-695db8c747-gngqc     1/1   Running   0     75m
+  social-graph-mongodb-69ddddf895-g5tcb     1/1   Running   0     125m
+  social-graph-redis-f9759b67d-xdbn9        1/1   Running   0     125m
+  social-graph-service-5487b9fb85-zsz5v     1/1   Running   0     75m
+  text-service-7d84675667-6vbkb             1/1   Running   0     75m
+  unique-id-service-5695c85c66-9h4lw        1/1   Running   0     75m
+  url-shorten-memcached-999559bdb-xrpxd     1/1   Running   0     125m
+  url-shorten-mongodb-6b486f55b8-cx78h      1/1   Running   0     125m
+  url-shorten-service-556bbf5f66-vdkmq      1/1   Running   0     75m
+  user-memcached-554fcf9578-4zpvr           1/1   Running   0     125m
+  user-mention-service-768fcd9995-x896p     1/1   Running   0     75m
+  user-mongodb-75847cfbb-r44hv              1/1   Running   0     125m
+  user-service-84b74cf9c5-99p2v             1/1   Running   0     75m
+  user-timeline-mongodb-658f54fd68-r8wb7    1/1   Running   0     125m
+  user-timeline-redis-cbd5f6645-ftztw       1/1   Running   0     125m
+  user-timeline-service-6487f4dc99-ct252    1/1   Running   0     75m
+  wrk2-job-dn679                            1/1   Running   0     124m
+pods in observe (SREGym's Jaeger and collector), with restarts:
+  jaeger-agent-6ccbcc486d-pcgnp                              1/1   Running   0     126m
+  otel-collector-5774f5c78-dqcsq                             1/1   Running   0     126m
+  prometheus-alertmanager-0                                  1/1   Running   0     126m
+  prometheus-kube-state-metrics-55bbb6475c-qght4             1/1   Running   0     126m
+  prometheus-prometheus-blackbox-exporter-6cdc44b585-n5pk4   1/1   Running   0     126m
+  prometheus-prometheus-node-exporter-47b6m                  1/1   Running   0     126m
+  prometheus-prometheus-node-exporter-jtlzq                  1/1   Running   0     126m
+  prometheus-prometheus-node-exporter-srlrp                  1/1   Running   0     126m
+  prometheus-prometheus-node-exporter-w7h9r                  1/1   Running   0     126m
+  prometheus-prometheus-pushgateway-74bd87dc4f-tlhrk         1/1   Running   0     126m
+  prometheus-server-869d9dd88b-f87fh                         2/2   Running   0     126m
+services: {"data":["compose-post-service","home-timeline-service","text-service","unique-id-service","user-timeline-service","nginx-web-server","jaeger-all-in-one","user-service","media-service","post-storage-service","social-graph-service","url-shorten-service","user-mention-service"],"total":13,"limit":0,"offset":0,"errors":null}
+lookback 5 min: services with a trace between 7 and 3 minutes ago: 12
+GET http://127.0.0.1:26686/api/dependencies?endTs=1790944398000&lookback=300000
+  -> HTTP 200, application/json, 692 bytes
+  JSON: yes
+  8 entries: 8 cross-service, 0 self-edges; 6 services
+        192  home-timeline-service -> post-storage-service
+        191  nginx-web-server   -> home-timeline-service
+         95  user-timeline-service -> post-storage-service
+         94  nginx-web-server   -> user-timeline-service
+         25  compose-post-service -> home-timeline-service
+         25  compose-post-service -> user-timeline-service
+         25  home-timeline-service -> social-graph-service
+         24  nginx-web-server   -> compose-post-service
+  services: compose-post-service, home-timeline-service, nginx-web-server, post-storage-service, social-graph-service, user-timeline-service
+lookback 15 min: services with a trace between 17 and 13 minutes ago: 12
+GET http://127.0.0.1:26686/api/dependencies?endTs=1790944399000&lookback=900000
+  -> HTTP 200, application/json, 694 bytes
+  JSON: yes
+  8 entries: 8 cross-service, 0 self-edges; 6 services
+        529  home-timeline-service -> post-storage-service
+        528  nginx-web-server   -> home-timeline-service
+        231  user-timeline-service -> post-storage-service
+        230  nginx-web-server   -> user-timeline-service
+         71  compose-post-service -> home-timeline-service
+         71  compose-post-service -> user-timeline-service
+         71  home-timeline-service -> social-graph-service
+         70  nginx-web-server   -> compose-post-service
+  services: compose-post-service, home-timeline-service, nginx-web-server, post-storage-service, social-graph-service, user-timeline-service
+lookback 30 min: services with a trace between 32 and 28 minutes ago: 12
+GET http://127.0.0.1:26686/api/dependencies?endTs=1790944401000&lookback=1800000
+  -> HTTP 200, application/json, 700 bytes
+  JSON: yes
+  8 entries: 8 cross-service, 0 self-edges; 6 services
+       1008  home-timeline-service -> post-storage-service
+       1007  nginx-web-server   -> home-timeline-service
+        474  user-timeline-service -> post-storage-service
+        473  nginx-web-server   -> user-timeline-service
+        167  compose-post-service -> home-timeline-service
+        167  compose-post-service -> user-timeline-service
+        167  home-timeline-service -> social-graph-service
+        166  nginx-web-server   -> compose-post-service
+  services: compose-post-service, home-timeline-service, nginx-web-server, post-storage-service, social-graph-service, user-timeline-service
+lookback 60 min: services with a trace between 62 and 58 minutes ago: 0
+GET http://127.0.0.1:26686/api/dependencies?endTs=1790944402000&lookback=3600000
+  -> HTTP 200, application/json, 700 bytes
+  JSON: yes
+  8 entries: 8 cross-service, 0 self-edges; 6 services
+       1363  home-timeline-service -> post-storage-service
+       1362  nginx-web-server   -> home-timeline-service
+        640  user-timeline-service -> post-storage-service
+        639  nginx-web-server   -> user-timeline-service
+        227  compose-post-service -> home-timeline-service
+        227  compose-post-service -> user-timeline-service
+        227  home-timeline-service -> social-graph-service
+        226  nginx-web-server   -> compose-post-service
+  services: compose-post-service, home-timeline-service, nginx-web-server, post-storage-service, social-graph-service, user-timeline-service
+port 26686: closed
+hold done at 2026-10-02 12:33:23 UTC
