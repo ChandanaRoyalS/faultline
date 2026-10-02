@@ -4617,6 +4617,19 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-10-02: T7.2 topology item 4, Addendum 1 - Hotel Reservation sends SREGym's Jaeger
+nothing; its services are restarted once.***
+
+- **No trace reached SREGym's Jaeger.** The services set up their trace agent before SREGym
+  redirected `jaeger` to its collector, and SREGym restarted nothing.
+  - Measured: Jaeger listed `profile` alone once the recovery restarted it.
+  - So SREGym's own trace tools would see nothing of this application.
+- **The owner's call**: restart every non-datastore deployment once, then hold and capture as
+  registered. Question 2 is INCONCLUSIVE here.
+- **Departure**: the deploy ran twice, and the first log is lost; the second removed the first's
+  application.
+- **Prediction already wrong**: the fault did bite; `profile` crash-looped with no healthy pod.
+
 ***2026-10-02: T7.2 topology item 4 registered - the DeathStarBench applications' graphs under
 SREGym.***
 

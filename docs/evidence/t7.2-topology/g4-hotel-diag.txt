@@ -1,0 +1,97 @@
+Fri Oct  2 02:45:55 UTC 2026
+== SREGym processes
+no main.py
+702212 /bin/sh -c kubectl port-forward svc/mcp-server 9954:9954 -n sregym --address 0.0.0.0
+702213 kubectl port-forward svc/mcp-server 9954:9954 -n sregym --address 0.0.0.0
+== hotel-reservation pods
+consul-5c767d7459-7smbs                   1/1   Running            0             8m10s   10.244.195.206   kind-worker3   <none>   <none>
+frontend-bc766b7fc-cqj4m                  1/1   Running            0             8m10s   10.244.162.146   kind-worker    <none>   <none>
+geo-766c64f6b4-c4wlc                      1/1   Running            0             8m10s   10.244.110.140   kind-worker2   <none>   <none>
+jaeger-67445b6dd6-mdfvr                   1/1   Running            0             8m9s    10.244.195.207   kind-worker3   <none>   <none>
+memcached-profile-679775b4d4-ml2lj        1/1   Running            0             8m9s    10.244.110.141   kind-worker2   <none>   <none>
+memcached-rate-5b59cb5d9d-7wl79           1/1   Running            0             8m9s    10.244.162.148   kind-worker    <none>   <none>
+memcached-reserve-6c889f84d4-h6pf9        1/1   Running            0             8m8s    10.244.195.210   kind-worker3   <none>   <none>
+mongodb-geo-5ff578bcb8-wtkqc              1/1   Running            0             8m5s    10.244.162.153   kind-worker    <none>   <none>
+mongodb-profile-758cb77f9f-mf6d8          1/1   Running            0             8m9s    10.244.195.212   kind-worker3   <none>   <none>
+mongodb-rate-56cc8659c9-9wbhs             1/1   Running            0             8m5s    10.244.110.145   kind-worker2   <none>   <none>
+mongodb-recommendation-55699465f7-fnzhc   1/1   Running            0             8m8s    10.244.195.213   kind-worker3   <none>   <none>
+mongodb-reservation-5994859869-tvp4q      1/1   Running            0             8m8s    10.244.110.147   kind-worker2   <none>   <none>
+mongodb-user-969c6c449-d79nl              1/1   Running            0             8m7s    10.244.110.148   kind-worker2   <none>   <none>
+profile-7b655b4d46-zrpz4                  0/1   CrashLoopBackOff   6 (57s ago)   7m52s   10.244.195.215   kind-worker3   <none>   <none>
+rate-b6dc6465f-cpz69                      1/1   Running            0             8m9s    10.244.162.149   kind-worker    <none>   <none>
+recommendation-6bf7689fdb-hb4t9           1/1   Running            0             8m8s    10.244.162.150   kind-worker    <none>   <none>
+reservation-57b8ccd5dc-lvsqs              1/1   Running            0             8m8s    10.244.162.151   kind-worker    <none>   <none>
+search-7d996cf85b-hchcq                   1/1   Running            0             8m7s    10.244.195.211   kind-worker3   <none>   <none>
+user-5c4d969c85-drdjc                     1/1   Running            0             8m7s    10.244.162.152   kind-worker    <none>   <none>
+wrk2-job-4fbgf                            1/1   Running            0             7m52s   10.244.195.214   kind-worker3   <none>   <none>
+== hotel-reservation services
+consul                   ClusterIP      10.96.220.39    <none>                                     8300/TCP,8400/TCP,8500/TCP,8600/UDP   8m11s
+frontend                 ClusterIP      10.96.244.101   <none>                                     5000/TCP                              8m11s
+geo                      ClusterIP      10.96.26.192    <none>                                     8083/TCP                              8m11s
+jaeger                   ExternalName   <none>          otel-collector.observe.svc.cluster.local   <none>                                7m54s
+jaeger-agent             ExternalName   <none>          otel-collector.observe.svc.cluster.local   <none>                                7m54s
+jaeger-collector         ExternalName   <none>          otel-collector.observe.svc.cluster.local   <none>                                7m54s
+jaeger-out               NodePort       10.96.118.159   <none>                                     16686:31277/TCP                       8m10s
+jaeger-query             ExternalName   <none>          otel-collector.observe.svc.cluster.local   <none>                                7m54s
+memcached-profile        ClusterIP      10.96.96.177    <none>                                     11211/TCP                             8m10s
+memcached-rate           ClusterIP      10.96.172.64    <none>                                     11211/TCP                             8m10s
+memcached-reserve        ClusterIP      10.96.177.20    <none>                                     11211/TCP                             8m10s
+mongodb-geo              ClusterIP      10.96.210.164   <none>                                     27017/TCP                             8m10s
+mongodb-profile          ClusterIP      10.96.44.246    <none>                                     27017/TCP                             8m10s
+mongodb-rate             ClusterIP      10.96.87.61     <none>                                     27017/TCP                             8m10s
+mongodb-recommendation   ClusterIP      10.96.120.164   <none>                                     27017/TCP                             8m10s
+mongodb-reservation      ClusterIP      10.96.89.98     <none>                                     27017/TCP                             8m10s
+mongodb-user             ClusterIP      10.96.187.208   <none>                                     27017/TCP                             8m10s
+profile                  ClusterIP      10.96.232.14    <none>                                     8081/TCP                              8m10s
+rate                     ClusterIP      10.96.40.102    <none>                                     8084/TCP,9091/TCP                     8m10s
+recommendation           ClusterIP      10.96.44.166    <none>                                     8085/TCP                              8m10s
+reservation              ClusterIP      10.96.226.74    <none>                                     8087/TCP                              8m10s
+search                   ClusterIP      10.96.255.37    <none>                                     8082/TCP,9092/TCP                     8m10s
+user                     ClusterIP      10.96.137.222   <none>                                     8086/TCP                              8m10s
+== observe services and ports
+jaeger-agent                              ClusterIP   5775,5778,6831,6832,14250,14268,4317,4318   UDP,TCP,UDP,UDP,TCP,TCP,TCP,TCP
+jaeger-backend                            ClusterIP   4317,16686                                  TCP,TCP
+jaeger-out                                NodePort    16686                                       TCP
+otel-collector                            ClusterIP   6831,14268,14250,4317,8889,8890             UDP,TCP,TCP,TCP,TCP,TCP
+prometheus-alertmanager                   ClusterIP   9093                                        TCP
+prometheus-alertmanager-headless          ClusterIP   9093                                        TCP
+prometheus-kube-state-metrics             ClusterIP   8080                                        TCP
+prometheus-prometheus-blackbox-exporter   ClusterIP   9115                                        TCP
+prometheus-prometheus-node-exporter       ClusterIP   9100                                        TCP
+prometheus-prometheus-pushgateway         ClusterIP   9091                                        TCP
+prometheus-server                         NodePort    80                                          TCP
+== Jaeger services now (API proxy)
+{"data":["jaeger-all-in-one"],"total":1,"limit":0,"offset":0,"errors":null}
+== frontend log, last 15
+[90m2026-10-02T02:45:56Z[0m [1m[31mERR[0m[0m [1mservices/frontend/server.go:233[0m[36m >[0m SearchHandler GetProfiles failed
+[90m2026-10-02T02:45:56Z[0m [1m[31mERR[0m[0m [1mservices/frontend/server.go:233[0m[36m >[0m SearchHandler GetProfiles failed
+[90m2026-10-02T02:45:56Z[0m [1m[31mERR[0m[0m [1mservices/frontend/server.go:233[0m[36m >[0m SearchHandler GetProfiles failed
+[90m2026-10-02T02:45:56Z[0m [1m[31mERR[0m[0m [1mservices/frontend/server.go:233[0m[36m >[0m SearchHandler GetProfiles failed
+[90m2026-10-02T02:45:56Z[0m [1m[31mERR[0m[0m [1mservices/frontend/server.go:233[0m[36m >[0m SearchHandler GetProfiles failed
+[90m2026-10-02T02:45:56Z[0m [1m[31mERR[0m[0m [1mservices/frontend/server.go:233[0m[36m >[0m SearchHandler GetProfiles failed
+[90m2026-10-02T02:45:56Z[0m [1m[31mERR[0m[0m [1mservices/frontend/server.go:233[0m[36m >[0m SearchHandler GetProfiles failed
+[90m2026-10-02T02:45:56Z[0m [1m[31mERR[0m[0m [1mservices/frontend/server.go:233[0m[36m >[0m SearchHandler GetProfiles failed
+[90m2026-10-02T02:45:56Z[0m [1m[31mERR[0m[0m [1mservices/frontend/server.go:233[0m[36m >[0m SearchHandler GetProfiles failed
+[90m2026-10-02T02:45:56Z[0m [1m[31mERR[0m[0m [1mservices/frontend/server.go:233[0m[36m >[0m SearchHandler GetProfiles failed
+[90m2026-10-02T02:45:56Z[0m [1m[31mERR[0m[0m [1mservices/frontend/server.go:233[0m[36m >[0m SearchHandler GetProfiles failed
+[90m2026-10-02T02:45:56Z[0m [1m[31mERR[0m[0m [1mservices/frontend/server.go:233[0m[36m >[0m SearchHandler GetProfiles failed
+[90m2026-10-02T02:45:56Z[0m [1m[31mERR[0m[0m [1mservices/frontend/server.go:233[0m[36m >[0m SearchHandler GetProfiles failed
+[90m2026-10-02T02:45:56Z[0m [1m[31mERR[0m[0m [1mservices/frontend/server.go:233[0m[36m >[0m SearchHandler GetProfiles failed
+[90m2026-10-02T02:45:56Z[0m [1m[31mERR[0m[0m [1mservices/frontend/server.go:233[0m[36m >[0m SearchHandler GetProfiles failed
+== frontend start-up lines about jaeger
+[90m2026-10-02T02:37:47Z[0m [32mINF[0m [1mcmd/frontend/main.go:41[0m[36m >[0m Read jaeger address: jaeger:6831
+[90m2026-10-02T02:37:47Z[0m [32mINF[0m [1mcmd/frontend/main.go:48[0m[36m >[0m Initializing jaeger agent [service name: frontend | host: jaeger:6831]...
+[90m2026-10-02T02:37:47Z[0m [32mINF[0m [1mtracing/tracer.go:26[0m[36m >[0m Jaeger client: adjusted sample ratio 1.000000
+[90m2026-10-02T02:37:47Z[0m [32mINF[0m [1mcmd/frontend/main.go:53[0m[36m >[0m Jaeger agent initialized
+== observe otel-collector log, last 15
+2026-10-02T02:34:08.776Z	info	service@v0.104.0/service.go:115	Setting up own telemetry...
+2026-10-02T02:34:08.776Z	info	service@v0.104.0/telemetry.go:96	Serving metrics	{"address": ":8888", "level": "Normal"}
+2026-10-02T02:34:08.776Z	info	spanmetricsconnector@v0.104.0/connector.go:113	Building spanmetrics connector	{"kind": "connector", "name": "spanmetrics", "exporter_in_pipeline": "traces", "receiver_in_pipeline": "metrics"}
+2026-10-02T02:34:08.776Z	warn	jaegerreceiver@v0.104.0/factory.go:49	jaeger receiver will deprecate Thrift-gen and replace it with Proto-gen to be compatbible to jaeger 1.42.0 and higher. See https://github.com/open-telemetry/opentelemetry-collector-contrib/pull/18485 for more details.	{"kind": "receiver", "name": "jaeger", "data_type": "traces"}
+2026-10-02T02:34:08.777Z	info	spanmetricsconnector@v0.104.0/connector.go:113	Building spanmetrics connector	{"kind": "connector", "name": "spanmetrics/otlp", "exporter_in_pipeline": "traces", "receiver_in_pipeline": "metrics"}
+2026-10-02T02:34:08.778Z	info	service@v0.104.0/service.go:193	Starting otelcol-contrib...	{"Version": "0.104.0", "NumCPU": 8}
+2026-10-02T02:34:08.778Z	info	extensions/extensions.go:34	Starting extensions...
+2026-10-02T02:34:08.779Z	info	spanmetricsconnector@v0.104.0/connector.go:206	Starting spanmetrics connector	{"kind": "connector", "name": "spanmetrics", "exporter_in_pipeline": "traces", "receiver_in_pipeline": "metrics"}
+2026-10-02T02:34:08.779Z	info	spanmetricsconnector@v0.104.0/connector.go:206	Starting spanmetrics connector	{"kind": "connector", "name": "spanmetrics/otlp", "exporter_in_pipeline": "traces", "receiver_in_pipeline": "metrics"}
+2026-10-02T02:34:08.779Z	info	otlpreceiver@v0.104.0/otlp.go:102	Starting GRPC server	{"kind": "receiver", "name": "otlp", "data_type": "traces", "endpoint": "0.0.0.0:4317"}
+2026-10-02T02:34:08.779Z	info	service@v0.104.0/service.go:219	Everything is ready. Begin running and processing data.

@@ -57,5 +57,7 @@ decided when Q122 is built.
 
 | file | what it is |
 |---|---|
-| `g4_vm.sh.txt` | item 3's stage script with the application as a parameter and the changes the registration lists; one run per application |
+| `g4_vm.sh.txt` | item 3's stage script with the application as a parameter and the changes the registration lists, plus Addendum 1's `restart-app` stage; one run per application |
 | `g4_ports.sh.txt` | item 3's port watcher, its output named by application; the VM's address is withheld in it |
+| `g4-hotel-preread.txt` to `g4-hotel-postrecover.txt` | Hotel Reservation's steps 1 to 5, 2026-10-02 02:06-02:49 UTC, and the read-only diagnosis (`g4-hotel-diag.txt`) and the read after the recovery (`g4-hotel-postrecover.txt`), all read in the registration's Addendum 1. `g4-hotel-deploy.txt` is the second deploy's log; the first's was overwritten. The VM's address is withheld in `g4-hotel-host-on.txt` |
+
