@@ -27,6 +27,8 @@ REPO_DATA = {
     "docs/evidence/t7.2-topology/q121-v2-dependencies-1h.json": (
         "faultline.context.graph.SNAPSHOT_V2"
     ),
+    # astronomy-shop under SREGym's, loaded by application (Q125).
+    "docs/evidence/t7.2-topology/g3-deps-60m.json": "faultline.context.graph.APPLICATIONS",
 }
 
 

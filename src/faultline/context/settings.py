@@ -33,6 +33,27 @@ class ContextSettings(BaseSettings):
     Anything reporting on correlation quality should quote the 28% rather than describing
     graph-based correlation as precise. Changing this number without re-deriving those
     percentages against the current snapshot is tuning blind.
+
+    **On v2's graph the shares differ** (Q125, 2026-10-02): 15 nodes, 105 pairs, and within 1, 2,
+    3 and 4 hops 19%, **61%**, 90% and 99% (100% at 5). The same holds for astronomy-shop under
+    SREGym, whose loaded graph is v2's. So on v2 radius 2 declines **39%** of pairs, and that is
+    the figure to quote there. The radius stays 2 for the same reasons: 1 still fails the
+    `emailservice`-shaped case and 3 joins 90%.
+    """
+
+    application: str | None = None
+    """**Which foreign application's dependency graph to load**, or none (Q125, ADR-0017).
+
+    Unset - the default, and every run before Q125 - means the graph of the world
+    `ToolSettings.world` names, exactly as before. Set, it names an entry of
+    `faultline.context.graph.APPLICATIONS` (today only `sregym-astronomy-shop`), and the graph is
+    that application's committed snapshot. An unknown name is an error, and so is an application
+    whose world differs from `ToolSettings.world`: a graph in one naming scheme and an injector in
+    another would disagree silently.
+
+    **Not a world.** The world also selects span-metric names and the container map; an
+    application on Kubernetes has neither, which is why this is a setting of its own (the owner's
+    decision).
     """
 
     postgres_dsn: str = "postgresql://faultline:faultline-dev@localhost:5432/faultline"

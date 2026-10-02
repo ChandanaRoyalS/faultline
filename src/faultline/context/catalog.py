@@ -154,9 +154,17 @@ KNOWN_ABSENT_V2: dict[str, tuple[GraphPresence, str]] = {
     ),
 }
 """v2's services that exist and are not in its graph, each with the reason, measured by Q122's
-presence probe rather than assumed. **`fraud-detection` is not here**: its flag read keeps it a
-node, though, like `accounting`, nothing reaches it from checkout. The nine telemetry services
-are left out, as on v1."""
+presence probe rather than assumed.
+
+**Also astronomy-shop under SREGym's table** (Q125, the owner's decision): its graph is read in v2's
+world, so the catalog reuses this. Checked against what T7.2 topology item 3 recorded there, and
+consistent: SREGym's Jaeger listed `accounting` and `image-provider` (spans, no edge) and no `llm`,
+`flagd-ui`, `valkey-cart`, `postgresql` or `kafka`, and `load-generator`'s only edge is an artifact
+one. **Not checked there**: whether `llm` served requests, whether anything reached `flagd-ui`, and
+the datastores' client spans in their callers.
+
+**`fraud-detection` is not here**: its flag read keeps it a node, though, like `accounting`,
+nothing reaches it from checkout. The nine telemetry services are left out, as on v1."""
 
 KNOWN_ABSENT_BY_WORLD: dict[str, dict[str, tuple[GraphPresence, str]]] = {
     "v1": KNOWN_ABSENT,
@@ -184,9 +192,14 @@ class ServiceCatalog:
         self._entries = entries
 
     @classmethod
-    def from_snapshot(cls, world: str | None = None) -> ServiceCatalog:
-        """The catalog of `world` (default: the process's), over that world's snapshot."""
-        return cls(ServiceGraph.from_snapshot(world=world))
+    def from_snapshot(
+        cls, world: str | None = None, application: str | None = None
+    ) -> ServiceCatalog:
+        """The catalog over the graph `ServiceGraph.from_snapshot` loads for the same arguments.
+
+        The absent-service table follows the graph's world, so an application reuses its world's.
+        """
+        return cls(ServiceGraph.from_snapshot(world=world, application=application))
 
     def get(self, service: str | None) -> ServiceEntry | None:
         """The entry for a service, or `None` if the catalog has never heard of it."""
