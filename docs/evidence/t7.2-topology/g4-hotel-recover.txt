@@ -1,0 +1,15 @@
+recover at 2026-10-02 02:48:16 UTC
+deployment.apps/profile patched
+deployment.apps/profile restarted
+Waiting for deployment "profile" rollout to finish: 1 old replicas are pending termination...
+Waiting for deployment "profile" rollout to finish: 1 old replicas are pending termination...
+Waiting for deployment "profile" rollout to finish: 1 old replicas are pending termination...
+deployment "profile" successfully rolled out
+profile dnsPolicy / dnsConfig: ClusterFirst 
+profile pods, as SREGym checks them (name, dnsPolicy, dnsConfig nameservers):
+  profile-74c8658775-6cx4j                  ClusterFirst   <none>
+  profile-fdbf8c79d-xt5gr                   ClusterFirst   <none>
+pods in hotel-reservation not Running or not ready:
+  profile-74c8658775-6cx4j                  1/1   Terminating   0     3s
+(end)
+recovered at 2026-10-02 02:48:19 UTC

@@ -19,7 +19,7 @@
 # ~/t7.2-1c/kubeconfig and copied to ~/.kube/config), so that 1c's sampler runs unchanged.
 #
 # Stages, in order: preread, killswitch-on, host-on, install, cluster, deploy, faultread, recover,
-# hold (started with nohup; it samples for 70 minutes and then runs capture), teardown, host-off,
+# restart-app (Addendum 1), hold (started with nohup; it samples for 70 minutes and then runs capture), teardown, host-off,
 # cleanup, killswitch-off, incidents. capture can also be run on its own.
 
 set -uo pipefail
@@ -242,6 +242,25 @@ recover)
     echo "(end)"
     date +%s > "$D/recovered"
     echo "recovered at $(ts)"
+    ;;
+
+restart-app)
+    # Addendum 1. Every deployment of the application except its datastores, Consul and its own
+    # Jaeger, restarted once, so that each re-resolves `jaeger` - now SREGym's ExternalName to its
+    # collector. SREGym creates that ExternalName after the application is up and restarts nothing,
+    # so a service that set up its trace agent before it sends to an address that is gone.
+    kenv
+    echo "restart at $(ts)"
+    deps_list=$(kubectl -n "$NS" get deploy -o name | sed 's|deployment.apps/||' | grep -v -E '(mongodb|redis|memcached|jaeger|consul)')
+    echo "restarting: $(echo $deps_list)"
+    for d in $deps_list; do kubectl -n "$NS" rollout restart deployment "$d"; done
+    for d in $deps_list; do kubectl -n "$NS" rollout status deployment "$d" --timeout=300s; done
+    sleep 60
+    echo "Jaeger services at $(ts): $(kubectl get --raw "/api/v1/namespaces/observe/services/jaeger-out:16686/proxy/api/services")"
+    echo "pods in $NS not Running or not ready:"
+    kubectl -n "$NS" get pods --no-headers | awk '$3 != "Running" || split($2, r, "/") && r[1] != r[2]' | sed 's/^/  /'
+    echo "(end)"
+    date +%s > "$D/restarted"
     ;;
 
 hold)

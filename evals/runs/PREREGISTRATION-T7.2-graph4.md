@@ -179,3 +179,71 @@ are read: their artifact edges, if any, and their absent services.
   the VM's address withheld.
 - **The design note's item 4** records each outcome.
 - **The loading build** (above) is queued after both.
+
+## Addendum 1, 2026-10-02 - Hotel Reservation: no trace reached SREGym's Jaeger; the application's services are restarted once
+
+**Steps 1 to 5 ran** (captures `g4-hotel-preread.txt` to `g4-hotel-postrecover.txt`):
+
+- **The gate and the setup** (02:06-02:09). All passed, matching item 3's.
+- **The port watcher** saw 9954 on `0.0.0.0` and 8000 on `127.0.0.1` at 02:35:03. **Both answered
+  `000` from outside.**
+- **The deploy** (02:36:44-02:38:14) exited 0 with `Fault injected`.
+- **The recovery** (02:48:16-02:48:19) passed, with the faulted pod gone and both `profile` pods
+  `ClusterFirst`. One was terminating at the check, as in item 3.
+
+**Departure: the deploy ran twice, and the first run's log is lost.** The log kept is a second run
+on the same cluster. It reads *"Undeploying app leftovers… Namespace 'hotel-reservation' has been
+deleted"* and *"MCP server already running"*, and the watcher saw 9954 at 02:35:03, before this
+log's 02:36:44. An earlier deploy, begun about 02:31 by the watcher's timing, had reached at least
+SREGym's MCP server. The second redirected output overwrote its log.
+
+**At 02:45 no SREGym process from it was left** (`g4-hotel-diag.txt`). The second run removed the
+first's application and deployed its own, so everything below is the second run's.
+
+**The finding: no trace of Hotel Reservation reached SREGym's Jaeger.**
+
+- **The fault read** (02:43:14). Jaeger's services were `null`, and it held 0 edges.
+- **The read-only diagnosis** (02:45:55, `g4-hotel-diag.txt`):
+  - Every Go service set up its Jaeger agent at **02:37:47**, on `jaeger:6831`. At that moment
+    `jaeger` was the application's own Jaeger service.
+  - SREGym replaced `jaeger` with an `ExternalName` to its collector at **02:38:02**, and
+    restarted nothing.
+  - So the services send to the address of a service that no longer exists. Jaeger listed only
+    itself.
+- **The test** (02:49:20, `g4-hotel-postrecover.txt`). A minute after the recovery restarted
+  `profile`, Jaeger listed exactly `jaeger-all-in-one` and **`profile`**, the one service that
+  had re-resolved `jaeger`.
+- **What follows for SREGym's tools.** This ordering is SREGym's own for every application but
+  train-ticket (`conductor.deploy_app`: *"Other apps get it after deploy to avoid Helm ownership
+  conflicts"*). **SREGym's trace tools would see nothing of Hotel Reservation in its own runs.**
+  It is recorded for scoping step 6.
+
+**A prediction already wrong: the fault did bite.** `profile` crash-looped (6 restarts by 02:45),
+with no healthy pod left serving, and `frontend` logged `GetProfiles failed`.
+
+**The change, decided by the owner.** One new stage, **`restart-app`**, added to `g4_vm.sh`:
+
+- **Every deployment of the application except its datastores, Consul and its own Jaeger** is
+  restarted once (a `rollout restart`, then `rollout status`), so each re-resolves `jaeger`. For
+  Hotel Reservation that is its eight Go services.
+- **Consul is left alone**, because restarting it would drop the services' registrations. So are
+  the databases, which would reseed.
+- **A minute later the stage reads Jaeger's services.** **The hold starts only if they list every
+  restarted service** and every pod is Running and ready. Otherwise, stop and read.
+
+Then `hold` and `capture` run as registered. The capture's hour begins ten minutes after the
+restart, so every span in it was sent after the services re-resolved.
+
+**What this changes in the outcomes.**
+
+- **Question 1** is now answered about the application's graph under SREGym's workload, **with
+  its tracing wired as SREGym intends it to be**, not as SREGym leaves it. The RESULT says so
+  beside the graph.
+- **Question 2 is INCONCLUSIVE for Hotel Reservation**: the fault read held no trace, for the
+  reason above, not because of the fault.
+- **For Social Network**, if its fault read shows the same symptom (Jaeger lists none of its
+  services), `restart-app` is applied in the same place and on the same condition, and recorded
+  as applied under this addendum.
+
+`g4_vm.sh.txt` is replaced by the amended script. Its only change is the new stage and the list
+of stages in its header.
