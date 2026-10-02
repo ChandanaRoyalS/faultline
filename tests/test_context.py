@@ -18,6 +18,7 @@ import pytest
 
 from faultline.context.catalog import KNOWN_ABSENT_V2, GraphPresence, ServiceCatalog
 from faultline.context.graph import (
+    APPLICATIONS,
     ARTIFACT_EDGES,
     ARTIFACT_EDGES_V2,
     EDGE_KINDS,
@@ -666,3 +667,87 @@ def test_v1_is_unchanged_by_the_world_aware_loader() -> None:
     assert len(graph().edges) == 15
     assert catalog().get("featureflagservice").presence is GraphPresence.UNINSTRUMENTED  # type: ignore[union-attr]
     assert catalog().get("accounting") is None, "a v2 name means nothing to v1"
+
+
+# --- astronomy-shop under SREGym, loaded by application (Q125) -----------------
+#
+# Predicted in `evals/runs/PREREGISTRATION-Q125-application-graph.md` before the code existed.
+
+SREGYM = "sregym-astronomy-shop"
+
+
+@pytest.fixture
+def v2_process(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("FAULTLINE_TOOLS_WORLD", "v2")
+
+
+def test_the_application_snapshot_is_item_3s_capture(v2_process: None) -> None:
+    """21 cross-service entries and no self-edges (Jaeger v1 counts none); the synthetic client's
+    one remaining edge goes, leaving 20 over 15."""
+    raw = json.loads(APPLICATIONS[SREGYM].snapshot.read_text())["data"]
+    g = ServiceGraph.from_snapshot(application=SREGYM)
+
+    assert len(raw) == 21
+    assert not any(e["parent"] == e["child"] for e in raw)
+    assert (g.world, g.application) == ("v2", SREGYM)
+    assert len(g.edges) == 20
+    assert len(g.nodes) == 15
+
+
+def test_the_application_graph_is_v2s_loaded_graph(v2_process: None) -> None:
+    """Item 3's finding, pinned: the one raw difference is an artifact edge, so the loaded graphs
+    agree. If a recapture of either changes this, this test is what says so."""
+    app, v2 = ServiceGraph.from_snapshot(application=SREGYM), graph_v2()
+
+    assert app.edge_set == v2.edge_set
+    assert app.nodes == v2.nodes
+    assert {e.kind for e in app.edges} == {EdgeKind.UNMEASURED}
+    # The same members, crossings and unmeasured edges - but not in the same order: the downstream
+    # step follows each capture's edge order, and the two captures list checkout's callees
+    # differently. The registration predicted the same order; that prediction missed.
+    a, b = app.blast_radius(["checkout"], 2), v2.blast_radius(["checkout"], 2)
+    assert set(a.reach) == set(b.reach)
+    assert set(a.unmeasured_edges) == set(b.unmeasured_edges)
+    assert a.reach != b.reach
+
+
+def test_the_application_catalog_reuses_v2s_presences(v2_process: None) -> None:
+    app, v2 = ServiceCatalog.from_snapshot(application=SREGYM), catalog_v2()
+
+    assert app.services == v2.services
+    assert len(app.services) == 23
+    assert all(app.get(s) == v2.get(s) for s in v2.services)
+
+
+def test_the_application_setting_is_read_when_no_world_is_passed(
+    v2_process: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("FAULTLINE_CONTEXT_APPLICATION", SREGYM)
+
+    assert ServiceGraph.from_snapshot().application == SREGYM
+    assert ServiceGraph.from_snapshot(world="v2").application is None, "a world means by world"
+
+
+def test_an_application_in_another_world_is_an_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A v2-named graph in a v1 process would disagree with `injector.world` silently."""
+    monkeypatch.setenv("FAULTLINE_TOOLS_WORLD", "v1")
+
+    with pytest.raises(ValueError, match="FAULTLINE_TOOLS_WORLD"):
+        ServiceGraph.from_snapshot(application=SREGYM)
+    monkeypatch.setenv("FAULTLINE_TOOLS_WORLD", "v2")
+    with pytest.raises(ValueError, match="world 'v1' was asked"):
+        ServiceGraph.from_snapshot(world="v1", application=SREGYM)
+
+
+def test_an_unknown_application_is_an_error(v2_process: None) -> None:
+    with pytest.raises(ValueError, match="known: sregym-astronomy-shop"):
+        ServiceGraph.from_snapshot(application="hotel-reservation")
+
+
+def test_with_no_application_nothing_changes(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("FAULTLINE_CONTEXT_APPLICATION", raising=False)
+
+    assert graph().application is None
+    assert len(graph().edges) == 15
+    assert graph_v2().application is None
+    assert len(graph_v2().edges) == 20

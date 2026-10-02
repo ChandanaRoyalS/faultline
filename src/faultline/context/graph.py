@@ -10,6 +10,11 @@ Which one loads follows `ToolSettings.world`, the setting `injector.world.canoni
 already follows, so with the setting unset nothing about v1 changes. A graph carries the world
 it was loaded for and answers in that world's names, whatever the process's.
 
+**And per application since Q125** (2026-10-02). `ContextSettings.application` names a foreign
+application whose graph was captured on its own deployment - today only `sregym-astronomy-shop`,
+astronomy-shop under SREGym (`docs/evidence/t7.2-topology/g3-deps-60m.json`). Unset, which is the
+default, loading is by world exactly as before.
+
 **The blast-radius query lives here** (T2.4's *"graph traversal API with 'blast radius of
 service X' as the core query"*, Phase 2 audit finding D4). `ServiceGraph.blast_radius` is the
 traversal; `agents/triage.py` adds what only an incident knows - severity, entry times,
@@ -52,12 +57,71 @@ the runtime input are one file."""
 SNAPSHOTS: dict[str, Path] = {"v1": SNAPSHOT, "v2": SNAPSHOT_V2}
 
 
+@dataclass(frozen=True, slots=True)
+class Application:
+    """A foreign application's committed graph, and the world whose names and rules it uses."""
+
+    name: str
+    snapshot: Path
+    world: str
+
+
+APPLICATIONS: dict[str, Application] = {
+    "sregym-astronomy-shop": Application(
+        name="sregym-astronomy-shop",
+        snapshot=repo_root() / "docs" / "evidence" / "t7.2-topology" / "g3-deps-60m.json",
+        world="v2",
+    ),
+}
+"""Every application a graph can be loaded for, by name (Q125).
+
+**`sregym-astronomy-shop`**: SREGym's own Jaeger over the clean hour after its fault was recovered,
+2026-10-02 00:05-01:05 UTC (T7.2 topology item 3). It is the demo's 2.2.0, so its names are v2's.
+Raw it has 21 cross-service edges to v2's 22 - `load-generator -> flagd` is the one it lacks - and
+loaded with v2's rules, which discard that edge as the synthetic client's, the two graphs are the
+same 20 edges over 15 services. **It is its own snapshot by the owner's decision**, so that a run
+scored on SREGym is scored against a graph measured there."""
+
+
 def current_world() -> str:
     """The world this process observes: `ToolSettings.world`, default `v1`."""
     # Lazy for the reason `injector.world._world` is: `faultline.tools` imports `injector.world`.
     from faultline.tools.settings import ToolSettings
 
     return ToolSettings().world
+
+
+def current_application() -> str | None:
+    """The application this process is told it observes: `ContextSettings.application`."""
+    from faultline.context.settings import ContextSettings
+
+    return ContextSettings().application
+
+
+def _resolve(world: str | None, application: str | None) -> tuple[str, Path | None, str | None]:
+    """The world, the snapshot (when an application decides it) and the application to load.
+
+    An explicit `world` means "by world": the application setting is read only when neither is
+    passed. **An application whose world differs from the process's is an error**, because the
+    graph would answer in one naming scheme while `injector.world` answers in another - the silent
+    mismatch a third world value would have had.
+    """
+    if application is None and world is None:
+        application = current_application()
+    if application is None:
+        return world or current_world(), None, None
+    if application not in APPLICATIONS:
+        known = ", ".join(sorted(APPLICATIONS))
+        raise ValueError(f"unknown application {application!r}; known: {known}")
+    app = APPLICATIONS[application]
+    process_world = current_world()
+    if app.world != process_world or (world is not None and world != app.world):
+        asked = f" and world {world!r} was asked" if world else ""
+        raise ValueError(
+            f"application {application!r} is read in world {app.world!r}, but the process "
+            f"observes {process_world!r}{asked}: set FAULTLINE_TOOLS_WORLD to match"
+        )
+    return app.world, app.snapshot, app.name
 
 
 ARTIFACT_EDGES: frozenset[tuple[str, str]] = frozenset(
@@ -230,10 +294,14 @@ class ServiceGraph:
     services are related, and a caller and a callee are equally related either way round.
     """
 
-    def __init__(self, edges: list[Edge], world: str | None = None) -> None:
+    def __init__(
+        self, edges: list[Edge], world: str | None = None, application: str | None = None
+    ) -> None:
         self.edges = edges
         self.world = world or current_world()
         """The world whose names this graph holds and answers in."""
+        self.application = application
+        """The application it was loaded for, or `None` when loaded by world."""
         self._names = container_services(self.world)
         self._adjacent: dict[str, set[str]] = defaultdict(set)
         for edge in edges:
@@ -241,20 +309,23 @@ class ServiceGraph:
             self._adjacent[edge.child].add(edge.parent)
 
     @classmethod
-    def from_snapshot(cls, path: Path | None = None, world: str | None = None) -> ServiceGraph:
+    def from_snapshot(
+        cls, path: Path | None = None, world: str | None = None, application: str | None = None
+    ) -> ServiceGraph:
         """Load, canonicalise, and drop the artifact edges and the self-edges.
 
-        `world` defaults to the process's, and `path` to that world's snapshot.
+        With an application (passed, or set and no world passed), its snapshot and its world.
+        Otherwise `world` defaults to the process's, and `path` to that world's snapshot.
 
         **Self-edges are dropped in every world.** v1's capture has none. v2's Jaeger counts calls
         inside a service (`frontend -> frontend`, 32,432 in the hour), and a service calling
         itself is not a dependency (Q122).
         """
-        world = world or current_world()
+        world, app_snapshot, app_name = _resolve(world, application)
         names = container_services(world)
         artifacts = ARTIFACT_EDGES_BY_WORLD[world]
         kinds = EDGE_KINDS_BY_WORLD[world]
-        payload = json.loads((path or SNAPSHOTS[world]).read_text())
+        payload = json.loads((path or app_snapshot or SNAPSHOTS[world]).read_text())
         edges: list[Edge] = []
         for entry in payload.get("data", []):
             parent = names.get(entry["parent"], entry["parent"])
@@ -271,7 +342,7 @@ class ServiceGraph:
                     kind=kinds.get((parent, child), EdgeKind.UNMEASURED),
                 )
             )
-        return cls(edges, world)
+        return cls(edges, world, app_name)
 
     def canonical(self, service: str) -> str:
         """`injector.world.canonical_service`, in this graph's world rather than the process's."""

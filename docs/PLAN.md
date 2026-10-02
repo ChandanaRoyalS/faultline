@@ -4617,6 +4617,17 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-10-02: Q125 landed - the dependency snapshot loaded by application.***
+
+- **`FAULTLINE_CONTEXT_APPLICATION=sregym-astronomy-shop`** loads SREGym's astronomy-shop
+  snapshot: 20 edges over 15 services, v2's loaded graph, under v2's catalog.
+- **Unset, nothing moves**, and both stamps hold either way. An application in another world is an
+  error.
+- **One prediction half missed**: blast radius from `checkout` has the same members as v2's, in a
+  different order, because each capture lists checkout's callees differently. Any comparison of
+  triage across the two applications compares sets.
+- **The `hop_radius` docstring** now quotes v2's 39 % declined beside v1's 28 %.
+
 ***2026-10-02: Q125's build registered - the dependency snapshot loaded by application.***
 
 - **Decided by the owner.**

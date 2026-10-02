@@ -35,6 +35,8 @@ COPY evals/scenarios/artifacts/dev ./evals/scenarios/artifacts/dev
 COPY docs/evidence/t2.4-dependency-graph/dependencies.json ./docs/evidence/t2.4-dependency-graph/dependencies.json
 # v2's graph, loaded in place from its capture when the world is v2 (Q122).
 COPY docs/evidence/t7.2-topology/q121-v2-dependencies-1h.json ./docs/evidence/t7.2-topology/q121-v2-dependencies-1h.json
+# astronomy-shop under SREGym's, loaded when ContextSettings.application names it (Q125).
+COPY docs/evidence/t7.2-topology/g3-deps-60m.json ./docs/evidence/t7.2-topology/g3-deps-60m.json
 RUN uv sync --frozen --no-dev --extra agents --extra embeddings --extra observability
 
 FROM python:3.12-slim
