@@ -39,6 +39,11 @@ class ContextSettings(BaseSettings):
     SREGym, whose loaded graph is v2's. So on v2 radius 2 declines **39%** of pairs, and that is
     the figure to quote there. The radius stays 2 for the same reasons: 1 still fails the
     `emailservice`-shaped case and 3 joins 90%.
+
+    **On the DeathStarBench graphs** (Q128): Hotel Reservation, 8 nodes and 28 pairs, 25%, **71%**
+    and 100% within 1, 2 and 3 hops; Social Network, 6 nodes and 15 pairs, 53%, **93%** and 100%.
+    So on Social Network radius 2 declines 7% of pairs and is close to no filter. Whether the radius
+    should differ per application is scoping step 6's question; it is not changed here.
     """
 
     application: str | None = None

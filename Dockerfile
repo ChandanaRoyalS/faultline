@@ -37,6 +37,9 @@ COPY docs/evidence/t2.4-dependency-graph/dependencies.json ./docs/evidence/t2.4-
 COPY docs/evidence/t7.2-topology/q121-v2-dependencies-1h.json ./docs/evidence/t7.2-topology/q121-v2-dependencies-1h.json
 # astronomy-shop under SREGym's, loaded when ContextSettings.application names it (Q125).
 COPY docs/evidence/t7.2-topology/g3-deps-60m.json ./docs/evidence/t7.2-topology/g3-deps-60m.json
+# The DeathStarBench applications' (Q128).
+COPY docs/evidence/t7.2-topology/g4-hotel-deps-5m.json ./docs/evidence/t7.2-topology/g4-hotel-deps-5m.json
+COPY docs/evidence/t7.2-topology/g4-social-deps-30m.json ./docs/evidence/t7.2-topology/g4-social-deps-30m.json
 RUN uv sync --frozen --no-dev --extra agents --extra embeddings --extra observability
 
 FROM python:3.12-slim

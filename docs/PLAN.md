@@ -4617,6 +4617,16 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-10-02: Q128 landed - every application T7.2 runs has a snapshot Faultline loads.***
+
+- **The two new applications.** `FAULTLINE_CONTEXT_APPLICATION=sregym-hotel-reservation` or
+  `sregym-social-network` loads their graphs, 7 and 8 edges, as applications of no world. Each
+  catalog says what each absent service is, and what was not read.
+- **Every prediction held**, and both stamps hold. One existing test's expected text widened to
+  name three known applications, as registered.
+- **T7.2 scoping step 5 is closed.** Next is step 6, the run's pre-registration, which first needs
+  the owner's decisions on Q121, Q123, Q124, Q126 and Q127.
+
 ***2026-10-02: Q128's build registered - the DeathStarBench snapshots loaded by application.***
 
 - **The registry entries.**
