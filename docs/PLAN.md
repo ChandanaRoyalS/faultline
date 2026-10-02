@@ -4617,6 +4617,26 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-10-02: T7.2 adapter build registered - stage 0 first: can Faultline run inside SREGym's
+agent container?***
+
+- **[The registration](../evals/runs/PREREGISTRATION-T7.2-adapter.md).** It covers:
+  - `faultline.sregym`: a `ToolSet` over SREGym's MCP servers, the change mapping over
+    Kubernetes' record, and the incident's opening;
+  - a three-file agent row added to SREGym's tree;
+  - the stamp check, predicted unchanged.
+- **Found reading for it.**
+  - SREGym runs every agent as root in a hardened container, where Postgres cannot run.
+  - SREGym's MCP tools are cruder than Faultline's own: instant metric queries, 100 log lines,
+    20 traces.
+  - A Faultline incident is alerts only, and SREGym gives none.
+  - The run's earlier firewall rules would block a containerised agent from SREGym's MCP server.
+- **The owner's decisions**:
+  - the incident opens on standard health alarms (kube-prometheus' pod and replica rules, plus
+    Faultline's three), falling back to the front door;
+  - if the database cannot be reached from the box, stop and ask.
+- **Next**: stage 0 on the deployment. $0, no cluster, no model call.
+
 ***2026-10-02: T7.2 scoping step 6 - the SREGym run registered: 108 problems, R = 3, paired
 against Claude Code with Sonnet 4.6, per application, diagnosis only.***
 

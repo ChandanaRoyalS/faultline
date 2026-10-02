@@ -1,0 +1,74 @@
+"""A local TCP port that reaches host:port through the HTTP proxy in HTTPS_PROXY, by CONNECT.
+
+T7.2 adapter build, stage 0 (evals/runs/PREREGISTRATION-T7.2-adapter.md). Inside SREGym's
+filtered agent container the only route out is its egress proxy, and psycopg cannot use an HTTP
+proxy itself. This listens on a loopback port and, for each connection, asks the proxy for a
+CONNECT tunnel to the target and copies bytes both ways. It is the prototype of the adapter's.
+
+    python3 spike_tunnel.py LISTEN_HOST LISTEN_PORT TARGET_HOST TARGET_PORT
+"""
+
+import os
+import socket
+import sys
+import threading
+from urllib.parse import urlsplit
+
+
+def pipe(src: socket.socket, dst: socket.socket) -> None:
+    try:
+        while chunk := src.recv(65536):
+            dst.sendall(chunk)
+    except OSError:
+        pass
+    finally:
+        for s in (src, dst):
+            try:
+                s.shutdown(socket.SHUT_RDWR)
+            except OSError:
+                pass
+
+
+def open_tunnel(target_host: str, target_port: int) -> socket.socket:
+    proxy = urlsplit(os.environ["HTTPS_PROXY"])
+    upstream = socket.create_connection((proxy.hostname, proxy.port or 8080), timeout=30)
+    request = (
+        f"CONNECT {target_host}:{target_port} HTTP/1.1\r\n"
+        f"Host: {target_host}:{target_port}\r\n\r\n"
+    )
+    upstream.sendall(request.encode())
+    reply = b""
+    while b"\r\n\r\n" not in reply:
+        chunk = upstream.recv(4096)
+        if not chunk:
+            raise OSError("proxy closed during CONNECT")
+        reply += chunk
+    status = reply.split(b"\r\n", 1)[0].decode(errors="replace")
+    print(f"tunnel: proxy answered {status!r}", flush=True)
+    if " 200 " not in f"{status} ":
+        raise OSError(f"CONNECT refused: {status}")
+    upstream.settimeout(None)
+    return upstream
+
+
+def main() -> None:
+    listen_host, listen_port, target_host, target_port = sys.argv[1:5]
+    server = socket.socket()
+    server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    server.bind((listen_host, int(listen_port)))
+    server.listen(16)
+    print(f"tunnel: {listen_host}:{listen_port} -> {target_host}:{target_port}", flush=True)
+    while True:
+        client, _ = server.accept()
+        try:
+            upstream = open_tunnel(target_host, int(target_port))
+        except OSError as e:
+            print(f"tunnel: {e}", flush=True)
+            client.close()
+            continue
+        threading.Thread(target=pipe, args=(client, upstream), daemon=True).start()
+        threading.Thread(target=pipe, args=(upstream, client), daemon=True).start()
+
+
+if __name__ == "__main__":
+    main()
