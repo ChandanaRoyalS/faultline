@@ -1,0 +1,317 @@
+#!/usr/bin/env bash
+# T7.2 topology, item 4: a DeathStarBench application's dependency graph, read from SREGym's own
+# Jaeger on the deployment. Registered in evals/runs/PREREGISTRATION-T7.2-graph4.md before any stage
+# is run. It is item 3's g3_vm.sh (docs/evidence/t7.2-topology/g3_vm.sh.txt), as amended by its
+# Addendum 1, with these changes and no others:
+#   - the application is a parameter (its problem, namespace and faulty deployment);
+#   - the pod resolv.conf reads are dropped (item 3 found neither cat nor node in the image), and
+#     recover waits up to 120 s for a terminating faulted pod, as SREGym's own check does;
+#   - the sampler runs with python3 -u, so its log is written as it goes;
+#   - capture lists SREGym's observe pods, and reads 5, 15, 30 and 60 minutes, each with how far
+#     back the store reaches (Hotel Reservation traces every request, so its cap can bind).
+#
+# Copied to the VM as /tmp/g4_vm.sh and run one stage at a time from the Mac, each output saved to
+# ~/Downloads/g4-<app>-<stage>.txt and read before the next:
+#     ssh "$VM" 'bash /tmp/g4_vm.sh <app> <stage>'      (host-on and host-off: ssh -t ... sudo bash)
+# where <app> is hotel (Hotel Reservation) or social (Social Network). One run per application.
+#
+# The directory and its layout are 1c's after its Addendum 1 (~/t7.2-1c, the kubeconfig at
+# ~/t7.2-1c/kubeconfig and copied to ~/.kube/config), so that 1c's sampler runs unchanged.
+#
+# Stages, in order: preread, killswitch-on, host-on, install, cluster, deploy, faultread, recover,
+# hold (started with nohup; it samples for 70 minutes and then runs capture), teardown, host-off,
+# cleanup, killswitch-off, incidents. capture can also be run on its own.
+
+set -uo pipefail
+D="$HOME/t7.2-1c"
+BIN="$D/bin"
+SR="$D/SREGym"
+PF_PORT=26686
+SREGYM_PIN=46c853db
+app="${1:?app: hotel or social}"
+stage="${2:?stage}"
+case "$app" in
+    hotel)  PROBLEM=wrong_dns_policy_hotel_reservation; NS=hotel-reservation; FAULTY=profile ;;
+    social) PROBLEM=wrong_dns_policy_social_network;    NS=social-network;    FAULTY=user-service ;;
+    *) echo "unknown app: $app"; exit 2 ;;
+esac
+OUT="$D/g4-$app"
+
+ts() { date -u '+%Y-%m-%d %H:%M:%S UTC'; }
+kenv() { export PATH="$BIN:$HOME/.local/bin:$PATH" KUBECONFIG="$D/kubeconfig"; }
+
+pf_start() {
+    # Jaeger's query port on the VM's loopback only. Started by full path and killed by PID, so no
+    # pattern can match the shell that runs it (1c's T1).
+    "$BIN/kubectl" -n observe port-forward svc/jaeger-out "$PF_PORT:16686" --address 127.0.0.1 \
+        > "$D/pf.log" 2>&1 &
+    echo $! > "$D/pf.pid"
+    for _ in $(seq 1 30); do
+        curl -fsS -m 5 "http://127.0.0.1:$PF_PORT/api/services" > /dev/null 2>&1 && return 0
+        sleep 2
+    done
+    echo "port-forward to jaeger-out did not answer in 60 s:"; cat "$D/pf.log"; return 1
+}
+
+pf_stop() {
+    if [ -f "$D/pf.pid" ]; then kill "$(cat "$D/pf.pid")" 2>/dev/null; rm -f "$D/pf.pid"; fi
+    sleep 1
+    printf 'port %s: %s\n' "$PF_PORT" "$(ss -ltnH "sport = :$PF_PORT" | grep -q . && echo STILL-LISTENING || echo closed)"
+}
+
+summarise() {
+    # $1: a saved /api/dependencies reply. Prints its edges; cross-service ones first.
+    python3 - "$1" <<'EOF'
+import json, sys
+d = json.load(open(sys.argv[1]))["data"]
+cross = sorted(((e["parent"], e["child"], e["callCount"]) for e in d if e["parent"] != e["child"]),
+               key=lambda x: (-x[2], x[0], x[1]))
+selfe = [e for e in d if e["parent"] == e["child"]]
+nodes = sorted({e["parent"] for e in d} | {e["child"] for e in d})
+print("  %d entries: %d cross-service, %d self-edges; %d services" % (len(d), len(cross), len(selfe), len(nodes)))
+for p, c, n in cross:
+    print("    %7d  %-18s -> %s" % (n, p, c))
+print("  services: " + ", ".join(nodes))
+EOF
+}
+
+deps() {
+    # $1: lookback in seconds, $2: output file. JSON is checked before it is kept (T2.4's trap).
+    local now_ms; now_ms=$(( $(date +%s) * 1000 ))
+    local url="http://127.0.0.1:$PF_PORT/api/dependencies?endTs=$now_ms&lookback=$(( $1 * 1000 ))"
+    echo "GET $url"
+    curl -fsS -m 60 -o "$2" -w '  -> HTTP %{http_code}, %{content_type}, %{size_download} bytes\n' "$url"
+    python3 -c "import json,sys; json.load(open(sys.argv[1]))" "$2" && echo "  JSON: yes" || echo "  JSON: NO"
+    summarise "$2"
+}
+
+case "$stage" in
+
+preread)
+    echo "g4 pre-read ($app) at $(ts) on $(hostname), kernel $(uname -r), $(uptime -p)"
+    echo "== reboot pending: $([ -e /var/run/reboot-required ] && echo YES || echo no)"
+    echo "== tools on a login PATH"
+    for t in uv helm kind kubectl python3 git; do printf '  %-8s %s\n' "$t" "$(bash -lc "command -v $t" || echo absent)"; done
+    echo "== home paths (present or absent now)"
+    for p in "$HOME/cache_dir" "$HOME/.kube" "$HOME/.config/helm" "$HOME/.cache/helm" "$HOME/.local/share/helm" "$D"; do
+        printf '  %-40s %s\n' "$p" "$([ -e "$p" ] && echo present || echo absent)"; done
+    echo "== ports (SREGym's API 8000, MCP 9954, k8s proxy 16443; this run's Jaeger forward $PF_PORT)"
+    for port in 8000 9954 16443 "$PF_PORT"; do printf '  %-6s %s\n' "$port" "$(ss -ltnH "sport = :$port" | grep -q . && echo IN-USE || echo free)"; done
+    echo "== firewall rules for 8000 and 9954 now"
+    sudo -n iptables -S INPUT 2>/dev/null | grep -E 'dport (8000|9954)' | sed 's/^/  /' || echo "  (not readable without a password; read in host-on)"
+    echo "== memory, load, disk"
+    free -m | sed 's/^/  /'; echo "  load: $(cat /proc/loadavg)"; df -h / | sed 's/^/  /'
+    echo "== containers: $(docker ps -q | wc -l) running; kind nodes: $(docker ps -aq --filter label=io.x-k8s.kind.cluster | wc -l); kind network: $(docker network ls -q --filter name=^kind$ | wc -l)"
+    echo "== firing alerts on the world (Alertmanager :9093)"
+    curl -fsS -m 10 'http://localhost:9093/api/v2/alerts?active=true&silenced=false&inhibited=false' \
+        | python3 -c 'import json,sys; a=[x["labels"].get("alertname","?")+"/"+x["labels"].get("service_name","?") for x in json.load(sys.stdin)]; print("  %d: %s" % (len(a), ", ".join(a) or "none"))' \
+        || echo "  alertmanager unreadable"
+    echo "== Docker Hub anonymous pull allowance for this address (HEAD, uses none)"
+    tok=$(curl -fsS -m 10 "https://auth.docker.io/token?service=registry.docker.io&scope=repository:ratelimitpreview/test:pull" | python3 -c 'import json,sys; print(json.load(sys.stdin)["token"])' 2>/dev/null)
+    if [ -n "$tok" ]; then curl -fsS -m 10 -I -H "Authorization: Bearer $tok" https://registry-1.docker.io/v2/ratelimitpreview/test/manifests/latest 2>&1 | grep -i "^ratelimit" | sed 's/^/  /'; else echo "  token not obtained"; fi
+    echo "== the kill switch now"
+    cd ~/faultline/deploy && grep -n "KILL_SWITCH" compose.yml | sed 's/^/  /'
+    docker compose exec -T executor curl -fsS localhost:8100/healthz < /dev/null; echo
+    echo "== git status of ~/faultline (empty means committed configuration)"
+    cd ~/faultline && git status --short | sed 's/^/  /'; echo "  (end)"
+    ;;
+
+killswitch-on|killswitch-off)
+    cd ~/faultline/deploy || exit 1
+    if [ "$stage" = killswitch-on ]; then
+        sed -i 's/FAULTLINE_EXECUTOR_KILL_SWITCH: "0"/FAULTLINE_EXECUTOR_KILL_SWITCH: "1"/' compose.yml
+    else
+        sed -i 's/FAULTLINE_EXECUTOR_KILL_SWITCH: "1"/FAULTLINE_EXECUTOR_KILL_SWITCH: "0"/' compose.yml
+    fi
+    grep -n "KILL_SWITCH" compose.yml
+    docker compose up -d executor
+    for _ in $(seq 1 10); do
+        docker compose exec -T executor curl -fsS localhost:8100/healthz < /dev/null && break
+        sleep 3
+    done
+    echo
+    echo "git status:"; cd ~/faultline && git status --short; echo "(git status end)"
+    ;;
+
+host-on)
+    # Run with sudo. 1c's two rules: nothing reaches 9954 or 8000 except from the loopback.
+    iptables -I INPUT ! -i lo -p tcp --dport 9954 -j DROP
+    iptables -I INPUT ! -i lo -p tcp --dport 8000 -j DROP
+    iptables -S INPUT | grep -E 'dport (8000|9954)'
+    sysctl fs.inotify.max_user_instances fs.inotify.max_user_watches
+    sysctl -w fs.inotify.max_user_instances=1024 fs.inotify.max_user_watches=1048576
+    echo "reboot pending: $([ -e /var/run/reboot-required ] && echo YES || echo no)"
+    ;;
+
+host-off)
+    # Run with sudo.
+    iptables -D INPUT ! -i lo -p tcp --dport 9954 -j DROP
+    iptables -D INPUT ! -i lo -p tcp --dport 8000 -j DROP
+    iptables -S INPUT | grep -E 'dport (8000|9954)' || echo "rules gone"
+    sysctl -w fs.inotify.max_user_instances=128 fs.inotify.max_user_watches=124032
+    ;;
+
+install)
+    set -e
+    export PATH="$HOME/.local/bin:$PATH"
+    echo "install at $(ts)"
+    mkdir -p "$BIN" && cd "$BIN"
+    curl -fsSLo kind https://kind.sigs.k8s.io/dl/v0.27.0/kind-linux-amd64
+    echo "$(curl -fsSL https://kind.sigs.k8s.io/dl/v0.27.0/kind-linux-amd64.sha256sum | awk '{print $1}')  kind" | sha256sum -c
+    curl -fsSLo kubectl https://dl.k8s.io/release/v1.32.1/bin/linux/amd64/kubectl
+    echo "$(curl -fsSL https://dl.k8s.io/release/v1.32.1/bin/linux/amd64/kubectl.sha256)  kubectl" | sha256sum -c
+    curl -fsSLo helm.tgz https://get.helm.sh/helm-v4.3.0-linux-amd64.tar.gz
+    echo "$(curl -fsSL https://get.helm.sh/helm-v4.3.0-linux-amd64.tar.gz.sha256sum | awk '{print $1}')  helm.tgz" | sha256sum -c
+    tar -xzf helm.tgz --strip-components=1 linux-amd64/helm && rm helm.tgz
+    chmod +x kind kubectl helm
+    ./kind version; ./kubectl version --client 2>&1 | head -2; ./helm version --short
+    git clone -q https://github.com/SREGym/SREGym.git "$SR"
+    cd "$SR"
+    git checkout -q "$SREGYM_PIN" && git log --oneline -1
+    git submodule update --init SREGym-applications
+    (cd SREGym-applications && git submodule update --init astronomy-shop)
+    git submodule status --recursive | head -8
+    UV_CACHE_DIR="$D/uv-cache" uv sync --frozen 2>&1 | tail -3
+    ls -d .venv && .venv/bin/python --version
+    ;;
+
+cluster)
+    kenv
+    cd "$SR" || exit 1
+    date -u
+    bash kind/setup_kind_cluster.sh
+    kubectl get nodes
+    mkdir -p "$HOME/.kube" && install -m 600 "$D/kubeconfig" "$HOME/.kube/config"
+    cmp -s "$D/kubeconfig" "$HOME/.kube/config" && echo "~/.kube/config: identical" || echo "~/.kube/config: DIFFERS"
+    ;;
+
+deploy)
+    # 1c's retry: KUBECONFIG unset (SREGym reads ~/.kube/config by fixed path), Helm's homes under
+    # the run's directory, the API on the loopback, and no model key in the environment.
+    export PATH="$BIN:$HOME/.local/bin:$PATH"
+    unset KUBECONFIG
+    export HELM_CONFIG_HOME="$D/helm/config" HELM_CACHE_HOME="$D/helm/cache" HELM_DATA_HOME="$D/helm/data"
+    export API_BIND_HOST=127.0.0.1 UV_CACHE_DIR="$D/uv-cache"
+    echo "key-like variables in env: $(env | grep -cE '^[A-Za-z_]*(KEY|TOKEN|SECRET)[A-Za-z_]*=')"
+    cd "$SR" || exit 1
+    date -u
+    timeout 45m uv run python main.py --use-external-harness --problem "$PROBLEM" --agent demo
+    rc=$?
+    date +%s > "$D/deploy-exit"
+    echo "deploy exit $rc at $(ts)"
+    ;;
+
+faultread)
+    # Read-only. Five minutes after the deploy exits, with the fault still in: the faulty service's
+    # DNS as set, and SREGym's Jaeger over exactly the time since the deploy exited.
+    kenv
+    exit_ts=$(cat "$D/deploy-exit")
+    wait_s=$(( exit_ts + 300 - $(date +%s) ))
+    [ "$wait_s" -gt 0 ] && { echo "waiting ${wait_s}s, to five minutes after the deploy exited"; sleep "$wait_s"; }
+    echo "fault read at $(ts), $(( $(date +%s) - exit_ts ))s after the deploy exited"
+    echo "$FAULTY dnsPolicy / dnsConfig: $(kubectl -n "$NS" get deploy "$FAULTY" -o jsonpath='{.spec.template.spec.dnsPolicy} {.spec.template.spec.dnsConfig}')"
+    pf_start || exit 1
+    echo "services: $(curl -fsS "http://127.0.0.1:$PF_PORT/api/services")"
+    deps $(( $(date +%s) - exit_ts )) "$OUT-fault-deps.json"
+    pf_stop
+    ;;
+
+recover)
+    # SREGym's own recovery for this fault, verbatim from
+    # VirtualizationFaultInjector.recover_wrong_dns_policy at the pin, then checked.
+    kenv
+    echo "recover at $(ts)"
+    patch='[{"op":"remove","path":"/spec/template/spec/dnsPolicy"},{"op":"remove","path":"/spec/template/spec/dnsConfig"}]'
+    kubectl patch deployment "$FAULTY" -n "$NS" --type json -p "$patch"
+    kubectl rollout restart deployment "$FAULTY" -n "$NS"
+    kubectl rollout status deployment "$FAULTY" -n "$NS" --timeout=300s
+    echo "$FAULTY dnsPolicy / dnsConfig: $(kubectl -n "$NS" get deploy "$FAULTY" -o jsonpath='{.spec.template.spec.dnsPolicy} {.spec.template.spec.dnsConfig}')"
+    # Item 3's Addendum 1: each pod's spec, which is what SREGym's own check reads. A faulted pod
+    # still terminating is listed until it is gone; the stage waits up to 120 s for that, as SREGym's
+    # own check does, and prints what it then sees.
+    for _ in $(seq 1 24); do
+        kubectl -n "$NS" get pods --no-headers -o custom-columns=NAME:.metadata.name,NAMESERVERS:.spec.dnsConfig.nameservers \
+            | awk -v f="$FAULTY" '$1 ~ "^" f "-[a-z0-9]+-[a-z0-9]+$"' | grep -q '8\.8\.8\.8' || break
+        sleep 5
+    done
+    echo "$FAULTY pods, as SREGym checks them (name, dnsPolicy, dnsConfig nameservers):"
+    kubectl -n "$NS" get pods --no-headers -o custom-columns=NAME:.metadata.name,POLICY:.spec.dnsPolicy,NAMESERVERS:.spec.dnsConfig.nameservers \
+        | awk -v f="$FAULTY" '$1 ~ "^" f "-[a-z0-9]+-[a-z0-9]+$"' | sed 's/^/  /'
+    echo "pods in $NS not Running or not ready:"
+    kubectl -n "$NS" get pods --no-headers | awk '$3 != "Running" || split($2, r, "/") && r[1] != r[2]' | sed 's/^/  /'
+    echo "(end)"
+    date +%s > "$D/recovered"
+    echo "recovered at $(ts)"
+    ;;
+
+hold)
+    # Started with nohup right after recover. 70 minutes of 1c's sampler, then the capture, so the
+    # capture's hour begins ten minutes after the recovery.
+    echo "hold from $(ts)"
+    python3 -u /tmp/kind_measure_1c.py W 4200
+    bash /tmp/g4_vm.sh "$app" capture
+    echo "hold done at $(ts)"
+    ;;
+
+capture)
+    kenv
+    rec=$(cat "$D/recovered")
+    echo "capture at $(ts), $(( ($(date +%s) - rec) / 60 )) min after the recovery"
+    echo "$FAULTY dnsPolicy: $(kubectl -n "$NS" get deploy "$FAULTY" -o jsonpath='{.spec.template.spec.dnsPolicy}')"
+    echo "pods in $NS, with restarts:"; kubectl -n "$NS" get pods --no-headers | sed 's/^/  /'
+    echo "pods in observe (SREGym's Jaeger and collector), with restarts:"; kubectl -n observe get pods --no-headers | sed 's/^/  /'
+    pf_start || exit 1
+    svcs=$(curl -fsS "http://127.0.0.1:$PF_PORT/api/services")
+    echo "services: $svcs"
+    # How far back the store reaches. Its 25,000-trace cap evicts oldest first, across every
+    # service, so the store reaches back to L if any service has a trace near L minutes ago.
+    now_us=$(( $(date +%s) * 1000000 ))
+    for lb in 5 15 30 60; do
+        held=0
+        for svc in $(echo "$svcs" | python3 -c 'import json,sys; print(" ".join(json.load(sys.stdin)["data"] or []))'); do
+            n=$(curl -fsS "http://127.0.0.1:$PF_PORT/api/traces?service=$svc&start=$(( now_us - (lb+2)*60*1000000 ))&end=$(( now_us - (lb-2)*60*1000000 ))&limit=1" \
+                | python3 -c 'import json,sys; print(len(json.load(sys.stdin)["data"] or []))')
+            held=$(( held + n ))
+        done
+        echo "lookback ${lb} min: services with a trace between $((lb+2)) and $((lb-2)) minutes ago: $held"
+        deps $(( lb * 60 )) "$OUT-deps-${lb}m.json"
+    done
+    pf_stop
+    ;;
+
+teardown)
+    # 1c's T1, as finished: patterns anchored, and the kind binary still present.
+    kenv
+    echo "teardown at $(ts)"
+    # The patterns live in this file, not on the ssh command line, so they cannot match the shell
+    # that runs them; the kill is anchored as well.
+    echo "== port-forward processes:"; pgrep -af 'port-forward svc/' || echo "none"
+    pkill -f '^kubectl port-forward svc/'
+    pf_stop
+    sleep 2
+    pgrep -af 'port-forward svc/' && echo "PORT-FORWARD LEFT" || echo "no port-forward left"
+    for port in 8000 9954; do printf '%s %s\n' "$port" "$(ss -ltnH "sport = :$port" | grep -q . && echo LISTENING || echo closed)"; done
+    kind delete cluster
+    docker network rm kind
+    for id in $(docker image ls --no-trunc --format '{{.Repository}} {{.ID}}' | awk '$1 ~ /sregym\/kind-node/ {print $2}'); do docker rmi "$id"; done
+    docker image ls | grep -q 'sregym/kind-node' && echo "SREGYM IMAGE LEFT" || echo "no sregym image left"
+    echo "kind nodes: $(docker ps -aq --filter label=io.x-k8s.kind.cluster | wc -l)"
+    echo "running: $(docker ps -q | wc -l)"
+    ;;
+
+cleanup)
+    # 1c's T3. After teardown, and after the captures are copied to the Mac.
+    rm -rf "$D" "$HOME/cache_dir" "$HOME/.kube"
+    ls -d "$D" "$HOME/cache_dir" "$HOME/.kube" "$HOME/.config/helm" "$HOME/.cache/helm" "$HOME/.local/share/helm" 2>&1
+    ;;
+
+incidents)
+    cd ~/faultline/deploy || exit 1
+    docker compose exec -T postgres psql -U faultline faultline \
+        -c "select id, state, opened_at from incidents where opened_at > now() - interval '${2:-6} hours' order by opened_at" < /dev/null
+    echo "rows above: incidents in the last ${2:-6} hours (none if empty)"
+    ;;
+
+*)
+    echo "unknown stage: $stage"; exit 2 ;;
+esac

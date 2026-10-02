@@ -4617,6 +4617,25 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-10-02: T7.2 topology item 4 registered - the DeathStarBench applications' graphs under
+SREGym.***
+
+- **Decided by the owner**: two separate runs, each item 3's shape, Hotel Reservation first.
+  Each uses its `wrong_dns_policy` problem (`profile`, `user-service`) and SREGym's same
+  recovery.
+- **Read at source.**
+  - **Hotel Reservation traces every request at 100 req/s**, so SREGym's 25,000-trace store
+    reaches back about four minutes. The capture reads 5 to 60 minutes and records the store's
+    reach for each.
+  - **`profile` panics without DNS**, so its faulted pod may never replace the healthy one, and
+    the fault would not bite.
+- **Predicted**:
+  - Hotel Reservation: 7 edges over 8 services, CAPTURED, UNSETTLED (one lookback held), and
+    question 2 NO.
+  - Social Network: 12 to 18 edges, CAPTURED.
+- **After both**: a build gives Q125's registry entries for applications whose names belong to
+  no world.
+
 ***2026-10-02: Q125 landed - the dependency snapshot loaded by application.***
 
 - **`FAULTLINE_CONTEXT_APPLICATION=sregym-astronomy-shop`** loads SREGym's astronomy-shop

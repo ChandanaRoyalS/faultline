@@ -1,0 +1,19 @@
+#!/bin/zsh
+# T7.2 topology item 4, read-only: item 3's port watcher, its output named by application. Wait until SREGym's MCP
+# port-forward listens on the VM, then show what each port is bound to and try both from outside.
+# Both must fail (000). Run on the Mac in a second terminal, before the deploy stage:
+#   caffeinate -i zsh ~/Downloads/g4_ports.sh <app>
+VM=deploy@<the VM>
+HOST=<the VM>
+OUT=~/Downloads/g4-${1:?app}-ports.txt
+echo "waiting for :9954 on the VM from $(date -u '+%H:%M:%S') UTC"
+until ssh -o ConnectTimeout=10 -o BatchMode=yes "$VM" 'ss -ltn | grep -q ":9954 "' 2>/dev/null; do sleep 15; done
+{
+  echo "port-forward seen at $(date -u '+%Y-%m-%d %H:%M:%S') UTC"
+  echo "bound on the VM:"
+  ssh -o ConnectTimeout=10 "$VM" 'ss -ltn | grep -E ":(8000|9954|26686) "'
+  for p in 9954 8000; do
+    printf "from outside :%s -> " $p
+    curl -sS -o /dev/null -m 8 -w '%{http_code}\n' "http://$HOST:$p/" 2>&1 | tail -1
+  done
+} | tee "$OUT"

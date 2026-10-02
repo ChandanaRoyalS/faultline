@@ -53,3 +53,9 @@ decided when Q122 is built.
 | `g3-accounting.txt` | `accounting`'s last termination and events before teardown: OOM-killed against 120 Mi |
 | `g3-teardown.txt`, `g3-host-off.txt`, `g3-cleanup.txt`, `g3-killswitch-off.txt`, `g3-incidents.txt`, `g3-P3.txt` | the teardown and the after-teardown reading. The VM's address is withheld in `g3-host-off.txt` |
 
+**Topology item 4: the DeathStarBench applications under SREGym** ([`PREREGISTRATION-T7.2-graph4.md`](../../../evals/runs/PREREGISTRATION-T7.2-graph4.md)):
+
+| file | what it is |
+|---|---|
+| `g4_vm.sh.txt` | item 3's stage script with the application as a parameter and the changes the registration lists; one run per application |
+| `g4_ports.sh.txt` | item 3's port watcher, its output named by application; the VM's address is withheld in it |
