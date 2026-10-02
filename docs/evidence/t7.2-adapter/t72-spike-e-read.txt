@@ -1,0 +1,8 @@
+== ufw log, 23:40-23:44, ports 55432 and 55480
+== count of blocks on 55432 today: 9
+== docker nat rule for 55432
+-A DOCKER -d 172.17.0.1/32 ! -i docker0 -p tcp -m tcp --dport 55432 -j DNAT --to-destination 172.17.0.2:5432
+== filter INPUT rules for both ports
+-A INPUT -i docker0 -p tcp -m tcp --dport 55480 -j ACCEPT
+== ufw logging: Logging: on (low)
+Connection to <the VM> closed.
