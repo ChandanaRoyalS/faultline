@@ -10,6 +10,8 @@
 #     ssh "$VM" 'bash /tmp/spike_vm.sh <stage>'          (host-on and host-off: ssh -t ... sudo bash)
 #
 # Stages, in order: preread, install, host-on, pg-up, box, pg-down, host-off, cleanup, postread.
+# Addendum 1 (check E failed on a firewall drop): after the first box, e-blocks, host-on-e, box
+# again, then pg-down, host-off-e, host-off, cleanup, postread.
 
 set -uo pipefail
 D="$HOME/t7.2-spike"
@@ -71,8 +73,24 @@ host-on)
     # Run with sudo. One rule, for F only: the egress proxy reaches the host from the default
     # bridge, and ufw drops that unless allowed. 55432 is a published port, so it is DNAT'd before
     # INPUT and needs no rule.
+    # Corrected by Addendum 1: Docker DNATs a published port only for traffic NOT arriving on
+    # docker0 (`! -i docker0`). The proxy reaches 172.17.0.1 from docker0, so 55432 meets INPUT and
+    # ufw drops it like any other port. host-on-e adds the same rule for it.
     iptables -I INPUT -i docker0 -p tcp --dport 55480 -j ACCEPT
     iptables -S INPUT | grep -E 'dport 55480'
+    ;;
+
+e-blocks)
+    # Addendum 1. Run with sudo. Read-only: every line ufw logged for 55432, whatever its format.
+    grep -h 'DPT=55432' /var/log/ufw.log | sed -E 's/^(\S+( +\S+){2}).* (IN=\S*) .*(SRC=\S+) (DST=\S+).* (SPT=\S+) (DPT=\S+).*/\1 \3 \4 \5 \6 \7/'
+    echo "lines: $(grep -hc 'DPT=55432' /var/log/ufw.log)"
+    ;;
+
+host-on-e|host-off-e)
+    # Addendum 1. Run with sudo. The same rule as host-on's, for 55432.
+    if [ "$stage" = host-on-e ]; then op=-I; else op=-D; fi
+    iptables "$op" INPUT -i docker0 -p tcp --dport 55432 -j ACCEPT
+    iptables -S INPUT | grep -E 'dport 55432' || echo "no rule for 55432"
     ;;
 
 host-off)

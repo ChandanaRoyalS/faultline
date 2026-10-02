@@ -4617,6 +4617,23 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-10-02: T7.2 adapter stage 0, Addendum 1 - five of six checks pass; the database check
+failed on a firewall drop the registration said could not happen.***
+
+- **Inside SREGym's hardened box**:
+  - Faultline installs in 60 s;
+  - its embedding model runs;
+  - the model API is reachable (401, no key);
+  - a host web port answers through SREGym's proxy;
+  - `apt-get` fails, as predicted.
+- **The database check failed**, and the cause is my error in the registration:
+  - Docker's published-port DNAT skips traffic from `docker0`, which is where SREGym's proxy
+    connects from;
+  - so the connection met ufw's default DROP;
+  - ufw logged 9 blocks on the port.
+- **By the owner's choice**: read the blocks, then run the check once more with the same rule the
+  web-port check used. If it still fails, the proxy cannot carry Postgres, and the owner chooses.
+
 ***2026-10-02: T7.2 adapter build registered - stage 0 first: can Faultline run inside SREGym's
 agent container?***
 

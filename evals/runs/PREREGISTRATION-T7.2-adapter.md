@@ -295,3 +295,58 @@ here and **are never changed after a scored attempt**.
 The dev pilot's registration, with the build's result: the three dev problems, R = 1, both arms,
 measuring cost, time and that every piece works, and the run's operating design, including the
 firewall for 8000 and 9954.
+
+## Addendum 1 - check E failed on a firewall drop that this registration said could not happen
+
+**Written 2026-10-02, after the first `box` and before anything is changed or re-run.** The
+outputs are in [`docs/evidence/t7.2-adapter/`](../../docs/evidence/t7.2-adapter/) (`t72-spike-*`).
+
+**What happened** (`t72-spike-box.txt`, 23:40:35-23:42:40 UTC). Every check but E went as
+predicted, or better:
+
+| check | predicted | result |
+|---|---|---|
+| A | `apt-get` fails | **held**: rc 100 |
+| B | the install takes 2 to 8 minutes | **better**: 60 s; site-packages 1.8 GB |
+| C | the model runs, 384 dimensions, under 2 minutes | **held**: 12 s, 384 dimensions |
+| D | 401 | **held** |
+| E | Postgres through the proxy | **failed**: the proxy answered `200 Connection established`, then psycopg timed out after 20 s |
+| F | 200 | **held** |
+
+- **Also as predicted**: the box ran as root with `CapEff` `0x2` (`DAC_OVERRIDE` alone) and
+  `NoNewPrivs` 1, no key-like variable reached it, the proxy blocked nothing, and nothing was left
+  behind.
+
+**Why E failed: my error in this registration.** `host-on`'s comment says 55432 is a published
+port, *"so it is DNAT'd before INPUT and needs no rule"*. The read-only diagnosis
+(`t72-spike-e-read.txt`, the owner's choice) shows why that is wrong:
+
+- **Docker's rule for the port is `-A DOCKER -d 172.17.0.1/32 ! -i docker0 ... -j DNAT`.** Traffic
+  arriving on `docker0`, which is where the egress proxy's connection comes from, is not DNAT'd.
+  It meets INPUT, where ufw's default is DROP.
+- **ufw logged 9 blocks on 55432 that day.** The time filter of the read missed them, because the
+  log's timestamps are not in the format it assumed, so their times and sources are read below.
+- **The proxy's `200`** proves nothing about the far end: SREGym starts mitmproxy with
+  `connection_strategy=lazy`, which answers a CONNECT before it connects upstream.
+
+So E failed at the firewall, before the proxy's handling of a non-HTTP stream was ever tested.
+That handling remains the open question E was registered to answer.
+
+**The change, the owner's choice of 2026-10-02**: read the blocks, then run E once more with the
+same rule F used.
+
+1. **`e-blocks`** (sudo, read-only) prints every ufw line for 55432, with its time, inbound
+   interface, source and destination. **Predicted**: about 9 lines inside 23:41:50-23:42:20,
+   `IN=docker0`, from the proxy's address on the bridge (172.17.0.0/16) to `172.17.0.1`.
+2. **`host-on-e`** (sudo) adds `-I INPUT -i docker0 -p tcp --dport 55432 -j ACCEPT`, the same shape
+   as `host-on`'s rule for 55480. It is reachable only from `docker0`. The database stays bound to
+   `172.17.0.1`, and ufw still drops the port from anywhere else.
+3. **`box` again**, unchanged, with its output saved as `t72-spike-box-2.txt`.
+   - **Predicted**: E succeeds, and A to D and F as before.
+   - **If E fails with the rule in place**, the proxy cannot carry Postgres. The registration's
+     rule then applies as written: stop, and the owner chooses among the remaining options, priced.
+4. Then, as registered: `pg-down`, `host-off-e` (removes the rule), `host-off`, `cleanup`,
+   `postread`.
+
+**What this changes for the run.** The run's operation, registered with the pilot, needs this
+rule for the benchmark database, as it needs one for 8000 and 9954. Both are for `docker0` only.
