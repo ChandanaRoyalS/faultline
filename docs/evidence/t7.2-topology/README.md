@@ -57,7 +57,10 @@ decided when Q122 is built.
 
 | file | what it is |
 |---|---|
-| `g4_vm.sh.txt` | item 3's stage script with the application as a parameter and the changes the registration lists, plus Addendum 1's `restart-app` stage; one run per application |
+| `g4_vm.sh.txt` | item 3's stage script with the application as a parameter and the changes the registration lists, plus Addendum 1's `restart-app` stage and, after Hotel Reservation's run, the `incidents` stage's argument fixed (`${3:-6}`); one run per application |
 | `g4_ports.sh.txt` | item 3's port watcher, its output named by application; the VM's address is withheld in it |
 | `g4-hotel-preread.txt` to `g4-hotel-postrecover.txt` | Hotel Reservation's steps 1 to 5, 2026-10-02 02:06-02:49 UTC, and the read-only diagnosis (`g4-hotel-diag.txt`) and the read after the recovery (`g4-hotel-postrecover.txt`), all read in the registration's Addendum 1. `g4-hotel-deploy.txt` is the second deploy's log; the first's was overwritten. The VM's address is withheld in `g4-hotel-host-on.txt` |
+| `g4-hotel-restart-app.txt`, `g4-hotel-hold.txt` | Addendum 1's restart and the gate it passed; the hold and the capture |
+| `g4-hotel-fault-deps.json`, `g4-hotel-deps-{5,15,30,60}m.json` | SREGym's `/api/dependencies` replies, unmodified: with the fault in (empty, the tracing gap), then the four lookbacks, which all hold the same five minutes. **`g4-hotel-deps-5m.json` is Hotel Reservation's snapshot of record** (the owner's decision, 2026-10-02) |
+| `g4-hotel-teardown.txt`, `g4-hotel-host-off.txt`, `g4-hotel-cleanup.txt`, `g4-hotel-killswitch-off.txt`, `g4-hotel-incidents.txt`, `g4-hotel-P3.txt` | the teardown, the incidents read (run again directly after the stage's bug; it replaced the failed output) and the after-teardown reading. The VM's address is withheld in `g4-hotel-host-off.txt` |
 

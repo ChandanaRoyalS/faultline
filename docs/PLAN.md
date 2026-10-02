@@ -4617,6 +4617,21 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-10-02: T7.2 topology item 4, Hotel Reservation - captured: 7 edges over 8 services, from
+five minutes.***
+
+- **The graph, exactly as predicted**:
+  - `frontend →` profile, reservation, search, recommendation, user;
+  - `search →` geo, rate.
+- **The store held only about five minutes.** The app traces every request at 100 a second
+  against SREGym's 25,000-trace cap, so the table reads CAPTURED, UNSETTLED.
+- **The owner's call**: the 5-minute reply is the snapshot of record, with its limit stated.
+- **Question 2: INCONCLUSIVE.** The fault read was empty for the tracing gap, now **Q127**: SREGym
+  as shipped sends this application's traces nowhere.
+- **Departures**:
+  - the cluster ran four hours past the capture, unwatched; no incident and nothing changed;
+  - the `incidents` stage failed on my argument bug, and is fixed for Social Network.
+
 ***2026-10-02: T7.2 topology item 4, Addendum 1 - Hotel Reservation sends SREGym's Jaeger
 nothing; its services are restarted once.***
 
