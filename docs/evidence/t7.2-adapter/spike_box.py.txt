@@ -1,0 +1,46 @@
+"""Start SREGym's own agent container, as a scored run would, and run spike_inside.sh in it.
+
+T7.2 adapter build, stage 0 (evals/runs/PREREGISTRATION-T7.2-adapter.md). Run with SREGym's
+venv python from its checkout, so the container is built by SREGym's ContainerRunner at the pin:
+the pinned agent image, the filtered egress proxy on its internal network, and the hardening flags.
+No cluster, no kubeconfig and no host credential is passed in.
+
+    .venv/bin/python spike_box.py LOGS_DIR WHEEL_FILENAME     (PGPASS in the environment)
+"""
+
+import os
+import sys
+from pathlib import Path
+
+from sregym.service.container_runner import ContainerConfig, ContainerRunner, ExecInput
+from sregym.service.internet_policy import InternetPolicy
+
+logs = Path(sys.argv[1]).resolve()
+wheel = sys.argv[2]
+config = ContainerConfig(
+    logs_path=logs,
+    internet_policy=InternetPolicy(),  # filtered, SREGym's default and the run's
+    harden_container=True,  # the run's --container-hardening on
+    forward_host_credentials=False,  # no key reaches the box: nothing can be spent
+)
+runner = ContainerRunner(config)
+print(f"image: {config.image}")
+print(f"filtered: {config.internet_policy.is_filtered}; hardened: {config.harden_container}")
+runner.ensure_image_exists()
+try:
+    done = runner.run_sync(
+        ExecInput(
+            command="bash /logs/spike_inside.sh",
+            env={"PGPASS": os.environ["PGPASS"], "WHEEL": wheel},
+            timeout=3600,
+            label="faultline-spike",
+        )
+    )
+    print(done.stdout)
+    if done.stderr.strip():
+        print("stderr:", done.stderr[-2000:])
+    print(f"container exit {done.returncode}")
+    print(f"requests the egress filter blocked: {runner.blocked_request_count()}")
+finally:
+    runner.cleanup_egress_proxy()
+    print("egress proxy and network removed")

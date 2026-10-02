@@ -1,0 +1,136 @@
+#!/usr/bin/env bash
+# T7.2 adapter build, stage 0: can Faultline run inside SREGym's agent container, with its database
+# outside it? Registered in evals/runs/PREREGISTRATION-T7.2-adapter.md before any stage is run.
+# No cluster is started, no model is called, and nothing on the world is changed.
+#
+# Copied to the VM as /tmp/spike_vm.sh, with spike_box.py, spike_inside.sh and spike_tunnel.py
+# beside it in /tmp and Faultline's wheel at /tmp/faultline-0.0.1-py3-none-any.whl. Run one stage
+# at a time from the Mac, each output saved to ~/Downloads/t72-spike-<stage>.txt and read before
+# the next:
+#     ssh "$VM" 'bash /tmp/spike_vm.sh <stage>'          (host-on and host-off: ssh -t ... sudo bash)
+#
+# Stages, in order: preread, install, host-on, pg-up, box, pg-down, host-off, cleanup, postread.
+
+set -uo pipefail
+D="$HOME/t7.2-spike"
+SR="$D/SREGym"
+SREGYM_PIN=46c853db
+PG=t72-spike-pg
+GW=172.17.0.1            # docker0's address, which host.docker.internal resolves to (checked in preread)
+WHEEL=faultline-0.0.1-py3-none-any.whl
+AGENT_IMAGE='ghcr.io/sregym/agent-base:sha-b97d6810e994bb7354b4bc15c6bc81cb66e816b9@sha256:92e8b52af763c6e165144d314ec25b1ad3ba0e0f1b0a28ffa4a1760e92ec6b61'
+stage="${1:?stage}"
+ts() { date -u '+%Y-%m-%d %H:%M:%S UTC'; }
+uvbin() { command -v uv 2>/dev/null || echo "$D/bin/uv"; }
+
+world() {
+    echo "== memory, load, disk"
+    free -m | sed 's/^/  /'; echo "  load: $(cat /proc/loadavg)"; df -h / | sed 's/^/  /'
+    echo "== containers running: $(docker ps -q | wc -l); this spike's: $(docker ps -a --format '{{.Names}}' | grep -cE "^($PG|sregym-faultline-spike|evaluation-egress)")"
+    echo "== firing alerts on the world (Alertmanager :9093)"
+    curl -fsS -m 10 'http://localhost:9093/api/v2/alerts?active=true&silenced=false&inhibited=false' \
+        | python3 -c 'import json,sys; a=[x["labels"].get("alertname","?")+"/"+x["labels"].get("service_name","?") for x in json.load(sys.stdin)]; print("  %d: %s" % (len(a), ", ".join(a) or "none"))' \
+        || echo "  alertmanager unreadable"
+    echo "== git status of ~/faultline (empty means committed configuration)"
+    (cd ~/faultline && git status --short | sed 's/^/  /'); echo "  (end)"
+}
+
+case "$stage" in
+
+preread)
+    echo "spike pre-read at $(ts) on $(hostname), kernel $(uname -r), $(uptime -p)"
+    echo "== reboot pending: $([ -e /var/run/reboot-required ] && echo YES || echo no)"
+    echo "== uv: $(command -v uv || echo absent); docker: $(docker --version)"
+    echo "== docker0: $(ip -4 -o addr show docker0 | awk '{print $4}'); host-gateway: $(docker info --format '{{.HostGatewayIP}}' 2>/dev/null || echo unknown)"
+    echo "== ports 55432 and 55480: $(for p in 55432 55480; do printf '%s %s; ' $p "$(ss -ltnH "sport = :$p" | grep -q . && echo IN-USE || echo free)"; done)"
+    echo "== $D: $([ -e "$D" ] && echo present || echo absent)"
+    have() { docker image inspect "$1" >/dev/null 2>&1 && echo yes || echo no; }
+    printf 'pgvector=%s mitmproxy=%s agent=%s\n' "$(have pgvector/pgvector:pg16)" "$(have mitmproxy/mitmproxy:12.2.3)" "$(have "$AGENT_IMAGE")" | tee /tmp/t72-spike-images.txt | sed 's/^/== images present: /'
+    echo "== files in /tmp: $(ls /tmp/spike_vm.sh /tmp/spike_box.py /tmp/spike_inside.sh /tmp/spike_tunnel.py /tmp/$WHEEL 2>&1 | tr '\n' ' ')"
+    echo "== ufw: $(sudo -n ufw status 2>/dev/null | head -1 || echo 'not readable without a password')"
+    world
+    ;;
+
+install)
+    set -e
+    echo "install at $(ts)"
+    mkdir -p "$D/bin" "$D/box-logs"
+    if ! command -v uv >/dev/null; then
+        curl -fsSL https://astral.sh/uv/install.sh | env UV_INSTALL_DIR="$D/bin" UV_NO_MODIFY_PATH=1 sh
+    fi
+    echo "uv: $("$(uvbin)" --version)"
+    git clone -q https://github.com/SREGym/SREGym.git "$SR"
+    cd "$SR" && git checkout -q "$SREGYM_PIN" && git log --oneline -1
+    UV_CACHE_DIR="$D/uv-cache" "$(uvbin)" sync --frozen 2>&1 | tail -2
+    .venv/bin/python -c 'import sregym.service.container_runner as c; print("container_runner from", c.__file__)'
+    cp /tmp/spike_box.py /tmp/spike_inside.sh /tmp/spike_tunnel.py "/tmp/$WHEEL" "$D/box-logs/"
+    sha256sum "$D/box-logs/$WHEEL"
+    ;;
+
+host-on)
+    # Run with sudo. One rule, for F only: the egress proxy reaches the host from the default
+    # bridge, and ufw drops that unless allowed. 55432 is a published port, so it is DNAT'd before
+    # INPUT and needs no rule.
+    iptables -I INPUT -i docker0 -p tcp --dport 55480 -j ACCEPT
+    iptables -S INPUT | grep -E 'dport 55480'
+    ;;
+
+host-off)
+    # Run with sudo.
+    iptables -D INPUT -i docker0 -p tcp --dport 55480 -j ACCEPT
+    iptables -S INPUT | grep -E 'dport 55480' || echo "rule gone"
+    ;;
+
+pg-up)
+    # A throwaway Postgres with pgvector, the image the deployment uses, bound to docker0 only.
+    echo "pg-up at $(ts)"
+    umask 077
+    python3 -c 'import secrets; print(secrets.token_urlsafe(24))' > "$D/pg.pass"
+    docker run -d --name "$PG" -e POSTGRES_PASSWORD="$(cat "$D/pg.pass")" \
+        -p "$GW:55432:5432" pgvector/pgvector:pg16 > /dev/null
+    for _ in $(seq 1 30); do docker exec "$PG" pg_isready -q && break; sleep 2; done
+    docker exec "$PG" pg_isready
+    docker exec "$PG" psql -U postgres -tAc 'select version()' | cut -d, -f1
+    echo "listening: $(ss -ltnH 'sport = :55432' | awk '{print $4}' | tr '\n' ' ')"
+    ;;
+
+box)
+    echo "box at $(ts)"
+    cd "$D/box-logs" || exit 1
+    # F's target: a plain HTTP server on docker0's address, for the length of this stage.
+    python3 -m http.server 55480 --bind "$GW" --directory "$D/box-logs" > "$D/http.log" 2>&1 &
+    hp=$!
+    sleep 1
+    echo "key-like variables in env: $(env | grep -cE '^[A-Za-z_]*(API_KEY|TOKEN|SECRET)[A-Za-z_]*=')"
+    cd "$SR" && PGPASS="$(cat "$D/pg.pass")" timeout 70m .venv/bin/python "$D/box-logs/spike_box.py" "$D/box-logs" "$WHEEL"
+    echo "box exit $? at $(ts)"
+    kill "$hp" 2>/dev/null
+    echo "left behind: $(docker ps -a --format '{{.Names}}' | grep -E '^(sregym-faultline-spike|evaluation-egress)' || echo none); networks: $(docker network ls --format '{{.Name}}' | grep -c '^evaluation-egress')"
+    ;;
+
+pg-down)
+    docker rm -f "$PG" > /dev/null && echo "removed $PG"
+    docker ps -a --format '{{.Names}}' | grep -q "^$PG$" && echo "PG LEFT" || echo "no spike postgres left"
+    ;;
+
+cleanup)
+    # The box ran as root and wrote into box-logs, so they are removed by a container as root, with
+    # the agent image already present; then the directory, and the agent and proxy images if the
+    # preread found them absent (pgvector stays: the deployment uses it).
+    docker run --rm --entrypoint rm -v "$D":/d "$AGENT_IMAGE" -rf /d/box-logs
+    rm -rf "$D"
+    grep -q 'agent=no' /tmp/t72-spike-images.txt && docker rmi "$AGENT_IMAGE" 2>&1 | tail -1
+    grep -q 'mitmproxy=no' /tmp/t72-spike-images.txt && docker rmi mitmproxy/mitmproxy:12.2.3 2>&1 | tail -1
+    rm -f /tmp/t72-spike-images.txt
+    ls -d "$D" 2>&1
+    ;;
+
+postread)
+    echo "spike post-read at $(ts)"
+    echo "== ports 55432 and 55480: $(for p in 55432 55480; do printf '%s %s; ' $p "$(ss -ltnH "sport = :$p" | grep -q . && echo IN-USE || echo free)"; done)"
+    world
+    ;;
+
+*)
+    echo "unknown stage: $stage"; exit 2 ;;
+esac

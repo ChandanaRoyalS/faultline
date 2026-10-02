@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+# T7.2 adapter build, stage 0, the half that runs INSIDE SREGym's agent container
+# (evals/runs/PREREGISTRATION-T7.2-adapter.md). Started by spike_box.py through SREGym's own
+# ContainerRunner: the pinned agent image, filtered internet, hardening on. Every check prints one
+# line that starts with its letter, so the output reads as the registration's table. No model is
+# called: D reaches the Anthropic API with no key.
+set -u
+cd /logs || exit 1
+since() { echo $(( $(date +%s) - $1 )); }
+echo "inside at $(date -u '+%Y-%m-%d %H:%M:%S UTC'), $(id), $(python3 --version 2>&1)"
+grep -E '^Cap(Eff|Bnd)|^NoNewPrivs' /proc/self/status
+echo "proxy set: $([ -n "${HTTPS_PROXY:-}" ] && echo yes || echo no); CA bundle: ${SSL_CERT_FILE:-none}"
+echo "key-like variables in env: $(env | grep -cE '^[A-Za-z_]*(API_KEY|TOKEN|SECRET)[A-Za-z_]*=')"
+
+# A: a package install in the box. SREGym's README says apt-get cannot drop to its _apt user
+# under hardening; a Postgres server installed this way would also refuse to run as root.
+t=$(date +%s); timeout 300 apt-get update -qq > /logs/A-apt.log 2>&1; rc=$?
+echo "A apt-get update rc=$rc in $(since "$t")s (last line: $(tail -1 /logs/A-apt.log))"
+
+# B: Faultline itself, with the two extras the agent needs, CPU-only torch.
+t=$(date +%s)
+python3 -m pip install --break-system-packages -q --cert "$SSL_CERT_FILE" \
+    --extra-index-url https://download.pytorch.org/whl/cpu \
+    "/logs/${WHEEL}[agents,embeddings]" > /logs/B-pip.log 2>&1; rc=$?
+echo "B pip install rc=$rc in $(since "$t")s; faultline $(python3 -c 'import importlib.metadata as m; print(m.version("faultline"))' 2>&1)"
+du -sh /usr/local/lib/python3.12/dist-packages 2>/dev/null | sed 's/^/  site-packages: /'
+
+# C: the embedding model (ADR-0018), downloaded through the proxy and run once.
+t=$(date +%s)
+python3 - > /logs/C-model.log 2>&1 <<'PY'
+from faultline.context.embedding import SentenceTransformerEmbedder as E
+v = E().embed(["checkout cannot reach its database"])[0]
+print(f"dims={len(v)}")
+PY
+rc=$?
+echo "C embedding model rc=$rc in $(since "$t")s ($(tail -1 /logs/C-model.log))"
+
+# D: the model API is reachable through the proxy. No key, so nothing is spent.
+echo "D api.anthropic.com/v1/models -> $(curl -sS -m 30 -o /dev/null -w '%{http_code}' https://api.anthropic.com/v1/models 2>&1)"
+
+# E: Postgres outside the box, through the proxy by CONNECT (spike_tunnel.py).
+python3 /logs/spike_tunnel.py 127.0.0.1 15432 host.docker.internal 55432 > /logs/E-tunnel.log 2>&1 &
+tp=$!
+sleep 2
+t=$(date +%s)
+python3 - > /logs/E-pg.log 2>&1 <<'PY'
+import os, time, psycopg
+c = psycopg.connect(host="127.0.0.1", port=15432, user="postgres", password=os.environ["PGPASS"],
+                    dbname="postgres", sslmode="disable", connect_timeout=20)
+print(c.execute("select version()").fetchone()[0].split(",")[0])
+c.execute("create extension if not exists vector")
+print("vector distance:", c.execute("select '[1,2,3]'::vector <-> '[1,2,4]'::vector").fetchone()[0])
+t = time.perf_counter()
+for _ in range(50):
+    c.execute("select 1").fetchone()
+print(f"50 round trips: {(time.perf_counter() - t) * 1000:.0f} ms")
+PY
+rc=$?
+echo "E postgres through the proxy rc=$rc in $(since "$t")s"
+sed 's/^/  /' /logs/E-pg.log | tail -4
+sed 's/^/  tunnel: /' /logs/E-tunnel.log | tail -3
+kill "$tp" 2>/dev/null
+
+# F: plain HTTP to a port on the host through the proxy, the path SREGym's MCP server and API take.
+echo "F http://host.docker.internal:55480/ -> $(curl -sS -m 30 -o /dev/null -w '%{http_code}' http://host.docker.internal:55480/ 2>&1)"
+
+echo "inside done at $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
