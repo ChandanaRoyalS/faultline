@@ -1,0 +1,15 @@
+"""Read-only: each registered problem's family, as SREGym's registry groups it (its '# ===' and
+'# ---' section comments at 46c853db). The family is the registry's, not Faultline's."""
+import re
+fam = sub = ""
+out = {}
+for line in open("/tmp/sregym/sregym/conductor/problems/registry.py"):
+    s = re.sub(r"^(#\s*)+", "# ", line.strip()) if line.strip().startswith("#") else line.strip()
+    if s.lower().startswith("# ad hoc"): fam, sub = "Ad Hoc", ""; continue
+    m = re.match(r"#\s*=+\s*(.+?)\s*=+$", s)
+    if m: fam, sub = m.group(1).title(), ""; continue
+    m = re.match(r"#\s*-+\s*(.+?)\s*-+$", s)
+    if m: sub = m.group(1).title(); continue
+    m = re.match(r'"([^"]+)":', s)
+    if m and fam: out[m.group(1)] = fam + (f" / {sub}" if sub else "")
+for k, v in out.items(): print(f"{k}\t{v}")

@@ -1,0 +1,112 @@
+application	problem	family	split	lite	q126_flag
+sregym-astronomy-shop	astronomy_shop_ad_service_failure	Opentelemetry Fault Injector	scored	no	no
+sregym-astronomy-shop	astronomy_shop_ad_service_high_cpu	Opentelemetry Fault Injector	scored	no	no
+sregym-astronomy-shop	astronomy_shop_ad_service_image_slow_load	Opentelemetry Fault Injector	scored	no	no
+sregym-astronomy-shop	astronomy_shop_ad_service_manual_gc	Opentelemetry Fault Injector	scored	no	no
+sregym-astronomy-shop	astronomy_shop_cart_service_failure	Opentelemetry Fault Injector	scored	no	no
+sregym-astronomy-shop	astronomy_shop_failed_readiness_probe	Opentelemetry Fault Injector	scored	no	no
+sregym-astronomy-shop	astronomy_shop_payment_service_failure	Opentelemetry Fault Injector	scored	no	no
+sregym-astronomy-shop	astronomy_shop_payment_service_unreachable	Opentelemetry Fault Injector	scored	no	no
+sregym-astronomy-shop	astronomy_shop_product_catalog_service_failure	Opentelemetry Fault Injector	scored	no	no
+sregym-astronomy-shop	duplicate_pvc_mounts_astronomy_shop	Virtualization Fault Injector / Regular Virtualization Problems	scored	no	no
+sregym-astronomy-shop	edge_request_filter_cpu_saturation	Application Fault Injector / Regular Application Problems	dev	yes	no
+sregym-astronomy-shop	env_variable_shadowing_astronomy_shop	Virtualization Fault Injector / Regular Virtualization Problems	scored	yes	no
+sregym-astronomy-shop	incorrect_image	Application Fault Injector / Regular Application Problems	scored	no	no
+sregym-astronomy-shop	incorrect_port_assignment	Application Fault Injector / Regular Application Problems	scored	no	no
+sregym-astronomy-shop	init_container_dependency_hang_astronomy_shop	Virtualization Fault Injector / Regular Virtualization Problems	scored	no	no
+sregym-astronomy-shop	integer_overflow_primary_key_astronomy_shop	Virtualization Fault Injector / Regular Virtualization Problems	scored	no	no
+sregym-astronomy-shop	internal_traffic_policy_local_astronomy_shop	Direct K8S Api	scored	yes	no
+sregym-astronomy-shop	kafka_poison_pill_hol_block	Opentelemetry Fault Injector	scored	yes	yes
+sregym-astronomy-shop	kafka_producer_leak	Application Fault Injector / Regular Application Problems	scored	no	yes
+sregym-astronomy-shop	kafka_queue_problems	Opentelemetry Fault Injector	scored	no	yes
+sregym-astronomy-shop	kubelet_crash	Ad Hoc	scored	no	no
+sregym-astronomy-shop	kubelet_eviction_threshold_misconfig	Ad Hoc	scored	no	no
+sregym-astronomy-shop	liveness_probe_misconfiguration_astronomy_shop	Virtualization Fault Injector / Regular Virtualization Problems	scored	no	no
+sregym-astronomy-shop	liveness_probe_too_aggressive_astronomy_shop	Virtualization Fault Injector / Regular Virtualization Problems	scored	no	no
+sregym-astronomy-shop	loadgenerator_flood_homepage	Opentelemetry Fault Injector	scored	no	no
+sregym-astronomy-shop	missing_env_variable_astronomy_shop	Application Fault Injector / Regular Application Problems	scored	no	no
+sregym-astronomy-shop	missing_service_astronomy_shop	Virtualization Fault Injector / Regular Virtualization Problems	scored	no	no
+sregym-astronomy-shop	postgres_lock_contention_product_catalog	Virtualization Fault Injector / Regular Virtualization Problems	scored	no	no
+sregym-astronomy-shop	rbac_misconfiguration	Virtualization Fault Injector / Regular Virtualization Problems	scored	no	no
+sregym-astronomy-shop	readiness_probe_misconfiguration_astronomy_shop	Virtualization Fault Injector / Regular Virtualization Problems	scored	no	no
+sregym-astronomy-shop	secret_rotation_stale_env_credentials_astronomy_shop	Application Fault Injector / Regular Application Problems	scored	yes	yes
+sregym-astronomy-shop	service_dns_resolution_failure_astronomy_shop	Virtualization Fault Injector / Regular Virtualization Problems	scored	no	no
+sregym-astronomy-shop	service_port_conflict_astronomy_shop	Virtualization Fault Injector / Regular Virtualization Problems	scored	no	no
+sregym-astronomy-shop	sidecar_port_conflict_astronomy_shop	Virtualization Fault Injector / Regular Virtualization Problems	scored	no	no
+sregym-astronomy-shop	stale_coredns_config_astronomy_shop	Virtualization Fault Injector / Regular Virtualization Problems	scored	no	no
+sregym-astronomy-shop	stale_hostaliases_dns_poisoning_astronomy_shop	Virtualization Fault Injector / Regular Virtualization Problems	scored	no	no
+sregym-astronomy-shop	unschedulable_incorrect_port_assignment	Application Fault Injector / Regular Application Problems	scored	yes	no
+sregym-astronomy-shop	valkey_auth_disruption	Application Fault Injector / Regular Application Problems	scored	yes	no
+sregym-astronomy-shop	valkey_memory_disruption	Application Fault Injector / Regular Application Problems	scored	no	no
+sregym-astronomy-shop	workload_imbalance	Ad Hoc	scored	no	no
+sregym-astronomy-shop	wrong_dns_policy_astronomy_shop	Virtualization Fault Injector / Regular Virtualization Problems	scored	yes	no
+sregym-astronomy-shop	wrong_service_selector_astronomy_shop	Virtualization Fault Injector / Regular Virtualization Problems	scored	no	no
+sregym-hotel-reservation	admission_webhook_outage_hotel_reservation	Direct K8S Api	scored	yes	no
+sregym-hotel-reservation	admission_webhook_tls_mismatch_hotel_reservation	Direct K8S Api	scored	no	no
+sregym-hotel-reservation	calico_route_reflector_label_drift_hotel_reservation	Direct K8S Api	scored	no	no
+sregym-hotel-reservation	cfs_cpu_throttling_hotel_reservation	Virtualization Fault Injector / Regular Virtualization Problems	scored	no	no
+sregym-hotel-reservation	configmap_drift_hotel_reservation	Virtualization Fault Injector / Regular Virtualization Problems	scored	no	no
+sregym-hotel-reservation	cronjob_sidecar_blocks_completion_hotel_reservation	Direct K8S Api	scored	yes	no
+sregym-hotel-reservation	cumulative_admission_webhook_timeout_hotel_reservation	Direct K8S Api	scored	no	no
+sregym-hotel-reservation	dev_shm_exhaustion_hotel_reservation	Direct K8S Api	scored	no	no
+sregym-hotel-reservation	duplicate_pvc_mounts_hotel_reservation	Virtualization Fault Injector / Regular Virtualization Problems	scored	no	no
+sregym-hotel-reservation	ephemeral_port_range_hotel_reservation	Application Fault Injector / Regular Application Problems	scored	no	no
+sregym-hotel-reservation	expired_tls_hotel_reservation	Direct K8S Api	scored	no	no
+sregym-hotel-reservation	faulty_image_correlated	Application Fault Injector / Correlated Problems	scored	no	no
+sregym-hotel-reservation	feature_flag_latent_bug_hotel_reservation	Virtualization Fault Injector / Regular Virtualization Problems	scored	no	no
+sregym-hotel-reservation	file_descriptor_exhaustion	Virtualization Fault Injector / Regular Virtualization Problems	scored	no	no
+sregym-hotel-reservation	finalizer_deadlock_controller_hotel_reservation	Virtualization Fault Injector / Regular Virtualization Problems	scored	yes	no
+sregym-hotel-reservation	hpa_missing_effective_cpu_request_hotel_reservation	Virtualization Fault Injector / Regular Virtualization Problems	scored	no	no
+sregym-hotel-reservation	ingress_misroute	Direct K8S Api	scored	no	no
+sregym-hotel-reservation	init_container_dependency_hang_hotel_reservation	Virtualization Fault Injector / Regular Virtualization Problems	scored	no	no
+sregym-hotel-reservation	liveness_probe_misconfiguration_hotel_reservation	Virtualization Fault Injector / Regular Virtualization Problems	scored	no	no
+sregym-hotel-reservation	liveness_probe_too_aggressive_hotel_reservation	Virtualization Fault Injector / Regular Virtualization Problems	scored	no	no
+sregym-hotel-reservation	misconfig_app_hotel_res	Application Fault Injector / Regular Application Problems	scored	no	no
+sregym-hotel-reservation	missing_configmap_hotel_reservation	Virtualization Fault Injector / Regular Virtualization Problems	scored	no	no
+sregym-hotel-reservation	missing_service_hotel_reservation	Virtualization Fault Injector / Regular Virtualization Problems	scored	no	no
+sregym-hotel-reservation	namespace_memory_limit	Virtualization Fault Injector / Regular Virtualization Problems	scored	yes	no
+sregym-hotel-reservation	network_policy_block	Direct K8S Api	scored	yes	no
+sregym-hotel-reservation	nightly_rebalance_oom_hotel_reservation	Virtualization Fault Injector / Regular Virtualization Problems	scored	no	no
+sregym-hotel-reservation	node_conntrack_exhaustion_hotel_reservation	Direct K8S Api	scored	no	no
+sregym-hotel-reservation	pod_cidr_exhaustion_hotel_reservation	Direct K8S Api	scored	no	no
+sregym-hotel-reservation	priority_preemption_cascade_hotel_reservation	Virtualization Fault Injector / Regular Virtualization Problems	scored	no	no
+sregym-hotel-reservation	psa_restricted_blocks_recreation_hotel_reservation	Direct K8S Api	scored	no	no
+sregym-hotel-reservation	pvc_claim_mismatch	Virtualization Fault Injector / Regular Virtualization Problems	scored	no	no
+sregym-hotel-reservation	readiness_probe_misconfiguration_hotel_reservation	Virtualization Fault Injector / Regular Virtualization Problems	scored	no	no
+sregym-hotel-reservation	resource_request_too_large	Virtualization Fault Injector / Regular Virtualization Problems	scored	no	no
+sregym-hotel-reservation	resource_request_too_small	Virtualization Fault Injector / Regular Virtualization Problems	scored	no	no
+sregym-hotel-reservation	revoke_auth_mongodb-1	Application Fault Injector / Regular Application Problems	scored	no	no
+sregym-hotel-reservation	revoke_auth_mongodb-2	Application Fault Injector / Regular Application Problems	scored	no	no
+sregym-hotel-reservation	rolling_update_misconfigured_hotel_reservation	Virtualization Fault Injector / Regular Virtualization Problems	scored	no	no
+sregym-hotel-reservation	search_rate_retry_collapse_hotel_reservation	Virtualization Fault Injector / Metastable Failures	scored	yes	no
+sregym-hotel-reservation	service_port_conflict_hotel_reservation	Virtualization Fault Injector / Regular Virtualization Problems	scored	no	no
+sregym-hotel-reservation	service_wrong_pod_selection_hotel_reservation	Virtualization Fault Injector / Regular Virtualization Problems	scored	yes	no
+sregym-hotel-reservation	sidecar_port_conflict_hotel_reservation	Virtualization Fault Injector / Regular Virtualization Problems	scored	no	no
+sregym-hotel-reservation	storage_user_unregistered-1	Application Fault Injector / Regular Application Problems	scored	no	no
+sregym-hotel-reservation	storage_user_unregistered-2	Application Fault Injector / Regular Application Problems	scored	no	no
+sregym-hotel-reservation	update_incompatible_correlated	Application Fault Injector / Correlated Problems	dev	no	no
+sregym-hotel-reservation	wrong_bin_usage	Virtualization Fault Injector / Regular Virtualization Problems	scored	no	no
+sregym-hotel-reservation	wrong_dns_policy_hotel_reservation	Virtualization Fault Injector / Regular Virtualization Problems	scored	no	no
+sregym-hotel-reservation	wrong_service_selector_hotel_reservation	Virtualization Fault Injector / Regular Virtualization Problems	scored	no	no
+sregym-social-network	assign_to_non_existent_node	Virtualization Fault Injector / Regular Virtualization Problems	scored	no	no
+sregym-social-network	auth_miss_mongodb	Virtualization Fault Injector / Regular Virtualization Problems	scored	no	no
+sregym-social-network	duplicate_pvc_mounts_social_network	Virtualization Fault Injector / Regular Virtualization Problems	scored	yes	no
+sregym-social-network	init_container_dependency_hang_social_network	Virtualization Fault Injector / Regular Virtualization Problems	scored	no	no
+sregym-social-network	k8s_target_port-misconfig	Virtualization Fault Injector / Regular Virtualization Problems	dev	no	no
+sregym-social-network	liveness_probe_misconfiguration_social_network	Virtualization Fault Injector / Regular Virtualization Problems	scored	no	no
+sregym-social-network	liveness_probe_too_aggressive_social_network	Virtualization Fault Injector / Regular Virtualization Problems	scored	no	no
+sregym-social-network	missing_configmap_social_network	Virtualization Fault Injector / Regular Virtualization Problems	scored	no	no
+sregym-social-network	missing_service_social_network	Virtualization Fault Injector / Regular Virtualization Problems	scored	no	no
+sregym-social-network	mutating_webhook_resource_limits_social_network	Direct K8S Api	scored	yes	no
+sregym-social-network	persistent_volume_affinity_violation	Virtualization Fault Injector / Regular Virtualization Problems	scored	no	no
+sregym-social-network	pod_anti_affinity_deadlock	Virtualization Fault Injector / Regular Virtualization Problems	scored	no	no
+sregym-social-network	readiness_probe_misconfiguration_social_network	Virtualization Fault Injector / Regular Virtualization Problems	scored	yes	no
+sregym-social-network	rolling_update_misconfigured_social_network	Virtualization Fault Injector / Regular Virtualization Problems	scored	yes	no
+sregym-social-network	scale_pod_zero_social_net	Virtualization Fault Injector / Regular Virtualization Problems	scored	no	no
+sregym-social-network	service_dns_resolution_failure_social_network	Virtualization Fault Injector / Regular Virtualization Problems	scored	yes	no
+sregym-social-network	service_port_conflict_social_network	Virtualization Fault Injector / Regular Virtualization Problems	scored	no	no
+sregym-social-network	sidecar_port_conflict_social_network	Virtualization Fault Injector / Regular Virtualization Problems	scored	no	no
+sregym-social-network	stale_coredns_config_social_network	Virtualization Fault Injector / Regular Virtualization Problems	scored	no	no
+sregym-social-network	taint_no_toleration_social_network	Virtualization Fault Injector / Regular Virtualization Problems	scored	no	no
+sregym-social-network	wrong_dns_policy_social_network	Virtualization Fault Injector / Regular Virtualization Problems	scored	no	no
+sregym-social-network	wrong_service_selector_social_network	Virtualization Fault Injector / Regular Virtualization Problems	scored	yes	no
