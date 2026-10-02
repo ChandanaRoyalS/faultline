@@ -166,6 +166,98 @@ the datastores' client spans in their callers.
 **`fraud-detection` is not here**: its flag read keeps it a node, though, like `accounting`,
 nothing reaches it from checkout. The nine telemetry services are left out, as on v1."""
 
+_G4 = "docs/evidence/t7.2-topology"
+
+_HOTEL_DATASTORE = (
+    "A datastore deployment of Hotel Reservation under SREGym, in the capture's pod list "
+    f"({_G4}/g4-hotel-hold.txt), with no span of its own in Jaeger's service list. **Its callers' "
+    "client spans were not read**, unlike v2's datastores in Q122's probe."
+)
+
+_SOCIAL_DATASTORE = (
+    "A datastore deployment of Social Network under SREGym, in the capture's pod list "
+    f"({_G4}/g4-social-hold.txt), with no span of its own in Jaeger's service list. **Its callers' "
+    "client spans were not read.**"
+)
+
+_SOCIAL_UNLINKED = (
+    "On compose-post-service's write path. Jaeger listed it, so its spans arrive "
+    f"({_G4}/g4-social-hold.txt), and in none of the 5-, 15-, 30- or 60-minute replies does any "
+    "of them have a parent or child in another service. Why the call into it does not join its "
+    "caller's trace was not read."
+)
+
+KNOWN_ABSENT_HOTEL_RESERVATION: dict[str, tuple[GraphPresence, str]] = {
+    **{
+        name: (GraphPresence.INFRASTRUCTURE, _HOTEL_DATASTORE)
+        for name in (
+            "mongodb-geo",
+            "mongodb-profile",
+            "mongodb-rate",
+            "mongodb-recommendation",
+            "mongodb-reservation",
+            "mongodb-user",
+            "memcached-profile",
+            "memcached-rate",
+            "memcached-reserve",
+        )
+    },
+    "consul": (
+        GraphPresence.INFRASTRUCTURE,
+        "The service registry the Go services register with at start-up - the reason T7.2 topology "
+        "item 4's restart left it alone. In the capture's pod list, with no span of its own.",
+    ),
+}
+"""Hotel Reservation under SREGym (Q128). Its eight Go services are all graph nodes."""
+
+KNOWN_ABSENT_SOCIAL_NETWORK: dict[str, tuple[GraphPresence, str]] = {
+    **{
+        name: (GraphPresence.UNLINKED, _SOCIAL_UNLINKED)
+        for name in (
+            "text-service",
+            "unique-id-service",
+            "user-service",
+            "media-service",
+            "url-shorten-service",
+            "user-mention-service",
+        )
+    },
+    "media-frontend": (
+        GraphPresence.UNEXERCISED,
+        "Running and ready, and it wrote no log line after its restart "
+        f"({_G4}/g4-social-mediafrontend.txt): every request of SREGym's workload goes to "
+        "nginx-thrift. Not in Jaeger's list, so whether it emits spans is not measured.",
+    ),
+    **{
+        name: (GraphPresence.INFRASTRUCTURE, _SOCIAL_DATASTORE)
+        for name in (
+            "home-timeline-redis",
+            "social-graph-redis",
+            "user-timeline-redis",
+            "media-mongodb",
+            "post-storage-mongodb",
+            "social-graph-mongodb",
+            "url-shorten-mongodb",
+            "user-mongodb",
+            "user-timeline-mongodb",
+            "media-memcached",
+            "post-storage-memcached",
+            "url-shorten-memcached",
+            "user-memcached",
+        )
+    },
+}
+"""Social Network under SREGym (Q128). Its entry point is `nginx-web-server` in spans and in the
+graph, though the deployment is `nginx-thrift`; the catalog uses the span name, as the graph
+does."""
+
+KNOWN_ABSENT_BY_APPLICATION: dict[str, dict[str, tuple[GraphPresence, str]]] = {
+    "sregym-hotel-reservation": KNOWN_ABSENT_HOTEL_RESERVATION,
+    "sregym-social-network": KNOWN_ABSENT_SOCIAL_NETWORK,
+}
+"""Tables of applications whose names belong to no world. An application not here uses its
+world's table - astronomy-shop under SREGym keeps v2's."""
+
 KNOWN_ABSENT_BY_WORLD: dict[str, dict[str, tuple[GraphPresence, str]]] = {
     "v1": KNOWN_ABSENT,
     "v2": KNOWN_ABSENT_V2,
@@ -186,7 +278,11 @@ class ServiceCatalog:
             service: ServiceEntry(service=service, presence=GraphPresence.PRESENT)
             for service in graph.nodes
         }
-        for name, (presence, reason) in KNOWN_ABSENT_BY_WORLD[graph.world].items():
+        if graph.application in KNOWN_ABSENT_BY_APPLICATION:
+            table = KNOWN_ABSENT_BY_APPLICATION[graph.application]
+        else:
+            table = KNOWN_ABSENT_BY_WORLD[graph.world or ""]
+        for name, (presence, reason) in table.items():
             service = graph.canonical(name)
             entries.setdefault(service, ServiceEntry(service, presence, reason))
         self._entries = entries

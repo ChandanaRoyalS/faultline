@@ -740,7 +740,10 @@ def test_an_application_in_another_world_is_an_error(monkeypatch: pytest.MonkeyP
 
 
 def test_an_unknown_application_is_an_error(v2_process: None) -> None:
-    with pytest.raises(ValueError, match="known: sregym-astronomy-shop"):
+    with pytest.raises(
+        ValueError,
+        match="known: sregym-astronomy-shop, sregym-hotel-reservation, sregym-social-network",
+    ):
         ServiceGraph.from_snapshot(application="hotel-reservation")
 
 
@@ -751,3 +754,77 @@ def test_with_no_application_nothing_changes(monkeypatch: pytest.MonkeyPatch) ->
     assert len(graph().edges) == 15
     assert graph_v2().application is None
     assert len(graph_v2().edges) == 20
+
+
+# --- the DeathStarBench applications, names of no world (Q128) ------------------
+#
+# Predicted in `evals/runs/PREREGISTRATION-Q128-dsb-graphs.md` before the code existed.
+
+HOTEL, SOCIAL = "sregym-hotel-reservation", "sregym-social-network"
+
+
+@pytest.mark.parametrize("world", ["v1", "v2"])
+def test_dsb_graphs_load_the_same_in_either_process_world(
+    world: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """No world is asked of them: their names cannot clash with an injector that never addresses
+    their containers, so the process world neither matters nor raises."""
+    monkeypatch.setenv("FAULTLINE_TOOLS_WORLD", world)
+    hotel = ServiceGraph.from_snapshot(application=HOTEL)
+    social = ServiceGraph.from_snapshot(application=SOCIAL)
+
+    assert (hotel.world, hotel.application) == (None, HOTEL)
+    assert (len(hotel.edges), len(hotel.nodes)) == (7, 8)
+    assert (len(social.edges), len(social.nodes)) == (8, 6)
+    for g in (hotel, social):
+        assert {e.kind for e in g.edges} == {EdgeKind.UNMEASURED}
+        assert not any(e.parent == e.child for e in g.edges)
+    assert hotel.canonical("frontend") == "frontend", "names are read as they are"
+
+
+def test_a_dsb_application_refuses_a_world() -> None:
+    with pytest.raises(ValueError, match="has no world"):
+        ServiceGraph.from_snapshot(world="v2", application=HOTEL)
+
+
+def test_hotel_reservation_catalog_and_radius() -> None:
+    c = ServiceCatalog.from_snapshot(application=HOTEL)
+    up = Direction.ALSO_AFFECTED
+
+    assert len(c.services) == 18
+    assert sum(c.usable(s) for s in c.services) == 8
+    assert c.get("consul").presence is GraphPresence.INFRASTRUCTURE  # type: ignore[union-attr]
+    assert c.get("mongodb-geo").presence is GraphPresence.INFRASTRUCTURE  # type: ignore[union-attr]
+    reach = [(r.service, r.direction, r.hops) for r in c.graph.blast_radius(["geo"], 2).reach]
+    assert reach == [("search", up, 1), ("frontend", up, 2)]
+
+
+def test_social_network_catalog_and_radius() -> None:
+    c = ServiceCatalog.from_snapshot(application=SOCIAL)
+    counts: dict[GraphPresence, int] = {}
+    for s in c.services:
+        presence = c.get(s).presence  # type: ignore[union-attr]
+        counts[presence] = counts.get(presence, 0) + 1
+
+    assert len(c.services) == 26
+    assert counts == {
+        GraphPresence.PRESENT: 6,
+        GraphPresence.UNLINKED: 6,
+        GraphPresence.UNEXERCISED: 1,
+        GraphPresence.INFRASTRUCTURE: 13,
+    }
+    assert c.usable("nginx-web-server"), "the span name, not the deployment's"
+    reach = c.graph.blast_radius(["post-storage-service"], 2).reach
+    by_hop = {h: {r.service for r in reach if r.hops == h} for h in (1, 2)}
+    assert by_hop == {
+        1: {"home-timeline-service", "user-timeline-service"},
+        2: {"nginx-web-server", "compose-post-service"},
+    }
+    assert {r.direction for r in reach} == {Direction.ALSO_AFFECTED}
+
+
+def test_astronomy_shop_keeps_v2s_table(v2_process: None) -> None:
+    """An application not in the per-application tables uses its world's."""
+    assert ServiceCatalog.from_snapshot(application=SREGYM).get("accounting").presence is (  # type: ignore[union-attr]
+        GraphPresence.UNLINKED
+    )

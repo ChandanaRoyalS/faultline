@@ -29,6 +29,9 @@ REPO_DATA = {
     ),
     # astronomy-shop under SREGym's, loaded by application (Q125).
     "docs/evidence/t7.2-topology/g3-deps-60m.json": "faultline.context.graph.APPLICATIONS",
+    # The DeathStarBench applications' (Q128).
+    "docs/evidence/t7.2-topology/g4-hotel-deps-5m.json": "faultline.context.graph.APPLICATIONS",
+    "docs/evidence/t7.2-topology/g4-social-deps-30m.json": "faultline.context.graph.APPLICATIONS",
 }
 
 

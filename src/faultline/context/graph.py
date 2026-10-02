@@ -59,11 +59,16 @@ SNAPSHOTS: dict[str, Path] = {"v1": SNAPSHOT, "v2": SNAPSHOT_V2}
 
 @dataclass(frozen=True, slots=True)
 class Application:
-    """A foreign application's committed graph, and the world whose names and rules it uses."""
+    """A foreign application's committed graph, and the world whose names and rules it uses.
+
+    `world` is `None` for an application whose names belong to no Faultline world (Q128): its span
+    names are read as they are, with no artifact edges and no edge kinds, and no process world is
+    asked of it, since nothing in Faultline addresses its containers by name.
+    """
 
     name: str
     snapshot: Path
-    world: str
+    world: str | None
 
 
 APPLICATIONS: dict[str, Application] = {
@@ -72,15 +77,35 @@ APPLICATIONS: dict[str, Application] = {
         snapshot=repo_root() / "docs" / "evidence" / "t7.2-topology" / "g3-deps-60m.json",
         world="v2",
     ),
+    "sregym-hotel-reservation": Application(
+        name="sregym-hotel-reservation",
+        snapshot=repo_root() / "docs" / "evidence" / "t7.2-topology" / "g4-hotel-deps-5m.json",
+        world=None,
+    ),
+    "sregym-social-network": Application(
+        name="sregym-social-network",
+        snapshot=repo_root() / "docs" / "evidence" / "t7.2-topology" / "g4-social-deps-30m.json",
+        world=None,
+    ),
 }
-"""Every application a graph can be loaded for, by name (Q125).
+"""Every application a graph can be loaded for, by name (Q125, Q128).
 
 **`sregym-astronomy-shop`**: SREGym's own Jaeger over the clean hour after its fault was recovered,
 2026-10-02 00:05-01:05 UTC (T7.2 topology item 3). It is the demo's 2.2.0, so its names are v2's.
 Raw it has 21 cross-service edges to v2's 22 - `load-generator -> flagd` is the one it lacks - and
 loaded with v2's rules, which discard that edge as the synthetic client's, the two graphs are the
 same 20 edges over 15 services. **It is its own snapshot by the owner's decision**, so that a run
-scored on SREGym is scored against a graph measured there."""
+scored on SREGym is scored against a graph measured there.
+
+**The DeathStarBench applications** (T7.2 topology item 4, 2026-10-02), both captured with their
+services restarted once so that their spans reached SREGym's Jaeger (Q127):
+
+- **`sregym-hotel-reservation`**: 7 edges over 8 services, from a five-minute window - the whole
+  reach of SREGym's 25,000-trace store at this application's rate. Accepted by the owner with that
+  limit stated: a path rarer than about one request in 25,000 can be missing.
+- **`sregym-social-network`**: 8 edges over 6 services, the 30-minute reply, the longest the store
+  held. Six services on compose-post's write path trace and join no edge; the catalog says so.
+"""
 
 
 def current_world() -> str:
@@ -98,13 +123,16 @@ def current_application() -> str | None:
     return ContextSettings().application
 
 
-def _resolve(world: str | None, application: str | None) -> tuple[str, Path | None, str | None]:
+def _resolve(
+    world: str | None, application: str | None
+) -> tuple[str | None, Path | None, str | None]:
     """The world, the snapshot (when an application decides it) and the application to load.
 
     An explicit `world` means "by world": the application setting is read only when neither is
     passed. **An application whose world differs from the process's is an error**, because the
     graph would answer in one naming scheme while `injector.world` answers in another - the silent
-    mismatch a third world value would have had.
+    mismatch a third world value would have had. **An application of no world** (`world=None`) is
+    asked none: the graph is returned with world `None`, read as it is.
     """
     if application is None and world is None:
         application = current_application()
@@ -114,6 +142,10 @@ def _resolve(world: str | None, application: str | None) -> tuple[str, Path | No
         known = ", ".join(sorted(APPLICATIONS))
         raise ValueError(f"unknown application {application!r}; known: {known}")
     app = APPLICATIONS[application]
+    if app.world is None:
+        if world is not None:
+            raise ValueError(f"application {application!r} has no world, and {world!r} was asked")
+        return None, app.snapshot, app.name
     process_world = current_world()
     if app.world != process_world or (world is not None and world != app.world):
         asked = f" and world {world!r} was asked" if world else ""
@@ -298,11 +330,12 @@ class ServiceGraph:
         self, edges: list[Edge], world: str | None = None, application: str | None = None
     ) -> None:
         self.edges = edges
-        self.world = world or current_world()
-        """The world whose names this graph holds and answers in."""
+        self.world: str | None = world if application is not None else (world or current_world())
+        """The world whose names this graph holds and answers in; `None` for an application of no
+        world, whose names are its own."""
         self.application = application
         """The application it was loaded for, or `None` when loaded by world."""
-        self._names = container_services(self.world)
+        self._names = container_services(self.world) if self.world else {}
         self._adjacent: dict[str, set[str]] = defaultdict(set)
         for edge in edges:
             self._adjacent[edge.parent].add(edge.child)
@@ -322,10 +355,11 @@ class ServiceGraph:
         itself is not a dependency (Q122).
         """
         world, app_snapshot, app_name = _resolve(world, application)
-        names = container_services(world)
-        artifacts = ARTIFACT_EDGES_BY_WORLD[world]
-        kinds = EDGE_KINDS_BY_WORLD[world]
-        payload = json.loads((path or app_snapshot or SNAPSHOTS[world]).read_text())
+        names = container_services(world) if world else {}
+        artifacts = ARTIFACT_EDGES_BY_WORLD[world] if world else frozenset()
+        kinds = EDGE_KINDS_BY_WORLD[world] if world else {}
+        source = path or app_snapshot or SNAPSHOTS[world or ""]
+        payload = json.loads(source.read_text())
         edges: list[Edge] = []
         for entry in payload.get("data", []):
             parent = names.get(entry["parent"], entry["parent"])
