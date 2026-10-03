@@ -4617,6 +4617,23 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-10-03: T7.2 dev read and dev pilot registered; a build defect found first: the box would
+have had no graph.***
+
+- **[The registration](../evals/runs/PREREGISTRATION-T7.2-pilot.md)** has two parts:
+  - **part A**, the dev read: three free deploys that confirm the names the adapter needs;
+  - **part B**, the pilot: three dev problems, R = 1, both arms, measuring cost and time. It
+    starts only after part A's names are merged.
+
+  It also registers the run's operation on the deployment: firewall, benchmark database, bundle,
+  key, judge string and the `claudecode` pin.
+- **The owner's decisions**: a new key for the benchmark alone, one registration with a gate, and
+  a $30 cap on the pilot.
+- **Found registering it** (adapter Addendum 3): the box installed a wheel, and a wheel carries no
+  repository data. Every investigation would have failed to load its graph, and stage 0 could not
+  see it. It is fixed with a source bundle held to `REPO_DATA` by a test, and measured offline.
+- **Next**: part A on the deployment. $0.
+
 ***2026-10-03: T7.2 adapter built - Faultline presented to SREGym, both stamps unchanged.***
 
 - **[RESULT](../evals/attempts/T7.2-adapter-build/RESULT.md),

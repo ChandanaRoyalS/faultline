@@ -396,3 +396,27 @@ left open, and is stated so the pilot is registered against what was built.
    - every Deployment whose name differs from its span service, beyond `nginx-thrift`;
    - the Loki labels the selector uses (`namespace`, `pod`);
    - the server's time zone.
+
+## Addendum 3 - the box gets a source bundle: a wheel carries no graph
+
+**Written 2026-10-03, registering the pilot, before anything ran.** `install-faultline.sh` as
+built installed Faultline's wheel. A wheel carries `src/` alone. Faultline finds its dependency
+snapshots, `knowledge/`, `alembic.ini` and `migrations/` by walking up from its own `__file__`
+(`faultline.context.graph.repo_root` and four others).
+
+- **Measured offline** (`docs/evidence/t7.2-adapter/bundle-check.txt`): from the wheel, Hotel
+  Reservation's catalog fails with `FileNotFoundError` on its snapshot.
+- Stage 0 imported Faultline and never loaded a graph, so it passed without seeing this.
+
+**The fix:**
+
+- `faultline.sregym.bundle.BUNDLE_PATHS` lists exactly what the box needs: the project, `src/`,
+  and the paths `tests/test_packaging.py::REPO_DATA` names for the image, **less the corpus
+  source**.
+- The box gets `git archive` of those paths, extracted to `/opt/faultline` and installed
+  editable, so `__file__` sits under the bundle's root as it sits under `/app` in the image.
+- Measured offline: all three applications' graphs, `alembic.ini` and the allowlist load from it.
+- `tests/test_sregym.py` holds the bundle to `REPO_DATA`.
+- `evals/sregym/faultline-agent.patch` is regenerated, and still applies at the pin.
+
+**Nothing frozen changes.** It is the same code, installed so that it can find its own data.
