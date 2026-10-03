@@ -108,6 +108,10 @@ host-on)
     # admitted for those three and for the benchmark database (55432) and the bundle (55480),
     # because the boxed agents reach the host through the egress proxy on the default bridge
     # (stage 0, Addendum 1). The ACCEPTs are inserted last, so they sit above the DROPs.
+    # Addendum 3: refuse a second application, which would leave a set host-off does not remove.
+    if iptables -C INPUT -i docker0 -p tcp --dport 55480 -j ACCEPT 2>/dev/null; then
+        echo "REFUSED: host-on's rules are already in place"; iptables -S INPUT | grep -E 'dport (8000|9954|16443|55432|55480)'; exit 1
+    fi
     for p in 8000 9954 16443; do iptables -I INPUT ! -i lo -p tcp --dport "$p" -j DROP; done
     for p in 8000 9954 16443 55432 55480; do iptables -I INPUT -i docker0 -p tcp --dport "$p" -j ACCEPT; done
     iptables -S INPUT | grep -E 'dport (8000|9954|16443|55432|55480)'
@@ -116,8 +120,13 @@ host-on)
 
 host-off)
     # Run with sudo.
-    for p in 8000 9954 16443 55432 55480; do iptables -D INPUT -i docker0 -p tcp --dport "$p" -j ACCEPT; done
-    for p in 8000 9954 16443; do iptables -D INPUT ! -i lo -p tcp --dport "$p" -j DROP; done
+    # Addendum 3: every copy, so a doubled host-on is undone too.
+    for p in 8000 9954 16443 55432 55480; do
+        while iptables -C INPUT -i docker0 -p tcp --dport "$p" -j ACCEPT 2>/dev/null; do iptables -D INPUT -i docker0 -p tcp --dport "$p" -j ACCEPT; done
+    done
+    for p in 8000 9954 16443; do
+        while iptables -C INPUT ! -i lo -p tcp --dport "$p" -j DROP 2>/dev/null; do iptables -D INPUT ! -i lo -p tcp --dport "$p" -j DROP; done
+    done
     iptables -S INPUT | grep -E 'dport (8000|9954|16443|55432|55480)' || echo "rules gone"
     sysctl -w fs.inotify.max_user_instances=128 fs.inotify.max_user_watches=124032
     ;;
@@ -125,6 +134,7 @@ host-off)
 install)
     set -e
     echo "install at $(ts)"
+    [ -e "$SR" ] && { echo "REFUSED: $SR exists; tear down and clean up first (Addendum 3)"; exit 1; }
     mkdir -p "$BIN" "$D/uvbin" "$D/out" && cd "$BIN"
     curl -fsSLo kind https://kind.sigs.k8s.io/dl/v0.27.0/kind-linux-amd64
     echo "$(curl -fsSL https://kind.sigs.k8s.io/dl/v0.27.0/kind-linux-amd64.sha256sum | awk '{print $1}')  kind" | sha256sum -c
@@ -253,6 +263,8 @@ bench-db)
     # Part B. The benchmark database: pgvector, on docker0 only, migrated and seeded into the
     # template database by a throwaway container from the seed bundle, at the run's commit.
     echo "bench-db at $(ts)"
+    # Addendum 3: refuse a second run, which would overwrite pg.pass for a container it cannot create.
+    if docker ps -a --format '{{.Names}}' | grep -qx "$PG"; then echo "REFUSED: $PG already exists"; exit 1; fi
     umask 077
     python3 -c 'import secrets; print(secrets.token_urlsafe(24))' > "$D/pg.pass"
     docker run -d --name "$PG" -e POSTGRES_PASSWORD="$(cat "$D/pg.pass")" -p "$GW:55432:5432" pgvector/pgvector:pg16 > /dev/null
@@ -264,7 +276,7 @@ bench-db)
         python:3.12-slim bash -c '
             set -e; mkdir /f && tar -xzf /seed/faultline-seed.tar.gz -C /f
             pip install -q --extra-index-url https://download.pytorch.org/whl/cpu -e "/f[embeddings]"
-            cd /f && faultline-migrate && faultline-seed' 2>&1 | tail -12
+            cd /f && faultline-migrate --dsn "$FAULTLINE_CONTEXT_POSTGRES_DSN" && faultline-seed' 2>&1 | tail -12
     echo "== the template"
     docker exec "$PG" psql -U postgres -d faultline_seeded -tAc 'select count(*) from incident_chunks' | sed 's/^/  chunks: /'
     docker exec "$PG" psql -U postgres -d faultline_seeded -tAc 'select * from corpus_state' | sed 's/^/  corpus_state: /'
@@ -282,6 +294,7 @@ EOF
 
 serve-on)
     # Part B. The box's bundle, on docker0's address only, for install-faultline.sh.
+    if ss -ltnH "sport = :55480" | grep -q .; then echo "REFUSED: 55480 is already in use"; exit 1; fi
     mkdir -p "$D/serve" && cp /tmp/faultline-src.tar.gz "$D/serve/"
     nohup python3 -m http.server 55480 --bind "$GW" --directory "$D/serve" > "$D/serve.log" 2>&1 &
     echo $! > "$D/serve.pid"; sleep 1
@@ -355,6 +368,7 @@ teardown)
     pgrep -af 'port-forward svc/' || echo "no port-forward"
     pkill -f '^kubectl port-forward svc/'
     [ -f "$D/serve.pid" ] && kill "$(cat "$D/serve.pid")" 2>/dev/null
+    pkill -f '^python3 -m http.server 55480 ' && echo "stopped every bundle server on 55480 (Addendum 3)"
     docker rm -f "$PG" 2>/dev/null && echo "bench database removed"
     for port in 8000 9954 16443 55432 55480; do printf '%s %s\n' "$port" "$(ss -ltnH "sport = :$port" | grep -q . && echo LISTENING || echo closed)"; done
     kind delete cluster

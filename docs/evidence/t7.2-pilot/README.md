@@ -23,3 +23,5 @@ archive for it.
 | `t72-pilot-cluster-reset-1.txt`, `t72-pilot-cluster-reset-2.txt` | a fresh cluster before each of the next two reads |
 | `t72-pilot-devread-hotel.txt` | Hotel Reservation: names as spans, alarms on MongoDB, **span metrics for `reservation` alone** (Addendum 2) |
 | `t72-pilot-devread-social.txt` | Social Network: names as spans but `nginx-thrift`, no trace, no span metric, no alarm |
+| `t72-pilot-teardown-a.txt`, `t72-pilot-host-off-a.txt`, `t72-pilot-cleanup-a.txt`, `t72-pilot-killswitch-off-a.txt`, `t72-pilot-incidents-a.txt` | part A closed: cluster and image removed, rules gone, directory deleted, kill switch off, no incident in two hours |
+| `t72-pilot-b-doubled-preread.txt`, `t72-pilot-b-doubled-install.txt`, `t72-pilot-b-doubled-bench-db.txt` | part B's setup run a second time over the first (Addendum 3): the state it found, and migrate missing its database |

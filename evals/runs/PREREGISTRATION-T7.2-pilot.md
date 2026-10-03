@@ -264,3 +264,62 @@ is nearly all of them (Q127).
 
 **Both stamps are unchanged.** Part B starts from the commit that merges this. Its bundle and seed
 bundle are built from that commit.
+
+## Addendum 3 - part B's setup ran twice; the stages now refuse a second run; migrate's database fixed
+
+**Written 2026-10-03, before part B goes further.** No key has been on the VM and no model has
+been called.
+
+**What happened.** Part B's setup chain was run twice, and the outputs kept are the second's
+(`t72-pilot-b-doubled-*.txt`, 01:41 UTC). The record shows the first:
+
+- the preread found the run's directory present, 55432 and 55480 in use, the kill switch on, and
+  four kind nodes;
+- `host-on` printed every rule twice;
+- the cluster was 22 minutes old.
+
+**The first chain's own outputs were overwritten**, and it ran before the two bundles reached the
+VM (an `scp` failed for an unset `$VM`). So its `install` pinned nothing, its seeding had no seed
+bundle, and its server had no bundle to serve.
+
+**What the second run did, stage by stage:**
+
+- `install` stopped at `git clone` (directory exists), changing nothing.
+- `cluster` reported the existing cluster.
+- `bench-db`:
+  - refused the container's name, which already existed;
+  - **wrote a new password to `pg.pass` that the existing container does not have**;
+  - failed its `CREATE DATABASE`, which already existed.
+- `serve-on` found 55480 already served by the first chain's server, so its own server is not the
+  one listening.
+
+**And a defect of its own, which a single clean run would also have hit.** `faultline-migrate`
+reads `FAULTLINE_ORCH_POSTGRES_DSN` (`migrations/env.py`), not the
+`FAULTLINE_CONTEXT_POSTGRES_DSN` the seeding container set. So it tried `localhost:5432` and
+failed, and no table exists in the template.
+
+**The changes to `pilot_vm.sh`, before anything runs again:**
+
+1. **Every stage that creates state refuses to run twice**, saying so:
+   - `host-on` if its rules are present;
+   - `install` if SREGym's checkout exists;
+   - `bench-db` if the database container exists;
+   - `serve-on` if 55480 is in use.
+2. `host-off` removes **every** copy of each rule, so a doubled `host-on` is undone in full.
+3. `teardown` stops every bundle server on 55480 by its command line, not only the one in
+   `serve.pid`.
+4. **`bench-db` runs `faultline-migrate --dsn` with the template's DSN.**
+
+**Recovery**, then part B from its start:
+
+- `teardown`, `host-off` and `cleanup` return the VM to before part B. The kill switch stays on.
+- Then one clean run of the setup chain.
+
+**Nothing frozen changes.** Every setting of the run and of the pilot is as registered.
+
+**Part A's close**, recorded here: `teardown`, `host-off`, `cleanup`, `killswitch-off` and
+`incidents` (`t72-pilot-*-a.txt`).
+
+- The cluster and its image are removed, the rules gone, and the directory deleted.
+- The kill switch is off.
+- **No incident opened in the two hours.**

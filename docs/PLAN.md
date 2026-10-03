@@ -4617,6 +4617,20 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-10-03: T7.2 pilot, Addendum 3 - part B's setup ran twice; the stages now refuse a second run,
+and migrate is given its database.***
+
+- **The doubled setup** left a database container whose password no longer matches `pg.pass`, two
+  sets of firewall rules and a stale bundle server.
+- **A defect a clean run would also have hit**: `faultline-migrate` reads the orchestrator's DSN,
+  so the seeding container migrated nothing.
+- **The fixes**:
+  - the state-creating stages refuse to run twice;
+  - `host-off` removes every copy of each rule;
+  - `teardown` stops every bundle server;
+  - `bench-db` passes `--dsn`.
+- **Next**: tear down, clean up, and run the setup once. No key on the VM yet. $0.
+
 ***2026-10-03: T7.2 dev read done, Addendum 2 - the gate's profile patch; span metrics decided per
 service.***
 

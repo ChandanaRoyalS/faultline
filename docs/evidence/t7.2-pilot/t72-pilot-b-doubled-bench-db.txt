@@ -1,0 +1,27 @@
+bench-db at 2026-10-03 01:41:38 UTC
+docker: Error response from daemon: Conflict. The container name "/t72-bench-pg" is already in use by container "cea98ef6f6d4f3b44c12cf770a30fc5578d987d9c04857bff3d3704bbff2b985". You have to remove (or rename) that container to be able to reuse that name.
+
+Run 'docker run --help' for more information
+ERROR:  database "faultline_seeded" already exists
+    return self.loaded_dbapi.connect(*cargs, **cparams)  # type: ignore[no-any-return]  # NOQA: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/psycopg/connection.py", line 134, in connect
+    raise new_ex.with_traceback(None)
+sqlalchemy.exc.OperationalError: (psycopg.OperationalError) connection failed: connection to server at "127.0.0.1", port 5432 failed: Connection refused
+	Is the server running on that host and accepting TCP/IP connections?
+Multiple connection attempts failed. All failures were:
+- host: 'localhost', port: 5432, hostaddr: '::1': connection failed: connection to server at "::1", port 5432 failed: Connection refused
+	Is the server running on that host and accepting TCP/IP connections?
+- host: 'localhost', port: 5432, hostaddr: '127.0.0.1': connection failed: connection to server at "127.0.0.1", port 5432 failed: Connection refused
+	Is the server running on that host and accepting TCP/IP connections?
+(Background on this error at: https://sqlalche.me/e/21/e3q8)
+== the template
+ERROR:  relation "incident_chunks" does not exist
+LINE 1: select count(*) from incident_chunks
+                             ^
+ERROR:  relation "corpus_state" does not exist
+LINE 1: select * from corpus_state
+                      ^
+Traceback (most recent call last):
+  File "<stdin>", line 5, in <module>
+AssertionError
