@@ -23,6 +23,9 @@
 #   with probe shop beside it (nohup, Addendum 6), the other four attempts (nohup), record <tag>
 #   after each Faultline attempt (Addendum 7), collect, teardown, host-off, cleanup,
 #   killswitch-off, incidents
+# The scored run (run registration, Addendum 2): part B's set-up, with /tmp/scored-queue.tsv
+#   beside the script; then `batch FIRST LAST` with nohup, once per session, and `status` to
+#   read it; then part B's close, with `sudo` for the cleanup.
 #
 # The directory is 1c's (~/t7.2-1c, its kubeconfig at ~/t7.2-1c/kubeconfig and copied to
 # ~/.kube/config), so 1c's sampler runs unchanged, as in the topology runs.
@@ -308,7 +311,7 @@ record)
     L=$(find "$SR/results" -name attempt.json -path '*faultline*' -printf '%T@ %p\n' | sort -n | tail -1 | cut -d' ' -f2-)
     echo "record $tag at $(ts); faultline logs: ${L:-NOT FOUND}"
     [ -n "$L" ] && cp -r "$(dirname "$L")" "$A/faultline-logs"
-    cp "$D"/out/"$tag"-*.txt "$A/" 2>/dev/null
+    cp "$D"/out/"$tag"-*.txt "$D"/out/"$tag"-*.log "$A/" 2>/dev/null
     log=$(ls -t "$D"/out/attempt-*-faultline.log 2>/dev/null | head -1); [ -n "$log" ] && cp "$log" "$A/"
     for t in incidents trajectories trajectory_steps trajectory_tool_calls trajectory_retrievals trajectory_proposals; do
         docker exec "$PG" psql -U postgres -d faultline -Atc "select row_to_json(x) from $t x" > "$A/db-$t.jsonl" 2>&1
@@ -553,6 +556,130 @@ attempt)
     grep -iE "score|pass|diagnosis|judge|error|traceback" "$D/out/attempt-$2-$arm.log" | tail -25
     echo "== results files"
     find "$SR/results" -newer /tmp/pilot_vm.sh -name '*_results.csv' -printf '  %p\n' | tail -4
+    ;;
+
+scored)
+    # Run registration, Addendum 2: one slot of the scored queue (/tmp/scored-queue.tsv), every
+    # frozen setting as `attempt` has it. A slot whose run did not complete is re-run once. A
+    # Faultline slot is followed by `record`. The outcome is appended to $D/out/done.tsv.
+    slot="${2:?slot}"
+    row=$(awk -F'\t' -v s="$slot" '$1 == s' /tmp/scored-queue.tsv)
+    [ -n "$row" ] || { echo "no slot $slot in /tmp/scored-queue.tsv"; exit 2; }
+    problem=$(echo "$row" | cut -f3); arm=$(echo "$row" | cut -f5)
+    renv
+    export API_BIND_HOST=0.0.0.0
+    judge=$(cat "$D/judge")
+    case "$arm" in
+        faultline)  model=anthropic/claude-opus-5 ;;
+        claudecode) model="$judge" ;;
+        *) echo "unknown arm: $arm"; exit 2 ;;
+    esac
+    cd "$SR" || exit 1
+    started=$(ts)
+    for try in 1 2; do
+        mark="$D/out/s$slot-try$try.mark"; : > "$mark"
+        echo "slot $slot try $try: $problem / $arm at $(ts), model $model, judge $judge"
+        ANTHROPIC_API_KEY="$(cat "$D/key")" timeout 75m uv run python main.py \
+            --problem "$problem" --agent "$arm" --model "$model" --judge-model "$judge" \
+            --stages diagnosis --n-attempts 1 --profile full --internet-access filtered \
+            --container-hardening on --agent-timeout 1800 --force-build \
+            > "$D/out/s$slot-$arm.log" 2>&1
+        echo "exit $? at $(ts)"
+        outcome=$(python3 - "$SR/results" "$mark" "$problem" "$arm" <<'PY'
+import csv, glob, os, sys
+root, mark, problem, arm = sys.argv[1:]
+since = os.path.getmtime(mark)
+found = [f for f in glob.glob(f"{root}/*/{arm}/{problem}/{problem}_{arm}_results.csv")
+         if os.path.getmtime(f) >= since]
+if not found:
+    print("missing\t\t")
+else:
+    row = list(csv.DictReader(open(max(found, key=os.path.getmtime))))[-1]
+    print(f"{row.get('run_status', '')}\t{row.get('Diagnosis.success', '')}\t{row.get('Diagnosis.accuracy', '')}")
+PY
+)
+        status=$(echo "$outcome" | cut -f1)
+        echo "result: $outcome"
+        [ "$status" = complete ] && break
+    done
+    if [ "$arm" = faultline ]; then bash "$0" record "s$slot" | tail -3; fi
+    printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$slot" "$problem" "$arm" "$outcome" "$started" "$(ts)" >> "$D/out/done.tsv"
+    ;;
+
+batch)
+    # Run registration, Addendum 2: slots FIRST..LAST in order, run with nohup. A slot already
+    # in done.tsv is skipped, so a batch can be started again after an interruption. The tally
+    # is read after every slot, and the batch stops for good once it passes $47 (a STOP file).
+    first="${2:?first slot}"; last="${3:?last slot}"
+    echo "batch $first-$last from $(ts)"
+    for slot in $(seq "$first" "$last"); do
+        if [ -e "$D/out/STOP" ]; then echo "STOPPED: $(cat "$D/out/STOP")"; break; fi
+        if awk -F'\t' -v s="$slot" '$1 == s {f=1} END {exit !f}' "$D/out/done.tsv" 2>/dev/null; then
+            echo "slot $slot already done"; continue
+        fi
+        bash "$0" scored "$slot"
+        line=$(bash "$0" tally | tail -1); echo "$line"
+        spent=$(echo "$line" | sed -n 's/^tally: \$\([0-9.]*\).*/\1/p')
+        if python3 -c "import sys; sys.exit(0 if float('${spent:-0}') > 47 else 1)"; then
+            echo "the tally passed \$47 after slot $slot at $(ts)" > "$D/out/STOP"
+        fi
+    done
+    echo "batch done at $(ts)"
+    ;;
+
+tally)
+    # Run registration, Addendum 2: T7.2's spend from recorded tokens at the published prices.
+    # Faultline's trajectory steps (Opus 5: $5 in, $25 out per million); Claude Code's session
+    # logs (Sonnet 4.6: $3 in, $15 out, $0.30 cache read, $3.75 cache write); every judged slot at
+    # $0.10; a Faultline slot with no trajectory at $0.05 (its triage call is not persisted);
+    # and the re-check's $1.80. The owner's console reading is the authority.
+    python3 - "$D" "$SR" <<'PY'
+import csv, glob, json, os, sys
+D, SR = sys.argv[1:]
+done = list(csv.reader(open(f"{D}/out/done.tsv"), delimiter="\t")) if os.path.exists(f"{D}/out/done.tsv") else []
+fl = cc = 0.0
+for row in done:
+    if row[2] != "faultline":
+        continue
+    steps = f"{D}/out/s{row[0]}-record/db-trajectory_steps.jsonl"
+    tin = tout = 0
+    if os.path.exists(steps):
+        for line in open(steps):
+            try:
+                r = json.loads(line)
+            except ValueError:
+                continue
+            tin += r.get("tokens_in") or 0
+            tout += r.get("tokens_out") or 0
+    fl += tin * 5e-6 + tout * 25e-6 if tin or tout else 0.05
+seen = set()
+for path in glob.glob(f"{SR}/results/*/claudecode/*/run_*/sessions/projects/*/*.jsonl"):
+    for line in open(path):
+        try:
+            r = json.loads(line)
+        except ValueError:
+            continue
+        m = r.get("message") if isinstance(r, dict) else None
+        if r.get("type") != "assistant" or not isinstance(m, dict) or not m.get("usage") or m.get("id") in seen:
+            continue
+        seen.add(m.get("id"))
+        u = m["usage"]
+        cc += (u.get("input_tokens", 0) * 3e-6 + u.get("output_tokens", 0) * 15e-6
+               + u.get("cache_read_input_tokens", 0) * 0.3e-6 + u.get("cache_creation_input_tokens", 0) * 3.75e-6)
+judge = 0.10 * len(done)
+total = 1.80 + fl + cc + judge
+print(f"slots done {len(done)}: Faultline ${fl:.2f}, Claude Code ${cc:.2f}, judge ${judge:.2f}, re-check $1.80")
+print(f"tally: ${total:.2f} of $50 (the run stops past $47)")
+PY
+    ;;
+
+status)
+    # Read-only: what the scored run has done, what is running, and the tally.
+    echo "status at $(ts)"
+    [ -e "$D/out/done.tsv" ] && awk -F'\t' '{printf "  slot %-3s %-52s %-11s %-9s success=%-6s acc=%s\n", $1, $2, $3, $4, $5, $6}' "$D/out/done.tsv"
+    pgrep -af "[m]ain.py --problem" | sed 's/--model.*//; s/^/  running: /' || true
+    [ -e "$D/out/STOP" ] && echo "  STOP: $(cat "$D/out/STOP")"
+    bash "$0" tally
     ;;
 
 collect)

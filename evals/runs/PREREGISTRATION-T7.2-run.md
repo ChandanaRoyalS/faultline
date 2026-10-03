@@ -434,3 +434,73 @@ each application's sorted scored list, in the registered order
 
 **Everything else in this registration stands**: the baseline, the judge, the rendering, Q126 and
 Q127, the frozen setup, and the stamps, which the fixes must not move.
+
+## Addendum 2 - how the scored run is operated
+
+**Written 2026-10-03, after the re-check
+([`evals/attempts/T7.2-recheck/RESULT.md`](../attempts/T7.2-recheck/RESULT.md)) and before any
+scored attempt.** This is the order's step 4, *how the run is operated*. The design is
+Addendum 1's: 33 problems, R = 1, both arms, a $50 cap.
+
+### The queue
+
+- **66 slots** ([`scored_queue.py.txt`](../../docs/evidence/t7.2-run/scored_queue.py.txt), output
+  `scored-queue.tsv`).
+- The 33 problems are shuffled by `random.Random(20261004)`, so that no application's problems
+  fall together in time. Each problem gets two slots, back to back.
+- **The arm that goes first alternates**: odd positions Faultline first, even positions Claude
+  Code first. So drift inside a session falls on neither arm.
+- The queue is fixed now and run in order. Nothing in it is changed after a result.
+
+### One slot (`pilot_vm.sh scored N`)
+
+- **Every frozen setting, as the pilot's attempts had them**:
+  - `--stages diagnosis --n-attempts 1 --profile full --internet-access filtered
+    --container-hardening on --agent-timeout 1800 --force-build`;
+  - Faultline on `anthropic/claude-opus-5`, Claude Code on the judge's model;
+  - the judge `anthropic/claude-sonnet-4-6`;
+  - `claudecode` pinned to `install`'s version.
+- **A slot whose run did not complete** (no results file, or a status other than `complete`) is
+  **re-run once**. A second failure is named, and the problem is removed from both arms, as
+  registered.
+- **A Faultline slot is followed by `record`**, before the next Faultline slot wipes the
+  trajectory.
+- The outcome goes to `done.tsv`: slot, problem, arm, status, success, accuracy, start and end.
+
+### Batches (`pilot_vm.sh batch FIRST LAST`, run with `nohup`)
+
+- **Three sessions**, as planned: slots 1-22, 23-44 and 45-66, each about four to five hours.
+- **A batch can be started again after an interruption**: a slot already in `done.tsv` is
+  skipped.
+- **The tally is read after every slot** (`pilot_vm.sh tally`), the re-check's method:
+  - Faultline's trajectory tokens and Claude Code's session tokens, at the published prices;
+  - every judged slot at $0.10;
+  - a Faultline slot with no trajectory at $0.05;
+  - the re-check's $1.80.
+- **Once the tally passes $47, the batch stops for good** (a `STOP` file). The run is then reported
+  on the problems both arms completed. The owner's console reading at the end is the authority.
+- `pilot_vm.sh status` reads progress at any time, and changes nothing.
+
+### The VM across the sessions
+
+- **Set up once**, with part B's stages as the re-check ran them, `scored-queue.tsv` copied
+  beside the script.
+- **Kept up between sessions, for at most 48 hours**:
+  - the kill switch on;
+  - the rules in place;
+  - the key on the VM at mode 600;
+  - `hold`, the sampler, restarted each session.
+- **Closed once**, with part B's close: `collect`, then each record archive copied to the Mac,
+  `teardown`, `host-off`, `cleanup` with `sudo`, `killswitch-off`, `incidents`.
+- **The run pauses at the next `status` check**, for the owner's decision, if any of these happens:
+  - the live system opens an incident;
+  - MemAvailable falls below 2 GiB;
+  - a world container restarts.
+
+### Expected
+
+- **Time**: about 66 × 12 minutes, so 13 hours of slots. The re-check's attempts took 10 to 14
+  minutes, and the pilot's Claude Code attempts 7 to 12.
+- **Cost**: about $43 for the slots, plus the re-check's $1.80.
+
+**Nothing else changes.** The analysis is Addendum 1's, and the report follows it.
