@@ -420,3 +420,143 @@ snapshots, `knowledge/`, `alembic.ini` and `migrations/` by walking up from its 
 - `evals/sregym/faultline-agent.patch` is regenerated, and still applies at the pin.
 
 **Nothing frozen changes.** It is the same code, installed so that it can find its own data.
+
+## Addendum 4 - the pilot's fixes, registered before they are coded
+
+**Written 2026-10-03, after the pilot's result and the owner's go (run registration, Addendum 1),
+before any of this is coded.** The pilot found the defects ([`RESULT.md`](../attempts/T7.2-pilot/RESULT.md),
+findings 1, 2, 4 and 5). The owner decided on them one at a time, and on two more questions that
+designing the fixes raised. **Faultline's own behaviour is not touched**: every change is in
+`faultline.sregym`, and both stamps must stay `cap:91279a09` and
+`faultline/0.0.1+prompts:9ce16b66bbcc`.
+
+### F1. The log and memory selectors (finding 1)
+
+- **The defect.** `pod_pattern` used `re.escape`, which writes `product-catalog` as
+  `product\-catalog`. `\-` is not an escape a LogQL or PromQL string accepts, so both backends
+  refused the query (HTTP 400). The probe measured it, and measured the unescaped form accepted.
+- **The fix.**
+  - The pattern is written for the *string literal it is placed in*. A Kubernetes name
+    (DNS-1123) can hold one RE2 metacharacter, `.`, which is written `\\.`, so the literal decodes
+    to `\.`. A hyphen is written as itself.
+  - A name that is not DNS-1123 raises rather than being escaped.
+  - It applies to both callers, `logql_query` and `memory_query`.
+- **The test parses what it builds.**
+  - Each selector's literal is decoded by the escapes a Go string accepts (`json.loads` as the
+    stand-in, which rejects `\-` as Go does).
+  - The decoded pattern must fully match a Deployment's and a StatefulSet's pod names.
+  - It must not match `mongodb-rate-…` for `rate`, nor any other service sharing a prefix.
+  - **The old pattern must fail this test**, which proves the test can see the defect.
+
+### F2. The change commands (finding 2, and the owner's decision to widen them)
+
+- **The defect.** SREGym's kubectl server cuts every answer at 10,000 characters
+  (`mcp_server/kubectl_server_helper/utils.py:9`) and refuses pipes. `-o json` answers measured
+  213,062, 50,193 and 328,279 characters, so all nine pilot calls failed to parse.
+- **The fix: ask for named fields only, in pieces that each fit.** Every command is a read-only
+  `kubectl get`. Every name in it comes from an earlier answer and is checked against DNS-1123.
+  **Nothing else can be sent.**
+
+  | # | command | what it returns |
+  |---|---|---|
+  | 1 | `get replicasets -n NS -o jsonpath=` the name, owner kind and name, revision annotation and creation time, one line per ReplicaSet | the index of a Deployment's revisions, about 100 characters a line |
+  | 2 | `get controllerrevisions -n NS -o jsonpath=` the same fields with `.revision` | the index of a StatefulSet's revisions |
+  | 3 | `get replicaset NAME -n NS -o jsonpath='{.spec.template.spec}'`, or `get controllerrevision NAME -n NS -o jsonpath='{.data.spec.template.spec}'` | one revision's pod spec, as compact JSON |
+  | 4 | `get configmaps,secrets -n NS -o custom-columns=…`, unchanged | names and times, measured at 2,087 characters |
+  | 5 | **new**: `get services,networkpolicies,persistentvolumeclaims -n NS -o custom-columns=KIND,NAME,CREATED,CHANGED` (the `managedFields` times) | names and times only, as for ConfigMaps |
+  | 6 | `get events -n NS --field-selector involvedObject.name=NAME -o jsonpath=` kind, name and times | the events on one named object, **never their reason or message** |
+
+- **Command 3 is sent only where it can matter**: for the revisions created inside the window and
+  for the revision each one replaced, newest first, **at most six per call**. A revision left
+  unread is named in the result.
+- **Command 5 is the owner's decision of 2026-10-03.** As frozen, a changed Service,
+  NetworkPolicy or claim showed only if an event named it, and editing a Service writes no event.
+  Attempt 5's fault, a Service's `targetPort`, would have stayed invisible after the fix, and 23
+  of the scaled run's 33 problems are Kubernetes object misconfigurations. **Only names and
+  `managedFields` times are read, never contents.** A record is made for:
+  - **a Service** named for the service or its workload;
+  - **a claim** the workload's latest pod spec mounts, found as `referenced_config` finds a
+    ConfigMap;
+  - **every NetworkPolicy changed in the window**, namespace-wide. Which pods a policy selects is
+    in its spec, which is not read, and the summary says so.
+- **Command 6 is sent twice at most**, for the service's and the workload's names. It replaces
+  `get events -o json`.
+- **A cut answer is reported, never misparsed.** SREGym appends `... [truncated]`.
+  - An index or table that ends with it yields the records it holds, and an error saying the answer
+    was cut at 10,000 characters.
+  - A pod spec that ends with it yields no diff for that revision, and a record saying the
+    revision could not be read.
+- **The mapping is otherwise unchanged**: the same diff, the same `Resource` and `Action` values,
+  the same leak guard. A Service, NetworkPolicy or claim change is `config` / `updated` (or
+  `created`), as §3's table already gave a Service.
+- **The tests**: each command's text, run against a fake kubectl server.
+  - That server returns answers built from the pilot's measured shapes, including one cut at
+    10,000 characters.
+  - The leak guard's tests run unchanged over the new path.
+
+### F3. The fifteen seconds (finding 4)
+
+- **Measured in the pilot record**: every tool call took **15.0 to 15.4 s**, and a call that opens
+  three sessions took 45 s.
+- **Reproduced offline**, against a local SSE server that sends a keep-alive every 3 s: each call
+  took **3.0 s**, and the time was all in `McpSession.__exit__`.
+  - Closing the response blocks while the reader thread holds the buffer's lock in `readline`.
+  - That thread wakes only on the next byte, which is the server's keep-alive: every 15 s in
+    SREGym's `fastmcp` server.
+- **The fix**: `__exit__` shuts the socket down before closing it, which returns the reader at
+  once. If the socket cannot be reached, the close runs on a daemon thread, so a call never waits
+  on it.
+  - Measured offline: **3.0 s → 0.005 s** per call.
+- **The test**: a fake server whose keep-alive is 30 s. A call must finish in under 2 s, and the
+  old `__exit__` must fail it.
+- **Nothing in the opening's design changes**: the same alarms, up to six evaluations a minute
+  apart.
+
+### F4. The latency template on Astronomy Shop (finding 5, and the owner's decision)
+
+- **Explained offline**, from SREGym at `46c853db`, `sregym/observer/otel_collector/otel-collector.yaml`.
+  - The shop's spans arrive by OTLP, so they are measured by `spanmetrics/otlp`, whose buckets
+    are `[5, 10, … 5000]`.
+  - The connector reads a bare integer as nanoseconds, so its top finite bound is **5,000 ns =
+    0.005 ms**.
+  - Every span is longer, so every p95 is the top bound. **That is the probe's 0.005.**
+  - The other pipeline's buckets, `[1000000 … 10000000000]` ns, are 1 ms to 10 s. That pipeline is
+    the one Hotel Reservation's Jaeger spans take, so its p95 should be real. **The re-check reads
+    it.**
+- **The benchmark is not changed.** The owner decided that **the tool says so**: on Astronomy
+  Shop, `latency-p95` returns *unavailable*, naming the bound, instead of a constant that reads as
+  near-zero latency.
+  - This is the rule `has_span_series` already follows: *unavailable, not zero*.
+  - It is a profile field (`latency_readable`): `False` for the shop, `True` for Hotel
+    Reservation. Social Network has no span metrics at all.
+- **The test**: the shop's profile refuses the template with the message, and Hotel
+  Reservation's renders it.
+
+### What does not change
+
+- **Faultline's windows** (the missing metric history): the owner's decision, stated in the
+  report.
+- **The alarms**, the rendering, the bundle and the driver's flow.
+
+### Predictions for this build
+
+1. **Both stamps unchanged.**
+2. **`make check` passes**, with the new tests and the old ones unchanged in substance.
+3. **Each new test fails against the code it replaces.**
+
+### The re-check, after the build ($2 to $3, within the run's $50 cap)
+
+- Part B's stages on the VM, unchanged except for the new code:
+  - set-up: `preread`, `killswitch-on`, `host-on`, `install`, `cluster`, `bench-db`, `serve-on`,
+    the key, `hold`;
+  - then **Faultline alone on the three dev problems**, one at a time, each followed by
+    `record`, and a `probe` beside the first;
+  - then the close: `collect`, `teardown`, `host-off`, `cleanup` with `sudo`, `killswitch-off`,
+    `incidents`.
+- **It passes only if**:
+  - every `change_history` call returns records or a true empty;
+  - every log call is accepted;
+  - no tool call takes over 5 s;
+  - the opening on Social Network ends inside eight minutes.
+- **If it fails, the scored run does not start.** What failed is reported, and the fix registered
+  again.

@@ -4617,6 +4617,19 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-10-03: T7.2 adapter, Addendum 4 - the pilot's fixes registered before they are coded.***
+
+- **F1, the selector**: written for the string literal it sits in, with `.` escaped and `-` as
+  itself. The test decodes the literal as Go does.
+- **F2, the change commands**: field-projected `kubectl get`s that each fit under SREGym's
+  10,000-character cut, and a cut answer reported as cut. **Widened by the owner's decision** to
+  list changed Services, NetworkPolicies and claims, by name and time only.
+- **F3, the fifteen seconds**: the stream's close waited on SREGym's 15 s keep-alive. Reproduced
+  offline, and fixed at 3.0 s → 0.005 s per call.
+- **F4, the shop's p95**: SREGym's OTLP span-metric buckets top out at 0.005 ms, so the tool says
+  *unavailable*, by the owner's decision.
+- **Next**: the build, then the re-check on the three dev problems ($2-3).
+
 ***2026-10-03: the owner's go on T7.2 - the run scaled to the budget, and Phase 7 with it.***
 
 - **The owner declined the registered run's cost** (about $420) and kept every deliverable at a
