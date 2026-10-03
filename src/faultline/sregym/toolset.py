@@ -10,7 +10,8 @@ what the read cannot do through SREGym's servers is said in the result rather th
   as one instant query of `(q)[d:step] @ end`, a subquery whose points are aligned to multiples of
   `step` rather than to `start`.
 - **`metric_baseline`**: span-metric templates read SREGym's spelling (`Profile.span_metrics`).
-  With none, they are an **error**, never an empty answer (ADR-0019). Runtime memory is
+  For a service with no series in the last hour, they are an **error**, never an empty answer
+  (ADR-0019; the owner's decision of 2026-10-03, after the dev read). Runtime memory is
   cAdvisor's working set, for every application.
 - **`logql_query`**: `get_logs` reads a window **ending now**, the newest **100** lines, with
   timestamps in whole seconds. It is asked back to the window's start and filtered to it. A reply
@@ -117,6 +118,7 @@ class McpToolSet(Tools):
         self._profile = profile
         self._namespace = namespace
         self._now = now or (lambda: datetime.now(UTC))
+        self._span_series: dict[str, bool | None] = {}
         """Injected for the tests. The log and trace servers read windows ending at their own
         now, so the lookback asked for is measured from this one."""
 
@@ -166,11 +168,39 @@ class McpToolSet(Tools):
         ]
         return MetricResult(query=query, window=window, series=series, empty=not series)
 
+    def has_span_series(self, service: str) -> bool | None:
+        """Whether `service` has any span-metric series in the last hour, or `None` if unknown.
+
+        The owner's decision of 2026-10-03: on Hotel Reservation and Social Network most services
+        send no traces as SREGym ships them (Q127), so their span-metric templates would read as
+        empty, which a responder takes for *no traffic*. Asked once per service per tool set.
+        """
+        if service in self._span_series:
+            return self._span_series[service]
+        world = self._profile.span_metrics
+        if world is None:
+            return False
+        query = f'count(last_over_time({world.calls}{{service_name="{service}"}}[1h]))'
+
+        def ask() -> bool:
+            text = self._client.call("prometheus", "get_metrics", {"query": query})
+            error = backend_error(text)
+            if error is not None:
+                raise RuntimeError(error)
+            return bool(matrix(python_literal(text)))
+
+        try:
+            found: bool | None = self._backend("prometheus", ask)
+        except Exception:
+            found = None
+        self._span_series[service] = found
+        return found
+
     def template_query(self, template: MetricTemplate, service: str) -> str | None:
         """The PromQL for one template on this application, or `None` if it has no series."""
         if template is MetricTemplate.RUNTIME_MEMORY:
             return memory_query(self._namespace, self._profile.deployment(service))
-        if self._profile.span_metrics is None:
+        if self._profile.span_metrics is None or self.has_span_series(service) is False:
             return None
         return render_query(template, service, self._profile.span_metrics)
 
@@ -202,7 +232,7 @@ class McpToolSet(Tools):
                 baseline_window=before,
                 error=(
                     f"{template.value} reads span metrics, and SREGym's Prometheus holds none "
-                    "for this application: its traces are not turned into metrics. This is "
+                    f"for {canonical}: it sends no traces that become metrics. This is "
                     "unavailable, not zero"
                 ),
                 empty=True,

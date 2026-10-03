@@ -1,0 +1,89 @@
+key-like variables in env: 0
+deploy k8s_target_port-misconfig at 2026-10-03 01:03:49 UTC
+                    WARNING  all.sregym.conductor_api - Shutting down API       
+                             server...                                          
+[10/03/26 01:07:38] INFO     uvicorn.error - Shutting down                      
+                    INFO     uvicorn.error - Finished server process [26058]    
+                    WARNING  __main__ - ⚠️ No results to write.                  
+deploy exit 0 at 2026-10-03 01:07:39 UTC
+== reads at 2026-10-03 01:09:39 UTC, namespace social-network
+== workloads (kind, name, containers)
+  KIND         NAME                     CONTAINERS
+  Deployment   compose-post-service     compose-post-service
+  Deployment   home-timeline-redis      home-timeline-redis
+  Deployment   home-timeline-service    home-timeline-service
+  Deployment   jaeger                   jaeger
+  Deployment   media-frontend           media-frontend
+  Deployment   media-memcached          media-memcached
+  Deployment   media-mongodb            media-mongodb
+  Deployment   media-service            media-service
+  Deployment   nginx-thrift             nginx-thrift
+  Deployment   post-storage-memcached   post-storage-memcached
+  Deployment   post-storage-mongodb     post-storage-mongodb
+  Deployment   post-storage-service     post-storage-service
+  Deployment   social-graph-mongodb     social-graph-mongodb
+  Deployment   social-graph-redis       social-graph-redis
+  Deployment   social-graph-service     social-graph-service
+  Deployment   text-service             text-service
+  Deployment   unique-id-service        unique-id-service
+  Deployment   url-shorten-memcached    url-shorten-memcached
+  Deployment   url-shorten-mongodb      url-shorten-mongodb
+  Deployment   url-shorten-service      url-shorten-service
+  Deployment   user-memcached           user-memcached
+  Deployment   user-mention-service     user-mention-service
+  Deployment   user-mongodb             user-mongodb
+  Deployment   user-service             user-service
+  Deployment   user-timeline-mongodb    user-timeline-mongodb
+  Deployment   user-timeline-redis      user-timeline-redis
+  Deployment   user-timeline-service    user-timeline-service
+== Jaeger services
+  {"data":null,"total":0,"limit":0,"offset":0,"errors":null}
+== span-metric families
+  0 series
+== span-metric services
+  0 series
+== kube_pod_owner in social-network
+  1 series
+    {} 28
+== kube_replicaset_owner in social-network
+  1 series
+    {} 27
+== cAdvisor working set in social-network
+  1 series
+    {} 28
+== the alarms, evaluated once now (registered rules, read-only)
+  0 series
+  0 series
+  0 series
+== pods in social-network, with restarts (Addendum 1)
+  compose-post-service-b9c49c955-cclx4      1/1   Running   0     2m57s
+  home-timeline-redis-ff9499c5c-nvx5m       1/1   Running   0     2m59s
+  home-timeline-service-7b54b6f7b9-xbrcq    1/1   Running   0     2m56s
+  jaeger-7d8548779-c6xh6                    1/1   Running   0     2m59s
+  media-frontend-5456449cd7-zxrbx           1/1   Running   0     2m56s
+  media-memcached-54b5cffb48-p7m4g          1/1   Running   0     2m59s
+  media-mongodb-6d47ccb779-dpqbg            1/1   Running   0     2m59s
+  media-service-5c984f9b95-l9fh6            1/1   Running   0     2m58s
+  nginx-thrift-675d8d8c5d-9kz6x             1/1   Running   0     2m56s
+  post-storage-memcached-5b544b79d8-msqzg   1/1   Running   0     2m58s
+  post-storage-mongodb-846dcb76b7-8q5px     1/1   Running   0     2m57s
+  post-storage-service-6b855d8db4-f2n8d     1/1   Running   0     2m59s
+  social-graph-mongodb-69ddddf895-gthr9     1/1   Running   0     2m59s
+  social-graph-redis-f9759b67d-gqgmj        1/1   Running   0     2m58s
+  social-graph-service-5b9b8c454b-b8fnf     1/1   Running   0     2m59s
+  text-service-6fcdf945fd-d7ltj             1/1   Running   0     2m57s
+  unique-id-service-d54549bcf-8rh42         1/1   Running   0     2m58s
+  url-shorten-memcached-999559bdb-mmlqv     1/1   Running   0     2m59s
+  url-shorten-mongodb-6b486f55b8-wshqb      1/1   Running   0     2m57s
+  url-shorten-service-844c7fb5cf-cpnt4      1/1   Running   0     2m55s
+  user-memcached-554fcf9578-vg92b           1/1   Running   0     2m55s
+  user-mention-service-77d6fb7dfb-5qmqf     1/1   Running   0     2m56s
+  user-mongodb-75847cfbb-lscn7              1/1   Running   0     2m58s
+  user-service-5fb4b9bccd-sfl8b             1/1   Running   0     2m56s
+  user-timeline-mongodb-658f54fd68-4222x    1/1   Running   0     2m59s
+  user-timeline-redis-cbd5f6645-p4ckk       1/1   Running   0     2m57s
+  user-timeline-service-6d5dd86b49-cnpzk    1/1   Running   0     2m59s
+  wrk2-job-4q9b6                            1/1   Running   0     2m9s
+== Loki: not read here. SREGym skips Loki under the external harness (main.py:
+   deploy_loki=not args.use_external_harness); part B's loki-read reads it (Addendum 1)
+== timezone: Etc/UTC; date +%Z: UTC

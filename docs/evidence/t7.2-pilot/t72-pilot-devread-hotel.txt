@@ -1,0 +1,90 @@
+key-like variables in env: 0
+deploy update_incompatible_correlated at 2026-10-03 00:55:52 UTC
+                    WARNING  all.sregym.conductor_api - Shutting down API       
+                             server...                                          
+[10/03/26 00:59:29] INFO     uvicorn.error - Shutting down                      
+                    INFO     uvicorn.error - Finished server process [4173412]  
+                    WARNING  __main__ - ⚠️ No results to write.                  
+deploy exit 0 at 2026-10-03 00:59:30 UTC
+== reads at 2026-10-03 01:01:30 UTC, namespace hotel-reservation
+== workloads (kind, name, containers)
+  KIND         NAME                     CONTAINERS
+  Deployment   consul                   consul
+  Deployment   frontend                 hotel-reserv-frontend
+  Deployment   geo                      hotel-reserv-geo
+  Deployment   jaeger                   hotel-reserv-jaeger
+  Deployment   memcached-profile        hotel-reserv-profile-mmc
+  Deployment   memcached-rate           hotel-reserv-rate-mmc
+  Deployment   memcached-reserve        hotel-reserv-reservation-mmc
+  Deployment   mongodb-geo              hotel-reserv-geo-mongo
+  Deployment   mongodb-profile          hotel-reserv-profile-mongo
+  Deployment   mongodb-rate             hotel-reserv-rate-mongo
+  Deployment   mongodb-recommendation   hotel-reserv-recommendation-mongo
+  Deployment   mongodb-reservation      hotel-reserv-reservation-mongo
+  Deployment   mongodb-user             hotel-reserv-user-mongo
+  Deployment   profile                  hotel-reserv-profile
+  Deployment   rate                     hotel-reserv-rate
+  Deployment   recommendation           hotel-reserv-recommendation
+  Deployment   reservation              hotel-reserv-reservation
+  Deployment   search                   hotel-reserv-search
+  Deployment   user                     hotel-reserv-user
+== Jaeger services
+  {"data":["reservation"],"total":1,"limit":0,"offset":0,"errors":null}
+== span-metric families
+  4 series
+    {'__name__': 'traces_span_metrics_calls_total'} 3
+    {'__name__': 'traces_span_metrics_duration_milliseconds_bucket'} 42
+    {'__name__': 'traces_span_metrics_duration_milliseconds_count'} 3
+    {'__name__': 'traces_span_metrics_duration_milliseconds_sum'} 3
+== span-metric services
+  1 series
+    {'service_name': 'reservation'} 3
+== kube_pod_owner in hotel-reservation
+  1 series
+    {} 20
+== kube_replicaset_owner in hotel-reservation
+  1 series
+    {} 27
+== cAdvisor working set in hotel-reservation
+  1 series
+    {} 16
+== the alarms, evaluated once now (registered rules, read-only)
+  5 series
+    {'pod': 'mongodb-geo-7db569d69-4s87b'} 1
+    {'pod': 'mongodb-profile-9f4bbd96-hnx8z'} 1
+    {'pod': 'mongodb-rate-f78bd5db8-6sv2g'} 1
+    {'pod': 'mongodb-recommendation-6b8c65494b-chgcm'} 1
+    {'pod': 'mongodb-reservation-67764f8fbb-jpmcb'} 1
+  0 series
+  7 series
+    {'__name__': 'kube_deployment_spec_replicas', 'deployment': 'mongodb-geo', 'instance': '10.244.82.5:8080', 'job': 'kube-state-metrics', 'namespace': 'hotel-reservation'} 1
+    {'__name__': 'kube_deployment_spec_replicas', 'deployment': 'mongodb-profile', 'instance': '10.244.82.5:8080', 'job': 'kube-state-metrics', 'namespace': 'hotel-reservation'} 1
+    {'__name__': 'kube_deployment_spec_replicas', 'deployment': 'mongodb-rate', 'instance': '10.244.82.5:8080', 'job': 'kube-state-metrics', 'namespace': 'hotel-reservation'} 1
+    {'__name__': 'kube_deployment_spec_replicas', 'deployment': 'mongodb-recommendation', 'instance': '10.244.82.5:8080', 'job': 'kube-state-metrics', 'namespace': 'hotel-reservation'} 1
+    {'__name__': 'kube_deployment_spec_replicas', 'deployment': 'mongodb-reservation', 'instance': '10.244.82.5:8080', 'job': 'kube-state-metrics', 'namespace': 'hotel-reservation'} 1
+    {'__name__': 'kube_deployment_spec_replicas', 'deployment': 'mongodb-user', 'instance': '10.244.82.5:8080', 'job': 'kube-state-metrics', 'namespace': 'hotel-reservation'} 1
+    {'__name__': 'kube_deployment_spec_replicas', 'deployment': 'reservation', 'instance': '10.244.82.5:8080', 'job': 'kube-state-metrics', 'namespace': 'hotel-reservation'} 1
+== pods in hotel-reservation, with restarts (Addendum 1)
+  consul-5c767d7459-8k9v4                   1/1   Running            0              2m45s
+  frontend-bc766b7fc-qdr6r                  1/1   Running            0              2m45s
+  geo-766c64f6b4-897mp                      1/1   Running            1 (2m7s ago)   2m45s
+  jaeger-67445b6dd6-mxb8c                   1/1   Running            0              2m45s
+  memcached-profile-679775b4d4-x6v9s        1/1   Running            0              2m45s
+  memcached-rate-5b59cb5d9d-99vbx           1/1   Running            0              2m45s
+  memcached-reserve-6c889f84d4-hmfn5        1/1   Running            0              2m44s
+  mongodb-geo-7db569d69-4s87b               0/1   CrashLoopBackOff   4 (18s ago)    2m2s
+  mongodb-profile-9f4bbd96-hnx8z            0/1   CrashLoopBackOff   4 (15s ago)    2m1s
+  mongodb-rate-f78bd5db8-6sv2g              0/1   CrashLoopBackOff   4 (20s ago)    2m1s
+  mongodb-recommendation-6b8c65494b-chgcm   0/1   Error              4 (66s ago)    2m1s
+  mongodb-reservation-67764f8fbb-jpmcb      0/1   CrashLoopBackOff   4 (14s ago)    2m1s
+  mongodb-user-54cbbb69c8-x9nxc             0/1   Error              4 (57s ago)    2m1s
+  profile-85c6f67954-x949b                  1/1   Running            0              2m45s
+  rate-b6dc6465f-7pv9c                      0/1   CrashLoopBackOff   2 (19s ago)    2m44s
+  recommendation-6bf7689fdb-7gjcm           1/1   Running            0              2m44s
+  reservation-57b8ccd5dc-w2jnb              1/1   Running            3 (30s ago)    2m43s
+  search-7d996cf85b-zgqr6                   1/1   Running            0              2m43s
+  user-5c4d969c85-tzxj6                     1/1   Running            0              2m43s
+  wrk2-job-rwk8w                            1/1   Running            0              2m3s
+== Loki: not read here. SREGym skips Loki under the external harness (main.py:
+   deploy_loki=not args.use_external_harness); part B's loki-read reads it (Addendum 1)
+== timezone: Etc/UTC; date +%Z: UTC

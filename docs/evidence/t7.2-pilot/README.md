@@ -19,3 +19,7 @@ archive for it.
 | `t72-pilot-install.txt` | SREGym at the pin, `faultline-agent.patch` applied |
 | `t72-pilot-cluster.txt` | four nodes ready |
 | `t72-pilot-devread-shop.txt` | the shop: span metrics present under v2's names, no renamed workload, owner and cAdvisor series present, `product-catalog` crash-looping, **Loki absent** (Addendum 1) |
+| `t72-pilot-podstate-shop.txt` | the shop's pods: `product-catalog`'s loop was at startup only (Addendum 2) |
+| `t72-pilot-cluster-reset-1.txt`, `t72-pilot-cluster-reset-2.txt` | a fresh cluster before each of the next two reads |
+| `t72-pilot-devread-hotel.txt` | Hotel Reservation: names as spans, alarms on MongoDB, **span metrics for `reservation` alone** (Addendum 2) |
+| `t72-pilot-devread-social.txt` | Social Network: names as spans but `nginx-thrift`, no trace, no span metric, no alarm |

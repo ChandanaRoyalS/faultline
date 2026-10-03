@@ -29,8 +29,14 @@ class Profile:
     """The fallback episode's service when no alarm fires (adapter registration §4)."""
 
     span_metrics: WorldMetrics | None
-    """The span-metric spelling in SREGym's Prometheus, or `None` where the application emits no
-    traces SREGym's collector can turn into metrics. Read on the dev problems."""
+    """The span-metric spelling in SREGym's Prometheus, or `None` for none.
+
+    **Read on the dev problems (`docs/evidence/t7.2-pilot/t72-pilot-devread-*.txt`): v2's spelling
+    for all three.** The shop has series for 18 services. Hotel Reservation has them for
+    `reservation` alone, the one service that restarted after SREGym repointed its trace exporter
+    (Q127). Social Network has none, because as shipped none of its services sends a trace. Which
+    services have series is therefore decided per service, at query time (`McpToolSet`), by the
+    owner's decision of 2026-10-03, so that *not traced* is never read as *no traffic*."""
 
     deployments: dict[str, str] = field(default_factory=dict)
     """Span service name -> Deployment or StatefulSet name, **only where they differ**. Read from
@@ -62,13 +68,13 @@ PROFILES: dict[str, Profile] = {
             application="sregym-hotel-reservation",
             app_name="Hotel Reservation",
             front_door="frontend",
-            span_metrics=None,
+            span_metrics=V2,
         ),
         Profile(
             application="sregym-social-network",
             app_name="Social Network",
             front_door="nginx-web-server",
-            span_metrics=None,
+            span_metrics=V2,
             deployments={"nginx-web-server": "nginx-thrift"},
         ),
     )
@@ -76,9 +82,17 @@ PROFILES: dict[str, Profile] = {
 """Keyed by `/get_app`'s `app_name`. An application not here is not in the run (the run's
 registration: the three applications with a snapshot), and the driver refuses it."""
 
-PROFILE_READ = False
-"""Whether the dev read has confirmed `span_metrics` and `deployments` for all three. **False
-until it has**, and the pilot's registration requires it true before the first attempt."""
+PROFILE_READ = True
+"""Whether the dev read has confirmed `span_metrics` and `deployments` for all three.
+
+**True since the dev read of 2026-10-03** (pilot registration, part A, and its Addendum 1):
+
+- the span-metric spelling is v2's, decided per service (above);
+- the only workload named differently from its span service is `nginx-thrift`;
+- the server is in UTC, so `get_logs`' timestamps are read correctly as UTC.
+
+**Loki's labels are not read by part A.** SREGym skips Loki under the external harness, so the
+pilot reads them after attempt 1 and stops if `namespace` and `pod` are not both labels."""
 
 
 def profile_for(app_name: str) -> Profile:
