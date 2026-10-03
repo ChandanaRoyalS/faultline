@@ -370,3 +370,60 @@ server stay as they are.
 
 **Nothing frozen changes.** The corpus is still the committed dev split with its committed
 acceptances, as the image ships it.
+
+## Addendum 5 - the database, the key and the judge are ready; the Loki read moves into attempt 1
+
+**Written 2026-10-03, after `judge-check` and before the first attempt.** Outputs:
+`t72-pilot-b-bench-reset.txt`, `t72-pilot-b-bench-db-2.txt` and `t72-pilot-b-key-judge.txt`.
+
+**Addendum 4's recovery ran:**
+
+- **`bench-reset`** removed the partial database and put the `kickoff_env` password back to its
+  placeholder.
+- **`bench-db`** seeded the template in full: **334 chunks over 65 documents, body digest
+  `a6de378e3b55`**, and set the password in the run's checkout.
+  - The same three numbers come from the working tree at `a1f67e0`, off the VM, through
+    `evalharness.corpusdrift.working_tree_rows` and `body_digest_of`.
+  - Nothing under the corpus's paths changed between `afe6419`, where the seed bundle was built,
+    and `a1f67e0`.
+  - **So the template is the committed dev corpus with its committed acceptances**, as part B
+    registered.
+
+**The key**: present on the VM, mode 600, 106 bytes, the same size as the owner's file. It was
+copied by stdin and never printed.
+
+**The judge**: the README's `anthropic/claude-sonnet-4-6-20250627` was refused, and the alias
+**`anthropic/claude-sonnet-4-6` answered**. As registered, it is the judge for both arms and the
+baseline's model, here and in the scored run.
+
+**What reading SREGym's cleanup found: `loki-read` cannot run after attempt 1.**
+
+- `deploy_app` records the cluster's baseline **before any infrastructure is deployed**
+  (`conductor.py:1340`). The baseline is persisted in `~/cache_dir`, which Addendum 3's `cleanup`
+  deleted, so attempt 1 records it from the bare part B cluster.
+- Every attempt's cleanup runs `reconcile_to_baseline` (`conductor.py:496`). That deletes every
+  namespace not in the baseline, except the protected ones (`cluster_state.py:246`, list at `:35`).
+- Loki is deployed into **`observe`** (`sregym/service/metadata/loki.json:3`), which is neither in
+  the baseline nor protected.
+- **So by the time attempt 1 has finished, Loki is gone.** `loki-read` would print `loki service
+  namespace: NONE`, and Addendum 1's rule would stop the pilot for a reason that has nothing to do
+  with the selector.
+
+**The change, before attempt 1 runs:**
+
+1. **`loki-watch shop <file>`** (new, read-only) starts beside attempt 1.
+   - It polls every 30 s, and runs `loki-read shop` once, while Loki exists. It reads when Loki has
+     pod values for the namespace, or after ten polls in which Loki answered with labels but no
+     such values. **So the label list is read either way.**
+   - It reads nothing else and touches nothing.
+2. **Addendum 1's rule is unchanged**: if `namespace` and `pod` are not both labels, the pilot stops
+   before attempt 2.
+   - **If `loki-watch` reports that the attempt ended before a reading, the pilot also stops before
+     attempt 2.** The label question is then open, and what to do is the owner's decision.
+   - Attempt 1's own log results are read with it, as Addendum 1 says.
+3. **Each attempt, `hold` and `loki-watch` run under `nohup` on the VM**, each writing its output
+   to a file in `~/t7.2-1c/out/`. A dropped ssh connection then cannot stop an attempt. The Mac
+   waits for the attempt's file to say `exit`, and that wait can be repeated safely.
+
+**Nothing frozen changes.** The settings of the run and of the pilot are as registered, and so is
+the order of the six attempts.

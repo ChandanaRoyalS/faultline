@@ -4617,6 +4617,19 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-10-03: T7.2 pilot, Addendum 5 - the database, the key and the judge are ready; the Loki
+read moves into attempt 1.***
+
+- **The template seeded in full**: 334 chunks over 65 documents, body digest `a6de378e3b55`, the
+  same as the working tree's.
+- **The key** is on the VM, and **the judge is `anthropic/claude-sonnet-4-6`**: the README's dated
+  string was refused, and the alias answered.
+- **Loki is deleted with `observe` when an attempt ends**: SREGym's cleanup removes every namespace
+  not in the bare cluster's baseline. So `loki-read` moves into attempt 1 as `loki-watch`, and
+  Addendum 1's rule is unchanged.
+- **Next**: `hold`, then attempt 1 with `loki-watch` beside it, then the owner reads the spend.
+  Under $0.01 so far, all of it `judge-check`'s one-token call.
+
 ***2026-10-03: T7.2 pilot, Addendum 4 - the clean setup ran; seeding needs the committed
 acceptances.***
 

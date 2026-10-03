@@ -18,8 +18,9 @@
 # Part B, the dev pilot (after the dev read's profile patch is merged):
 #   preread, killswitch-on, host-on, install, cluster, bench-db (bench-reset to redo it,
 #   Addendum 4), serve-on, key-check,
-#   judge-check, hold (nohup, the sampler), attempt shop faultline, loki-read shop (Addendum 1),
-#   the other five attempts, collect, teardown, host-off, cleanup, killswitch-off, incidents
+#   judge-check, hold (nohup, the sampler), attempt shop faultline (nohup) with loki-watch shop
+#   beside it (nohup, Addendum 5: loki-read while Loki exists), the other five attempts, collect,
+#   teardown, host-off, cleanup, killswitch-off, incidents
 #
 # The directory is 1c's (~/t7.2-1c, its kubeconfig at ~/t7.2-1c/kubeconfig and copied to
 # ~/.kube/config), so 1c's sampler runs unchanged, as in the topology runs.
@@ -258,6 +259,40 @@ loki-read)
     q=$(python3 -c 'import sys, urllib.parse; print(urllib.parse.quote(sys.argv[1]))' "{namespace=\"$NS\"}")
     kubectl get --raw "/api/v1/namespaces/$lns/services/loki:3100/proxy/loki/api/v1/label/pod/values?query=$q" \
         | python3 -c 'import json,sys; v=json.load(sys.stdin).get("data") or []; print("  pod values for the namespace: %d, e.g. %s" % (len(v), v[:6]))'
+    ;;
+
+loki-watch)
+    # Addendum 5. Part B, read-only, started beside attempt 1. SREGym's cleanup deletes every
+    # namespace not in the bare cluster's baseline (cluster_state.reconcile_to_baseline), and
+    # Loki's, `observe`, is one, so loki-read cannot run after the attempt. This polls every 30 s
+    # and runs loki-read once, while Loki exists:
+    #   - when Loki has pod values for the namespace, or
+    #   - after ten polls (5 min) in which Loki answered with labels but no such values, so the
+    #     label list is read either way.
+    # If the attempt ends first, it says so. Addendum 1's rule is unchanged.
+    app_vars "${2:?app}"
+    f="${3:?the output file of the attempt}"
+    kenv
+    echo "loki-watch from $(ts), for $NS, until $f says exit"
+    q=$(python3 -c 'import sys, urllib.parse; print(urllib.parse.quote(sys.argv[1]))' "{namespace=\"$NS\"}")
+    answered=0
+    for i in $(seq 1 160); do
+        if grep -q '^exit ' "$f" 2>/dev/null; then
+            echo "the attempt ended before a reading, at poll $i, $(ts)"; bash "$0" loki-read "$2"; exit 1
+        fi
+        lns=$(kubectl get svc -A --no-headers 2>/dev/null | awk '$2 == "loki" {print $1; exit}')
+        if [ -n "$lns" ]; then
+            base="/api/v1/namespaces/$lns/services/loki:3100/proxy/loki/api/v1"
+            nl=$(kubectl get --raw "$base/labels" 2>/dev/null | python3 -c 'import json,sys; print(len(json.load(sys.stdin).get("data") or []))' 2>/dev/null)
+            np=$(kubectl get --raw "$base/label/pod/values?query=$q" 2>/dev/null | python3 -c 'import json,sys; print(len(json.load(sys.stdin).get("data") or []))' 2>/dev/null)
+            [ "${nl:-0}" -gt 0 ] && answered=$((answered + 1))
+            if [ "${np:-0}" -gt 0 ] || [ "$answered" -ge 10 ]; then
+                echo "reading at poll $i, $(ts): $nl labels, $np pod values for $NS"; bash "$0" loki-read "$2"; exit 0
+            fi
+        fi
+        sleep 30
+    done
+    echo "no reading in 80 minutes"; exit 1
     ;;
 
 bench-db)
