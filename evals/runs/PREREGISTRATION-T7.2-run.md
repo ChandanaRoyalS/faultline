@@ -335,3 +335,102 @@ Open questions:
   opens no incident through the Mac's Alertmanager.
 - **Q126 and Q127 are decided** (above), and their rows say so.
 - **No code, no stamp and no world** changes with this registration.
+
+## Addendum 1 - the owner's go: the run scaled to the budget, and the pilot's fixes
+
+**Written 2026-10-03, after the pilot's result
+([`evals/attempts/T7.2-pilot/RESULT.md`](../attempts/T7.2-pilot/RESULT.md)) and before anything
+is built or run.** This is the order's step 4. The pilot projected the registered run, 108 × 3 × 2
+= 648 attempts, at about $420 and 154 hours. **The owner declined that cost**, and decided the
+following, asked one at a time with the pilot's findings explained.
+
+### The owner's decisions, 2026-10-03
+
+| decision | chosen | why, in one line |
+|---|---|---|
+| the two adapter defects | **both fixed**: the log selector, and the change commands | they failed Faultline's tools on every pilot problem; neither is Faultline's behaviour |
+| the missing metric history | **Faultline unchanged; the limitation is stated in the report** | T7.2 requires *"the agent under test is the real one"* |
+| the slow opening | **the delay found and fixed**, the opening's design unchanged | about 15 s per MCP call put attempt 5 at 1,329 s of 1,800 |
+| the scale | **11 problems per application, R = 1, both arms**: 66 attempts, about $43 | the owner's budget. **Every deliverable is kept; the evidence behind each is smaller** |
+
+**The scale is a departure from the plan as well as from this registration, and is the owner's
+explicit decision.**
+
+- The execution plan's T4.6 sets R = 5 for scored comparisons, and this registration chose R = 3.
+  The run is now R = 1.
+- **What it costs is precision, not deliverables.** The report keeps its structure: scores, then
+  the error taxonomy, then the architecture implications. More of its comparisons will read *no
+  measurable effect at this n*, as the plan's rule requires.
+
+The same decision sets the rest of Phase 7 at about $135 in total. That is recorded in `PLAN.md`,
+and each of those tasks registers its own scale before it runs.
+
+### The problems
+
+**33 of the 108 scored problems**, 11 per application, by `random.Random(20261003).sample` over
+each application's sorted scored list, in the registered order
+([`scaled_draw.py.txt`](../../docs/evidence/t7.2-run/scaled_draw.py.txt), output
+`scaled-sample.tsv`):
+
+| application | problems |
+|---|---|
+| Astronomy Shop | `astronomy_shop_ad_service_failure`, `astronomy_shop_ad_service_high_cpu`, `astronomy_shop_payment_service_failure`, `duplicate_pvc_mounts_astronomy_shop`, `kafka_poison_pill_hol_block`, `kafka_queue_problems`, `liveness_probe_misconfiguration_astronomy_shop`, `missing_env_variable_astronomy_shop`, `service_port_conflict_astronomy_shop`, `stale_coredns_config_astronomy_shop`, `wrong_dns_policy_astronomy_shop` |
+| Hotel Reservation | `admission_webhook_tls_mismatch_hotel_reservation`, `cfs_cpu_throttling_hotel_reservation`, `dev_shm_exhaustion_hotel_reservation`, `duplicate_pvc_mounts_hotel_reservation`, `finalizer_deadlock_controller_hotel_reservation`, `liveness_probe_too_aggressive_hotel_reservation`, `network_policy_block`, `pvc_claim_mismatch`, `resource_request_too_large`, `storage_user_unregistered-2`, `wrong_dns_policy_hotel_reservation` |
+| Social Network | `assign_to_non_existent_node`, `duplicate_pvc_mounts_social_network`, `liveness_probe_misconfiguration_social_network`, `liveness_probe_too_aggressive_social_network`, `missing_service_social_network`, `persistent_volume_affinity_violation`, `pod_anti_affinity_deadlock`, `service_port_conflict_social_network`, `stale_coredns_config_social_network`, `taint_no_toleration_social_network`, `wrong_dns_policy_social_network` |
+
+- **By family**: 23 virtualization problems, 5 OpenTelemetry injector, 3 Direct K8S API and 2
+  application. The 108 had 63, 12, 14 and 15 (application problems counted together), plus 3
+  ad hoc and 1 metastable, none of which was drawn.
+- **Two of Q126's four flagged problems were drawn**: `kafka_poison_pill_hol_block` and
+  `kafka_queue_problems`. They are read separately, as registered.
+- **The dev problems stay unscored.** No pilot problem is in the sample.
+- **The rule for a problem that will not run is unchanged**: it is named and removed from both
+  arms. **No replacement is drawn.**
+
+### What changes in the analysis
+
+- **The unit** is an attempt: one problem, one arm, R = 1.
+- **The primary comparison is the paired difference over all 33 problems.** The per-application
+  rates and differences are still reported, each with its bootstrap interval. The bootstrap is over
+  problems, as registered.
+- **Minimum detectable effect**, with the registered assumption (per-problem difference SD 0.5,
+  80 % power, α 0.05):
+
+  | comparison | n | MDE |
+  |---|---|---|
+  | all three applications | 33 | about **24 points** |
+  | one application | 11 | about **42 points** |
+
+  A difference inside these is reported as *no measurable effect at this n*.
+- **The predictions stand as registered.** They are read against these n, and a prediction whose
+  range is narrower than its interval is reported as *not testable at this n*, never as held.
+- **The error analysis is unchanged**: by family, by the judge's dimensions, and by the five
+  categories. **Any family below five problems is described attempt by attempt, not as a rate.**
+
+### The spend cap
+
+- **$50 for everything T7.2 still runs**: the re-check of the fixes and the scored run.
+- **Tallied after every attempt** from the tokens each agent records (Faultline's trajectory
+  steps, Claude Code's session log), at the published prices, the pilot's method. Each judge call
+  is counted at $0.10, the registered ceiling.
+- **The run stops when the tally passes $47.** Whatever is unfinished is named, and the result is
+  reported on the problems both arms completed.
+- **The owner's reading of the key's spend in the console is the authority**, taken once the run
+  ends.
+
+### What comes next, in order
+
+1. **The fixes**, registered as an addendum to the adapter's registration before they are coded:
+   - the selector;
+   - the change commands, asking for named fields so that every answer fits 10,000 characters;
+   - the opening's delay, found first;
+   - a read-only look at `latency-p95`'s bounds.
+2. **The re-check**: Faultline alone on the three dev problems, R = 1, never scored, about $2-3.
+   **It goes on only if every tool returns data or a true absence.**
+3. **The scored run's operation**, registered with the re-check's result: batching, the world
+   watch, the record after each Faultline attempt, and the arms alternating which goes first per
+   problem.
+4. **The scored run**, then **the report**.
+
+**Everything else in this registration stands**: the baseline, the judge, the rendering, Q126 and
+Q127, the frozen setup, and the stamps, which the fixes must not move.

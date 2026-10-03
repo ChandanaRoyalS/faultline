@@ -17,3 +17,10 @@ Read for [`PREREGISTRATION-T7.2-run.md`](../../../evals/runs/PREREGISTRATION-T7.
 **One thing to know when re-running.** The first run of `problem_table.py` wrote CRLF line
 endings (the `csv` module's default). They were converted to LF, and the script was changed to
 write LF. Re-run with the changed script, the output was byte-identical to the converted file.
+
+**Addendum 1, 2026-10-03.** The run scaled to the owner's budget:
+
+| file | what it is |
+|---|---|
+| `scaled_draw.py.txt` | the scaled run's draw: 11 of each application's scored problems, `random.Random(20261003).sample` over the sorted list, from `run-table.tsv` |
+| `scaled-sample.tsv` | its output: 33 problems, with family and Q126's flag |
