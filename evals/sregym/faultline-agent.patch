@@ -1,0 +1,58 @@
+diff --git a/agents.yaml b/agents.yaml
+index 2fa784d..cd18d86 100644
+--- a/agents.yaml
++++ b/agents.yaml
+@@ -60,6 +60,13 @@ agents:
+     kickoff_env: null
+     install_script: install-cursor.sh
+     agent_version: null
++  - name: faultline
++    kickoff_command: python -m clients.faultline.driver
++    kickoff_workdir: .
++    kickoff_env:
++      FAULTLINE_SREGYM_DB_PASSWORD: "<set for the run, never committed>"
++    install_script: install-faultline.sh
++    agent_version: null
+   - name: demo
+     kickoff_command: python -m clients.demo.driver
+     kickoff_workdir: .
+diff --git a/clients/faultline/__init__.py b/clients/faultline/__init__.py
+new file mode 100644
+index 0000000..e69de29
+diff --git a/clients/faultline/driver.py b/clients/faultline/driver.py
+new file mode 100644
+index 0000000..65053bd
+--- /dev/null
++++ b/clients/faultline/driver.py
+@@ -0,0 +1,13 @@
++"""Faultline as an SREGym agent: a thin driver.
++
++All of the work is in Faultline's own package (`faultline.sregym.driver`, installed by
++`install-faultline.sh`), so this file holds no logic of its own: the adapter is reviewed and
++tested in Faultline's repository, and the agent under test is the real one.
++"""
++
++import sys
++
++from faultline.sregym.driver import main
++
++if __name__ == "__main__":
++    sys.exit(main())
+diff --git a/docker/agents/install-scripts/install-faultline.sh b/docker/agents/install-scripts/install-faultline.sh
+new file mode 100755
+index 0000000..865d775
+--- /dev/null
++++ b/docker/agents/install-scripts/install-faultline.sh
+@@ -0,0 +1,12 @@
++#!/usr/bin/env bash
++# Faultline's wheel, served from the host for the run, with the two extras the agent needs and
++# CPU-only torch. Stage 0 measured this at 60-64 s inside the hardened, filtered container.
++set -euo pipefail
++WHEEL="faultline-0.0.1-py3-none-any.whl"
++WHEEL_URL="${FAULTLINE_WHEEL_URL:-http://host.docker.internal:55480/$WHEEL}"
++echo "[$(date -Iseconds)] Installing Faultline from $WHEEL_URL"
++curl -fsS -o "/tmp/$WHEEL" "$WHEEL_URL"
++sha256sum "/tmp/$WHEEL"
++python3 -m pip install --break-system-packages -q ${SSL_CERT_FILE:+--cert "$SSL_CERT_FILE"} \
++    --extra-index-url https://download.pytorch.org/whl/cpu "/tmp/$WHEEL[agents,embeddings]"
++echo "[$(date -Iseconds)] Faultline installed: $(python3 -c 'import importlib.metadata as m; print(m.version("faultline"))')"

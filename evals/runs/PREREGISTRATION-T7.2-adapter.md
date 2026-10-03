@@ -353,3 +353,46 @@ same rule F used.
 
 **What this changes for the run.** The run's operation, registered with the pilot, needs this
 rule for the benchmark database, as it needs one for 8000 and 9954. Both are for `docker0` only.
+
+## Addendum 2 - what the build found and decided, written with the build and before the pilot
+
+**Written 2026-10-03, with the build, before the dev read or the pilot.** None of these changes a
+frozen setting of the run. Each is a departure from this registration's text, or a choice the text
+left open, and is stated so the pilot is registered against what was built.
+
+1. **Existing code changed, two places.** The registration said `faultline.sregym` would be *"the
+   only new code the agent's run touches"*.
+   - `ToolSettings` gains `backend` (`http` by default), and `faultline-investigate` builds its tool
+     set through `_tool_set`, which returns exactly what it always built unless `backend` is
+     `sregym`.
+   - **Why this and not a copy of the CLI's assembly in the adapter**: two assemblies of one agent
+     are two agents, and the harness already invokes the CLI as a subprocess (ADR-0044 §5).
+   - Neither change is in any digest. Both stamps were checked unchanged after the build.
+2. **The MCP client is standard library**, not the SDK. The SDK's lock entry could not be resolved
+   from where the build was done (the CPU-torch index is unreachable there). The four messages the
+   transport needs are tested against a local server speaking it.
+3. **ConfigMaps and Secrets are read with `-o custom-columns`**, not the registered `-o json`.
+   `-o json` would have returned Secret values to the adapter's process. The registration's own
+   words are *"for metadata only. No value is ever read from a Secret"*, so the read is narrowed to
+   honour them.
+4. **`join_rule` is left unset**, not `no_candidate`. No such value exists in `JoinRule`, and no
+   correlation rule decided these episodes.
+5. **Every SREGym application runs with `FAULTLINE_TOOLS_WORLD=v2`.** Astronomy Shop needs it
+   (Q125). The DeathStarBench applications need *a* world, and v2's name map is the identity, so
+   no DeathStarBench name can be rewritten by v1's container table.
+6. **The leak guard matches on alphanumeric boundaries**, not on `matched_words`' hyphen-inclusive
+   ones.
+   - A Kubernetes value like `chaos-injected` must match, and `matched_words` treats the hyphen as
+     part of the word.
+   - The head stays strict, so the `dnsPolicy` value `Default` is never withheld for containing
+     `fault`. Over-matching there would hide the value a DNS-policy problem turns on.
+7. **`faultline-investigate` has a 1,500 s timeout inside the driver**, below SREGym's 1,800 s
+   agent timeout. On a hang, the attempt still submits `Faultline reached no verdict.`
+8. **Loki's timestamps are read as UTC.** `get_logs` renders them in the MCP server's local time.
+   The dev read confirms the deployment's zone.
+9. **What the dev read must settle before the pilot**, now that the code exists. `PROFILE_READ` is
+   `False` until all of it is recorded:
+   - whether Astronomy Shop's span metrics exist under v2's names in SREGym's Prometheus;
+   - every Deployment whose name differs from its span service, beyond `nginx-thrift`;
+   - the Loki labels the selector uses (`namespace`, `pod`);
+   - the server's time zone.

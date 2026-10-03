@@ -382,6 +382,7 @@ And the platform itself, if you want to run it rather than measure it:
 | `faultline-orchestrate` | consumes alert events and opens incidents |
 | `faultline-investigate` | runs one investigation against an open incident |
 | `faultline-demo` | the narrated end-to-end run `make demo` calls |
+| `faultline-sregym` | one SREGym attempt (T7.2): run by the adapter's agent row inside SREGym's agent container, it opens the incident on standard health alarms, runs `faultline-investigate` against SREGym's MCP servers and submits the rendered verdict. Not for running by hand; see `evals/runs/PREREGISTRATION-T7.2-adapter.md` |
 | `faultline-storm` | two hundred alerts at once against a development platform with the model off - dedupe, correlation, cap and drain measured and scored against `PREREGISTRATION-T6.7.md`; refuses any receiver not on the loopback (T6.7) |
 
 Every one takes `--help`. To put the screen on a URL, see [`deploy/`](deploy/README.md); to cut a
