@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -33,6 +35,15 @@ class ToolSettings(BaseSettings):
     **Defaults to `v1`, and a world is opted into rather than defaulted into.** Every published
     figure was measured on v1 (ADR-0026), and a wrong value here is an empty PromQL result rather
     than an error - the query succeeds, the agent reads *no data*, and nothing fails loudly.
+    """
+
+    backend: Literal["http", "sregym"] = "http"
+    """**Which implementation of `ToolSet` `faultline-investigate` builds** (T7.2, ADR-0044).
+
+    `http` is `Tools` against the endpoints below, as every recorded run used. `sregym` is
+    `faultline.sregym.toolset.McpToolSet` over SREGym's MCP servers, set only by the SREGym
+    adapter's driver for the investigation it starts. The agent's surface is the same five tools
+    either way, so the capability stamp does not depend on it.
     """
 
     prometheus_url: str = "http://localhost:9090"

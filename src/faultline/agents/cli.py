@@ -207,9 +207,6 @@ def run(argv: list[str] | None = None) -> int:
     from faultline.orchestrator import machine
     from faultline.orchestrator.rejections import PostgresRejectionStore
     from faultline.orchestrator.store import PostgresIncidentStore
-    from faultline.tools.changelog import PostgresChangeLog
-    from faultline.tools.settings import ToolSettings
-    from faultline.tools.tools import Tools
 
     context = ContextSettings()
     dsn = args.postgres_dsn or context.postgres_dsn
@@ -323,9 +320,7 @@ def run(argv: list[str] | None = None) -> int:
     archive = connect_or_none()
     engine = Investigation(
         planner=Planner(model),
-        specialists=build_specialists(
-            Tools(ToolSettings(), changes=PostgresChangeLog(psycopg.connect(dsn))), model
-        ),
+        specialists=build_specialists(_tool_set(dsn), model),
         store=PostgresTrajectoryStore(psycopg.connect(dsn), archive),
         model=model,
         budget=Budget(
@@ -367,6 +362,30 @@ def run(argv: list[str] | None = None) -> int:
         for path in write_outputs(report, Path(args.out), archive):
             print(f"wrote {path}")
     return int(report.exit_code)
+
+
+def _tool_set(dsn: str) -> Any:
+    """The `ToolSet` the specialists read the world through, chosen by `ToolSettings.backend`.
+
+    `http` builds exactly what this command always built. `sregym` builds the SREGym adapter's
+    `McpToolSet` (T7.2, ADR-0044), which the adapter's driver selects for the investigation it
+    starts. Choosing here keeps the run assembled in one place: the adapter invokes this command
+    as the CLI it is, as `evalharness.run` does, rather than rebuilding the engine beside it.
+    """
+    from faultline.tools.settings import ToolSettings
+
+    settings = ToolSettings()
+    if settings.backend == "sregym":
+        from faultline.sregym.toolset import from_environment
+
+        return from_environment(settings)
+
+    import psycopg
+
+    from faultline.tools.changelog import PostgresChangeLog
+    from faultline.tools.tools import Tools
+
+    return Tools(settings, changes=PostgresChangeLog(psycopg.connect(dsn)))
 
 
 SCORED_RUN_IS_NOT_AN_INCIDENT = (

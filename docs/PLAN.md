@@ -4617,6 +4617,23 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-10-03: T7.2 adapter built - Faultline presented to SREGym, both stamps unchanged.***
+
+- **[RESULT](../evals/attempts/T7.2-adapter-build/RESULT.md),
+  [ADR-0044](adr/0044-faultline-under-sregym.md).** The pieces:
+  - `faultline.sregym`, with `McpToolSet` a subclass of `Tools` over SREGym's MCP servers;
+  - the change log over Kubernetes' own record, with a leak guard;
+  - the incident opened on standard health alarms;
+  - the frozen rendering, held to a golden text;
+  - the CONNECT tunnel;
+  - the driver, `faultline-sregym`.
+- **SREGym's side is a 32-line patch**, `evals/sregym/faultline-agent.patch`.
+- **`make check`: 2,397 passed** (35 new). The size prediction was wrong: 1,915 lines against
+  under 1,500.
+- **Addendum 2** records the build's departures. Two existing files changed: the CLI's tool-set
+  switch and `ToolSettings.backend`. Secrets are read by name only.
+- **Next**: the dev read, then the pilot's registration. $0.
+
 ***2026-10-02: T7.2 adapter stage 0 - PASS: Faultline runs in SREGym's hardened agent container,
 its database outside it.***
 
