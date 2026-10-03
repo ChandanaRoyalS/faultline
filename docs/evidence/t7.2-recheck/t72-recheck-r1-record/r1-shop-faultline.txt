@@ -1,0 +1,31 @@
+attempt edge_request_filter_cpu_saturation / faultline at 2026-10-03 06:38:55 UTC, model anthropic/claude-opus-5, judge anthropic/claude-sonnet-4-6
+exit 0 at 2026-10-03 06:49:45 UTC
+{"started_at": "2026-10-03T06:46:50.990192+00:00", "app_name": "OpenTelemetry Demo Astronomy Shop", "namespace": "astronomy-shop", "application": "sregym-astronomy-shop", "evaluations": 2, "fallback": false, "episodes": [{"alertname": "ServiceHighErrorRate", "service": "load-generator", "severity": "critical"}], "opening_errors": [], "incident_id": "885104aa-8488-4a47-925d-5ea091f5ca01", "investigate_exit": 5, "trajectory_id": "", "verdict": false, "evidence_cited": 0, "submitted": {"status": "200", "message": "Submission received", "stage": "diagnosis"}, "error": "", "ended_at": "2026-10-03T06:47:57.969274+00:00"}
+                    INFO     all.sregym.conductor - Start Eval for Diagnosis    
+== LLM-as-a-Judge Evaluation ==
+❌ Incorrect diagnosis: False (score: 33.0/100)
+[10/03/26 06:48:05] INFO     all.sregym.conductor - [EVAL] Diagnosis Failed     
+           results={'Diagnosis': {'judgment': 'False', 'reasoning':             
+           "No", "evidence": "Agent diagnosis states \'Faultline                
+           the diagnosis.", "confidence": "High"}, {"id": "D2-Q3",              
+           blamed in the diagnosis, so no uninvolved components are             
+           "answer": "No", "evidence": "The diagnosis mentions no               
+           described in the diagnosis.", "confidence": "High"}]',               
+           'success': False, 'accuracy': 33.0, 'composite_score':               
+           'score': 0.33}, 'D2': {'name': 'Fault Characterization',             
+           'score': 0.33}, 'D3': {'name': 'Scope Precision',                    
+           'score': 0.33}}, 'checklist': [{'id': 'D1-Q1', 'answer':             
+           'No', 'evidence': "Agent diagnosis states 'Faultline                 
+           the diagnosis.', 'confidence': 'High'}, {'id': 'D2-Q3',              
+           blamed in the diagnosis, so no uninvolved components are             
+           'answer': 'No', 'evidence': 'The diagnosis mentions no               
+           described in the diagnosis.', 'confidence': 'High'}],                
+           'phase.stage:diagnosis.duration_s': 132.816,                         
+           'phase.stage:diagnosis.outcome': 'submitted',                        
+           'phase.evaluate:diagnosis.duration_s': 7.167,                        
+[10/03/26 06:49:44] INFO     uvicorn.error - Shutting down                      
+                    INFO     uvicorn.error - Finished server process [1250637]  
+== results files
+  /home/deploy/t7.2-1c/SREGym/results/1003_0639/faultline_ALL_results.csv
+  /home/deploy/t7.2-1c/SREGym/results/1003_0639/faultline/edge_request_filter_cpu_saturation/edge_request_filter_cpu_saturation_faultline_results.csv
+  /home/deploy/t7.2-1c/SREGym/results/1003_0639/faultline/edge_request_filter_cpu_saturation/run_1/edge_request_filter_cpu_saturation_results.csv

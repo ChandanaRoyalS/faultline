@@ -1,0 +1,39 @@
+probe from 2026-10-03 06:39:00 UTC, for astronomy-shop
+Loki answered for astronomy-shop at poll 11, 2026-10-03 06:44:02 UTC; waiting 300 s for the fault
+reading at 2026-10-03 06:49:02 UTC
+== 1. Loki: the shipped selector and the corrected one, the last 30 min, limit 100
+  shipped   {namespace="astronomy-shop",pod=~"product\-catalog-([a-z0-9]+-[a-z0-9]+|[0-9]+)"}
+      REJECTED: Error from server (NotFound): services "loki" not found
+  corrected {namespace="astronomy-shop",pod=~"product-catalog-([a-z0-9]+-[a-z0-9]+|[0-9]+)"}
+      REJECTED: Error from server (NotFound): services "loki" not found
+  shipped   {namespace="astronomy-shop",pod=~"frontend\-proxy-([a-z0-9]+-[a-z0-9]+|[0-9]+)"}
+      REJECTED: Error from server (NotFound): services "loki" not found
+  corrected {namespace="astronomy-shop",pod=~"frontend-proxy-([a-z0-9]+-[a-z0-9]+|[0-9]+)"}
+      REJECTED: Error from server (NotFound): services "loki" not found
+
+== 2. Prometheus: span-call series by service and status, now
+  REJECTED: Error from server (NotFound): services "prometheus-server" not found
+
+== 3. the adapter's range reads, as it sends them: (q)[1800s:15s] @ now
+  error-ratio frontend-proxy         REJECTED: Error from server (NotFound): services "prometheus-server" not found
+  call-rate frontend-proxy           REJECTED: Error from server (NotFound): services "prometheus-server" not found
+  latency-p95 frontend-proxy         REJECTED: Error from server (NotFound): services "prometheus-server" not found
+  error-ratio frontend               REJECTED: Error from server (NotFound): services "prometheus-server" not found
+  call-rate frontend                 REJECTED: Error from server (NotFound): services "prometheus-server" not found
+  latency-p95 frontend               REJECTED: Error from server (NotFound): services "prometheus-server" not found
+  error-ratio product-catalog        REJECTED: Error from server (NotFound): services "prometheus-server" not found
+  call-rate product-catalog          REJECTED: Error from server (NotFound): services "prometheus-server" not found
+  latency-p95 product-catalog        REJECTED: Error from server (NotFound): services "prometheus-server" not found
+  memory frontend-proxy, shipped     REJECTED: Error from server (NotFound): services "prometheus-server" not found
+  memory frontend-proxy, corrected   REJECTED: Error from server (NotFound): services "prometheus-server" not found
+
+== 4. the change commands' answers, against SREGym's 10000-character cut
+  kubectl get replicasets -n astronomy-shop -o json
+      119 characters, under the cut; 0 items
+  kubectl get statefulsets,controllerrevisions -n astronomy-shop -o json
+      119 characters, under the cut; 0 items
+  kubectl get events -n astronomy-shop -o json
+      119 characters, under the cut; 0 items
+  kubectl get configmaps,secrets -n astronomy-shop -o custom-columns=<kube.SECRET_COLUMNS>
+      32 characters, under the cut
+probe done at 2026-10-03 06:49:04 UTC

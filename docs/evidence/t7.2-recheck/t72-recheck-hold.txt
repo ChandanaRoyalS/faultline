@@ -1,0 +1,171 @@
+hold from 2026-10-03 06:36:24 UTC
+1c sampler, phase W, 21600 s, run at 2026-10-03 06:36:24 UTC on ubuntu (6.8.0-142-generic)
+uptime: 06:36:24 up 2 days, 21:29,  3 users,  load average: 1.22, 1.35, 0.85
+
+====================================================================================================
+start at 06:36:24 UTC
+  containers: 40 running of 43
+    accounting-service                 running  restarts 6   oom False started 2026-09-30T09:07:12  10.8MiB / 300MiB  0.31%
+    ad-service                         running  restarts 0   oom False started 2026-09-30T09:06:47  242.3MiB / 700MiB  0.09%
+    alertmanager                       running  restarts 0   oom False started 2026-09-30T09:19:19  22.75MiB / 200MiB  0.08%
+    cart-service                       running  restarts 0   oom False started 2026-09-30T09:06:47  94.1MiB / 400MiB  1.09%
+    checkout-service                   running  restarts 6   oom False started 2026-09-30T09:07:12  14.78MiB / 120MiB  0.00%
+    currency-service                   running  restarts 0   oom False started 2026-09-30T09:06:47  7.094MiB / 100MiB  0.04%
+    email-service                      running  restarts 2   oom False started 2026-10-03T04:34:49  67.09MiB / 250MiB  0.01%
+    faultline-deploy-caddy-1           running  restarts 0   oom False started 2026-09-30T09:06:47  30.14MiB / 15.56GiB  0.00%
+    faultline-deploy-egress-1          running  restarts 0   oom False started 2026-09-30T09:06:47  13.95MiB / 15.56GiB  0.01%
+    faultline-deploy-executor-1        running  restarts 0   oom False started 2026-10-03T06:31:36  51.65MiB / 15.56GiB  0.21%
+    faultline-deploy-faultline-1       running  restarts 0   oom False started 2026-09-30T09:06:47  124.8MiB / 15.56GiB  0.22%
+    faultline-deploy-orchestrator-1    running  restarts 0   oom False started 2026-09-30T09:06:47  54.88MiB / 15.56GiB  0.02%
+    faultline-deploy-postgres-1        running  restarts 0   oom False started 2026-09-30T09:06:47  38.16MiB / 15.56GiB  0.01%
+    faultline-deploy-prometheus-self-1 running  restarts 0   oom False started 2026-09-30T09:06:47  40.33MiB / 15.56GiB  0.00%
+    faultline-deploy-redis-1           running  restarts 0   oom False started 2026-09-30T09:06:47  5.254MiB / 15.56GiB  0.55%
+    faultline-minio-1                  exited   restarts 0   oom False started 2026-09-15T04:30:12  -  -
+    faultline-postgres-1               exited   restarts 0   oom False started 2026-09-15T04:30:11  -  -
+    faultline-redis-1                  exited   restarts 0   oom False started 2026-09-15T04:30:11  -  -
+    feature-flag-service               running  restarts 0   oom False started 2026-09-30T09:06:47  20.84MiB / 200MiB  0.21%
+    frauddetection-service             running  restarts 1   oom False started 2026-09-30T09:06:58  166.7MiB / 500MiB  0.36%
+    frontend                           running  restarts 0   oom False started 2026-09-30T09:06:47  143.1MiB / 500MiB  1.92%
+    frontend-proxy                     running  restarts 0   oom False started 2026-09-30T09:19:19  31.71MiB / 300MiB  0.65%
+    grafana                            running  restarts 0   oom False started 2026-09-30T09:19:17  58.54MiB / 15.56GiB  0.01%
+    jaeger                             running  restarts 0   oom False started 2026-09-30T09:06:47  172.2MiB / 275MiB  0.03%
+    kafka                              running  restarts 0   oom False started 2026-09-30T09:06:47  583.5MiB / 2GiB  1.30%
+    kind-control-plane                 running  restarts 0   oom False started 2026-10-03T06:32:39  913.8MiB / 15.56GiB  14.78%
+    kind-worker                        running  restarts 0   oom False started 2026-10-03T06:32:39  323.7MiB / 15.56GiB  3.82%
+    kind-worker2                       running  restarts 0   oom False started 2026-10-03T06:32:39  469.8MiB / 15.56GiB  4.63%
+    kind-worker3                       running  restarts 0   oom False started 2026-10-03T06:32:39  317.2MiB / 15.56GiB  3.41%
+    load-generator                     running  restarts 0   oom False started 2026-09-30T09:06:47  134.5MiB / 300MiB  1.10%
+    loki                               running  restarts 0   oom False started 2026-09-30T09:19:18  86.36MiB / 400MiB  0.65%
+    otel-col                           running  restarts 0   oom False started 2026-09-30T09:06:47  103MiB / 600MiB  0.26%
+    payment-service                    running  restarts 0   oom False started 2026-09-30T09:06:47  66.13MiB / 320MiB  0.00%
+    postgres                           running  restarts 0   oom False started 2026-09-30T09:06:47  18.7MiB / 200MiB  7.66%
+    product-catalog-service            running  restarts 0   oom False started 2026-09-30T09:06:47  12.42MiB / 120MiB  0.15%
+    prometheus                         running  restarts 0   oom False started 2026-09-30T09:19:17  89.12MiB / 15.56GiB  0.00%
+    promtail                           running  restarts 0   oom False started 2026-09-30T09:19:18  69.62MiB / 200MiB  0.48%
+    quoteservice                       running  restarts 0   oom False started 2026-09-30T09:06:47  30.94MiB / 200MiB  0.00%
+    recommendation-service             running  restarts 0   oom False started 2026-09-30T09:06:47  43.66MiB / 800MiB  0.14%
+    redis-cart                         running  restarts 0   oom False started 2026-09-30T09:06:47  19.58MiB / 20MiB  0.26%
+    shipping-service                   running  restarts 0   oom False started 2026-09-30T09:06:47  5.102MiB / 120MiB  0.00%
+    t72-bench-pg                       running  restarts 0   oom False started 2026-10-03T06:33:32  53.1MiB / 15.56GiB  0.02%
+    tempo                              running  restarts 0   oom False started 2026-09-30T09:19:18  341.9MiB / 400MiB  0.10%
+  platform container memory: anon 0.07 GiB  file 0.02 GiB (active 0.00, inactive 0.01)  shmem 0.00 GiB
+  firing alerts (0): none
+  kind clusters: kind
+    node kind-control-plane   Ready   control-plane   3m38s   v1.32.1   172.22.0.5   <none>   Debian GNU/Linux 12 (bookworm)   6.8.0-142-generic   containerd://2.0.2
+    node kind-worker          Ready   <none>          3m28s   v1.32.1   172.22.0.3   <none>   Debian GNU/Linux 12 (bookworm)   6.8.0-142-generic   containerd://2.0.2
+    node kind-worker2         Ready   <none>          3m28s   v1.32.1   172.22.0.2   <none>   Debian GNU/Linux 12 (bookworm)   6.8.0-142-generic   containerd://2.0.2
+    node kind-worker3         Ready   <none>          3m28s   v1.32.1   172.22.0.4   <none>   Debian GNU/Linux 12 (bookworm)   6.8.0-142-generic   containerd://2.0.2
+  pods: 16
+    kube-system          calico-kube-controllers-75cd4cc5b9-rdnnl     1/1   Running   0     3m27s
+    kube-system          calico-node-6mr52                            1/1   Running   0     3m27s
+    kube-system          calico-node-8mtj4                            1/1   Running   0     3m27s
+    kube-system          calico-node-db2cl                            1/1   Running   0     3m27s
+    kube-system          calico-node-jlnjt                            1/1   Running   0     3m27s
+    kube-system          coredns-668d6bf9bc-n556v                     1/1   Running   0     3m30s
+    kube-system          coredns-668d6bf9bc-x7btw                     1/1   Running   0     3m30s
+    kube-system          etcd-kind-control-plane                      1/1   Running   0     3m37s
+    kube-system          kube-apiserver-kind-control-plane            1/1   Running   0     3m36s
+    kube-system          kube-controller-manager-kind-control-plane   1/1   Running   0     3m36s
+    kube-system          kube-proxy-5x982                             1/1   Running   0     3m29s
+    kube-system          kube-proxy-ngfm4                             1/1   Running   0     3m29s
+    kube-system          kube-proxy-qdv27                             1/1   Running   0     3m29s
+    kube-system          kube-proxy-vnwnq                             1/1   Running   0     3m30s
+    kube-system          kube-scheduler-kind-control-plane            1/1   Running   0     3m36s
+    local-path-storage   local-path-provisioner-58cc7856b6-hpmrd      1/1   Running   0     3m30s
+  tools (login PATH): kind=/home/deploy/t7.2-1c/bin/kind kubectl=/home/deploy/t7.2-1c/bin/kubectl helm=/home/deploy/t7.2-1c/bin/helm uv=/home/deploy/.local/bin/uv
+  tools (1c dir): helm kind kubectl
+  inotify: instances 1024 watches 1048576
+  ~/.kube exists: True
+  ~/cache_dir exists: False
+  ~/t7.2-1c exists: True
+
+====================================================================================================
+samples every 30 s
+  time      avail GiB  load1  mem-some avg10/avg60  mem-full avg10/avg60  cpu-some avg10/avg60  alerts
+  06:36:27      9.95   1.22      0.00 /   0.00          0.00 /   0.00          1.81 /   1.96  0
+  06:36:57     10.00   1.07      0.00 /   0.00          0.00 /   0.00          1.31 /   1.73  0
+  06:37:27     10.13   1.07      0.00 /   0.00          0.00 /   0.00          1.20 /   1.56  0
+  06:37:57     10.12   0.79      0.00 /   0.00          0.00 /   0.00          1.19 /   1.46  0
+  06:38:27     10.13   0.68      0.05 /   0.02          0.05 /   0.02          1.34 /   1.43  0
+  06:38:57     10.08   0.57      0.00 /   0.01          0.00 /   0.01          1.45 /   1.44  0
+  06:39:27      9.86   1.51      0.00 /   0.00          0.00 /   0.00          3.61 /   2.25  0
+  06:39:57      9.77   1.48      0.00 /   0.00          0.00 /   0.00          2.61 /   2.76  0
+  06:40:27      9.64   1.68      0.14 /   0.05          0.14 /   0.05          6.99 /   4.53  0
+  06:40:57      9.61   1.32      0.00 /   0.03          0.00 /   0.03          6.58 /   5.14  0
+  06:41:27      9.54   1.67      0.00 /   0.01          0.00 /   0.01          2.10 /   3.97  0
+  06:41:57      9.30   1.91      0.00 /   0.00          0.00 /   0.00          5.20 /   4.72  0
+  06:42:27      9.29   1.26      0.36 /   0.06          0.36 /   0.06          6.25 /   4.40  0
+  06:42:57      9.09   3.36      0.03 /   0.07          0.02 /   0.05          5.20 /   5.48  0
+  06:43:27      8.98   2.63      0.00 /   0.04          0.00 /   0.03          6.12 /   5.48  0
+  06:43:57      8.61   5.41      0.44 /   0.12          0.29 /   0.08         29.28 /  10.32  0
+  06:44:27      7.99   7.69      1.32 /   0.58          1.21 /   0.50         52.22 /  24.38  0
+  06:44:57      6.75  13.44      0.91 /   0.69          0.79 /   0.57         68.96 /  42.23  0
+  06:45:27      5.58  13.06      0.27 /   0.62          0.25 /   0.53         58.83 /  49.80  0
+  06:45:57      5.24  10.51      0.17 /   0.45          0.15 /   0.37         30.82 /  45.03  0
+  06:46:27      5.17   7.11      0.28 /   0.42          0.28 /   0.37         23.37 /  36.52  0
+  06:46:57      5.12   5.36      0.02 /   0.27          0.02 /   0.24         24.36 /  31.59  0
+  06:47:27      5.22   3.50      0.00 /   0.16          0.00 /   0.14         33.85 /  32.73  0
+  06:47:57      5.13   2.31      0.00 /   0.09          0.00 /   0.08         26.88 /  31.18  0
+  06:48:27      8.24   2.27      0.04 /   0.08          0.00 /   0.04         14.21 /  27.03  0
+  06:48:57      9.22   6.22      0.59 /   0.17          0.14 /   0.05         14.47 /  20.65  0
+  06:49:27      9.42   4.60      0.02 /   0.10          0.00 /   0.03          4.38 /  13.76  0
+  06:49:57      9.46   3.61      0.00 /   0.05          0.00 /   0.01          3.85 /   9.75  0
+  06:50:27      9.39   2.66      0.00 /   0.03          0.00 /   0.00          4.16 /   8.25  0
+  06:50:57      9.22   1.83      0.00 /   0.01          0.00 /   0.00          6.04 /   6.77  0
+  06:51:27      9.12   1.41      0.00 /   0.00          0.00 /   0.00          2.18 /   5.05  0
+  06:51:57      8.95   1.72      0.00 /   0.00          0.00 /   0.00          3.22 /   4.36  0
+  06:52:27      8.71   8.98      0.51 /   0.12          0.36 /   0.09         34.31 /  16.94  0
+  06:52:57      8.42   9.77      1.21 /   0.41          1.19 /   0.37         36.97 /  22.61  0
+  06:53:27      8.17   8.72      0.44 /   0.53          0.34 /   0.47         12.02 /  20.27  0
+  06:53:57      7.95   7.03      0.08 /   0.34          0.08 /   0.31          8.69 /  14.82  0
+  06:54:27      7.87   5.92      0.00 /   0.20          0.00 /   0.18          5.94 /  11.48  0
+  06:54:57      7.63   5.40      0.00 /   0.12          0.00 /   0.11          7.34 /  11.06  0
+  06:55:27      7.59   5.45      0.00 /   0.07          0.00 /   0.06          8.47 /   9.48  0
+  06:55:57      7.61   5.08      0.00 /   0.04          0.00 /   0.03          5.07 /   7.71  0
+  06:56:27      7.61   6.14      0.00 /   0.02          0.00 /   0.01          6.76 /   8.00  0
+  06:56:57      7.63   5.01      0.00 /   0.01          0.00 /   0.00          4.89 /   6.91  0
+  06:57:27      7.67   4.66      0.00 /   0.00          0.00 /   0.00          4.77 /   6.10  0
+  06:57:57      7.75   4.42      0.00 /   0.00          0.00 /   0.00          6.29 /   6.15  0
+  06:58:27      8.31   4.45      0.00 /   0.00          0.00 /   0.00         13.81 /   7.87  0
+  06:58:57      8.47   3.74      0.00 /   0.00          0.00 /   0.00          4.34 /   8.21  0
+  06:59:27      9.16   5.83      0.00 /   0.00          0.00 /   0.00          6.21 /   8.41  0
+  06:59:57      9.38   3.79      0.00 /   0.00          0.00 /   0.00          3.99 /   6.44  0
+  07:00:27      9.35   2.98      0.00 /   0.00          0.00 /   0.00         10.78 /   7.00  0
+  07:00:57      9.24   2.06      0.00 /   0.00          0.00 /   0.00          2.41 /   5.31  0
+  07:01:27      8.99   2.32      0.00 /   0.00          0.00 /   0.00          4.02 /   5.20  0
+  07:01:57      8.91   1.48      0.00 /   0.00          0.00 /   0.00          2.06 /   3.87  0
+  07:02:27      8.26   4.50      0.00 /   0.00          0.00 /   0.00         31.21 /  11.70  0
+  07:02:57      8.04   5.12      0.15 /   0.07          0.15 /   0.07         14.34 /  13.30  0
+  07:03:27      7.90   3.57      0.07 /   0.07          0.07 /   0.07          5.23 /  10.24  0
+  07:03:57      7.77   3.54      0.03 /   0.06          0.03 /   0.06          4.27 /   7.80  0
+  07:04:27      7.87   3.30      0.00 /   0.03          0.00 /   0.03          3.86 /   6.29  0
+  07:04:57      7.58   2.45      0.00 /   0.02          0.00 /   0.02          3.98 /   5.33  0
+  07:05:27      7.70   1.70      0.00 /   0.01          0.00 /   0.01          4.09 /   4.86  0
+  07:05:57      7.83   2.19      0.00 /   0.00          0.00 /   0.00          3.58 /   4.33  0
+  07:06:27      7.81   2.00      0.00 /   0.00          0.00 /   0.00          3.61 /   4.07  0
+  07:06:57      7.84   1.42      0.00 /   0.00          0.00 /   0.00          3.45 /   3.78  0
+  07:07:27      7.84   2.36      0.00 /   0.00          0.00 /   0.00          3.88 /   3.77  0
+  07:07:57      7.83   2.05      0.00 /   0.00          0.00 /   0.00          3.72 /   3.67  0
+  07:08:27      7.84   1.72      0.00 /   0.00          0.00 /   0.00          3.73 /   3.74  0
+  07:08:57      7.80   1.59      0.00 /   0.00          0.00 /   0.00          3.81 /   3.72  0
+  07:09:27      7.40   1.35      0.00 /   0.00          0.00 /   0.00          4.98 /   4.14  0
+  07:09:57      7.21   1.32      0.09 /   0.02          0.00 /   0.00          5.83 /   4.53  0
+  07:10:27      7.22   1.25      0.00 /   0.01          0.00 /   0.00          3.74 /   4.25  0
+  07:10:57      7.23   1.32      0.00 /   0.00          0.00 /   0.00          3.61 /   3.95  0
+  07:11:27      7.23   1.51      0.00 /   0.00          0.00 /   0.00          3.58 /   3.79  0
+  07:11:57      7.35   1.21      0.00 /   0.00          0.00 /   0.00          3.30 /   3.56  0
+  07:12:27      7.34   1.36      0.00 /   0.00          0.00 /   0.00          3.59 /   3.56  0
+  07:12:57      7.81   1.74      0.00 /   0.00          0.00 /   0.00          3.63 /   3.53  0
+  07:13:27      8.29   1.56      0.00 /   0.00          0.00 /   0.00          4.95 /   5.24  0
+  07:13:57      9.25   2.23      0.00 /   0.00          0.00 /   0.00          7.65 /   7.21  0
+  07:14:27      9.60   1.72      0.00 /   0.00          0.00 /   0.00          3.88 /   5.77  0
+  07:14:57      9.35   1.37      0.00 /   0.00          0.00 /   0.00          1.67 /   4.13  0
+  07:15:27      9.48   1.21      0.00 /   0.00          0.00 /   0.00          1.40 /   3.09  0
+  07:15:57      9.47   0.94      0.00 /   0.00          0.00 /   0.00          1.42 /   2.45  0
+  07:16:27      9.62   0.68      0.00 /   0.00          0.00 /   0.00          1.37 /   2.03  0
+  07:16:57      9.60   0.41      0.00 /   0.00          0.00 /   0.00          1.38 /   1.76  0
+  07:17:27      9.61   0.50      0.00 /   0.00          0.00 /   0.00          1.38 /   1.64  0
+  07:17:57      9.65   0.48      0.00 /   0.00          0.00 /   0.00          1.36 /   1.54  0
+  07:18:27      9.62   0.71      0.00 /   0.00          0.00 /   0.00          1.36 /   1.48  0
+Terminated
+hold done at 2026-10-03 07:18:31 UTC

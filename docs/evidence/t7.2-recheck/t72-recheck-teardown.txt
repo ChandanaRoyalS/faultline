@@ -1,0 +1,21 @@
+teardown at 2026-10-03 07:18:46 UTC
+1379727 /bin/sh -c kubectl port-forward svc/mcp-server 9954:9954 -n sregym --address 0.0.0.0
+1379728 kubectl port-forward svc/mcp-server 9954:9954 -n sregym --address 0.0.0.0
+t72-bench-pg
+bench database removed
+8000 closed
+9954 closed
+16443 closed
+55432 closed
+55480 closed
+Deleting cluster "kind" ...
+Deleted nodes: ["kind-worker2" "kind-worker3" "kind-control-plane" "kind-worker"]
+kind
+Untagged: sregym-agent-base:latest
+Deleted: sha256:a14ada01420c4795d390fbfbf5df4bf7006c0eeb3dd9887c9ef511d564279b42
+Untagged: ghcr.io/sregym/kind-node@sha256:ccab5d6cdca66e0b83a77c2711b641fa788024fe217526980da028ac07385b93
+Deleted: sha256:ccab5d6cdca66e0b83a77c2711b641fa788024fe217526980da028ac07385b93
+Untagged: mitmproxy/mitmproxy:12.2.3
+Deleted: sha256:00b77b5d8804c8ad18cb6caefbf9d5849e895e8986c5ce011f4ae30f4385962f
+no sregym or proxy image left
+running: 35
