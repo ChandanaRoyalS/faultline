@@ -217,3 +217,50 @@ runs, which is part B.
 
 **Noticed, not changed**: `install` printed `uv 0.12.10`. A `uv` already in `~/.local/bin` sits
 ahead of the one installed into `uvbin` on `renv`'s PATH. Both read the same frozen lock.
+
+## Addendum 2 - the dev read done; the gate's profile patch; span metrics decided per service
+
+**Written 2026-10-03, after part A's three reads and before part A's teardown or anything of part
+B.** Outputs: `t72-pilot-podstate-shop.txt`, `t72-pilot-devread-hotel.txt` and
+`t72-pilot-devread-social.txt`.
+
+**The reads against the predictions:**
+
+| item | predicted | read |
+|---|---|---|
+| the shop's `product-catalog` loop | startup or standing, to be read | **startup**: 3 restarts, the last at 00:45:34, a minute after its deploy, then running. The shop's catalog stumbles on startup as shipped. In a scored attempt its crash-loop alarm can be a seed that is not the fault. Recorded, not changed |
+| workloads named differently | `nginx-thrift` only | **held**: Hotel Reservation's 19 and Social Network's 27 Deployments carry their span names, but `nginx-thrift` |
+| owner and cAdvisor series | present for all three | **held**: Hotel Reservation 20, 27 and 16; Social Network 28, 27 and 28 |
+| time zone | UTC | **held** |
+| Hotel Reservation's alarms | yes | **held**: `KubePodCrashLooping` on five MongoDB pods, and `KubeDeploymentReplicasMismatch` on six MongoDB Deployments and `reservation` |
+| Social Network's alarms | none | **held**: none. The fallback to `nginx-web-server` applies |
+| DeathStarBench span metrics | none, so `span_metrics = None` | **wrong for Hotel Reservation**: v2's span-metric series for `reservation`, the one service that restarted after SREGym repointed its exporter, and for no other. Social Network has none, as shipped |
+
+**The finding behind the last row.** SREGym's collector does turn DeathStarBench traces into
+span metrics under v2's names. It has none only for services that send no trace, which as shipped
+is nearly all of them (Q127).
+
+- With `span_metrics = None`, `reservation`'s real series would read as unavailable.
+- With v2's spelling and nothing else, an untraced service's templates would read as **empty**,
+  which a responder takes for *no traffic*.
+
+**The owner's decision, 2026-10-03: check each service.**
+
+- All three profiles carry v2's spelling.
+- `McpToolSet.has_span_series` asks once per service, per tool set, whether the service has any
+  span-metric series in the last hour.
+  - **If not**, its span templates are an error that says *unavailable, not zero*.
+  - **If the check cannot be answered**, the template is read as asked: unknown is not absent.
+- Faultline's three rules now apply to all three applications. On the DeathStarBench
+  applications they can fire only for traced services.
+
+**The gate's patch**, in this commit:
+
+- `profiles.py`: v2 for all three, and `PROFILE_READ = True`, recording that Loki is read in
+  part B;
+- `toolset.py`: the per-service check;
+- tests: the untraced service is unavailable, the traced one is read, an unanswered check does not
+  block, the dev read is recorded.
+
+**Both stamps are unchanged.** Part B starts from the commit that merges this. Its bundle and seed
+bundle are built from that commit.

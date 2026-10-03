@@ -25,6 +25,7 @@ from faultline.tools.interface import ToolSet
 from faultline.tools.metrics import MetricTemplate
 from faultline.tools.results import Trust
 from faultline.tools.settings import ToolSettings
+from faultline.tools.spanmetrics import V2
 from faultline.tools.tools import Tools
 
 T0 = datetime(2026, 10, 3, 12, 0, tzinfo=UTC)
@@ -201,7 +202,8 @@ def test_metric_baseline_is_tools_own_body(monkeypatch: pytest.MonkeyPatch) -> N
     """The copied body cannot drift: the same points give the same result as `Tools`."""
     points = [(float(i * 15), 0.01 if i < 30 else 0.4) for i in range(40)]
     monkeypatch.setattr(Tools, "_points", lambda self, *a: list(points))
-    ours = tools(FakeClient({}), SHOP)
+    traced = _vector({"service_name": "checkout"})
+    ours = tools(FakeClient({("prometheus", "get_metrics"): traced}), SHOP)
     monkeypatch.setattr(toolset.McpToolSet, "_points", lambda self, *a: list(points))
     start, end = T0, T0 + timedelta(minutes=10)
     for template in (MetricTemplate.ERROR_RATIO, MetricTemplate.LATENCY_P95):
@@ -210,11 +212,41 @@ def test_metric_baseline_is_tools_own_body(monkeypatch: pytest.MonkeyPatch) -> N
         assert mine.model_dump(exclude={"id"}) == theirs.model_dump(exclude={"id"})
 
 
-def test_span_templates_are_unavailable_without_span_metrics() -> None:
-    result = tools(FakeClient({})).metric_baseline(
+def test_an_untraced_service_is_unavailable_not_empty() -> None:
+    """The owner's decision after the dev read: on Hotel Reservation most services send no
+    traces as shipped, and their span templates must not read as *no traffic*."""
+    client = FakeClient({("prometheus", "get_metrics"): _vector()})
+    result = tools(client).metric_baseline(
         "geo", MetricTemplate.ERROR_RATIO, T0, T0 + timedelta(minutes=5)
     )
-    assert result.empty and result.error is not None and "unavailable, not zero" in result.error
+    assert result.empty and result.error is not None
+    assert "unavailable, not zero" in result.error and "for geo" in result.error
+    ((_, _, args),) = client.calls
+    assert args["query"] == (
+        'count(last_over_time(traces_span_metrics_calls_total{service_name="geo"}[1h]))'
+    )
+
+
+def test_a_traced_service_on_the_same_application_is_read(monkeypatch: pytest.MonkeyPatch) -> None:
+    """`reservation` restarted after SREGym repointed its exporter, so it has series (dev read)."""
+    monkeypatch.setattr(toolset.McpToolSet, "_points", lambda self, *a: [(0.0, 0.01), (15.0, 0.02)])
+    client = FakeClient({("prometheus", "get_metrics"): _vector({"service_name": "reservation"})})
+    ours = tools(client)
+    result = ours.metric_baseline(
+        "reservation", MetricTemplate.ERROR_RATIO, T0, T0 + timedelta(minutes=5)
+    )
+    assert result.error is None and "traces_span_metrics_calls_total" in result.query
+    ours.metric_baseline("reservation", MetricTemplate.CALL_RATE, T0, T0 + timedelta(minutes=5))
+    assert len(client.calls) == 1, "the check is asked once per service"
+
+
+def test_an_unanswered_check_does_not_block_the_read(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(toolset.McpToolSet, "_points", lambda self, *a: [(0.0, 0.01)])
+    client = FakeClient({("prometheus", "get_metrics"): "[prom_mcp] Error querying get_metrics: x"})
+    result = tools(client).metric_baseline(
+        "geo", MetricTemplate.ERROR_RATIO, T0, T0 + timedelta(minutes=5)
+    )
+    assert result.error is None, "unknown is not absent: the template is read as asked"
 
 
 def test_runtime_memory_reads_cadvisor_for_the_workload() -> None:
@@ -550,7 +582,10 @@ def test_no_alarm_in_five_minutes_falls_back_to_the_front_door() -> None:
 
 
 def test_faultlines_own_rules_only_where_span_metrics_exist() -> None:
-    assert opening.faultline_alarms(HOTEL) == []
+    import dataclasses
+
+    assert opening.faultline_alarms(dataclasses.replace(HOTEL, span_metrics=None)) == []
+    assert len(opening.faultline_alarms(HOTEL)) == 3, "the dev read: v2's spelling for all three"
     names = [a.name for a in opening.faultline_alarms(SHOP)]
     assert names == ["ServiceHighErrorRate", "ServiceHighLatency", "ServiceNoTraffic"]
     assert all("traces_span_metrics_" in a.expression for a in opening.faultline_alarms(SHOP))
@@ -704,6 +739,14 @@ def test_the_cli_builds_the_sregym_tool_set_only_when_told(monkeypatch: pytest.M
     monkeypatch.setattr(psycopg, "connect", lambda dsn: object())
     plain = cli._tool_set("dsn")
     assert type(plain) is Tools
+
+
+def test_the_dev_read_is_recorded() -> None:
+    assert profiles.PROFILE_READ
+    assert {p.span_metrics for p in profiles.PROFILES.values()} == {V2}
+    assert {s: p.deployments for s, p in profiles.PROFILES.items() if p.deployments} == {
+        "Social Network": {"nginx-web-server": "nginx-thrift"}
+    }
 
 
 def test_every_profile_names_an_application_with_a_snapshot() -> None:

@@ -4617,6 +4617,20 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-10-03: T7.2 dev read done, Addendum 2 - the gate's profile patch; span metrics decided per
+service.***
+
+- **Names**: every workload is named as its span service but `nginx-thrift`. The server is in
+  UTC.
+- **Alarms**: they fire on Hotel Reservation (MongoDB crash loops) and not on Social Network,
+  both as predicted.
+- **The shop's catalog loop** was startup only.
+- **Wrong prediction**: Hotel Reservation has span metrics, for `reservation` alone, the one
+  service that restarted after SREGym repointed tracing.
+- **By the owner's decision** all three use v2's spelling, and each service is checked. An
+  untraced service's speed and error templates read *unavailable, not zero*, never as no traffic.
+- `PROFILE_READ = True`. Both stamps unchanged. **Next**: part A's teardown, then part B.
+
 ***2026-10-03: T7.2 dev read, Addendum 1 - the shop's names confirmed; Loki is not installed under
 the external harness, so its check moves to the pilot.***
 
