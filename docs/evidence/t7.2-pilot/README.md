@@ -29,3 +29,5 @@ archive for it.
 | `t72-pilot-b-preread.txt` to `t72-pilot-b-serve-on.txt` | the clean setup: SREGym pinned, `claudecode` 2.1.288, four nodes, the bundle served; the seed refused for want of the committed acceptances (Addendum 4) |
 | `t72-pilot-b-bench-reset.txt`, `t72-pilot-b-bench-db-2.txt` | Addendum 4's recovery: the partial database removed, then the template seeded in full, 334 chunks over 65 documents, body digest `a6de378e3b55`, equal to the working tree's (Addendum 5) |
 | `t72-pilot-b-key-judge.txt` | the key on the VM (mode 600, 106 bytes, never printed); the README's dated judge string refused, the alias `anthropic/claude-sonnet-4-6` answered (Addendum 5) |
+| `t72-pilot-b-a1-record/` | attempt 1, Faultline on the shop: SREGym's log, Faultline's logs (`attempt.json`, `investigate.log`, the verdict and narrative), and the trajectory, incident and tool calls from the bench database, as JSON lines; the key checked absent (Addendum 6) |
+| `t72-pilot-b-a1-hang.txt` | the read after the wait that never returned: SREGym gone, its port-forward left, the shop's and Loki's namespaces deleted, and the results CSV (Addendum 6) |

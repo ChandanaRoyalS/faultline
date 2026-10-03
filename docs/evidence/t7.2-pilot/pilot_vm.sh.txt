@@ -19,8 +19,9 @@
 #   preread, killswitch-on, host-on, install, cluster, bench-db (bench-reset to redo it,
 #   Addendum 4), serve-on, key-check,
 #   judge-check, hold (nohup, the sampler), attempt shop faultline (nohup) with loki-watch shop
-#   beside it (nohup, Addendum 5: loki-read while Loki exists), the other five attempts, collect,
-#   teardown, host-off, cleanup, killswitch-off, incidents
+#   beside it (nohup, Addendum 5: loki-read while Loki exists), attempt shop claudecode (nohup)
+#   with probe shop beside it (nohup, Addendum 6), the other four attempts, collect, teardown,
+#   host-off, cleanup, killswitch-off, incidents
 #
 # The directory is 1c's (~/t7.2-1c, its kubeconfig at ~/t7.2-1c/kubeconfig and copied to
 # ~/.kube/config), so 1c's sampler runs unchanged, as in the topology runs.
@@ -293,6 +294,122 @@ loki-watch)
         sleep 30
     done
     echo "no reading in 80 minutes"; exit 1
+    ;;
+
+probe)
+    # Addendum 6. Part B, read-only, beside attempt 2 (Claude Code on the shop): the facts the
+    # adapter's fixes need, measured on the live application while the fault is in. Waits until
+    # Loki has the namespace's pods, then 300 s for the fault, then reads once. It prints
+    # statuses, counts and sizes only: no log line, no object body, no value from a Secret.
+    app_vars "${2:?app}"
+    f="${3:?the output file of the attempt}"
+    kenv
+    echo "probe from $(ts), for $NS"
+    q=$(python3 -c 'import sys, urllib.parse; print(urllib.parse.quote(sys.argv[1]))' "{namespace=\"$NS\"}")
+    ready=0
+    for i in $(seq 1 120); do
+        if grep -q '^exit ' "$f" 2>/dev/null; then echo "the attempt ended before the probe, at poll $i"; exit 1; fi
+        n=$(kubectl get --raw "/api/v1/namespaces/observe/services/loki:3100/proxy/loki/api/v1/label/pod/values?query=$q" 2>/dev/null | python3 -c 'import json,sys; print(len(json.load(sys.stdin).get("data") or []))' 2>/dev/null)
+        if [ "${n:-0}" -gt 0 ]; then ready=$i; break; fi
+        sleep 30
+    done
+    [ "$ready" -gt 0 ] || { echo "Loki never answered for $NS"; exit 1; }
+    echo "Loki answered for $NS at poll $ready, $(ts); waiting 300 s for the fault"
+    sleep 300
+    grep -q '^exit ' "$f" 2>/dev/null && echo "(the attempt had ended by the time of the reading)"
+    echo "reading at $(ts)"
+    python3 - "$NS" <<'PY'
+import json, subprocess, sys, time, urllib.parse
+
+NS = sys.argv[1]
+LOKI = "/api/v1/namespaces/observe/services/loki:3100/proxy/loki/api/v1/query_range"
+PROM = "/api/v1/namespaces/observe/services/prometheus-server:80/proxy/api/v1/query"
+CAP = 10000  # SREGym's kubectl server cuts every answer here (mcp_server/kubectl_server_helper/utils.py)
+NOW = time.time()
+
+
+def run(args):
+    p = subprocess.run(args, capture_output=True, text=True, timeout=120)
+    return p.returncode, p.stdout, " ".join(p.stderr.split())[:300]
+
+
+def pods(name, shipped):
+    # shipped: re.escape's spelling, as the adapter sends it today; corrected: the name as written.
+    return (name.replace("-", "\\-") if shipped else name) + "-([a-z0-9]+-[a-z0-9]+|[0-9]+)"
+
+
+print("== 1. Loki: the shipped selector and the corrected one, the last 30 min, limit 100")
+for svc in ("product-catalog", "frontend-proxy"):
+    for shipped in (True, False):
+        sel = '{namespace="%s",pod=~"%s"}' % (NS, pods(svc, shipped))
+        qs = urllib.parse.urlencode({"query": sel, "start": int((NOW - 1800) * 1e9), "end": int(NOW * 1e9), "limit": 100})
+        rc, out, err = run(["kubectl", "get", "--raw", LOKI + "?" + qs])
+        label = "shipped  " if shipped else "corrected"
+        if rc:
+            print(f"  {label} {sel}\n      REJECTED: {err}")
+        else:
+            res = json.loads(out)["data"]["result"]
+            print(f"  {label} {sel}\n      accepted: {len(res)} streams, {sum(len(s['values']) for s in res)} lines")
+
+print("\n== 2. Prometheus: span-call series by service and status, now")
+rc, out, err = run(["kubectl", "get", "--raw", PROM + "?" + urllib.parse.urlencode(
+    {"query": "count by (service_name, status_code) (traces_span_metrics_calls_total)"})])
+if rc:
+    print("  REJECTED:", err)
+else:
+    rows = sorted((r["metric"].get("service_name", "?"), r["metric"].get("status_code", "?"), r["value"][1])
+                  for r in json.loads(out)["data"]["result"])
+    for s, c, n in rows:
+        print(f"  {s:20} {c:22} {n}")
+    print("  services with an error-status series:", sorted({s for s, c, _ in rows if c == "STATUS_CODE_ERROR"}) or "none")
+
+print("\n== 3. the adapter's range reads, as it sends them: (q)[1800s:15s] @ now")
+ER = ('sum by(service_name) (rate(traces_span_metrics_calls_total{service_name="%s",status_code="STATUS_CODE_ERROR"}[5m])) '
+      '/ sum by(service_name) (rate(traces_span_metrics_calls_total{service_name="%s"}[5m]))')
+CR = 'sum by(service_name) (rate(traces_span_metrics_calls_total{service_name="%s"}[5m]))'
+LP = ('histogram_quantile(0.95, sum by(service_name, le) (rate(traces_span_metrics_duration_milliseconds_bucket'
+      '{service_name="%s",span_kind!="SPAN_KIND_INTERNAL"}[5m])))')
+MEM = 'sum(container_memory_working_set_bytes{namespace="%s",pod=~"%s",container!="",container!="POD"})'
+reads = []
+for svc in ("frontend-proxy", "frontend", "product-catalog"):
+    reads += [(f"error-ratio {svc}", ER % (svc, svc)), (f"call-rate {svc}", CR % svc), (f"latency-p95 {svc}", LP % svc)]
+reads += [("memory frontend-proxy, shipped", MEM % (NS, pods("frontend-proxy", True))),
+          ("memory frontend-proxy, corrected", MEM % (NS, pods("frontend-proxy", False)))]
+for label, query in reads:
+    sub = f"({query})[1800s:15s] @ {NOW:.3f}"
+    rc, out, err = run(["kubectl", "get", "--raw", PROM + "?" + urllib.parse.urlencode({"query": sub})])
+    if rc:
+        print(f"  {label:34} REJECTED: {err}")
+        continue
+    res = json.loads(out)["data"]["result"]
+    values = [float(v) for s in res for _, v in s.get("values", [])]
+    finite = [v for v in values if v == v]
+    span = f", min {min(finite):.4g} max {max(finite):.4g}" if finite else ""
+    print(f"  {label:34} {len(res)} series, {len(values)} points, {len(values) - len(finite)} NaN{span}")
+
+print(f"\n== 4. the change commands' answers, against SREGym's {CAP}-character cut")
+for cmd in (f"kubectl get replicasets -n {NS} -o json",
+            f"kubectl get statefulsets,controllerrevisions -n {NS} -o json",
+            f"kubectl get events -n {NS} -o json"):
+    rc, out, err = run(cmd.split())
+    if rc:
+        print(f"  {cmd}\n      FAILED: {err}")
+        continue
+    items = json.loads(out).get("items", [])
+    whole = [len(json.dumps(i, indent=4)) for i in items]
+    spec = [len(json.dumps(((i.get("spec") or {}).get("template") or {}).get("spec") or {}, indent=4)) for i in items]
+    print(f"  {cmd}\n      {len(out)} characters, {'OVER' if len(out) > CAP else 'under'} the cut; {len(items)} items")
+    if items:
+        print(f"      one item: largest {max(whole)}, median {sorted(whole)[len(whole) // 2]}, over the cut {sum(w > CAP for w in whole)}")
+        if max(spec) > 2:
+            print(f"      one item's pod template spec: largest {max(spec)}, median {sorted(spec)[len(spec) // 2]}")
+cols = ("KIND:.kind,NAME:.metadata.name,CREATED:.metadata.creationTimestamp,"
+        "CHANGED:.metadata.managedFields[*].time")  # kube.SECRET_COLUMNS, names and times only
+rc, out, err = run(["kubectl", "get", "configmaps,secrets", "-n", NS, "-o", f"custom-columns={cols}"])
+print(f"  kubectl get configmaps,secrets -n {NS} -o custom-columns=<kube.SECRET_COLUMNS>\n      "
+      + (f"FAILED: {err}" if rc else f"{len(out)} characters, {'OVER' if len(out) > CAP else 'under'} the cut"))
+PY
+    echo "probe done at $(ts)"
     ;;
 
 bench-db)

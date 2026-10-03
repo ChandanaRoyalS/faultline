@@ -1,0 +1,163 @@
+{
+  "incident_id": "2b220596-ff7c-49e8-a18f-e5a322638e85",
+  "trajectory_id": "c9bd1fb2-1fda-4030-a5fb-33c4fdfada8b",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "checkout",
+    "frontend",
+    "frontend-proxy",
+    "load-generator",
+    "product-catalog",
+    "recommendation"
+  ],
+  "unmeasured_edges": 6,
+  "exclude_origins": [],
+  "verdict": {
+    "root_cause": "No root cause was established. Six of seven dispatches returned tool failures or non-existent series rather than observations: both change-history queries died on a payload parse error at the 10,000-character boundary [tr_99e786adb0bd, tr_743335484daa], both log queries were rejected by Loki with HTTP 400 due to an invalid escaped-hyphen pod regex that was never corrected [tr_3644135888c3, tr_4f0bef88fe0e], and the span-metric error ratios for product-catalog and frontend were empty in incident and baseline windows alike, meaning the series does not exist rather than having dropped at onset [tr_bad85b91580f, tr_e35679d06e1f]. The only substantive signal is the trace sample [tr_d40c56f3c0c4], and it points away from product-catalog: its server spans finish in 0.8-9.3ms with sub-2ms postgresql children and no error status, and the frontend->product-catalog hop is clean on both sides. The 0.8-2.2s user-facing latency sits almost entirely in load-generator client GET self time, with the whole frontend+product-catalog subtree occupying ~3-21ms at the tail of each trace - an un-instrumented wait on the load-generator->frontend edge. On this evidence the failing mechanism cannot be named.",
+    "service": "frontend",
+    "fault_class": "unknown",
+    "remediation_class": "none",
+    "confidence": "low",
+    "evidence": [
+      "tr_d40c56f3c0c4",
+      "tr_bad85b91580f",
+      "tr_3644135888c3"
+    ],
+    "reasoning": "The trace sample actively excludes the obvious candidates: no callee-propagated database failure (postgresql children all under 2ms, unmarked), no failing frontend->product-catalog hop (every client span has a matching completed server child), and product-catalog's subtree is milliseconds at the end of multi-second traces [tr_d40c56f3c0c4]. What remains is a seconds-long wait accruing in the caller before the frontend server span starts, so the frontend is the service named - but whether it is slow to accept connections, briefly unreachable, or whether the load generator itself is the stall cannot be separated. The channels that would separate them all failed: product-catalog logs were never read [tr_3644135888c3, tr_4f0bef88fe0e], change history was never read and the second query's window started at onset and ran forward [tr_743335484daa], and the metric channel can support neither a spike nor health [tr_bad85b91580f, tr_e35679d06e1f]. Naming bad_config, bad_deploy or feature_flag would mean inventing a mechanism from a change log nobody successfully read.",
+    "open_questions": [
+      "What product-catalog and frontend logged at onset - the Loki query must be reissued with a valid matcher (pod=~\"product-catalog-.*\") before silence, exceptions, or flag text can be claimed.",
+      "What changed before 02:26:33 - both change queries failed, and one used a window starting at onset running forward, so it could not have answered even on success; re-run backward with pagination.",
+      "Where the load-generator client GET self time is actually spent: connection setup, frontend accept backlog, or load-generator-side scheduling - no frontend-side logs, resource metrics, or ingress data were gathered."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "frontend is saturated (threads, connections, or CPU) and callers queue before their requests are accepted, producing caller-side self time with fast downstream spans.",
+        "service": "frontend",
+        "fault_class": "resource_exhaustion",
+        "remediation_class": "scale",
+        "why_not": "Fits the trace shape, but no frontend resource metric, log line, or pod state was ever collected; the only frontend dispatch returned a non-existent metric series [tr_e35679d06e1f]."
+      },
+      {
+        "root_cause": "The load generator itself is the bottleneck (client-side contention or deliberate pacing), and no production service is faulty.",
+        "service": "load-generator",
+        "fault_class": "resource_exhaustion",
+        "remediation_class": "none",
+        "why_not": "Would explain 100%-self-time client spans and the lone orphan ERROR POST span, but load-generator was never dispatched against, and a critical multi-service alert is unlikely to be purely synthetic."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "product-catalog-flag-failure / What ruled the alternatives out: Three discriminators did the work. (1) Frontend errors were raised on the grpc-js status-receive path, meaning frontend transcribed a peer-supplied status rather than manufacturing one; frontend also had no recorded change of any kind across the 24h spanning onset. That eliminate",
+    "cart-bad-image-tag / What was checked: **Error rate by service.** frontend, loadgenerator and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero. Read, wrongly, as evidence cart was\nhealthy.\n\n**loadgenerator.** Set aside. It is the synthetic client; its error rate restates what\nthe storefron",
+    "product-catalog-flag-failure / What the investigation concluded: productcatalogservice was itself marking a fraction of GetProduct calls as failed because a failure-behavior feature flag was in its enabled state. The status the frontend saw was authored by the catalog service: gRPC status 13 with a details string that names the enabled flag. T"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 29191,
+    "pulled_tokens": 3410,
+    "pull_rate": 0.1046,
+    "dropped_sections": 1,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 414,
+        "content_tokens": 416,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1581,
+        "content_tokens": 1584,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 8978,
+        "content_tokens": 8953,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 8422,
+        "content_tokens": 8424,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 9796,
+        "content_tokens": 9799,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_99e786adb0bd",
+      "tr_743335484daa",
+      "tr_3644135888c3",
+      "tr_4f0bef88fe0e",
+      "tr_bad85b91580f",
+      "tr_e35679d06e1f",
+      "tr_d40c56f3c0c4"
+    ],
+    "expected_effect": "No action is proposed, so no effect is predicted. The correct next step is investigative, not remedial: reissue the Loki query with a valid matcher (pod=~\"product-catalog-.*\") and re-run change_history backward from 02:26:33 with pagination or a shorter window, then gather frontend-side resource/ingress data to locate the 0.8-2.2s load-generator client GET self time. None of those are actions this system may take.",
+    "confirm_within_seconds": 0,
+    "if_wrong": "This abstention would be shown wrong if the reissued change-history query returns a deploy, image, or flag change on product-catalog or frontend inside the incident window - that would meet rollback_image or revert_config preconditions and make a targeted proposal defensible. It would also be shown wrong if corrected logs reveal a crash-loop or wedged-process signature on frontend, which would meet restart_service's precondition. Until one of those lands, any action here is a guess.",
+    "risk": "Acting now is the risk being avoided. The only substantive evidence [tr_d40c56f3c0c4] points away from product-catalog: its server spans complete in 0.8-9.3ms with sub-2ms postgresql children and no error status, and the frontend->product-catalog hop is clean on both sides. Rolling back or restarting product-catalog or frontend on this basis would destroy in-process cache, reset live connections, and likely leave the 0.8-2.2s latency untouched while consuming the incident window and corrupting the evidence trail - and a rollback has no recorded prior image tag to return to, since both change queries failed.",
+    "blast_radius": "None from this proposal, as nothing is changed. For context on what was declined: a product-catalog action would be seen by frontend, checkout and recommendation as inbound callers; a frontend action would be seen by frontend-proxy and load-generator. Those callers remain untouched."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Critical severity with product-catalog alerting alongside the load generator and a multi-hop blast radius touching checkout and frontend \u2014 not dismissible as a single warning-latency case. No open incidents to attribute it to, and nothing in the signal yet favors a specific fault class."
+  }
+}

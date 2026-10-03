@@ -1,0 +1,13 @@
+loki-watch from 2026-10-03 02:16:10 UTC, for astronomy-shop, until /home/deploy/t7.2-1c/out/a1-shop-faultline.txt says exit
+reading at poll 16, 2026-10-03 02:23:43 UTC: 11 labels, 9 pod values for astronomy-shop
+loki-read at 2026-10-03 02:23:43 UTC
+  observe          loki                                      ClusterIP   10.96.137.138   <none>   3100/TCP,9095/TCP                                                                                                  2m38s
+  observe          loki-chunks-cache                         ClusterIP   None            <none>   11211/TCP,9150/TCP                                                                                                 2m38s
+  observe          loki-gateway                              ClusterIP   10.96.219.110   <none>   80/TCP                                                                                                             2m38s
+  observe          loki-headless                             ClusterIP   None            <none>   3100/TCP                                                                                                           2m38s
+  observe          loki-memberlist                           ClusterIP   None            <none>   7946/TCP                                                                                                           2m38s
+  observe          loki-results-cache                        ClusterIP   None            <none>   11211/TCP,9150/TCP                                                                                                 2m38s
+loki service namespace: observe
+  {"status":"success","data":["app","component","container","filename","instance","job","namespace","node_name","pod","service_name","stream"]}
+
+  pod values for the namespace: 9, e.g. ['accounting-5897477844-f962m', 'cart-74587775fc-t67jw', 'currency-7b6cd9c94c-x67tz', 'image-provider-86b767dd45-bx7qt', 'otel-collector-agent-4nk4w', 'otel-collector-agent-8krl2']
