@@ -1,0 +1,822 @@
+[10/03/26 04:33:25] INFO     all.sregym.profile - Deployment profile: full      
+[10/03/26 04:33:25] INFO     __main__ - 🔧 Config — agent: faultline,           
+                             agent_model: anthropic/claude-opus-5,              
+                             judge_backend: api, judge_model:                   
+                             anthropic/claude-sonnet-4-6, reasoning_effort:     
+                             agent default, jev_model: disabled,                
+                             deployment_profile: full, internet_access:         
+                             filtered, container_hardening: on, agent_api_base: 
+                             unset, judge_api_base: unset                       
+                    INFO     __main__ - 🔍 Running pre-flight check for judge   
+                             model...                                           
+🔧 Initializing LLM backend — model: anthropic/claude-sonnet-4-6, api_base: unset
+[10/03/26 04:33:26] INFO     __main__ - ✅ Judge pre-flight check passed        
+[10/03/26 04:33:26] INFO     all.sregym.container_runner - 🐳 Building container
+                             image 'sregym-agent-base:latest'...                
+==> Building sregym-agent-base:latest with kubectl v1.32.1
+#0 building with "default" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile
+#1 transferring dockerfile: 4.62kB done
+#1 DONE 0.0s
+
+#2 [internal] load metadata for docker.io/library/ubuntu:22.04
+#2 DONE 0.3s
+
+#3 [ 1/18] FROM docker.io/library/ubuntu:22.04@sha256:b1066385161d28ddf6bc7e7b28a9170eec11484c821d1a5150d176cbde41d7f7
+#3 resolve docker.io/library/ubuntu:22.04@sha256:b1066385161d28ddf6bc7e7b28a9170eec11484c821d1a5150d176cbde41d7f7 0.0s done
+#3 DONE 0.0s
+
+#4 [internal] load build context
+#4 transferring context: 7.17kB 0.0s done
+#4 DONE 0.0s
+
+#5 [14/18] COPY sregym/service/apps/base.py sregym/service/apps/helpers.py /opt/sregym/sregym/service/apps/
+#5 CACHED
+
+#6 [ 8/18] RUN python3 -m pip install --break-system-packages -r /tmp/requirements-container.txt
+#6 CACHED
+
+#7 [11/18] COPY llm_backend/    /opt/sregym/llm_backend/
+#7 CACHED
+
+#8 [ 6/18] RUN KUBECTL_ARCH="amd64"     && case "${KUBECTL_ARCH}" in amd64|arm64) ;; *) echo "Unsupported kubectl architecture: ${KUBECTL_ARCH}" >&2; exit 1 ;; esac     && if [ "v1.32.1" = stable ]; then KUBECTL_VERSION="$(curl -fsSL https://dl.k8s.io/release/stable.txt)"; fi     && curl -fsSLo kubectl "https://dl.k8s.io/release/v1.32.1/bin/linux/${KUBECTL_ARCH}/kubectl"     && chmod +x kubectl && mv kubectl /usr/local/bin/
+#8 CACHED
+
+#9 [12/18] COPY sregym/__init__.py sregym/paths.py /opt/sregym/sregym/
+#9 CACHED
+
+#10 [17/18] RUN mkdir -p /logs
+#10 CACHED
+
+#11 [ 2/18] RUN apt-get update     && apt-get install -y --no-install-recommends         ca-certificates curl gnupg software-properties-common     && rm -rf /var/lib/apt/lists/*
+#11 CACHED
+
+#12 [ 3/18] RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash -     && add-apt-repository ppa:deadsnakes/ppa
+#12 CACHED
+
+#13 [ 4/18] RUN apt-get update     && apt-get install -y --no-install-recommends         git wget jq         nodejs         python3.12 python3.12-venv python3.12-dev     && update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.12 1     && rm -rf /var/lib/apt/lists/*
+#13 CACHED
+
+#14 [ 9/18] COPY clients/        /opt/sregym/clients/
+#14 CACHED
+
+#15 [15/18] COPY docker/agents/install-scripts/ /opt/sregym/install-scripts/
+#15 CACHED
+
+#16 [ 7/18] COPY docker/agents/requirements-container.txt /tmp/requirements-container.txt
+#16 CACHED
+
+#17 [10/18] COPY logger/         /opt/sregym/logger/
+#17 CACHED
+
+#18 [16/18] RUN chmod +x /opt/sregym/install-scripts/*.sh
+#18 CACHED
+
+#19 [ 5/18] RUN python3 -m ensurepip --upgrade     && python3 -m pip install --upgrade pip     && ln -sf /usr/bin/python3 /usr/bin/python
+#19 CACHED
+
+#20 [13/18] COPY sregym/service/__init__.py sregym/service/kubectl.py sregym/service/helm.py /opt/sregym/sregym/service/
+#20 CACHED
+
+#21 [18/18] WORKDIR /logs
+#21 CACHED
+
+#22 exporting to image
+#22 exporting layers done
+#22 exporting manifest sha256:1b74a7bb405d43412a3e637b37638417323d4f1fc4a6a2d6aa94b992abf54a9c done
+#22 exporting config sha256:5d9ad739d727a05d459f4a31004b6c88d90d21f830069c2e903de96901537afc done
+#22 exporting attestation manifest sha256:1df7fba4762941339eada068263ae5229ee844971c8dec6fb5d5010675b4e385 done
+#22 exporting manifest list sha256:c646dbff6311455ae3200420c5b7b3f94de93ba6a4e1616eb5286e92e8d8ad1a done
+#22 naming to docker.io/library/sregym-agent-base:latest done
+#22 unpacking to docker.io/library/sregym-agent-base:latest done
+#22 DONE 0.1s
+[10/03/26 04:33:27] INFO     all.sregym.container_runner - ✅ Container image   
+                             'sregym-agent-base:latest' built successfully.     
+╭───────────────────────────── SREGym API Server ──────────────────────────────╮
+│  ____  ____  _____ ____                                                      │
+│ / ___||  _ \| ____/ ___|_   _ _ __ ___                                       │
+│ \___ \| |_) |  _|| |  _| | | | '_ ` _ \                                      │
+│  ___) |  _ <| |__| |_| | |_| | | | | | |                                     │
+│ |____/|_| \_\_____\____|\__, |_| |_| |_|                                     │
+│                         |___/                                                │
+│                                                                              │
+╰──────────────────────────── http://0.0.0.0:8000 ─────────────────────────────╯
+Available Endpoints                                                             
+
+ • POST /submit: { "stage": "diagnosis", "solution": "<your-solution>" } →      
+   grades the named stage                                                       
+ • GET /status: returns { "stage": "setup" | "diagnosis" | "mitigation" |       
+   "tearing_down" | "done" }                                                    
+/home/deploy/t7.2-1c/SREGym/.venv/lib/python3.12/site-packages/websockets/legacy/__init__.py:6: DeprecationWarning: websockets.legacy is deprecated; see https://websockets.readthedocs.io/en/stable/howto/upgrade.html for upgrade instructions
+  warnings.warn(  # deprecated in 14.0 - 2024-11-09
+/home/deploy/t7.2-1c/SREGym/.venv/lib/python3.12/site-packages/uvicorn/protocols/websockets/websockets_impl.py:17: DeprecationWarning: websockets.server.WebSocketServerProtocol is deprecated
+  from websockets.server import WebSocketServerProtocol
+[10/03/26 04:33:27] INFO     uvicorn.error - Started server process [777920]    
+                    INFO     uvicorn.error - Waiting for application startup.   
+                    INFO     uvicorn.error - Application startup complete.      
+                    INFO     uvicorn.error - Uvicorn running on                 
+                             http://0.0.0.0:8000 (Press CTRL+C to quit)         
+[04:33:28] Starting agent now: faultline                             main.py:255
+           🔒 Starting Kubernetes API proxy to hide chaos            main.py:259
+           namespaces...                                                        
+[10/03/26 04:33:28] INFO     all.sregym.conductor - Starting Kubernetes API     
+                             filtering proxy...                                 
+                    INFO     all.infra.k8s_proxy - Kubernetes API filtering     
+                             proxy started on 172.17.0.1:16443                  
+                    INFO     all.infra.k8s_proxy - Hidden namespaces:           
+                             {'chaos-mesh', 'khaos'}                            
+                    INFO     all.infra.k8s_proxy - Hidden labels: {'app':       
+                             {'locust-fetcher', 'load-generator'}, 'job':       
+                             {'workload'}, 'opentelemetry.io/name':             
+                             {'load-generator'}}                                
+                    INFO     all.infra.k8s_proxy - Generated agent kubeconfig at
+                             /tmp/sregym-agent-kubeconfig-slfqsxnv.yaml         
+                    INFO     all.sregym.conductor - Agent kubeconfig generated  
+                             at: /tmp/sregym-agent-kubeconfig-slfqsxnv.yaml     
+           🎯 Running single problem: update_incompatible_correlated main.py:300
+                                                                     main.py:378
+           🔍 Starting problem: update_incompatible_correlated                  
+           (Attempt 1 of 1)                                                     
+                    INFO     all.sregym.conductor - [Session Start] Problem ID: 
+                             update_incompatible_correlated                     
+                    INFO     all.sregym.conductor - [STAGE] Start testing on    
+                             problem: update_incompatible_correlated            
+                    INFO     all.sregym.conductor - Fixing Kubernetes... to     
+                             normal state.                                      
+                    INFO     all.sregym.conductor - [FIX] Imbalance leftover if 
+                             any                                                
+                    INFO     all.sregym.conductor - [FIX] KubeletCrash leftover 
+                             if any                                             
+Starting kubelet in kind-worker...
+Kubelet started in kind-worker
+Starting kubelet in kind-worker2...
+Kubelet started in kind-worker2
+Starting kubelet in kind-worker3...
+Kubelet started in kind-worker3
+Waiting for worker nodes {'kind-worker3', 'kind-worker2', 'kind-worker'} to become Ready...
+All worker nodes are Ready.
+                    INFO     all.sregym.conductor - [FIX]                       
+                             KubeletEvictionThresholdMisconfig leftover if any  
+Recovering disk pressure in kind-worker...
+Waiting for node kind-worker to become Ready...
+Node kind-worker is Ready.
+Recovering disk pressure in kind-worker2...
+Waiting for node kind-worker2 to become Ready...
+Node kind-worker2 is Ready.
+Recovering disk pressure in kind-worker3...
+Waiting for node kind-worker3 to become Ready...
+Node kind-worker3 is Ready.
+[10/03/26 04:33:30] INFO     all.sregym.conductor - [FIX] Calico                
+                             IPPool/strictAffinity leftover if any              
+                    INFO     all.sregym.conductor - [FIX] Calico route-reflector
+                             label drift leftovers if any                       
+                    INFO     all.sregym.conductor - [FIX] Stale CoreDNS NXDOMAIN
+                             templates if any                                   
+No NXDOMAIN templates found in CoreDNS config; nothing to do
+                    INFO     all.sregym.conductor - [FIX] Leftover dm-flakey    
+                             infrastructure if any                              
+[dm-flakey] ⚠️ Could not remove dm-flakey on kind-control-plane (may not exist): No running Khaos pod found on node kind-control-plane
+[dm-flakey] ⚠️ Could not remove dm-flakey on kind-worker (may not exist): No running Khaos pod found on node kind-worker
+[dm-flakey] ⚠️ Could not remove dm-flakey on kind-worker2 (may not exist): No running Khaos pod found on node kind-worker2
+[dm-flakey] ⚠️ Could not remove dm-flakey on kind-worker3 (may not exist): No running Khaos pod found on node kind-worker3
+[10/03/26 04:33:31] INFO     all.sregym.conductor - [FIX] NightlyRebalanceOOM   
+                             kube-system actor leftover if any                  
+                    INFO     all.sregym.conductor - [FIX] Clock drift leftover  
+                             if any                                             
+No leftover node-probe pods found; nothing to do
+                    INFO     all.sregym.conductor - Fix Kubernetes completed.   
+                    INFO     all.sregym.conductor - Stages requested for this   
+                             run: ['diagnosis']                                 
+                    INFO     all.sregym.conductor - Undeploying app leftovers...
+[04:33:31] Waiting for namespace deletion...                      kubectl.py:341
+           Namespace 'hotel-reservation' has been deleted.        kubectl.py:349
+[10/03/26 04:33:36] INFO     all.sregym.conductor - App leftovers undeployed.   
+                    INFO     all.sregym.conductor - Deploying app...            
+                    INFO     all.infra.cluster_state - Baseline state loaded    
+                             from                                               
+                             /home/deploy/cache_dir/cluster_baseline_state.json 
+                    INFO     all.sregym.conductor - [DEPLOY] Loaded persisted   
+                             cluster baseline state                             
+                    INFO     all.sregym.conductor - [DEPLOY] Setting up         
+                             metrics-server…                                    
+                    INFO     all.sregym.conductor - [DEPLOY] metrics-server     
+                             already present and patched; skipping re-apply     
+[04:33:36] Waiting for all pods in namespace 'kube-system' to be  kubectl.py:204
+           ready...                                                             
+           All pods in namespace 'kube-system' are ready.         kubectl.py:245
+[10/03/26 04:33:37] INFO     all.sregym.conductor - [DEPLOY] Setting up OpenEBS…
+                    INFO     all.sregym.conductor - [DEPLOY] OpenEBS already    
+                             deployed; skipping operator re-apply               
+[04:33:37] Waiting for all pods in namespace 'openebs' to be      kubectl.py:204
+           ready...                                                             
+           All pods in namespace 'openebs' are ready.             kubectl.py:245
+                    INFO     all.sregym.conductor - [DEPLOY] Ensuring OpenEBS   
+                             LocalPV-Device StorageClass…                       
+                    INFO     all.sregym.conductor - [DEPLOY]                    
+                             StorageClass/openebs-device already exists; leaving
+                             it unchanged                                       
+                    INFO     all.sregym.conductor - [DEPLOY] Deploying          
+                             Prometheus…                                        
+                    INFO     all.infra.helm - Helm Uninstall: prometheus in     
+                             namespace observe                                  
+                    INFO     all.infra.helm - Helm Install: prometheus in       
+                             namespace observe                                  
+[04:33:38] Waiting for all pods in namespace 'observe' to be      kubectl.py:204
+           ready...                                                             
+[04:34:15] All pods in namespace 'observe' are ready.             kubectl.py:245
+[10/03/26 04:34:15] INFO     all.sregym.conductor - [DEPLOY] Deploying Jaeger…  
+[10/03/26 04:34:16] INFO     all.sregym.jaeger - Jaeger deployed successfully.  
+                    INFO     all.sregym.conductor - [DEPLOY] Deploying OTel     
+                             Collector…                                         
+[10/03/26 04:34:19] INFO     all.sregym.otel_collector - OTel Collector deployed
+                             successfully.                                      
+                    INFO     all.sregym.conductor - [DEPLOY] Deploying Loki…    
+[10/03/26 04:34:20] INFO     all.infra.helm - Helm Uninstall: loki in namespace 
+                             observe                                            
+                    INFO     all.infra.loki - Adding Grafana Helm repository... 
+[10/03/26 04:34:21] INFO     all.infra.helm - Helm Install: loki in namespace   
+                             observe                                            
+[04:34:22] Waiting for all pods in namespace 'observe' to be      kubectl.py:204
+           ready...                                                             
+[04:35:11] All pods in namespace 'observe' are ready.             kubectl.py:245
+[10/03/26 04:35:11] INFO     all.infra.loki - Deploying Promtail for Loki log   
+                             collection...                                      
+                    INFO     all.infra.helm - Helm Install: promtail in         
+                             namespace observe                                  
+[10/03/26 04:35:12] WARNING  all.infra.helm - Helm install stderr output:       
+                             level=WARN msg="this chart is deprecated"          
+[04:35:12] Waiting for all pods in namespace 'observe' to be      kubectl.py:204
+           ready...                                                             
+[04:35:25] All pods in namespace 'observe' are ready.             kubectl.py:245
+[10/03/26 04:35:25] INFO     all.sregym.conductor - [DEPLOY] Deploying MCP      
+                             server…                                            
+                    INFO     all.sregym.mcp_server - MCP server RBAC resources  
+                             ensured.                                           
+                    INFO     all.sregym.mcp_server - MCP server already running,
+                             skipping redeploy.                                 
+                    INFO     all.sregym.mcp_server - Port-forward is absent or  
+                             stale, restarting.                                 
+[10/03/26 04:35:28] INFO     all.sregym.mcp_server - Port forwarding established
+                             at 9954. MCP_SERVER_PORT set.                      
+                    INFO     all.sregym.conductor - [ENV] Set up necessary      
+                             components: metrics-server, Khaos, OpenEBS,        
+                             Prometheus, Jaeger, Loki                           
+                    INFO     all.sregym.conductor - [DEPLOY] Deploying and      
+                             starting workload                                  
+                    INFO     all.application - Deploying Kubernetes             
+                             configurations in namespace: hotel-reservation     
+                    INFO     all.application - Namespace hotel-reservation not  
+                             found. Creating namespace.                         
+                    INFO     all.application - Namespace hotel-reservation      
+                             created successfully: namespace/hotel-reservation  
+                             created                                            
+                                                                                
+                    INFO     all.infra.kubectl - ConfigMap 'mongo-rate-script'  
+                             created in namespace 'hotel-reservation'           
+                    INFO     all.infra.kubectl - ConfigMap 'mongo-geo-script'   
+                             created in namespace 'hotel-reservation'           
+[10/03/26 04:35:31] INFO     all.infra.kubectl - ConfigMap 'failure-admin-rate' 
+                             created in namespace 'hotel-reservation'           
+                    INFO     all.infra.kubectl - ConfigMap 'failure-admin-geo'  
+                             created in namespace 'hotel-reservation'           
+[04:35:31] Waiting for all pods in namespace 'hotel-reservation'  kubectl.py:204
+           to be ready...                                                       
+[04:35:44] All pods in namespace 'hotel-reservation' are ready.   kubectl.py:245
+[10/03/26 04:35:44] INFO     all.sregym.conductor - [ENV] Deploy application:   
+                             Hotel Reservation                                  
+                    INFO     all.sregym.jaeger - Created ExternalName service   
+                             'jaeger' in namespace 'hotel-reservation' ->       
+                             otel-collector.observe.svc.cluster.local           
+                    INFO     all.sregym.jaeger - Created ExternalName service   
+                             'jaeger-agent' in namespace 'hotel-reservation' -> 
+                             otel-collector.observe.svc.cluster.local           
+                    INFO     all.sregym.jaeger - Created ExternalName service   
+                             'jaeger-collector' in namespace 'hotel-reservation'
+                             -> otel-collector.observe.svc.cluster.local        
+[10/03/26 04:35:45] INFO     all.sregym.jaeger - Created ExternalName service   
+                             'jaeger-query' in namespace 'hotel-reservation' -> 
+                             otel-collector.observe.svc.cluster.local           
+                    INFO     all.infra.workload - Start Workload with Wrk2      
+                    INFO     all.infra.workload - Checking for existing         
+                             ConfigMap 'wrk2-payload-script'...                 
+                    INFO     all.infra.workload - Creating ConfigMap            
+                             'wrk2-payload-script'...                           
+                    INFO     all.infra.workload - ConfigMap                     
+                             'wrk2-payload-script' created successfully.        
+                    INFO     all.infra.workload - Job created: wrk2-job         
+                    INFO     all.sregym.conductor - [ENV] Start workload        
+                    INFO     all.sregym.conductor - App deployed.               
+== Fault Injection ==
+Service: mongodb-geo | Namespace: hotel-reservation
+
+Service: mongodb-profile | Namespace: hotel-reservation
+
+Service: mongodb-rate | Namespace: hotel-reservation
+
+Service: mongodb-recommendation | Namespace: hotel-reservation
+
+Service: mongodb-reservation | Namespace: hotel-reservation
+
+Service: mongodb-user | Namespace: hotel-reservation
+
+                    INFO     all.sregym.conductor - [ENV] Injected fault        
+                    INFO     all.sregym.conductor - [STAGE] Go to stage         
+                             diagnosis                                          
+                    INFO     all.sregym.conductor - ✅ Deployment complete.     
+                             Ready for submission. Current stage is: diagnosis  
+[10/03/26 04:35:48] INFO     all.sregym.container_runner - Starting             
+                             containerized agent [faultline-run]:               
+                             /opt/sregym/install-scripts/install-faultline.sh   
+                             2>&1 | tee /logs/install.log; I...                 
+[2026-10-03T04:35:48+00:00] Installing Faultline from http://host.docker.internal:55480/faultline-src.tar.gz
+ea773f50af178fd619a341263492ce72f092986d826e9aa47cfad090ad9ffa0a  /tmp/faultline-src.tar.gz
+WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.
+[2026-10-03T04:36:48+00:00] Faultline installed: /opt/faultline/src/faultline/__init__.py
+[10/03/26 04:36:49] INFO     uvicorn.access - 172.17.0.3:36172 - "GET /status   
+                             HTTP/1.1" 200                                      
+                    INFO     uvicorn.access - 172.17.0.3:36176 - "GET /get_app  
+                             HTTP/1.1" 200                                      
+[10/03/26 04:43:22] INFO     uvicorn.access - 172.17.0.3:34174 - "POST /submit  
+                             HTTP/1.1" 200                                      
+[10/03/26 04:43:22] INFO     all.sregym.conductor - Evaluating stage 'diagnosis'
+{"started_at": "2026-10-03T04:36:49.151465+00:00", "app_name": "Hotel Reservation", "namespace": "hotel-reservation", "application": "sregym-hotel-reservation", "evaluations": 1, "fallback": false, "episodes": [{"alertname": "KubeDeploymentReplicasMismatch", "service": "mongodb-geo", "severity": "warning"}, {"alertname": "KubeDeploymentReplicasMismatch", "service": "mongodb-profile", "severity": "warning"}, {"alertname": "KubeDeploymentReplicasMismatch", "service": "mongodb-rate", "severity": "warning"}, {"alertname": "KubeDeploymentReplicasMismatch", "service": "mongodb-recommendation", "severity": "warning"}, {"alertname": "KubeDeploymentReplicasMismatch", "service": "mongodb-reservation", "severity": "warning"}, {"alertname": "KubeDeploymentReplicasMismatch", "service": "mongodb-user", "severity": "warning"}, {"alertname": "KubeDeploymentReplicasMismatch", "service": "rate", "severity": "warning"}, {"alertname": "KubeDeploymentReplicasMismatch", "service": "reservation", "severity": "warning"}, {"alertname": "KubePodCrashLooping", "service": "rate", "severity": "warning"}], "opening_errors": [], "incident_id": "faa6ee73-162a-4e6b-b7d6-c21dcf695009", "investigate_exit": 0, "trajectory_id": "71bdd76d-2d69-4259-aaa9-256c20c94e32", "verdict": true, "evidence_cited": 5, "submitted": {"status": "200", "message": "Submission received", "stage": "diagnosis"}, "error": "", "ended_at": "2026-10-03T04:43:22.289207+00:00"}
+                    INFO     all.sregym.conductor - Start Eval for Diagnosis    
+== LLM-as-a-Judge Evaluation ==
+🔧 Initializing LLM backend — model: anthropic/claude-sonnet-4-6, api_base: unset
+[04:43:24] ⚠️  Agent process exited with return code 0                main.py:582
+           ⏳ Waiting for conductor evaluation to complete...        main.py:586
+❌ Incorrect diagnosis: False (score: 22.0/100)
+   Expected: [fault_spec] component=deployments/mongodb-geo, mongodb-profile, mongodb-rate, mongodb-recommendatio...
+   Got: Root cause: rate never reaches serving: each pod reads config, logs the correct datastore URL mongod...
+[10/03/26 04:43:40] INFO     all.sregym.conductor - [EVAL] Diagnosis Failed     
+                              TTL: 474.2775204181671                            
+                    INFO     all.sregym.conductor - [STAGE] Done, starting      
+                             teardown                                           
+                    INFO     all.sregym.conductor - [CLEANUP] Starting cleanup  
+                             (fault recovery, undeploy, reconcile)              
+                    INFO     all.sregym.conductor - [CLEANUP] Recovering        
+                             fault...                                           
+== Fault Recovery ==
+[04:43:40] 🧹 Running conductor cleanup after agent exit...          main.py:615
+                    INFO     all.sregym.conductor - [CLEANUP] Fault recovered   
+                    INFO     all.sregym.conductor - [CLEANUP] Undeploying app...
+           Waiting for namespace deletion...                      kubectl.py:341
+[04:44:18] Namespace 'hotel-reservation' has been deleted.        kubectl.py:349
+[10/03/26 04:44:18] INFO     all.infra.kubectl - Namespace 'hotel-reservation'  
+                             deleted successfully.                              
+           Waiting for namespace deletion...                      kubectl.py:341
+           Namespace 'hotel-reservation' has been deleted.        kubectl.py:349
+[10/03/26 04:44:23] INFO     all.sregym.conductor - [CLEANUP] App undeployed    
+                    INFO     all.sregym.conductor - [CLEANUP] Reconciling       
+                             cluster state to baseline...                       
+                    INFO     all.infra.cluster_state - Reconciling cluster to   
+                             baseline state...                                  
+                    INFO     all.infra.cluster_state - Deleting unexpected      
+                             namespace: observe                                 
+[04:44:23] Waiting for namespace deletion...                      kubectl.py:341
+[04:45:05] Namespace 'observe' has been deleted.                  kubectl.py:349
+[10/03/26 04:45:05] INFO     all.infra.kubectl - Namespace 'observe' deleted    
+                             successfully.                                      
+[10/03/26 04:45:06] INFO     all.infra.cluster_state - Deleting unexpected      
+                             ClusterRole: mcp-server                            
+                    INFO     all.infra.cluster_state - Deleting unexpected      
+                             ClusterRole: promtail                              
+                    INFO     all.infra.cluster_state - Deleting unexpected      
+                             ClusterRole: loki-clusterrole                      
+                    INFO     all.infra.cluster_state - Deleting unexpected      
+                             ClusterRole: prometheus-kube-state-metrics         
+                    INFO     all.infra.cluster_state - Deleting unexpected      
+                             ClusterRole: prometheus-server                     
+                    INFO     all.infra.cluster_state - Deleting unexpected      
+                             ClusterRoleBinding: mcp-server                     
+                    INFO     all.infra.cluster_state - Deleting unexpected      
+                             ClusterRoleBinding: promtail                       
+                    INFO     all.infra.cluster_state - Deleting unexpected      
+                             ClusterRoleBinding: prometheus-kube-state-metrics  
+                    INFO     all.infra.cluster_state - Deleting unexpected      
+                             ClusterRoleBinding: prometheus-server              
+                    INFO     all.infra.cluster_state - Deleting unexpected      
+                             ClusterRoleBinding: loki-clusterrolebinding        
+                    INFO     all.infra.kubectl - [gc_localpv] Sweeping          
+                             /var/openebs/local on 4 node(s) (preserving 0 live 
+                             PV dir(s))                                         
+[10/03/26 04:45:22] INFO     all.infra.cluster_state - Reconciliation complete: 
+                             {'namespaces_deleted': ['observe'],                
+                             'cluster_roles_deleted': ['mcp-server', 'promtail',
+                             'loki-clusterrole',                                
+                             'prometheus-kube-state-metrics',                   
+                             'prometheus-server'],                              
+                             'cluster_role_bindings_deleted': ['mcp-server',    
+                             'promtail', 'prometheus-kube-state-metrics',       
+                             'prometheus-server', 'loki-clusterrolebinding'],   
+                             'persistent_volumes_deleted': [],                  
+                             'storage_classes_deleted': [], 'crds_deleted': [], 
+                             'validating_webhook_configs_deleted': [],          
+                             'mutating_webhook_configs_deleted': [],            
+                             'nodes_labels_reset': [], 'nodes_taints_reset': [],
+                             'coredns_reset': False}                            
+                    INFO     all.sregym.conductor - Cluster state reconciliation
+                             changes: {'namespaces_deleted': ['observe'],       
+                             'cluster_roles_deleted': ['mcp-server', 'promtail',
+                             'loki-clusterrole',                                
+                             'prometheus-kube-state-metrics',                   
+                             'prometheus-server'],                              
+                             'cluster_role_bindings_deleted': ['mcp-server',    
+                             'promtail', 'prometheus-kube-state-metrics',       
+                             'prometheus-server', 'loki-clusterrolebinding'],   
+                             'persistent_volumes_deleted': [],                  
+                             'storage_classes_deleted': [], 'crds_deleted': [], 
+                             'validating_webhook_configs_deleted': [],          
+                             'mutating_webhook_configs_deleted': [],            
+                             'nodes_labels_reset': [], 'nodes_taints_reset': [],
+                             'coredns_reset': False}                            
+                    INFO     all.sregym.conductor - [CLEANUP] Cluster state     
+                             reconciled                                         
+                    INFO     all.sregym.conductor - [CLEANUP] Cleanup complete, 
+                             stage set to 'done'                                
+                    INFO     all.sregym.conductor - [STAGE] Teardown complete   
+[04:45:22] ✅ Complete update_incompatible_correlated:               main.py:655
+           results={'Diagnosis': {'judgment': 'False', 'reasoning':             
+           'Verdict: False (composite=0.22). D1 Fault Localization:             
+           0.33 | D2 Fault Characterization: 0.00 | D3 Scope                    
+           Precision: 0.33. Weakest dimension: Fault                            
+           Characterization (0.00). Checklist details: [{"id":                  
+           "D1-Q1", "answer": "Yes", "evidence": "Agent names                   
+           \'mongodb-rate\' as the faulty component, which is one of            
+           the six ground-truth MongoDB components listed in the                
+           fault spec.", "confidence": "Medium"}, {"id": "D1-Q2",               
+           "answer": "No", "evidence": "Agent focuses only on                   
+           mongodb-rate and treats rate service as a victim, but                
+           misses the other 5 MongoDB backends (geo, profile,                   
+           recommendation, reservation, user) as co-fault-origin                
+           components.", "confidence": "High"}, {"id": "D1-Q3",                 
+           "answer": "No", "evidence": "Agent diagnoses                         
+           \'process_freeze\' on mongodb-rate, but the actual fault             
+           is a bad image upgrade across all 6 MongoDB deployments;             
+           the freeze characterization misidentifies the nature of              
+           the fault origin.", "confidence": "Medium"}, {"id":                  
+           "D2-Q1", "answer": "No", "evidence": "Ground truth                   
+           identifies incompatible image version (mongo:8.0.14-rc0)             
+           as the mechanism; agent identifies \'process_freeze\'                
+           with no mention of image upgrade or version                          
+           incompatibility.", "confidence": "High"}, {"id": "D2-Q2",            
+           "answer": "No", "evidence": "Agent provides no concrete              
+           details about image tag, version number, or deployment               
+           change. It only describes connection deadline behavior               
+           and crash loops.", "confidence": "High"}, {"id": "D2-Q3",            
+           "answer": "No", "evidence": "Agent attributes fault to               
+           \'process_freeze\' which conflicts with the ground-truth             
+           problem class of bad image deployment causing database               
+           incompatibility.", "confidence": "High"}, {"id": "D3-Q1",            
+           "answer": "Yes", "evidence": "Agent focuses on                       
+           mongodb-rate and rate service; it mentions other                     
+           mongodb-* services only as open questions, not as blamed             
+           components, so no uninvolved components are wrongly                  
+           blamed.", "confidence": "Medium"}, {"id": "D3-Q2",                   
+           "answer": "No", "evidence": "Agent only addresses                    
+           mongodb-rate; the five other MongoDB components (geo,                
+           profile, recommendation, reservation, user) are not                  
+           identified as contributing to the fault.", "confidence":             
+           "High"}, {"id": "D3-Q3", "answer": "No", "evidence":                 
+           "Agent describes connection failures/crash loops as                  
+           impact, missing the ground-truth characterization of                 
+           broad database incompatibility from an image version                 
+           upgrade across all MongoDB backends.", "confidence":                 
+           "High"}]', 'success': False, 'accuracy': 22.0,                       
+           'composite_score': 0.22, 'dimensions': {'D1': {'name':               
+           'Fault Localization', 'score': 0.33}, 'D2': {'name':                 
+           'Fault Characterization', 'score': 0.0}, 'D3': {'name':              
+           'Scope Precision', 'score': 0.33}}, 'checklist': [{'id':             
+           'D1-Q1', 'answer': 'Yes', 'evidence': "Agent names                   
+           'mongodb-rate' as the faulty component, which is one of              
+           the six ground-truth MongoDB components listed in the                
+           fault spec.", 'confidence': 'Medium'}, {'id': 'D1-Q2',               
+           'answer': 'No', 'evidence': 'Agent focuses only on                   
+           mongodb-rate and treats rate service as a victim, but                
+           misses the other 5 MongoDB backends (geo, profile,                   
+           recommendation, reservation, user) as co-fault-origin                
+           components.', 'confidence': 'High'}, {'id': 'D1-Q3',                 
+           'answer': 'No', 'evidence': "Agent diagnoses                         
+           'process_freeze' on mongodb-rate, but the actual fault is            
+           a bad image upgrade across all 6 MongoDB deployments; the            
+           freeze characterization misidentifies the nature of the              
+           fault origin.", 'confidence': 'Medium'}, {'id': 'D2-Q1',             
+           'answer': 'No', 'evidence': "Ground truth identifies                 
+           incompatible image version (mongo:8.0.14-rc0) as the                 
+           mechanism; agent identifies 'process_freeze' with no                 
+           mention of image upgrade or version incompatibility.",               
+           'confidence': 'High'}, {'id': 'D2-Q2', 'answer': 'No',               
+           'evidence': 'Agent provides no concrete details about                
+           image tag, version number, or deployment change. It only             
+           describes connection deadline behavior and crash loops.',            
+           'confidence': 'High'}, {'id': 'D2-Q3', 'answer': 'No',               
+           'evidence': "Agent attributes fault to 'process_freeze'              
+           which conflicts with the ground-truth problem class of               
+           bad image deployment causing database incompatibility.",             
+           'confidence': 'High'}, {'id': 'D3-Q1', 'answer': 'Yes',              
+           'evidence': 'Agent focuses on mongodb-rate and rate                  
+           service; it mentions other mongodb-* services only as                
+           open questions, not as blamed components, so no                      
+           uninvolved components are wrongly blamed.', 'confidence':            
+           'Medium'}, {'id': 'D3-Q2', 'answer': 'No', 'evidence':               
+           'Agent only addresses mongodb-rate; the five other                   
+           MongoDB components (geo, profile, recommendation,                    
+           reservation, user) are not identified as contributing to             
+           the fault.', 'confidence': 'High'}, {'id': 'D3-Q3',                  
+           'answer': 'No', 'evidence': 'Agent describes connection              
+           failures/crash loops as impact, missing the ground-truth             
+           characterization of broad database incompatibility from              
+           an image version upgrade across all MongoDB backends.',              
+           'confidence': 'High'}], 'submission': 'Root cause: rate              
+           never reaches serving: each pod reads config, logs the               
+           correct datastore URL mongodb-rate:27017, then panics                
+           ~12s later in database initialization with an                        
+           unreachable-servers error, looping continuously                      
+           [tr_88a01606ee27]. The dial deadline expiring at connect             
+           time, with no query-timeout or pool entries, points at               
+           mongodb-rate being present-but-unserving rather than at              
+           anything wrong inside rate. Config correctness,                      
+           request-path bugs, and pool exhaustion in rate are each              
+           excluded by rate\'s own log [tr_88a01606ee27].                       
+           mongodb-rate\'s log query was rejected by Loki with a 400            
+           on a malformed pod regex, so the culprit\'s own voice was            
+           never heard [tr_46428f62c4a4]; both metric baselines                 
+           failed for structural instrumentation reasons                        
+           [tr_bfcbc09c5459, tr_f6ed97dbcbce] and all change-history            
+           queries died on a parse error [tr_4d406f3b84ac,                      
+           tr_1c9653913a48, tr_c183cd3a076b]. The surviving                     
+           mechanism consistent with the one good signal is that                
+           mongodb-rate\'s process is stopped while its socket still            
+           exists, so rate hangs to its connect deadline and                    
+           dies.\nFaulty component: mongodb-rate\nFault type:                   
+           process_freeze\nConfidence: low\n\nEvidence:\n- The rate             
+           pod repeatedly starts, reads config and the datastore URL            
+           (mongodb-rate:27017), then panics during database                    
+           initialization with an unreachable-servers error roughly             
+           12 seconds after each start — a tight crash-restart loop             
+           with cycles beginning around 04:36:51 and 04:37:58.                  
+           (found, from logql_query on rate; query:                             
+           {namespace="hotel-reservation",pod=~"rate-([a-z0-9]+-[a-z            
+           0-9]+|[0-9]+)"})\n- The panic originates in the                      
+           service\'s own startup path (database initialization                 
+           called from main), so the process never reaches the point            
+           of serving traffic; no request-handling or gRPC-serving              
+           log lines appear in the window. (found, from logql_query             
+           on rate; query:                                                      
+           {namespace="hotel-reservation",pod=~"rate-([a-z0-9]+-[a-z            
+           0-9]+|[0-9]+)"})\n- The failure mode is connection                   
+           establishment to the rate datastore, not query slowness:             
+           there are no query-timeout or slow-operation entries,                
+           only the immediate unreachable-server panic at connect               
+           time. (found, from logql_query on rate; query:                       
+           {namespace="hotel-reservation",pod=~"rate-([a-z0-9]+-[a-z            
+           0-9]+|[0-9]+)"})\n- rate is up but degraded, returning               
+           errors or timing out on individual requests under load               
+           (ruled_out, from logql_query on rate; why: The process               
+           panics during startup before serving; there are no                   
+           request-level logs at all, so it is not a partial                    
+           degradation of a running service.; query:                            
+           {namespace="hotel-reservation",pod=~"rate-([a-z0-9]+-[a-z            
+           0-9]+|[0-9]+)"})\n- Misconfiguration in rate — missing or            
+           malformed datastore URL, bad config, or TLS handshake                
+           failure (ruled_out, from logql_query on rate; why: Config            
+           is read successfully, the expected datastore endpoint is             
+           logged on every attempt, and TLS is reported disabled;               
+           the failure happens after config load, at connect.;                  
+           query:                                                               
+           {namespace="hotel-reservation",pod=~"rate-([a-z0-9]+-[a-z            
+           0-9]+|[0-9]+)"})\n- A bug in rate\'s request-handling or             
+           business logic caused the crash (ruled_out, from                     
+           logql_query on rate; why: The stack trace points to the              
+           database initialization call from main, not to any                   
+           handler path.; query:                                                
+           {namespace="hotel-reservation",pod=~"rate-([a-z0-9]+-[a-z            
+           0-9]+|[0-9]+)"})\n- Datastore connection pool exhaustion             
+           or query timeouts from sustained traffic (ruled_out, from            
+           logql_query on rate; why: No timeout or pool-related                 
+           entries appear; the single repeated failure is inability             
+           to reach any server at initial connect.; query:                      
+           {namespace="hotel-reservation",pod=~"rate-([a-z0-9]+-[a-z            
+           0-9]+|[0-9]+)"})\n- A one-off transient blip that has                
+           already self-resolved (ruled_out, from logql_query on                
+           rate; why: At least two full start-and-panic cycles occur            
+           back to back through the end of the window, showing a                
+           persistent crash loop.; query:                                       
+           {namespace="hotel-reservation",pod=~"rate-([a-z0-9]+-[a-z            
+           0-9]+|[0-9]+)"})\n- The log query never executed: Loki               
+           returned HTTP 400 Bad Request, so the result is an error             
+           rather than an empty result set. No log data for                     
+           mongodb-rate was retrieved for the requested window.                 
+           (found, from logql_query on mongodb-rate; query:                     
+           {namespace="hotel-reservation",pod=~"mongodb\\-rate-([a-z            
+           0-9]+-[a-z0-9]+|[0-9]+)"})\n- The failure is client-side             
+           query construction, not a backend outage — the request               
+           reached the Loki endpoint and was rejected as malformed,             
+           consistent with the escaped-hyphen pod regex alternation             
+           in the selector being invalid. (found, from logql_query              
+           on mongodb-rate; query:                                              
+           {namespace="hotel-reservation",pod=~"mongodb\\-rate-([a-z            
+           0-9]+-[a-z0-9]+|[0-9]+)"})\n- The question of whether                
+           mongodb-rate was starting, crash-looping, refusing                   
+           connections, or absent at 04:36:49 remains entirely                  
+           unanswered by this result. (found, from logql_query on               
+           mongodb-rate; query:                                                 
+           {namespace="hotel-reservation",pod=~"mongodb\\-rate-([a-z            
+           0-9]+-[a-z0-9]+|[0-9]+)"})\n- mongodb-rate emitted no                
+           logs in the window, implying the process was absent or               
+           never started (ruled_out, from logql_query on                        
+           mongodb-rate; why: The empty payload is an error                     
+           artifact, not a successful zero-row response. A query                
+           that returned 400 cannot be read as evidence of log                  
+           absence, so \'silent pod\' cannot be inferred here.;                 
+           query:                                                               
+           {namespace="hotel-reservation",pod=~"mongodb\\-rate-([a-z            
+           0-9]+-[a-z0-9]+|[0-9]+)"})\n- Loki is down or the log                
+           pipeline is broken, which is why nothing came back                   
+           (ruled_out, from logql_query on mongodb-rate; why: Loki              
+           answered the HTTP request with a 400 status, meaning the             
+           service was reachable and processing requests; the                   
+           rejection was of the query itself.; query:                           
+           {namespace="hotel-reservation",pod=~"mongodb\\-rate-([a-z            
+           0-9]+-[a-z0-9]+|[0-9]+)"})\n- The time window was wrong              
+           or outside retention, causing the gap (ruled_out, from               
+           logql_query on mongodb-rate; why: The request was                    
+           rejected before range evaluation on a bad-request basis;             
+           the start/end parameters were accepted into the URL and              
+           are not implicated in the error.; query:                             
+           {namespace="hotel-reservation",pod=~"mongodb\\-rate-([a-z            
+           0-9]+-[a-z0-9]+|[0-9]+)"})\n- The error-ratio metric                 
+           query for the rate service returned no data at all; the              
+           backing Prometheus holds no span-derived metrics for this            
+           service, so the result is an availability gap rather than            
+           a measurement of zero errors. (found, from                           
+           metric_baseline on rate)\n- No error rate, latency                   
+           percentile, request volume, or connection/saturation                 
+           figures for rate are observable in this window or in the             
+           preceding baseline window from this source. (found, from             
+           metric_baseline on rate)\n- The absence of a reported                
+           error ratio for rate means the service was healthy and               
+           erroring at zero through 04:36:49. (ruled_out, from                  
+           metric_baseline on rate; why: The query explicitly failed            
+           rather than returning a zero series, so no health                    
+           conclusion can be drawn from the empty result.)\n-                   
+           Span-metric-based dashboards or alerts for rate could                
+           have fired or stayed silent meaningfully during the                  
+           incident, making their state a useful signal. (ruled_out,            
+           from metric_baseline on rate; why: The service emits                 
+           nothing that becomes span metrics in this Prometheus, so             
+           any such alert path is inert for rate and its silence                
+           carries no information.)\n- This metrics path can be used            
+           to confirm or exclude rate as the origin of the 04:36:49             
+           event. (ruled_out, from metric_baseline on rate; why: The            
+           data source is structurally empty for this service, so it            
+           can neither implicate nor exonerate rate; the question               
+           must be answered from traces, logs, or                               
+           infrastructure-level metrics instead.)\n- The error-ratio            
+           metric query for mongodb-rate returned no data and                   
+           reported a query failure: the metric is derived from                 
+           span-based telemetry that this environment\'s Prometheus             
+           does not hold for this service, so connection counts,                
+           memory/cache usage, operation latency, and error counters            
+           could not be retrieved for either the incident window or             
+           the preceding baseline window. (found, from                          
+           metric_baseline on mongodb-rate)\n- The absence is an                
+           instrumentation gap, not an observation of healthy or                
+           zero error traffic — mongodb-rate emits no traces that               
+           would be converted into these metrics, so the metric                 
+           series does not exist at all. (found, from                           
+           metric_baseline on mongodb-rate)\n- mongodb-rate\'s error            
+           rate is flat/zero across the onset, so the database can              
+           be cleared as a contributor (ruled_out, from                         
+           metric_baseline on mongodb-rate; why: The query did not              
+           return a zero series; it failed because the underlying               
+           metric is unavailable for this service. No inference                 
+           about mongodb-rate\'s error behaviour — healthy or                   
+           unhealthy — can be drawn from this result.)\n- Prometheus            
+           metrics are the right avenue for characterising                      
+           mongodb-rate connection saturation, cache pressure, or               
+           operation latency in this incident (ruled_out, from                  
+           metric_baseline on mongodb-rate; why: The metric backend             
+           holds no span-derived series for mongodb-rate across the             
+           full window and baseline, so repeating metric queries of             
+           this family will not yield data. Investigation must shift            
+           to direct database telemetry, server logs, or the latency            
+           observed by mongodb-rate\'s callers.)\n- The empty result            
+           indicates mongodb-rate was down or scraped-but-silent                
+           during the incident window (ruled_out, from                          
+           metric_baseline on mongodb-rate; why: The result carries             
+           an explicit query-failure reason tied to missing metric              
+           definitions, and the baseline window before the onset is             
+           equally empty. A service that went down during onset                 
+           would show data in the baseline window; uniform absence              
+           points to the metric never existing.)\n- The                         
+           change-history query for the rate service over the                   
+           requested window did not return data; it terminated with             
+           a parsing error, so no change records were retrieved.                
+           (found, from change_history on rate)\n- The failure                  
+           appears to be a malformed/truncated response payload from            
+           the change-log source rather than a filter returning zero            
+           matches, so the change surface for rate in this window               
+           remains entirely unobserved. (found, from change_history             
+           on rate)\n- The change-log has been checked and rate had             
+           no deployments, config edits, or pool/database-setting               
+           changes in the window. (ruled_out, from change_history on            
+           rate; why: The result is an error, not an empty set.                 
+           Absence of returned records here carries no evidential               
+           weight about whether changes occurred, and this                      
+           hypothesis must not be treated as confirmed.)\n- A                   
+           change-driven cause can be excluded and investigation                
+           should move on to load, dependency, or infrastructure                
+           explanations. (ruled_out, from change_history on rate;               
+           why: Excluding change requires evidence of no change.                
+           This query produced none, so the change hypothesis stays             
+           fully open and the query should be retried, ideally with             
+           a narrower window or smaller page size to avoid the                  
+           truncated payload.)\n\nReasoning:\nOnly one dispatch                 
+           returned real data. It shows rate crash-looping in                   
+           startup DB init against the correct endpoint, which                  
+           localizes the fault to mongodb-rate rather than rate. The            
+           deadline-shaped failure (uniform ~12s to panic, no                   
+           partial success, no slow-query lines) fits a datastore               
+           that does not complete the handshake. Distinguishing                 
+           freeze from partition or a dead pod requires                         
+           mongodb-rate\'s log, which was never retrieved because               
+           the selector was malformed; that gap is why confidence is            
+           low and why the class is a best-fit, not a settled                   
+           finding. The mongodb-* and reservation alerts are                    
+           consistent with the same blast radius propagating to                 
+           callers.\n\nAlternatives considered:\n1. mongodb-rate:               
+           mongodb-rate is running but network-isolated from the                
+           hotel-reservation namespace, so rate\'s connects time                
+           out. (network_partition). Ranked lower because:                      
+           Indistinguishable from a freeze using rate\'s log alone;             
+           demoted only because nothing yet shows mongodb-rate alive            
+           and complaining. The unread mongodb-rate log would decide            
+           it.\n2. mongodb-rate: A change to mongodb-rate (image,               
+           port, auth, or storage setting) left it unable to start              
+           or listening wrongly, and rate cannot connect as a                   
+           result. (bad_deploy). Ranked lower because: No change                
+           record was ever retrieved — every change query errored —             
+           so this rests on no evidence at all, whereas the                     
+           connect-deadline shape is directly observed.\n\nOpen                 
+           questions:\n- mongodb-rate\'s own logs were never read               
+           (Loki 400) — re-run with a corrected pod selector to see             
+           whether mongod is silent (freeze), complaining it cannot             
+           reach anything (partition), refusing with no space left              
+           (disk fill), or absent entirely.\n- Pod/container state              
+           for mongodb-rate: is it Running, CrashLoopBackOff,                   
+           Pending, or evicted? No infrastructure-level check was               
+           performed.\n- All change-history queries failed on a                 
+           parse error, so a deploy, image, or config change to                 
+           mongodb-rate or rate in the preceding 24h remains                    
+           entirely unobserved; the window queried also started at              
+           onset rather than before it.\n- Whether the other                    
+           alerting mongodb-* services share the same failure, which            
+           would point to a node- or cluster-level cause rather than            
+           one datastore.'}, 'TTL': 474.28053617477417,                         
+           'phase.fix_kubernetes.duration_s': 3.069,                            
+           'phase.undeploy_leftovers.duration_s': 5.099,                        
+           'phase.deploy.duration_s': 128.757,                                  
+           'phase.inject_fault.duration_s': 0.595,                              
+           'phase.stage:diagnosis.duration_s': 456.523,                         
+           'phase.stage:diagnosis.outcome': 'submitted',                        
+           'phase.evaluate:diagnosis.duration_s': 17.755,                       
+           'phase.cleanup.duration_s': 102.59, 'run_status':                    
+           'complete'}                                                          
+           ⏳ Waiting for agent process to complete...               main.py:661
+           ✅ Agent process completed with return code 0             main.py:667
+           🧹 Cleaned up agent process for faultline                 main.py:677
+[10/03/26 04:45:22] INFO     __main__ - ⏳ Attempt 1 of 1 for problem           
+                             update_incompatible_correlated complete -          
+                             Intermediate results written to                    
+                             _running_update_incompatible_correlated_faultline_r
+                             esults.csv; artifacts published to                 
+                             results/1003_0433/faultline/update_incompatible_cor
+                             related/run_1                                      
+                    WARNING  sregym.traces.postprocess - No convertible session 
+                             in                                                 
+                             results/1003_0433/faultline/update_incompatible_cor
+                             related/run_1                                      
+                    WARNING  __main__ - ⚠️ ATIF trajectory conversion skipped for
+                             results/1003_0433/faultline/update_incompatible_cor
+                             related/run_1                                      
+                    INFO     __main__ - ✅ Problem                              
+                             update_incompatible_correlated for agent faultline 
+                             complete! Results written to                       
+                             results/1003_0433/faultline/update_incompatible_cor
+                             related/update_incompatible_correlated_faultline_re
+                             sults.csv                                          
+  Benchmarking faultline — update_incompatible_correlated (attempt 1/1) ━ … … 0…
+           🔓 Stopping Kubernetes API proxy...                       main.py:787
+                    INFO     all.sregym.conductor - Stopping Kubernetes API     
+                             filtering proxy...                                 
+[10/03/26 04:45:23] INFO     all.infra.k8s_proxy - Kubernetes API filtering     
+                             proxy stopped                                      
+                    WARNING  all.sregym.conductor_api - Shutting down API       
+                             server...                                          
+[10/03/26 04:45:23] INFO     uvicorn.error - Shutting down                      
+                    INFO     uvicorn.error - Finished server process [777920]   
+                    INFO     __main__ - ✅ Benchmark complete! Results for      
+                             faultline written to                               
+                             results/1003_0433/faultline_ALL_results.csv        

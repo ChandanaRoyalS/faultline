@@ -1,0 +1,31 @@
+attempt k8s_target_port-misconfig / faultline at 2026-10-03 04:51:43 UTC, model anthropic/claude-opus-5, judge anthropic/claude-sonnet-4-6
+exit 0 at 2026-10-03 05:18:03 UTC
+           diagnosis explicitly says fault type is unknown.',                   
+           error [tr_7c7136d87842, tr_53f4cca39479, tr_f3ae6788e684,            
+           tr_06833e7a95d8], all four error-ratio baselines failed              
+           error spans, but zero traces for the service. (found,                
+           user-timeline-service edges carry ERROR status or                    
+           home-timeline, or user-timeline) shows ERROR spans or                
+           because the query was too narrow (e.g. only ERROR status             
+           explanation.)\n- Tracing is healthy and the lack of error            
+           short interval.)\n- The error-ratio metric query for                 
+           error signal for nginx-web-server means the proxy was                
+           healthy and error-free during onset. (ruled_out, from                
+           series, not a measurement of zero errors; it carries no              
+           be made about which error lines nginx emits around onset             
+           errors during the window, so the fault lies elsewhere                
+           at the application layer with a 400 Client Error,                    
+           a connection error, timeout, or 5xx instead.; query:                 
+           ]+-[a-z0-9]+|[0-9]+)"})\n- The window boundaries passed              
+           with a parse error while reading the response, so no                 
+           change_history on nginx-web-server)\n- The error message             
+           services does not exist for them, so no error, rate or               
+           'phase.stage:diagnosis.duration_s': 1329.379,                        
+           'phase.stage:diagnosis.outcome': 'submitted',                        
+           'phase.evaluate:diagnosis.duration_s': 9.617,                        
+[10/03/26 05:18:02] INFO     uvicorn.error - Shutting down                      
+                    INFO     uvicorn.error - Finished server process [858342]   
+== results files
+  /home/deploy/t7.2-1c/SREGym/results/1003_0451/faultline_ALL_results.csv
+  /home/deploy/t7.2-1c/SREGym/results/1003_0451/faultline/k8s_target_port-misconfig/k8s_target_port-misconfig_faultline_results.csv
+  /home/deploy/t7.2-1c/SREGym/results/1003_0451/faultline/k8s_target_port-misconfig/run_1/k8s_target_port-misconfig_results.csv

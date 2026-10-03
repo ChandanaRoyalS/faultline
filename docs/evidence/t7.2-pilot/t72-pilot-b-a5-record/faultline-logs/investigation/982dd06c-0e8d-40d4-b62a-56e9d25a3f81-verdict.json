@@ -1,0 +1,162 @@
+{
+  "incident_id": "982dd06c-0e8d-40d4-b62a-56e9d25a3f81",
+  "trajectory_id": "56218acb-e7fb-4c73-8e9a-8ea019ac2909",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "compose-post-service",
+    "home-timeline-service",
+    "nginx-web-server",
+    "user-timeline-service"
+  ],
+  "unmeasured_edges": 3,
+  "exclude_origins": [],
+  "verdict": {
+    "root_cause": "Not established. Nine of ten dispatches returned tool failures rather than measurements: all four change-history queries died with the same response-parse error [tr_7c7136d87842, tr_53f4cca39479, tr_f3ae6788e684, tr_06833e7a95d8], all four error-ratio baselines failed because span-derived metrics structurally do not exist for these services [tr_ecf722d4c88a, tr_df4845357d16, tr_ff29c4182d6f, tr_0a142cfdc055], and the nginx log query was rejected by Loki with HTTP 400 for a malformed pod matcher [tr_ae542892c038]. The only dispatch that actually observed its window found zero spans for nginx-web-server across 04:42:35-05:12:41 [tr_3c7a09c7f07e] \u2014 a window that is almost entirely before the 05:12:35 alert, so the silence fits a standing export gap (consistent with the Prometheus finding that this component emits no traces that become metrics) at least as well as an onset outage. No evidence here localises a failing mechanism to any of the four services.",
+    "service": "nginx-web-server",
+    "fault_class": "unknown",
+    "remediation_class": "none",
+    "confidence": "low",
+    "evidence": [
+      "tr_3c7a09c7f07e",
+      "tr_ecf722d4c88a",
+      "tr_ae542892c038",
+      "tr_7c7136d87842"
+    ],
+    "reasoning": "A verdict needs at least one positive observation of something behaving wrongly, and this board has none. The change log was never read, so deploy and config causes are untested rather than excluded [tr_7c7136d87842, tr_53f4cca39479]. The metric family queried for all four services does not exist for them, so no error, rate or latency delta is available anywhere [tr_ecf722d4c88a, tr_df4845357d16, tr_ff29c4182d6f, tr_0a142cfdc055]. The nginx log path \u2014 the one signal that separates freeze (silence), partition (cannot-reach messages), disk_fill (no space left) and bad_config (wrong address) \u2014 never executed, though Loki itself answered at the application layer and the query is recoverable [tr_ae542892c038]. The empty Tempo result [tr_3c7a09c7f07e] is the sole real observation, but it covers ~30 minutes preceding onset, which a fault starting at 05:12:35 could not have erased. Naming a mechanism from this would be invention.",
+    "open_questions": [
+      "What does nginx-web-server's own log say around 05:12:35? Re-run the Loki query with a corrected pod matcher \u2014 this one answer separates process_freeze, network_partition, disk_fill and bad_config.",
+      "Did nginx-web-server emit traces earlier in the day? If so, the empty window becomes incident evidence rather than an instrumentation gap.",
+      "What changed on any of the four services in the last 24 hours, and what signal actually fired the 05:12:35 alert?"
+    ],
+    "alternatives": [
+      {
+        "root_cause": "nginx-web-server stopped processing requests at onset while its socket still accepted, hanging callers and emitting nothing.",
+        "service": "nginx-web-server",
+        "fault_class": "process_freeze",
+        "remediation_class": "restart",
+        "why_not": "The only supporting datum is zero traces [tr_3c7a09c7f07e], and that gap covers ~30 minutes before onset, which a freeze starting at 05:12:35 cannot explain; the Prometheus results independently describe a standing telemetry gap for this component."
+      },
+      {
+        "root_cause": "An unretrieved deploy or config change on one of the four services broke the request path at onset.",
+        "service": "nginx-web-server",
+        "fault_class": "bad_deploy",
+        "remediation_class": "rollback",
+        "why_not": "Every change-history query failed on response parsing [tr_7c7136d87842, tr_53f4cca39479, tr_f3ae6788e684, tr_06833e7a95d8], so this is entirely unsupported speculation \u2014 plausible but with zero positive evidence behind it."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "runbook:world-alert-timing / The instrument's constants: Prometheus scrapes at **5s** and evaluates at **15s**; the `faultline-slo` rule group carries its\nown `interval: 15s`. Both live in `compose/prometheus/prometheus-config.yaml`, which is under\n`observability_digest` precisely because it sets the sampling resolution of every captur",
+    "cart-bad-image-tag / What was checked: **Error rate by service.** frontend, loadgenerator and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero. Read, wrongly, as evidence cart was\nhealthy.\n\n**loadgenerator.** Set aside. It is the synthetic client; its error rate restates what\nthe storefron",
+    "payment-telemetry-blackout / What was never measured: Whether any user-facing failure occurred at all: every dispatch found the request path healthy and no frontend success-rate evidence was collected. Whether the export loss was confined to paymentservice or was collector-wide: collector health was never queried, and both produce t"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 28005,
+    "pulled_tokens": 1856,
+    "pull_rate": 0.0622,
+    "dropped_sections": 1,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 408,
+        "content_tokens": 410,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1356,
+        "content_tokens": 1358,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 8774,
+        "content_tokens": 8750,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 8125,
+        "content_tokens": 8127,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 9342,
+        "content_tokens": 9345,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_7c7136d87842",
+      "tr_53f4cca39479",
+      "tr_f3ae6788e684",
+      "tr_06833e7a95d8",
+      "tr_3c7a09c7f07e",
+      "tr_ae542892c038",
+      "tr_ecf722d4c88a"
+    ],
+    "expected_effect": "No action proposed, so no effect is expected or claimed. Concretely: every permitted action fails its preconditions. rollback_image and revert_config both require a prior image tag or configuration recorded in change history and evidence of a deploy/config change inside the window \u2014 all four change-history dispatches died with the same response-parse error [tr_7c7136d87842, tr_53f4cca39479, tr_f3ae6788e684, tr_06833e7a95d8], so no prior tag or config is known to exist and no change is named. restart_service requires evidence pointing at process state; the only observation that ran is zero spans for nginx-web-server across 04:42:35-05:12:41 [tr_3c7a09c7f07e], a window lying almost entirely before the 05:12:35 alert, and the same source rules out reading an empty trace window as either health or outage. The Prometheus results [tr_ecf722d4c88a] establish that this silence is equally consistent with a standing export gap \u2014 nginx-web-server emits no traces that become metrics at all. The Loki query that would discriminate process_freeze from network_partition, disk_fill and bad_config was rejected with HTTP 400 for a malformed pod matcher and never executed [tr_ae542892c038]. scale_service, reconnect_service, restore_store and free_storage are listed UNAVAILABLE and cannot be proposed regardless. The next step is investigative, not remedial: re-run the Loki query with a corrected pod label matcher, and query Tempo for nginx-web-server over an earlier window on 2026-10-02 to learn whether this service ever emits spans.",
+    "confirm_within_seconds": 0,
+    "if_wrong": "This abstention is wrong if the corrected Loki query returns nginx error lines clustered at 05:12:35 naming a specific upstream, or if a Tempo query over an earlier same-day window shows nginx-web-server emitting spans normally \u2014 either would convert the empty window into onset evidence and localise a mechanism, at which point restart_service on the named service becomes defensible. It is also wrong if the change-log tool recovers and shows a deploy or config edit on one of the four services inside the window, which would make rollback_image or revert_config the right class. Note that abstention's correctness cannot itself be confirmed by a metric: there is no series that goes green to prove not acting was right, which is part of why acting here would be unverifiable too \u2014 with span metrics structurally absent for all four services [tr_ecf722d4c88a, tr_df4845357d16, tr_ff29c4182d6f, tr_0a142cfdc055], no permitted action's effect could be measured as an error ratio falling or a latency percentile returning.",
+    "risk": "The risk of abstaining is continued customer-visible impact if a real fault is active and untreated at the front door; nginx-web-server is the seed and alerted service, so whatever fired at 05:12:35 keeps firing. That risk is accepted because the alternative is worse: a speculative restart of nginx-web-server would discard its caches and reset every in-flight connection on the only ingress path, and if the true fault is a network partition, a filled disk, or a bad config, the restart either does nothing or returns the service to the same broken state while destroying the process-state evidence (open sockets, file descriptors, memory) that the pending Loki query is meant to read. A rollback or config revert on a service whose change history was never successfully read could install an arbitrary, possibly older-and-worse, image or point a dependency address somewhere stale.",
+    "blast_radius": "Nobody sees a change, because nothing changes. For contrast, had an action been proposed: a restart or rollback of nginx-web-server would be seen by all external clients, as it is the seed and alerted front door, and by compose-post-service, home-timeline-service and user-timeline-service as dropped inbound connections during the recreate. An action on any one of those three candidate_cause services would be seen by nginx-web-server, which is their named inbound caller, and through it by external clients on the affected request paths."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "low",
+    "reasoning": "A critical alert on the front-door web server with no open incident to attribute it to; user-facing impact is plausible and cannot be dismissed. Nothing in the single-seed signal points to a specific fault class yet."
+  }
+}
