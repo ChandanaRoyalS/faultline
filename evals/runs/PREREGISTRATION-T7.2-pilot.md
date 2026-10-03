@@ -427,3 +427,109 @@ baseline's model, here and in the scored run.
 
 **Nothing frozen changes.** The settings of the run and of the pilot are as registered, and so is
 the order of the six attempts.
+
+## Addendum 6 - attempt 1 ran end to end and found two adapter defects; the pilot goes on, with a probe beside attempt 2
+
+**Written 2026-10-03, after attempt 1 and before attempt 2.** Outputs:
+`t72-pilot-b-a1-record/` (SREGym's log, Faultline's logs, and the trajectory from the bench
+database, the key checked absent) and `t72-pilot-b-a1-hang.txt`.
+
+**Attempt 1, Faultline on `edge_request_filter_cpu_saturation`, 02:16:05-02:35:47 UTC, exit 0:**
+
+| item | predicted | measured |
+|---|---|---|
+| ends with a submission | yes | **yes**: `Submission received`, stage `diagnosis` |
+| Faultline's install in the box | 60 to 120 s | **66 s** (02:25:26-02:26:32), the box's bundle at `ea773f50…` |
+| Faultline's opening | Astronomy Shop as the dev read finds | **one evaluation, no fallback**: `KubePodCrashLooping` on `product-catalog` (warning) and `ServiceHighErrorRate` on `load-generator` (critical) |
+| time, deploy to submission | 10 to 40 minutes | **17.4 minutes** to the submission (02:33:57), 19.7 to exit; SREGym's deploy took 367 s, the agent's stage 518 s |
+| the world | no alert, none restarted, MemAvailable above 5 GiB | **no alert, 9.5 GiB available** at 03:41 |
+
+- **Faultline reached a verdict**: `frontend`, fault type unknown, low confidence, 3 evidence
+  items cited, from 7 tool calls.
+- **The judge scored it 0.0**: the ground truth is `frontend-proxy`. No pass-rate prediction was
+  made, and none is drawn from one attempt.
+- The startup crash loop the dev read found on `product-catalog` (Addendum 2) opened the incident,
+  and the investigation went there first.
+
+**`loki-watch` read Loki at 02:23:43**: 11 labels, **`namespace` and `pod` among them**, and 9
+pod values for the namespace. **Addendum 1's rule is met.**
+
+**The cleanup** deleted `astronomy-shop` and `observe` and left `sregym` and `openebs`, as
+Addendum 5 read in SREGym's code.
+
+**The wait that never returned was the script's, not SREGym's.**
+
+- SREGym exited at 02:35:46.
+- The Mac's wait checked for `loki-watch` with `pgrep -f "pilot_vm.sh loki-watch"`, and that
+  matched the waiting command's own line, so it waited for itself.
+- **From attempt 2 on, the Mac waits only for the attempt's `exit` line.**
+- One process outlived the attempt: SREGym's `kubectl port-forward svc/mcp-server 9954`. SREGym
+  starts it through a shell and stops only the shell. Its next `start_port_forward` kills a stale
+  one first (`sregym/service/mcp_server.py:166`), so it is left to SREGym.
+
+**What Faultline's seven tool calls returned** (`db-trajectory_tool_calls.jsonl`):
+
+| tool | calls | result |
+|---|---|---|
+| `trace_query` | 1 | **worked**: 20 traces found, 5 shown |
+| `logql_query` | 2 | **HTTP 400 from Loki, both** |
+| `change_history` | 2 | **`Expecting ',' delimiter: … (char 10000)`, both** |
+| `metric_baseline` (error ratio) | 2 | **no samples in either window**, for `product-catalog` and `frontend` |
+
+1. **The log selector is malformed: an adapter defect.**
+   - `pod_pattern` builds the pod regex with `re.escape`, which writes `product-catalog` as
+     `product\-catalog`.
+   - `\-` is not an escape a LogQL string accepts, so Loki refuses the query.
+   - `memory_query` builds its PromQL the same way, and has the same defect. Attempt 1 did not
+     call it.
+   - The tests compared the string and never parsed it.
+2. **The change commands' answers are cut off: an adapter defect.**
+   - SREGym's kubectl server truncates every answer at **10,000 characters**
+     (`mcp_server/kubectl_server_helper/utils.py:9`, applied at `kubectl_cmd_runner.py:87`).
+   - `kubectl get replicasets -n astronomy-shop -o json` is longer, so the JSON arrives cut and
+     cannot be parsed.
+   - The server refuses pipes, so the answer cannot be shortened on its way out.
+   - The adapter was built without a full-size answer to read.
+3. **The empty error ratios: not established.**
+   - v2's span metrics create an error-status series only once a span errs. The template divides
+     by it, so a service with no errors returns nothing.
+   - Faultline's own world behaves the same way, and this fault slows the shop rather than
+     failing it.
+   - That would make the result correct, but **attempt 1's record cannot show it**.
+
+**The owner's decisions, 2026-10-03**, asked once the findings were explained:
+
+1. **The pilot continues as registered.** Attempts 2 to 6 run unchanged, with the adapter as
+   built. **Every finding is fixed together after the pilot and before the scored run**, followed
+   by a short re-check of Faultline on the three dev problems, registered before it runs. The
+   selector and the change commands are frozen settings, so their fixes are the owner's
+   decisions, as part B and Addendum 1 say.
+2. **A read-only probe runs beside attempt 2**, so the fixes are built on measured facts.
+
+**The probe** (`probe shop <file>`, new, read-only, beside attempt 2, Claude Code on the shop):
+
+- It waits until Loki has the namespace's pods, then 300 s for the fault, then reads once.
+- **What it reads:**
+  1. **Loki**: the selector as shipped and as corrected (the name unescaped), for
+     `product-catalog` and `frontend-proxy`, the last 30 minutes. It records whether each is
+     accepted, and how many streams and lines.
+  2. **Prometheus**: the span-call series counted by service and status code, which says which
+     services have an error-status series at all.
+  3. **The adapter's range reads exactly as it sends them**, `(q)[1800s:15s] @ now`:
+     - the error-ratio, call-rate and p95-latency templates for `frontend-proxy`, `frontend` and
+       `product-catalog`;
+     - the memory query as shipped and as corrected.
+
+     For each it records whether the read is accepted, and its series, points and range.
+  4. **The four change commands' answers**, against the 10,000-character cut:
+     - each answer's length and item count;
+     - the largest and median single item;
+     - the largest and median pod template.
+
+     For configmaps and secrets this is the shipped names-and-times command only.
+- **It prints statuses, counts and sizes only**: no log line, no object body, and no value from a
+  Secret.
+- It changes nothing, and Claude Code's attempt is otherwise exactly as registered.
+
+**Nothing frozen changes in this addendum.** The adapter, the run's settings and the order of the
+attempts are as registered. The probe's output is recorded with attempt 2's.

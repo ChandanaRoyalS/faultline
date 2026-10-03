@@ -1,0 +1,31 @@
+attempt edge_request_filter_cpu_saturation / faultline at 2026-10-03 02:16:05 UTC, model anthropic/claude-opus-5, judge anthropic/claude-sonnet-4-6
+exit 0 at 2026-10-03 02:35:47 UTC
+           span marked ERROR is a load-generator client POST span in            
+           span-level error attributes (no exception                            
+           any span), so the specific error attributes on any                   
+           (a database error propagating up). (ruled_out, from                  
+           with no error marking, and no product-catalog parent span            
+           is marked ERROR, so there is no callee-to-caller error               
+           propagation visible.)\n- The ERROR observed in the window            
+           single ERROR span is a load-generator client POST with no            
+           server child and no error marking on either side of the              
+           hop.)\n- The error-ratio query for product-catalog                   
+           ct-catalog",status_code="STATUS_CODE_ERROR"}[5m])) / sum             
+           ct-catalog",status_code="STATUS_CODE_ERROR"}[5m])) / sum             
+           surge of error-status spans around 02:26:33 that would               
+           show as a measurable error-ratio departure (ruled_out,               
+           so no error-ratio departure is observable on this signal;            
+           ct-catalog",status_code="STATUS_CODE_ERROR"}[5m])) / sum             
+           ct-catalog",status_code="STATUS_CODE_ERROR"}[5m])) / sum             
+           ct-catalog",status_code="STATUS_CODE_ERROR"}[5m])) / sum             
+           structured 400 client error, which requires a live server            
+           ERROR POST span, but load-generator was never dispatched             
+           'phase.stage:diagnosis.duration_s': 518.035,                         
+           'phase.stage:diagnosis.outcome': 'submitted',                        
+           'phase.evaluate:diagnosis.duration_s': 11.031,                       
+                    INFO     uvicorn.error - Shutting down                      
+[10/03/26 02:35:46] INFO     uvicorn.error - Finished server process [297420]   
+== results files
+  /home/deploy/t7.2-1c/SREGym/results/1003_0218/faultline_ALL_results.csv
+  /home/deploy/t7.2-1c/SREGym/results/1003_0218/faultline/edge_request_filter_cpu_saturation/edge_request_filter_cpu_saturation_faultline_results.csv
+  /home/deploy/t7.2-1c/SREGym/results/1003_0218/faultline/edge_request_filter_cpu_saturation/run_1/edge_request_filter_cpu_saturation_results.csv

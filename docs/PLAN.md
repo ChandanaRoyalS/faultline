@@ -4617,6 +4617,20 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-10-03: T7.2 pilot, Addendum 6 - attempt 1 ran end to end and found two adapter defects;
+the pilot goes on, with a probe beside attempt 2.***
+
+- **Attempt 1 ran end to end** in 19.7 minutes: Faultline installed in 66 s, opened on two alarms,
+  reached a verdict (`frontend`), and submitted. The judge scored it 0.0; the truth is
+  `frontend-proxy`.
+- **Loki has `namespace` and `pod`**, so Addendum 1's rule is met.
+- **Two adapter defects**: the log selector is refused (`re.escape` writes `\-`), and the change
+  commands' JSON is cut at SREGym's 10,000-character limit. The empty error ratios are not yet
+  explained.
+- **The owner's decisions**: the pilot continues as registered, every finding is fixed together
+  before the scored run, and a read-only probe runs beside attempt 2.
+- **Next**: the owner reads attempt 1's spend; then attempt 2 with the probe beside it.
+
 ***2026-10-03: T7.2 pilot, Addendum 5 - the database, the key and the judge are ready; the Loki
 read moves into attempt 1.***
 
