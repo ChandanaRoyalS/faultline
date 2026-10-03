@@ -1,0 +1,122 @@
+install at 2026-10-03 06:32:04 UTC
+kind: OK
+kubectl: OK
+helm.tgz: OK
+downloading uv 0.12.22 x86_64-unknown-linux-gnu
+installing to /home/deploy/t7.2-1c/uvbin
+  uv
+  uvx
+everything's installed!
+uv: uv 0.12.10 (x86_64-unknown-linux-gnu)
+46c853db Feat/jev decision tool (#1035)
+Submodule 'SREGym-applications' (https://github.com/SREGym/SREGym-applications.git) registered for path 'SREGym-applications'
+Cloning into '/home/deploy/t7.2-1c/SREGym/SREGym-applications'...
+Submodule path 'SREGym-applications': checked out '887d093e4cb7ff90e5a37dd2f11320d70d2e47a7'
+Submodule 'astronomy-shop' (https://github.com/xlab-uiuc/opentelemetry-helm-charts) registered for path 'astronomy-shop'
+Cloning into '/home/deploy/t7.2-1c/SREGym/SREGym-applications/astronomy-shop'...
+Submodule path 'astronomy-shop': checked out '7d7b074714345a0c282b0be75af7a2c504b44c95'
+faultline-agent.patch applied
+   M agents.yaml
+  ?? clients/faultline/
+  ?? docker/agents/install-scripts/install-faultline.sh
+ + zope-interface==8.2
+ + zstandard==0.25.0
+claudecode pinned to 2.1.288
+af70af223fdd9ec1730ea958b20cee39ce6c6bad4a015bbeb43be60ff6767a9f  /tmp/faultline-src.tar.gz
+22c50db855782737a2385e8212320ae5676075b20755be892f7f0415a4f12964  /tmp/faultline-seed.tar.gz
+Sat Oct  3 06:32:23 UTC 2026
+==> Step 1: Create Kind cluster
+Creating cluster "kind" ...
+ • Ensuring node image (ghcr.io/sregym/kind-node:sha-b97d6810e994bb7354b4bc15c6bc81cb66e816b9) 🖼  ...
+ ✓ Ensuring node image (ghcr.io/sregym/kind-node:sha-b97d6810e994bb7354b4bc15c6bc81cb66e816b9) 🖼
+ • Preparing nodes 📦 📦 📦 📦   ...
+ ✓ Preparing nodes 📦 📦 📦 📦 
+ • Writing configuration 📜  ...
+ ✓ Writing configuration 📜
+ • Starting control-plane 🕹️  ...
+ ✓ Starting control-plane 🕹️
+ • Installing StorageClass 💾  ...
+ ✓ Installing StorageClass 💾
+ • Joining worker nodes 🚜  ...
+ ✓ Joining worker nodes 🚜
+==> Step 2: Install Calico CNI
+Set kubectl context to "kind-kind"
+You can now use your cluster with:
+
+kubectl cluster-info --context kind-kind
+
+Thanks for using kind! 😊
+poddisruptionbudget.policy/calico-kube-controllers created
+serviceaccount/calico-kube-controllers created
+serviceaccount/calico-node created
+serviceaccount/calico-cni-plugin created
+configmap/calico-config created
+customresourcedefinition.apiextensions.k8s.io/bgpconfigurations.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/bgpfilters.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/bgppeers.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/blockaffinities.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/caliconodestatuses.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/clusterinformations.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/felixconfigurations.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/globalnetworkpolicies.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/globalnetworksets.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/hostendpoints.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/ipamblocks.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/ipamconfigs.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/ipamhandles.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/ippools.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/ipreservations.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/kubecontrollersconfigurations.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/networkpolicies.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/networksets.crd.projectcalico.org created
+clusterrole.rbac.authorization.k8s.io/calico-kube-controllers created
+clusterrole.rbac.authorization.k8s.io/calico-node created
+clusterrole.rbac.authorization.k8s.io/calico-cni-plugin created
+clusterrolebinding.rbac.authorization.k8s.io/calico-kube-controllers created
+clusterrolebinding.rbac.authorization.k8s.io/calico-node created
+clusterrolebinding.rbac.authorization.k8s.io/calico-cni-plugin created
+daemonset.apps/calico-node created
+deployment.apps/calico-kube-controllers created
+==> Step 3: Wait for Calico to be ready
+Waiting for daemon set "calico-node" rollout to finish: 3 out of 4 new pods have been updated...
+Waiting for daemon set "calico-node" rollout to finish: 0 of 4 updated pods are available...
+Waiting for daemon set "calico-node" rollout to finish: 1 of 4 updated pods are available...
+Waiting for daemon set "calico-node" rollout to finish: 2 of 4 updated pods are available...
+Waiting for daemon set "calico-node" rollout to finish: 3 of 4 updated pods are available...
+daemon set "calico-node" successfully rolled out
+pod/calico-node-6mr52 condition met
+pod/calico-node-8mtj4 condition met
+pod/calico-node-db2cl condition met
+pod/calico-node-jlnjt condition met
+==> Step 3b: Confirm all nodes are Ready
+node/kind-control-plane condition met
+node/kind-worker condition met
+node/kind-worker2 condition met
+node/kind-worker3 condition met
+==> Step 4: Delete SREGym cluster baseline cache
+
+✅ Cluster setup complete!
+
+NAME                 STATUS   ROLES           AGE   VERSION
+kind-control-plane   Ready    control-plane   43s   v1.32.1
+kind-worker          Ready    <none>          33s   v1.32.1
+kind-worker2         Ready    <none>          33s   v1.32.1
+kind-worker3         Ready    <none>          33s   v1.32.1
+~/.kube/config: identical
+bench-db at 2026-10-03 06:33:31 UTC
+  seeded  runbook:world-blast-radius-traversal
+  seeded  runbook:world-change-records-have-no-prior-value
+  seeded  runbook:world-digests-and-what-they-cover
+  seeded  runbook:world-emulated-containers
+  seeded  runbook:world-log-volume
+  seeded  runbook:world-runtime-metrics-and-their-label
+  seeded  runbook:world-saturation-is-invisible
+  seeded  runbook:world-the-settle-window
+  seeded  runbook:world-tracing-artifact-edges
+  seeded  runbook:world-two-names-for-every-service
+  seeded  runbook:world-uninstrumented-services
+  seeded  runbook:world-warm-up-latency
+  seeded  runbook:world-what-a-recreate-removes
+the template: 334 chunks over 65 documents, body digest a6de378e3b55
+kickoff_env password set in the run's checkout
+bundle over docker0: HTTP 200, 798158 bytes

@@ -1,0 +1,168 @@
+== r1-shop-faultline
+attempt edge_request_filter_cpu_saturation / faultline at 2026-10-03 06:38:55 UTC, model anthropic/claude-opus-5, judge anthropic/claude-sonnet-4-6
+exit 0 at 2026-10-03 06:49:45 UTC
+{"started_at": "2026-10-03T06:46:50.990192+00:00", "app_name": "OpenTelemetry Demo Astronomy Shop", "namespace": "astronomy-shop", "application": "sregym-astronomy-shop", "evaluations": 2, "fallback": false, "episodes": [{"alertname": "ServiceHighErrorRate", "service": "load-generator", "severity": "critical"}], "opening_errors": [], "incident_id": "885104aa-8488-4a47-925d-5ea091f5ca01", "investigate_exit": 5, "trajectory_id": "", "verdict": false, "evidence_cited": 0, "submitted": {"status": "200", "message": "Submission received", "stage": "diagnosis"}, "error": "", "ended_at": "2026-10-03T06:47:57.969274+00:00"}
+                    INFO     all.sregym.conductor - Start Eval for Diagnosis    
+== LLM-as-a-Judge Evaluation ==
+❌ Incorrect diagnosis: False (score: 33.0/100)
+[10/03/26 06:48:05] INFO     all.sregym.conductor - [EVAL] Diagnosis Failed     
+           results={'Diagnosis': {'judgment': 'False', 'reasoning':             
+           "No", "evidence": "Agent diagnosis states \'Faultline                
+           the diagnosis.", "confidence": "High"}, {"id": "D2-Q3",              
+           blamed in the diagnosis, so no uninvolved components are             
+           "answer": "No", "evidence": "The diagnosis mentions no               
+           described in the diagnosis.", "confidence": "High"}]',               
+           'success': False, 'accuracy': 33.0, 'composite_score':               
+           'score': 0.33}, 'D2': {'name': 'Fault Characterization',             
+           'score': 0.33}, 'D3': {'name': 'Scope Precision',                    
+           'score': 0.33}}, 'checklist': [{'id': 'D1-Q1', 'answer':             
+           'No', 'evidence': "Agent diagnosis states 'Faultline                 
+           the diagnosis.', 'confidence': 'High'}, {'id': 'D2-Q3',              
+           blamed in the diagnosis, so no uninvolved components are             
+           'answer': 'No', 'evidence': 'The diagnosis mentions no               
+           described in the diagnosis.', 'confidence': 'High'}],                
+           'phase.stage:diagnosis.duration_s': 132.816,                         
+           'phase.stage:diagnosis.outcome': 'submitted',                        
+           'phase.evaluate:diagnosis.duration_s': 7.167,                        
+[10/03/26 06:49:44] INFO     uvicorn.error - Shutting down                      
+                    INFO     uvicorn.error - Finished server process [1250637]  
+== results files
+  /home/deploy/t7.2-1c/SREGym/results/1003_0639/faultline_ALL_results.csv
+  /home/deploy/t7.2-1c/SREGym/results/1003_0639/faultline/edge_request_filter_cpu_saturation/edge_request_filter_cpu_saturation_faultline_results.csv
+  /home/deploy/t7.2-1c/SREGym/results/1003_0639/faultline/edge_request_filter_cpu_saturation/run_1/edge_request_filter_cpu_saturation_results.csv
+== r1-record
+record r1 at 2026-10-03 06:49:45 UTC; faultline logs: /home/deploy/t7.2-1c/SREGym/results/1003_0639/faultline/edge_request_filter_cpu_saturation/run_1/faultline/attempt.json
+  incidents: 1 rows
+  trajectories: 0 rows
+  trajectory_steps: 0 rows
+  trajectory_tool_calls: 0 rows
+  trajectory_retrievals: 0 rows
+  trajectory_proposals: 0 rows
+key occurrences: 0
+-rw-rw-r-- 1 deploy deploy 11412 Oct  3 06:49 /home/deploy/t7.2-1c/out/r1-record.tgz
+== r2-hotel-faultline
+attempt update_incompatible_correlated / faultline at 2026-10-03 06:49:46 UTC, model anthropic/claude-opus-5, judge anthropic/claude-sonnet-4-6
+exit 0 at 2026-10-03 07:00:07 UTC
+                    INFO     all.sregym.conductor - Start Eval for Diagnosis    
+== LLM-as-a-Judge Evaluation ==
+{"started_at": "2026-10-03T06:53:54.422389+00:00", "app_name": "Hotel Reservation", "namespace": "hotel-reservation", "application": "sregym-hotel-reservation", "evaluations": 1, "fallback": false, "episodes": [{"alertname": "KubeDeploymentReplicasMismatch", "service": "mongodb-geo", "severity": "warning"}, {"alertname": "KubeDeploymentReplicasMismatch", "service": "mongodb-profile", "severity": "warning"}, {"alertname": "KubeDeploymentReplicasMismatch", "service": "mongodb-rate", "severity": "warning"}, {"alertname": "KubeDeploymentReplicasMismatch", "service": "mongodb-recommendation", "severity": "warning"}, {"alertname": "KubeDeploymentReplicasMismatch", "service": "mongodb-user", "severity": "warning"}, {"alertname": "KubePodCrashLooping", "service": "mongodb-geo", "severity": "warning"}, {"alertname": "KubePodCrashLooping", "service": "mongodb-profile", "severity": "warning"}, {"alertname": "KubePodCrashLooping", "service": "mongodb-rate", "severity": "warning"}, {"alertname": "KubePodCrashLooping", "service": "mongodb-recommendation", "severity": "warning"}, {"alertname": "KubePodCrashLooping", "service": "mongodb-user", "severity": "warning"}], "opening_errors": [], "incident_id": "115a23d9-a247-467c-9d42-764b03cebd90", "investigate_exit": 0, "trajectory_id": "d98bacd2-07ee-4540-a0cb-a2756a9efa1a", "verdict": true, "evidence_cited": 6, "submitted": {"status": "200", "message": "Submission received", "stage": "diagnosis"}, "error": "", "ended_at": "2026-10-03T06:58:10.477115+00:00"}
+✅ Correct diagnosis: True (score: 89.0/100)
+[10/03/26 06:58:23] INFO     all.sregym.conductor - [EVAL] Diagnosis Succeed    
+           results={'Diagnosis': {'judgment': 'True', 'reasoning':              
+           OOM, storage corruption, config errors, and networking as            
+           'composite_score': 0.89, 'dimensions': {'D1': {'name':               
+           'Fault Localization', 'score': 1.0}, 'D2': {'name':                  
+           'Fault Characterization', 'score': 1.0}, 'D3': {'name':              
+           'Scope Precision', 'score': 0.67}}, 'checklist': [{'id':             
+           errors, and networking as root causes.', 'confidence':               
+           manual, out-of-band edit that bypassed the deployment                
+           successful and no recovery or corruption errors.; query:             
+           consumer errors at 06:53:54 have an available upstream               
+           checkpoint and rollback-to-stable, and no storage error              
+           error line is not present in this result set, which is               
+           in milliseconds with no error-severity storage entries;              
+           and checkpoint and no storage errors                                 
+           environment\'s own error text.\n- Why freshly created                
+           'phase.stage:diagnosis.duration_s': 324.221,                         
+           'phase.stage:diagnosis.outcome': 'submitted',                        
+           'phase.evaluate:diagnosis.duration_s': 12.763,                       
+                    INFO     uvicorn.error - Shutting down                      
+                    INFO     uvicorn.error - Finished server process [1310482]  
+== results files
+  /home/deploy/t7.2-1c/SREGym/results/1003_0649/faultline/update_incompatible_correlated/run_1/update_incompatible_correlated_results.csv
+  /home/deploy/t7.2-1c/SREGym/results/1003_0639/faultline_ALL_results.csv
+  /home/deploy/t7.2-1c/SREGym/results/1003_0639/faultline/edge_request_filter_cpu_saturation/edge_request_filter_cpu_saturation_faultline_results.csv
+  /home/deploy/t7.2-1c/SREGym/results/1003_0639/faultline/edge_request_filter_cpu_saturation/run_1/edge_request_filter_cpu_saturation_results.csv
+== r2-record
+record r2 at 2026-10-03 07:00:07 UTC; faultline logs: /home/deploy/t7.2-1c/SREGym/results/1003_0649/faultline/update_incompatible_correlated/run_1/faultline/attempt.json
+  incidents: 1 rows
+  trajectories: 1 rows
+  trajectory_steps: 24 rows
+  trajectory_tool_calls: 8 rows
+  trajectory_retrievals: 2 rows
+  trajectory_proposals: 1 rows
+key occurrences: 0
+-rw-rw-r-- 1 deploy deploy 60423 Oct  3 07:00 /home/deploy/t7.2-1c/out/r2-record.tgz
+== r3-social-faultline
+attempt k8s_target_port-misconfig / faultline at 2026-10-03 07:00:08 UTC, model anthropic/claude-opus-5, judge anthropic/claude-sonnet-4-6
+exit 0 at 2026-10-03 07:14:05 UTC
+           nginx-web-server served zero errors during the window,               
+           about nginx error volume can be drawn either way.)\n-                
+           exist, the question of which hop carries ERROR status or             
+           user-timeline) marked ERROR as the culprit hop.                      
+           carrying ERROR status. Any claim of a specific failing               
+           while a fraction error out at one upstream. (ruled_out,              
+           onset, so no error lines and no upstream path or host can            
+           selective: not merely no error-level lines, but no lines             
+           the incident, surfacing config-reload errors, worker                 
+           error-log entries in this window; none exist, which                  
+           reading nginx access/error logs to correlate request                 
+           connection errors, refusals, or upstream-identity                    
+           errors at 07:09 that identify the failing downstream                 
+           error text exists in Loki for this selector; the                     
+           TLS/peer-verification error in compose-post-service is               
+           identity or verification error was emitted to the log                
+           healthy and logging normally, just without errors                    
+           partition or error alike and discriminates nothing. The              
+           to and no logged upstream error naming a wrong address or            
+           service.\n- What do nginx access/error logs show via a               
+           'phase.stage:diagnosis.duration_s': 576.578,                         
+           'phase.stage:diagnosis.outcome': 'submitted',                        
+           'phase.evaluate:diagnosis.duration_s': 18.097,                       
+[10/03/26 07:14:04] INFO     uvicorn.error - Shutting down                      
+                    INFO     uvicorn.error - Finished server process [1369122]  
+== results files
+  /home/deploy/t7.2-1c/SREGym/results/1003_0649/faultline/update_incompatible_correlated/run_1/update_incompatible_correlated_results.csv
+  /home/deploy/t7.2-1c/SREGym/results/1003_0639/faultline_ALL_results.csv
+  /home/deploy/t7.2-1c/SREGym/results/1003_0639/faultline/edge_request_filter_cpu_saturation/edge_request_filter_cpu_saturation_faultline_results.csv
+  /home/deploy/t7.2-1c/SREGym/results/1003_0639/faultline/edge_request_filter_cpu_saturation/run_1/edge_request_filter_cpu_saturation_results.csv
+== r3-record
+record r3 at 2026-10-03 07:14:05 UTC; faultline logs: /home/deploy/t7.2-1c/SREGym/results/1003_0700/faultline/k8s_target_port-misconfig/run_1/faultline/attempt.json
+  incidents: 1 rows
+  trajectories: 1 rows
+  trajectory_steps: 20 rows
+  trajectory_tool_calls: 6 rows
+  trajectory_retrievals: 2 rows
+  trajectory_proposals: 1 rows
+key occurrences: 0
+-rw-rw-r-- 1 deploy deploy 46083 Oct  3 07:14 /home/deploy/t7.2-1c/out/r3-record.tgz
+== r1-probe
+probe from 2026-10-03 06:39:00 UTC, for astronomy-shop
+Loki answered for astronomy-shop at poll 11, 2026-10-03 06:44:02 UTC; waiting 300 s for the fault
+reading at 2026-10-03 06:49:02 UTC
+== 1. Loki: the shipped selector and the corrected one, the last 30 min, limit 100
+  shipped   {namespace="astronomy-shop",pod=~"product\-catalog-([a-z0-9]+-[a-z0-9]+|[0-9]+)"}
+      REJECTED: Error from server (NotFound): services "loki" not found
+  corrected {namespace="astronomy-shop",pod=~"product-catalog-([a-z0-9]+-[a-z0-9]+|[0-9]+)"}
+      REJECTED: Error from server (NotFound): services "loki" not found
+  shipped   {namespace="astronomy-shop",pod=~"frontend\-proxy-([a-z0-9]+-[a-z0-9]+|[0-9]+)"}
+      REJECTED: Error from server (NotFound): services "loki" not found
+  corrected {namespace="astronomy-shop",pod=~"frontend-proxy-([a-z0-9]+-[a-z0-9]+|[0-9]+)"}
+      REJECTED: Error from server (NotFound): services "loki" not found
+
+== 2. Prometheus: span-call series by service and status, now
+  REJECTED: Error from server (NotFound): services "prometheus-server" not found
+
+== 3. the adapter's range reads, as it sends them: (q)[1800s:15s] @ now
+  error-ratio frontend-proxy         REJECTED: Error from server (NotFound): services "prometheus-server" not found
+  call-rate frontend-proxy           REJECTED: Error from server (NotFound): services "prometheus-server" not found
+  latency-p95 frontend-proxy         REJECTED: Error from server (NotFound): services "prometheus-server" not found
+  error-ratio frontend               REJECTED: Error from server (NotFound): services "prometheus-server" not found
+  call-rate frontend                 REJECTED: Error from server (NotFound): services "prometheus-server" not found
+  latency-p95 frontend               REJECTED: Error from server (NotFound): services "prometheus-server" not found
+  error-ratio product-catalog        REJECTED: Error from server (NotFound): services "prometheus-server" not found
+  call-rate product-catalog          REJECTED: Error from server (NotFound): services "prometheus-server" not found
+  latency-p95 product-catalog        REJECTED: Error from server (NotFound): services "prometheus-server" not found
+  memory frontend-proxy, shipped     REJECTED: Error from server (NotFound): services "prometheus-server" not found
+  memory frontend-proxy, corrected   REJECTED: Error from server (NotFound): services "prometheus-server" not found
+
+== 4. the change commands' answers, against SREGym's 10000-character cut
+  kubectl get replicasets -n astronomy-shop -o json
+      119 characters, under the cut; 0 items
+  kubectl get statefulsets,controllerrevisions -n astronomy-shop -o json
+      119 characters, under the cut; 0 items
+  kubectl get events -n astronomy-shop -o json
+      119 characters, under the cut; 0 items
+  kubectl get configmaps,secrets -n astronomy-shop -o custom-columns=<kube.SECRET_COLUMNS>
+      32 characters, under the cut
+probe done at 2026-10-03 06:49:04 UTC

@@ -560,3 +560,32 @@ designing the fixes raised. **Faultline's own behaviour is not touched**: every 
   - the opening on Social Network ends inside eight minutes.
 - **If it fails, the scored run does not start.** What failed is reported, and the fix registered
   again.
+
+## Addendum 5 - the re-check, and one pass condition corrected after its result
+
+**Written 2026-10-03, after the re-check
+([`evals/attempts/T7.2-recheck/RESULT.md`](../attempts/T7.2-recheck/RESULT.md)) and before the
+scored run's operation is registered.**
+
+- **Three of Addendum 4's four conditions held as written**:
+  - every change call returned records;
+  - every log call was accepted;
+  - the Social Network opening took 5.1 minutes.
+- **The fourth did not.** *No tool call takes over 5 s*: two `change_history` calls took 6.4 and
+  5.5 s.
+- **The condition was mis-stated, and it is corrected here, after the result.** It was written to
+  catch F3's defect, which cost one 15 s keep-alive per MCP request. F2 then made one change call
+  up to eight requests, each running `kubectl` on SREGym's side, and the condition was not re-read
+  against that.
+  - **The corrected condition is *each MCP request under 5 s*.**
+  - Every one-request tool took 0.12-1.6 s.
+  - The slowest change call made up to eight requests in 6.4 s, under 1 s a request.
+- **This is the owner's decision of 2026-10-03.** A re-run with fewer requests per change call
+  was offered, at about $2 and an hour, and declined.
+- **It is recorded as a correction, not a pass.** Its only effect is that the scored run may
+  start.
+- **What the re-check did not establish:**
+  - the shop's live tool behaviour, because r1 was gated by triage before any tool ran;
+  - Hotel Reservation's p95, which no attempt asked for.
+
+  Neither is a condition. Both are read in the scored run's records.

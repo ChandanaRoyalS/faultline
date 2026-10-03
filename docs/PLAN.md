@@ -4617,6 +4617,22 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-10-03: T7.2 re-check - the fixes hold on the live applications; one pass condition
+corrected after its result.***
+
+- **Faultline on the three dev problems** ([RESULT](../evals/attempts/T7.2-recheck/RESULT.md)):
+  - r2, Hotel Reservation, **correct (89)**: `change_history` returned `mongo:4.4.6 ->
+    mongo:8.0.14-rc0`. The pilot scored the same problem 22;
+  - r1, the shop, triage gated it as noise, and no tool ran;
+  - r3, Social Network, wrong, every tool answering.
+- **Change calls 4 of 4 with records, log calls 5 of 5 accepted, the Social Network opening 5.1
+  minutes** (17.1 in the pilot), every one-request tool 0.12-1.6 s.
+- **Two change calls took 6.4 and 5.5 s** against a 5 s condition written per tool. It is
+  corrected to per request by the owner's decision, and recorded as a correction, not a pass
+  (adapter registration, Addendum 5).
+- **Spend** about $1.80 of the $50 cap. No alert, no restart, no incident.
+- **Next**: the scored run's operation, registered before it runs.
+
 ***2026-10-03: T7.2 adapter fixes built - the selector, the change commands, the fifteen seconds
 and the shop's p95; both stamps unchanged; $0.***
 

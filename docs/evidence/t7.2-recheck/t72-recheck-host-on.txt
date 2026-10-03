@@ -1,0 +1,11 @@
+-A INPUT -i docker0 -p tcp -m tcp --dport 55480 -j ACCEPT
+-A INPUT -i docker0 -p tcp -m tcp --dport 55432 -j ACCEPT
+-A INPUT -i docker0 -p tcp -m tcp --dport 16443 -j ACCEPT
+-A INPUT -i docker0 -p tcp -m tcp --dport 9954 -j ACCEPT
+-A INPUT -i docker0 -p tcp -m tcp --dport 8000 -j ACCEPT
+-A INPUT ! -i lo -p tcp -m tcp --dport 16443 -j DROP
+-A INPUT ! -i lo -p tcp -m tcp --dport 9954 -j DROP
+-A INPUT ! -i lo -p tcp -m tcp --dport 8000 -j DROP
+fs.inotify.max_user_instances = 1024
+fs.inotify.max_user_watches = 1048576
+Connection to <the VM> closed.

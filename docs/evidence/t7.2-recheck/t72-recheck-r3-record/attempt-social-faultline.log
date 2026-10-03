@@ -1,0 +1,845 @@
+[10/03/26 07:00:14] INFO     all.sregym.profile - Deployment profile: full      
+[10/03/26 07:00:14] INFO     __main__ - 🔧 Config — agent: faultline,           
+                             agent_model: anthropic/claude-opus-5,              
+                             judge_backend: api, judge_model:                   
+                             anthropic/claude-sonnet-4-6, reasoning_effort:     
+                             agent default, jev_model: disabled,                
+                             deployment_profile: full, internet_access:         
+                             filtered, container_hardening: on, agent_api_base: 
+                             unset, judge_api_base: unset                       
+                    INFO     __main__ - 🔍 Running pre-flight check for judge   
+                             model...                                           
+🔧 Initializing LLM backend — model: anthropic/claude-sonnet-4-6, api_base: unset
+[10/03/26 07:00:15] INFO     __main__ - ✅ Judge pre-flight check passed        
+[10/03/26 07:00:15] INFO     all.sregym.container_runner - 🐳 Building container
+                             image 'sregym-agent-base:latest'...                
+==> Building sregym-agent-base:latest with kubectl v1.32.1
+#0 building with "default" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile
+#1 transferring dockerfile: 4.62kB done
+#1 DONE 0.0s
+
+#2 [internal] load metadata for docker.io/library/ubuntu:22.04
+#2 DONE 0.3s
+
+#3 [ 1/18] FROM docker.io/library/ubuntu:22.04@sha256:b1066385161d28ddf6bc7e7b28a9170eec11484c821d1a5150d176cbde41d7f7
+#3 resolve docker.io/library/ubuntu:22.04@sha256:b1066385161d28ddf6bc7e7b28a9170eec11484c821d1a5150d176cbde41d7f7 0.0s done
+#3 DONE 0.0s
+
+#4 [internal] load build context
+#4 transferring context: 7.17kB 0.0s done
+#4 DONE 0.0s
+
+#5 [14/18] COPY sregym/service/apps/base.py sregym/service/apps/helpers.py /opt/sregym/sregym/service/apps/
+#5 CACHED
+
+#6 [17/18] RUN mkdir -p /logs
+#6 CACHED
+
+#7 [ 3/18] RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash -     && add-apt-repository ppa:deadsnakes/ppa
+#7 CACHED
+
+#8 [15/18] COPY docker/agents/install-scripts/ /opt/sregym/install-scripts/
+#8 CACHED
+
+#9 [ 7/18] COPY docker/agents/requirements-container.txt /tmp/requirements-container.txt
+#9 CACHED
+
+#10 [13/18] COPY sregym/service/__init__.py sregym/service/kubectl.py sregym/service/helm.py /opt/sregym/sregym/service/
+#10 CACHED
+
+#11 [ 9/18] COPY clients/        /opt/sregym/clients/
+#11 CACHED
+
+#12 [ 6/18] RUN KUBECTL_ARCH="amd64"     && case "${KUBECTL_ARCH}" in amd64|arm64) ;; *) echo "Unsupported kubectl architecture: ${KUBECTL_ARCH}" >&2; exit 1 ;; esac     && if [ "v1.32.1" = stable ]; then KUBECTL_VERSION="$(curl -fsSL https://dl.k8s.io/release/stable.txt)"; fi     && curl -fsSLo kubectl "https://dl.k8s.io/release/v1.32.1/bin/linux/${KUBECTL_ARCH}/kubectl"     && chmod +x kubectl && mv kubectl /usr/local/bin/
+#12 CACHED
+
+#13 [ 4/18] RUN apt-get update     && apt-get install -y --no-install-recommends         git wget jq         nodejs         python3.12 python3.12-venv python3.12-dev     && update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.12 1     && rm -rf /var/lib/apt/lists/*
+#13 CACHED
+
+#14 [ 2/18] RUN apt-get update     && apt-get install -y --no-install-recommends         ca-certificates curl gnupg software-properties-common     && rm -rf /var/lib/apt/lists/*
+#14 CACHED
+
+#15 [16/18] RUN chmod +x /opt/sregym/install-scripts/*.sh
+#15 CACHED
+
+#16 [12/18] COPY sregym/__init__.py sregym/paths.py /opt/sregym/sregym/
+#16 CACHED
+
+#17 [ 5/18] RUN python3 -m ensurepip --upgrade     && python3 -m pip install --upgrade pip     && ln -sf /usr/bin/python3 /usr/bin/python
+#17 CACHED
+
+#18 [10/18] COPY logger/         /opt/sregym/logger/
+#18 CACHED
+
+#19 [11/18] COPY llm_backend/    /opt/sregym/llm_backend/
+#19 CACHED
+
+#20 [ 8/18] RUN python3 -m pip install --break-system-packages -r /tmp/requirements-container.txt
+#20 CACHED
+
+#21 [18/18] WORKDIR /logs
+#21 CACHED
+
+#22 exporting to image
+#22 exporting layers done
+#22 exporting manifest sha256:1b74a7bb405d43412a3e637b37638417323d4f1fc4a6a2d6aa94b992abf54a9c done
+#22 exporting config sha256:5d9ad739d727a05d459f4a31004b6c88d90d21f830069c2e903de96901537afc done
+#22 exporting attestation manifest sha256:f9ab190fbb9fa9c2743a3b2ddb39cf0839a85008235527d13d7590c1a79b9d9e done
+#22 exporting manifest list sha256:a14ada01420c4795d390fbfbf5df4bf7006c0eeb3dd9887c9ef511d564279b42 done
+#22 naming to docker.io/library/sregym-agent-base:latest done
+#22 unpacking to docker.io/library/sregym-agent-base:latest 0.0s done
+#22 DONE 0.1s
+[10/03/26 07:00:16] INFO     all.sregym.container_runner - ✅ Container image   
+                             'sregym-agent-base:latest' built successfully.     
+╭───────────────────────────── SREGym API Server ──────────────────────────────╮
+│  ____  ____  _____ ____                                                      │
+│ / ___||  _ \| ____/ ___|_   _ _ __ ___                                       │
+│ \___ \| |_) |  _|| |  _| | | | '_ ` _ \                                      │
+│  ___) |  _ <| |__| |_| | |_| | | | | | |                                     │
+│ |____/|_| \_\_____\____|\__, |_| |_| |_|                                     │
+│                         |___/                                                │
+│                                                                              │
+╰──────────────────────────── http://0.0.0.0:8000 ─────────────────────────────╯
+Available Endpoints                                                             
+
+ • POST /submit: { "stage": "diagnosis", "solution": "<your-solution>" } →      
+   grades the named stage                                                       
+ • GET /status: returns { "stage": "setup" | "diagnosis" | "mitigation" |       
+   "tearing_down" | "done" }                                                    
+/home/deploy/t7.2-1c/SREGym/.venv/lib/python3.12/site-packages/websockets/legacy/__init__.py:6: DeprecationWarning: websockets.legacy is deprecated; see https://websockets.readthedocs.io/en/stable/howto/upgrade.html for upgrade instructions
+  warnings.warn(  # deprecated in 14.0 - 2024-11-09
+/home/deploy/t7.2-1c/SREGym/.venv/lib/python3.12/site-packages/uvicorn/protocols/websockets/websockets_impl.py:17: DeprecationWarning: websockets.server.WebSocketServerProtocol is deprecated
+  from websockets.server import WebSocketServerProtocol
+[10/03/26 07:00:16] INFO     uvicorn.error - Started server process [1369122]   
+                    INFO     uvicorn.error - Waiting for application startup.   
+                    INFO     uvicorn.error - Application startup complete.      
+                    INFO     uvicorn.error - Uvicorn running on                 
+                             http://0.0.0.0:8000 (Press CTRL+C to quit)         
+[07:00:17] Starting agent now: faultline                             main.py:255
+           🔒 Starting Kubernetes API proxy to hide chaos            main.py:259
+           namespaces...                                                        
+[10/03/26 07:00:17] INFO     all.sregym.conductor - Starting Kubernetes API     
+                             filtering proxy...                                 
+                    INFO     all.infra.k8s_proxy - Kubernetes API filtering     
+                             proxy started on 172.17.0.1:16443                  
+                    INFO     all.infra.k8s_proxy - Hidden namespaces:           
+                             {'chaos-mesh', 'khaos'}                            
+                    INFO     all.infra.k8s_proxy - Hidden labels: {'app':       
+                             {'load-generator', 'locust-fetcher'}, 'job':       
+                             {'workload'}, 'opentelemetry.io/name':             
+                             {'load-generator'}}                                
+                    INFO     all.infra.k8s_proxy - Generated agent kubeconfig at
+                             /tmp/sregym-agent-kubeconfig-m0szbia3.yaml         
+                    INFO     all.sregym.conductor - Agent kubeconfig generated  
+                             at: /tmp/sregym-agent-kubeconfig-m0szbia3.yaml     
+           🎯 Running single problem: k8s_target_port-misconfig      main.py:300
+                                                                     main.py:378
+           🔍 Starting problem: k8s_target_port-misconfig (Attempt 1            
+           of 1)                                                                
+                    INFO     all.sregym.conductor - [Session Start] Problem ID: 
+                             k8s_target_port-misconfig                          
+                    INFO     all.sregym.conductor - [STAGE] Start testing on    
+                             problem: k8s_target_port-misconfig                 
+                    INFO     all.sregym.conductor - Fixing Kubernetes... to     
+                             normal state.                                      
+                    INFO     all.sregym.conductor - [FIX] Imbalance leftover if 
+                             any                                                
+                    INFO     all.sregym.conductor - [FIX] KubeletCrash leftover 
+                             if any                                             
+Starting kubelet in kind-worker...
+Kubelet started in kind-worker
+Starting kubelet in kind-worker2...
+Kubelet started in kind-worker2
+Starting kubelet in kind-worker3...
+Kubelet started in kind-worker3
+Waiting for worker nodes {'kind-worker', 'kind-worker2', 'kind-worker3'} to become Ready...
+All worker nodes are Ready.
+                    INFO     all.sregym.conductor - [FIX]                       
+                             KubeletEvictionThresholdMisconfig leftover if any  
+Recovering disk pressure in kind-worker...
+Waiting for node kind-worker to become Ready...
+Node kind-worker is Ready.
+Recovering disk pressure in kind-worker2...
+Waiting for node kind-worker2 to become Ready...
+Node kind-worker2 is Ready.
+Recovering disk pressure in kind-worker3...
+Waiting for node kind-worker3 to become Ready...
+Node kind-worker3 is Ready.
+[10/03/26 07:00:19] INFO     all.sregym.conductor - [FIX] Calico                
+                             IPPool/strictAffinity leftover if any              
+                    INFO     all.sregym.conductor - [FIX] Calico route-reflector
+                             label drift leftovers if any                       
+                    INFO     all.sregym.conductor - [FIX] Stale CoreDNS NXDOMAIN
+                             templates if any                                   
+No NXDOMAIN templates found in CoreDNS config; nothing to do
+[10/03/26 07:00:20] INFO     all.sregym.conductor - [FIX] Leftover dm-flakey    
+                             infrastructure if any                              
+[dm-flakey] ⚠️ Could not remove dm-flakey on kind-control-plane (may not exist): No running Khaos pod found on node kind-control-plane
+[dm-flakey] ⚠️ Could not remove dm-flakey on kind-worker (may not exist): No running Khaos pod found on node kind-worker
+[dm-flakey] ⚠️ Could not remove dm-flakey on kind-worker2 (may not exist): No running Khaos pod found on node kind-worker2
+[dm-flakey] ⚠️ Could not remove dm-flakey on kind-worker3 (may not exist): No running Khaos pod found on node kind-worker3
+                    INFO     all.sregym.conductor - [FIX] NightlyRebalanceOOM   
+                             kube-system actor leftover if any                  
+                    INFO     all.sregym.conductor - [FIX] Clock drift leftover  
+                             if any                                             
+No leftover node-probe pods found; nothing to do
+                    INFO     all.sregym.conductor - Fix Kubernetes completed.   
+                    INFO     all.sregym.conductor - Stages requested for this   
+                             run: ['diagnosis']                                 
+                    INFO     all.sregym.conductor - Undeploying app leftovers...
+                    INFO     all.infra.helm - Helm Uninstall: social-network in 
+                             namespace social-network                           
+                    INFO     all.sregym.conductor - App leftovers undeployed.   
+                    INFO     all.sregym.conductor - Deploying app...            
+                    INFO     all.infra.cluster_state - Baseline state loaded    
+                             from                                               
+                             /home/deploy/cache_dir/cluster_baseline_state.json 
+                    INFO     all.sregym.conductor - [DEPLOY] Loaded persisted   
+                             cluster baseline state                             
+                    INFO     all.sregym.conductor - [DEPLOY] Setting up         
+                             metrics-server…                                    
+                    INFO     all.sregym.conductor - [DEPLOY] metrics-server     
+                             already present and patched; skipping re-apply     
+[07:00:20] Waiting for all pods in namespace 'kube-system' to be  kubectl.py:204
+           ready...                                                             
+[07:00:21] All pods in namespace 'kube-system' are ready.         kubectl.py:245
+[10/03/26 07:00:21] INFO     all.sregym.conductor - [DEPLOY] Setting up OpenEBS…
+                    INFO     all.sregym.conductor - [DEPLOY] OpenEBS already    
+                             deployed; skipping operator re-apply               
+           Waiting for all pods in namespace 'openebs' to be      kubectl.py:204
+           ready...                                                             
+           All pods in namespace 'openebs' are ready.             kubectl.py:245
+                    INFO     all.sregym.conductor - [DEPLOY] Ensuring OpenEBS   
+                             LocalPV-Device StorageClass…                       
+                    INFO     all.sregym.conductor - [DEPLOY]                    
+                             StorageClass/openebs-device already exists; leaving
+                             it unchanged                                       
+                    INFO     all.sregym.conductor - [DEPLOY] Deploying          
+                             Prometheus…                                        
+                    INFO     all.infra.helm - Helm Uninstall: prometheus in     
+                             namespace observe                                  
+                    INFO     all.infra.helm - Helm Install: prometheus in       
+                             namespace observe                                  
+[07:00:22] Waiting for all pods in namespace 'observe' to be      kubectl.py:204
+           ready...                                                             
+[07:01:02] All pods in namespace 'observe' are ready.             kubectl.py:245
+[10/03/26 07:01:02] INFO     all.sregym.conductor - [DEPLOY] Deploying Jaeger…  
+                    INFO     all.sregym.jaeger - Jaeger deployed successfully.  
+                    INFO     all.sregym.conductor - [DEPLOY] Deploying OTel     
+                             Collector…                                         
+[10/03/26 07:01:06] INFO     all.sregym.otel_collector - OTel Collector deployed
+                             successfully.                                      
+                    INFO     all.sregym.conductor - [DEPLOY] Deploying Loki…    
+                    INFO     all.infra.helm - Helm Uninstall: loki in namespace 
+                             observe                                            
+                    INFO     all.infra.loki - Adding Grafana Helm repository... 
+[10/03/26 07:01:07] INFO     all.infra.helm - Helm Install: loki in namespace   
+                             observe                                            
+[07:01:08] Waiting for all pods in namespace 'observe' to be      kubectl.py:204
+           ready...                                                             
+[07:01:55] All pods in namespace 'observe' are ready.             kubectl.py:245
+[10/03/26 07:01:55] INFO     all.infra.loki - Deploying Promtail for Loki log   
+                             collection...                                      
+                    INFO     all.infra.helm - Helm Install: promtail in         
+                             namespace observe                                  
+[10/03/26 07:01:56] WARNING  all.infra.helm - Helm install stderr output:       
+                             level=WARN msg="this chart is deprecated"          
+[07:01:56] Waiting for all pods in namespace 'observe' to be      kubectl.py:204
+           ready...                                                             
+[07:02:09] All pods in namespace 'observe' are ready.             kubectl.py:245
+[10/03/26 07:02:09] INFO     all.sregym.conductor - [DEPLOY] Deploying MCP      
+                             server…                                            
+                    INFO     all.sregym.mcp_server - MCP server RBAC resources  
+                             ensured.                                           
+                    INFO     all.sregym.mcp_server - MCP server already running,
+                             skipping redeploy.                                 
+                    INFO     all.sregym.mcp_server - Port-forward is absent or  
+                             stale, restarting.                                 
+[10/03/26 07:02:12] INFO     all.sregym.mcp_server - Port forwarding established
+                             at 9954. MCP_SERVER_PORT set.                      
+                    INFO     all.sregym.conductor - [ENV] Set up necessary      
+                             components: metrics-server, Khaos, OpenEBS,        
+                             Prometheus, Jaeger, Loki                           
+                    INFO     all.sregym.conductor - [DEPLOY] Deploying and      
+                             starting workload                                  
+                    INFO     all.application - Namespace social-network not     
+                             found. Creating namespace.                         
+                    INFO     all.application - Namespace social-network created 
+                             successfully: namespace/social-network created     
+                                                                                
+                    INFO     all.infra.helm - Helm Install: social-network in   
+                             namespace social-network                           
+[07:02:14] Waiting for all pods in namespace 'social-network' to  kubectl.py:204
+           be ready...                                                          
+[07:02:53] All pods in namespace 'social-network' are ready.      kubectl.py:245
+[10/03/26 07:02:53] INFO     all.sregym.conductor - [ENV] Deploy application:   
+                             Social Network                                     
+[10/03/26 07:02:54] INFO     all.sregym.jaeger - Created ExternalName service   
+                             'jaeger' in namespace 'social-network' ->          
+                             otel-collector.observe.svc.cluster.local           
+                    INFO     all.sregym.jaeger - Created ExternalName service   
+                             'jaeger-agent' in namespace 'social-network' ->    
+                             otel-collector.observe.svc.cluster.local           
+                    INFO     all.sregym.jaeger - Created ExternalName service   
+                             'jaeger-collector' in namespace 'social-network' ->
+                             otel-collector.observe.svc.cluster.local           
+                    INFO     all.sregym.jaeger - Created ExternalName service   
+                             'jaeger-query' in namespace 'social-network' ->    
+                             otel-collector.observe.svc.cluster.local           
+                    INFO     all.infra.workload - Start Workload with Wrk2      
+                    INFO     all.infra.workload - Checking for existing         
+                             ConfigMap 'wrk2-payload-script'...                 
+                    INFO     all.infra.workload - Creating ConfigMap            
+                             'wrk2-payload-script'...                           
+                    INFO     all.infra.workload - ConfigMap                     
+                             'wrk2-payload-script' created successfully.        
+                    INFO     all.infra.workload - Job created: wrk2-job         
+                    INFO     all.sregym.conductor - [ENV] Start workload        
+                    INFO     all.sregym.conductor - App deployed.               
+Misconfig fault for service: user-service | namespace: social-network
+[FAULT INJECTED] user-service misconfigured
+[10/03/26 07:03:00] INFO     all.sregym.conductor - [ENV] Injected fault        
+                    INFO     all.sregym.conductor - [STAGE] Go to stage         
+                             diagnosis                                          
+                    INFO     all.sregym.conductor - ✅ Deployment complete.     
+                             Ready for submission. Current stage is: diagnosis  
+[10/03/26 07:03:03] INFO     all.sregym.container_runner - Starting             
+                             containerized agent [faultline-run]:               
+                             /opt/sregym/install-scripts/install-faultline.sh   
+                             2>&1 | tee /logs/install.log; I...                 
+[2026-10-03T07:03:03+00:00] Installing Faultline from http://host.docker.internal:55480/faultline-src.tar.gz
+af70af223fdd9ec1730ea958b20cee39ce6c6bad4a015bbeb43be60ff6767a9f  /tmp/faultline-src.tar.gz
+WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.
+[2026-10-03T07:04:03+00:00] Faultline installed: /opt/faultline/src/faultline/__init__.py
+[10/03/26 07:04:04] INFO     uvicorn.access - 172.17.0.3:43120 - "GET /status   
+                             HTTP/1.1" 200                                      
+                    INFO     uvicorn.access - 172.17.0.3:43126 - "GET /get_app  
+                             HTTP/1.1" 200                                      
+[10/03/26 07:12:37] INFO     uvicorn.access - 172.17.0.3:60636 - "POST /submit  
+                             HTTP/1.1" 200                                      
+[10/03/26 07:12:37] INFO     all.sregym.conductor - Evaluating stage 'diagnosis'
+                    INFO     all.sregym.conductor - Start Eval for Diagnosis    
+== LLM-as-a-Judge Evaluation ==
+{"started_at": "2026-10-03T07:04:04.504747+00:00", "app_name": "Social Network", "namespace": "social-network", "application": "sregym-social-network", "evaluations": 6, "fallback": true, "episodes": [{"alertname": "SREGymProblemReported", "service": "nginx-web-server", "severity": "critical"}], "opening_errors": [], "incident_id": "5d3f9917-e9d1-4f50-bc21-0ddb06651637", "investigate_exit": 0, "trajectory_id": "c814b7f3-3044-40cb-8df7-19c5894b6413", "verdict": true, "evidence_cited": 5, "submitted": {"status": "200", "message": "Submission received", "stage": "diagnosis"}, "error": "", "ended_at": "2026-10-03T07:12:37.301656+00:00"}
+🔧 Initializing LLM backend — model: anthropic/claude-sonnet-4-6, api_base: unset
+[07:12:39] ⚠️  Agent process exited with return code 0                main.py:582
+[07:12:40] ⏳ Waiting for conductor evaluation to complete...        main.py:586
+❌ Incorrect diagnosis: False (score: 11.0/100)
+   Expected: [fault_spec] component=service/user-service; namespace=social-network || The Service targetPort is m...
+   Got: Root cause: No root cause is established by this board. Span-derived metrics do not exist for nginx-...
+[10/03/26 07:12:55] INFO     all.sregym.conductor - [EVAL] Diagnosis Failed     
+                              TTL: 594.6750800609589                            
+                    INFO     all.sregym.conductor - [STAGE] Done, starting      
+                             teardown                                           
+                    INFO     all.sregym.conductor - [CLEANUP] Starting cleanup  
+                             (fault recovery, undeploy, reconcile)              
+                    INFO     all.sregym.conductor - [CLEANUP] Recovering        
+                             fault...                                           
+[07:12:55] 🧹 Running conductor cleanup after agent exit...          main.py:615
+Recovering for service: user-service | namespace: social-network
+[FAULT RECOVERED] user-service
+                    INFO     all.sregym.conductor - [CLEANUP] Fault recovered   
+                    INFO     all.sregym.conductor - [CLEANUP] Undeploying app...
+                    INFO     all.infra.helm - Helm Uninstall: social-network in 
+                             namespace social-network                           
+[10/03/26 07:12:56] WARNING  all.infra.helm - Helm uninstall stderr output:     
+                             level=WARN msg="skipping delete of resource not    
+                             owned by this release" kind=Service name=jaeger    
+                             namespace=social-network release=social-network    
+[07:12:56] Job with label 'job=workload' deleted successfully.    kubectl.py:422
+           Waiting for namespace deletion...                      kubectl.py:341
+[07:13:34] Namespace 'social-network' has been deleted.           kubectl.py:349
+[10/03/26 07:13:34] INFO     all.infra.kubectl - Namespace 'social-network'     
+                             deleted successfully.                              
+                    INFO     all.sregym.conductor - [CLEANUP] App undeployed    
+                    INFO     all.sregym.conductor - [CLEANUP] Reconciling       
+                             cluster state to baseline...                       
+                    INFO     all.infra.cluster_state - Reconciling cluster to   
+                             baseline state...                                  
+                    INFO     all.infra.cluster_state - Deleting unexpected      
+                             namespace: observe                                 
+           Waiting for namespace deletion...                      kubectl.py:341
+[07:13:48] Namespace 'observe' has been deleted.                  kubectl.py:349
+[10/03/26 07:13:48] INFO     all.infra.kubectl - Namespace 'observe' deleted    
+                             successfully.                                      
+                    INFO     all.infra.cluster_state - Deleting unexpected      
+                             ClusterRole: loki-clusterrole                      
+                    INFO     all.infra.cluster_state - Deleting unexpected      
+                             ClusterRole: promtail                              
+                    INFO     all.infra.cluster_state - Deleting unexpected      
+                             ClusterRole: mcp-server                            
+                    INFO     all.infra.cluster_state - Deleting unexpected      
+                             ClusterRole: prometheus-server                     
+                    INFO     all.infra.cluster_state - Deleting unexpected      
+                             ClusterRole: prometheus-kube-state-metrics         
+                    INFO     all.infra.cluster_state - Deleting unexpected      
+                             ClusterRoleBinding: promtail                       
+                    INFO     all.infra.cluster_state - Deleting unexpected      
+                             ClusterRoleBinding: mcp-server                     
+                    INFO     all.infra.cluster_state - Deleting unexpected      
+                             ClusterRoleBinding: loki-clusterrolebinding        
+                    INFO     all.infra.cluster_state - Deleting unexpected      
+                             ClusterRoleBinding: prometheus-server              
+                    INFO     all.infra.cluster_state - Deleting unexpected      
+                             ClusterRoleBinding: prometheus-kube-state-metrics  
+                    INFO     all.infra.kubectl - [gc_localpv] Sweeping          
+                             /var/openebs/local on 4 node(s) (preserving 0 live 
+                             PV dir(s))                                         
+[10/03/26 07:14:03] INFO     all.infra.cluster_state - Reconciliation complete: 
+                             {'namespaces_deleted': ['observe'],                
+                             'cluster_roles_deleted': ['loki-clusterrole',      
+                             'promtail', 'mcp-server', 'prometheus-server',     
+                             'prometheus-kube-state-metrics'],                  
+                             'cluster_role_bindings_deleted': ['promtail',      
+                             'mcp-server', 'loki-clusterrolebinding',           
+                             'prometheus-server',                               
+                             'prometheus-kube-state-metrics'],                  
+                             'persistent_volumes_deleted': [],                  
+                             'storage_classes_deleted': [], 'crds_deleted': [], 
+                             'validating_webhook_configs_deleted': [],          
+                             'mutating_webhook_configs_deleted': [],            
+                             'nodes_labels_reset': [], 'nodes_taints_reset': [],
+                             'coredns_reset': False}                            
+                    INFO     all.sregym.conductor - Cluster state reconciliation
+                             changes: {'namespaces_deleted': ['observe'],       
+                             'cluster_roles_deleted': ['loki-clusterrole',      
+                             'promtail', 'mcp-server', 'prometheus-server',     
+                             'prometheus-kube-state-metrics'],                  
+                             'cluster_role_bindings_deleted': ['promtail',      
+                             'mcp-server', 'loki-clusterrolebinding',           
+                             'prometheus-server',                               
+                             'prometheus-kube-state-metrics'],                  
+                             'persistent_volumes_deleted': [],                  
+                             'storage_classes_deleted': [], 'crds_deleted': [], 
+                             'validating_webhook_configs_deleted': [],          
+                             'mutating_webhook_configs_deleted': [],            
+                             'nodes_labels_reset': [], 'nodes_taints_reset': [],
+                             'coredns_reset': False}                            
+                    INFO     all.sregym.conductor - [CLEANUP] Cluster state     
+                             reconciled                                         
+                    INFO     all.sregym.conductor - [CLEANUP] Cleanup complete, 
+                             stage set to 'done'                                
+                    INFO     all.sregym.conductor - [STAGE] Teardown complete   
+[07:14:03] ✅ Complete k8s_target_port-misconfig:                    main.py:655
+           results={'Diagnosis': {'judgment': 'False', 'reasoning':             
+           'Verdict: False (composite=0.11). D1 Fault Localization:             
+           0.00 | D2 Fault Characterization: 0.33 | D3 Scope                    
+           Precision: 0.00. Weakest dimension: Fault Localization               
+           (0.00). Checklist details: [{"id": "D1-Q1", "answer":                
+           "No", "evidence": "Agent names \'nginx-web-server\' as               
+           faulty component; ground truth identifies                            
+           \'service/user-service\' as the fault origin.",                      
+           "confidence": "High"}, {"id": "D1-Q2", "answer": "No",               
+           "evidence": "Agent focuses entirely on nginx-web-server              
+           and compose-post-service; user-service is never                      
+           identified as the root cause or distinguished from                   
+           secondary components.", "confidence": "High"}, {"id":                
+           "D1-Q3", "answer": "No", "evidence": "Agent explicitly               
+           states \'Faulty component: nginx-web-server\', which is              
+           not the ground-truth fault origin (user-service).",                  
+           "confidence": "High"}, {"id": "D2-Q1", "answer": "No",               
+           "evidence": "Agent states \'Fault type: unknown\'; the               
+           actual fault is a misconfigured targetPort                           
+           (9090\\u21929999) on user-service, which is never                    
+           identified.", "confidence": "High"}, {"id": "D2-Q2",                 
+           "answer": "No", "evidence": "No mention of targetPort                
+           misconfiguration, port values 9090 or 9999, or any                   
+           concrete mutation detail matching the ground truth                   
+           injection.", "confidence": "High"}, {"id": "D2-Q3",                  
+           "answer": "Yes", "evidence": "Agent declares fault type              
+           \'unknown\' rather than asserting an incorrect specific              
+           fault type, so it does not actively attribute to a wrong             
+           mechanism.", "confidence": "Medium"}, {"id": "D3-Q1",                
+           "answer": "No", "evidence": "Agent investigates                      
+           nginx-web-server and compose-post-service extensively;               
+           neither is the ground-truth fault origin, constituting               
+           over-attribution.", "confidence": "High"}, {"id":                    
+           "D3-Q2", "answer": "No", "evidence": "user-service is                
+           never mentioned anywhere in the agent\'s diagnosis; the              
+           ground-truth component is entirely absent.",                         
+           "confidence": "High"}, {"id": "D3-Q3", "answer": "No",               
+           "evidence": "Agent describes bootstrap/provisioning                  
+           sequence and unknown fault; ground truth states                      
+           targetPort misconfiguration causing connection failures              
+           and upstream timeouts.", "confidence": "High"}]',                    
+           'success': False, 'accuracy': 11.0, 'composite_score':               
+           0.11, 'dimensions': {'D1': {'name': 'Fault Localization',            
+           'score': 0.0}, 'D2': {'name': 'Fault Characterization',              
+           'score': 0.33}, 'D3': {'name': 'Scope Precision',                    
+           'score': 0.0}}, 'checklist': [{'id': 'D1-Q1', 'answer':              
+           'No', 'evidence': "Agent names 'nginx-web-server' as                 
+           faulty component; ground truth identifies                            
+           'service/user-service' as the fault origin.",                        
+           'confidence': 'High'}, {'id': 'D1-Q2', 'answer': 'No',               
+           'evidence': 'Agent focuses entirely on nginx-web-server              
+           and compose-post-service; user-service is never                      
+           identified as the root cause or distinguished from                   
+           secondary components.', 'confidence': 'High'}, {'id':                
+           'D1-Q3', 'answer': 'No', 'evidence': "Agent explicitly               
+           states 'Faulty component: nginx-web-server', which is not            
+           the ground-truth fault origin (user-service).",                      
+           'confidence': 'High'}, {'id': 'D2-Q1', 'answer': 'No',               
+           'evidence': "Agent states 'Fault type: unknown'; the                 
+           actual fault is a misconfigured targetPort (9090→9999) on            
+           user-service, which is never identified.", 'confidence':             
+           'High'}, {'id': 'D2-Q2', 'answer': 'No', 'evidence': 'No             
+           mention of targetPort misconfiguration, port values 9090             
+           or 9999, or any concrete mutation detail matching the                
+           ground truth injection.', 'confidence': 'High'}, {'id':              
+           'D2-Q3', 'answer': 'Yes', 'evidence': "Agent declares                
+           fault type 'unknown' rather than asserting an incorrect              
+           specific fault type, so it does not actively attribute to            
+           a wrong mechanism.", 'confidence': 'Medium'}, {'id':                 
+           'D3-Q1', 'answer': 'No', 'evidence': 'Agent investigates             
+           nginx-web-server and compose-post-service extensively;               
+           neither is the ground-truth fault origin, constituting               
+           over-attribution.', 'confidence': 'High'}, {'id':                    
+           'D3-Q2', 'answer': 'No', 'evidence': "user-service is                
+           never mentioned anywhere in the agent's diagnosis; the               
+           ground-truth component is entirely absent.",                         
+           'confidence': 'High'}, {'id': 'D3-Q3', 'answer': 'No',               
+           'evidence': 'Agent describes bootstrap/provisioning                  
+           sequence and unknown fault; ground truth states                      
+           targetPort misconfiguration causing connection failures              
+           and upstream timeouts.', 'confidence': 'High'}],                     
+           'submission': 'Root cause: No root cause is established              
+           by this board. Span-derived metrics do not exist for                 
+           nginx-web-server or compose-post-service in either the               
+           onset or baseline window because neither emits traces                
+           that become metrics [tr_81d3c68dcd9a][tr_00357570b0e6],              
+           which makes the empty Tempo result [tr_ce237924350e] the             
+           expected baseline for an uninstrumented service rather               
+           than a symptom of silence. Both Loki queries used guessed            
+           pod-name regexes that were never validated and returned              
+           empty results carrying a truncation flag                             
+           [tr_c626ef4ef205][tr_4b6926841b8a], so that silence                  
+           cannot be read as the service writing nothing. The only              
+           positive evidence is a three-second burst by                         
+           platform-automation about six minutes before the 07:09:07            
+           alert in which the nginx workload container, the                     
+           nginx-thrift ConfigMap and the nginx-thrift Service were             
+           all created for the first time [tr_1808ab6d2147] - a                 
+           bootstrap sequence, not a regression from a healthy                  
+           baseline. That tells us nginx began serving against                  
+           never-exercised routing config; it does not name what is             
+           failing now.\nFaulty component: nginx-web-server\nFault              
+           type: unknown\nConfidence: low\n\nEvidence:\n- Only three            
+           changes are recorded for nginx-web-server across the full            
+           24-hour window, and all three cluster within about three             
+           seconds of each other roughly six minutes before onset.              
+           (found, from change_history on nginx-web-server)\n- All              
+           three changes are first-time creations rather than                   
+           modifications: a workload container created for the first            
+           time, plus a ConfigMap and a Service both newly created              
+           for the nginx-thrift upstream. (found, from                          
+           change_history on nginx-web-server)\n- Every change was              
+           made by the same non-human actor, platform-automation,               
+           indicating an automated provisioning or bootstrap                    
+           sequence rather than an operator-initiated edit. (found,             
+           from change_history on nginx-web-server)\n- The upstream             
+           routing surface (Service nginx-thrift) and the upstream              
+           config (ConfigMap nginx-thrift) came into existence at               
+           the same instant as the workload, so the service began               
+           serving against freshly created,                                     
+           never-previously-exercised routing config. (found, from              
+           change_history on nginx-web-server)\n- A config edit or              
+           regression to an existing, previously healthy nginx                  
+           upstream configuration caused the incident. (ruled_out,              
+           from change_history on nginx-web-server; why: The                    
+           ConfigMap and Service are recorded as created, not                   
+           updated, and no prior version exists in the window —                 
+           there was no established baseline config to regress                  
+           from.)\n- A gradual or staged rollout drifted the service            
+           into a bad state over the hours preceding onset.                     
+           (ruled_out, from change_history on nginx-web-server; why:            
+           The window spans a full day and contains no changes at               
+           all until a single three-second burst six minutes before             
+           onset; there is no multi-step or progressive rollout to              
+           blame.)\n- A human operator made a manual hotfix, routing            
+           tweak, or emergency config push shortly before the                   
+           incident. (ruled_out, from change_history on                         
+           nginx-web-server; why: All three recorded changes are                
+           attributed to platform-automation, with no human actor               
+           present in the change set.)\n- A routing change                      
+           redirected traffic away from a healthy upstream to a                 
+           broken one. (ruled_out, from change_history on                       
+           nginx-web-server; why: The nginx-thrift Service was                  
+           created, not reconfigured or repointed, so no                        
+           pre-existing traffic path was altered.)\n- The container             
+           was restarted, rescheduled, or redeployed from a prior               
+           revision. (ruled_out, from change_history on                         
+           nginx-web-server; why: The workload is explicitly logged             
+           as first created, ruling out a restart or replacement of             
+           an earlier running instance within this window.)\n- The              
+           error-ratio metric query for nginx-web-server returned no            
+           data at all across both the incident window and its                  
+           preceding baseline window; the backing store holds no                
+           span-derived metrics for this service because it does not            
+           emit traces that become metrics. (found, from                        
+           metric_baseline on nginx-web-server)\n- No error-status              
+           breakdown (5xx vs 4xx), no request rate, and no upstream             
+           latency figures are obtainable for nginx-web-server from             
+           this metrics source, so the onset question remains                   
+           unanswered by this evidence. (found, from metric_baseline            
+           on nginx-web-server)\n- The empty result means                       
+           nginx-web-server served zero errors during the window,               
+           i.e. the proxy tier is clean. (ruled_out, from                       
+           metric_baseline on nginx-web-server; why: The result                 
+           carries an explicit query-failure condition stating the              
+           data is unavailable rather than zero, so absence here is             
+           instrument coverage, not a healthy signal. No conclusion             
+           about nginx error volume can be drawn either way.)\n-                
+           Span-derived metrics in this Prometheus are a viable                 
+           route to characterise nginx-web-server traffic, and a                
+           retry or wider window would return the breakdown.                    
+           (ruled_out, from metric_baseline on nginx-web-server;                
+           why: The failure is structural — the service emits no                
+           traces, so no span metrics exist for it in any window.               
+           Re-querying this template will keep returning nothing;               
+           nginx request rate, status mix and upstream latency must             
+           come from access logs or an nginx exporter instead.)\n-              
+           The gap is specific to the incident window, suggesting a             
+           collector outage or scrape interruption coinciding with              
+           onset. (ruled_out, from metric_baseline on                           
+           nginx-web-server; why: The baseline window immediately               
+           before onset is equally empty, so there is no transition             
+           from data to no-data at onset and nothing points to a                
+           collection failure triggered by the incident.)\n- A trace            
+           query for nginx-web-server across the full onset window              
+           returned nothing at all — not a single trace, not even a             
+           root span that starts and immediately fails. (found, from            
+           trace_query on nginx-web-server)\n- Because no spans                 
+           exist, the question of which hop carries ERROR status or             
+           terminates cannot be answered from trace data: there are             
+           no nginx-web-server spans and therefore no child spans               
+           toward nginx-thrift, compose-post, home-timeline, or                 
+           user-timeline to inspect. (found, from trace_query on                
+           nginx-web-server)\n- The absence is total rather than                
+           partial, which points at one of two whole-path                       
+           conditions: either no requests were admitted/served by               
+           nginx-web-server in this window, or the tracing path                 
+           itself (instrumentation, agent, or collector export to               
+           Tempo) stopped producing data for this service. (found,              
+           from trace_query on nginx-web-server)\n- Requests are                
+           reaching an upstream and failing there, with a specific              
+           downstream service (compose-post, home-timeline, or                  
+           user-timeline) marked ERROR as the culprit hop.                      
+           (ruled_out, from trace_query on nginx-web-server; why: No            
+           spans exist for nginx-web-server or any of its children              
+           in the window, so no upstream hop can be identified as               
+           carrying ERROR status. Any claim of a specific failing               
+           hop has no trace support.)\n- The failure is a partial or            
+           intermittent degradation — some traces succeed end-to-end            
+           while a fraction error out at one upstream. (ruled_out,              
+           from trace_query on nginx-web-server; why: A partial                 
+           failure would still leave successful traces in the                   
+           window. The result is completely empty, which is                     
+           inconsistent with a mixed success/failure pattern.)\n-               
+           Requests enter nginx-web-server and terminate at the                 
+           nginx-thrift boundary (e.g. upstream connection refused),            
+           visible as a truncated trace. (ruled_out, from                       
+           trace_query on nginx-web-server; why: Truncated traces               
+           would still show the nginx-web-server root span and its              
+           failed outbound attempt. No root spans exist at all, so              
+           termination cannot be localized to that boundary.)\n- The            
+           trace window was simply misaligned and traces exist just             
+           outside it. (ruled_out, from trace_query on                          
+           nginx-web-server; why: The query covered the full                    
+           ~30-minute onset window and returned empty across its                
+           entirety, not a sparse edge region.)\n- A Loki query                 
+           scoped to the social-network namespace and a pod-name                
+           pattern intended to match the nginx frontend returned                
+           zero log lines across the full ~30-minute window spanning            
+           onset, so no error lines and no upstream path or host can            
+           be named from this evidence. (found, from logql_query on             
+           nginx-web-server; query:                                             
+           {namespace="social-network",pod=~"nginx-thrift-([a-z0-9]+            
+           -[a-z0-9]+|[0-9]+)"})\n- The absence is total rather than            
+           selective: not merely no error-level lines, but no lines             
+           at all, which is consistent either with the pod selector             
+           failing to match any running pod or with no logs being               
+           ingested from this workload during the window. (found,               
+           from logql_query on nginx-web-server; query:                         
+           {namespace="social-network",pod=~"nginx-thrift-([a-z0-9]+            
+           -[a-z0-9]+|[0-9]+)"})\n- The result is flagged truncated             
+           despite being empty, so the emptiness should be treated              
+           as a property of the matched stream set rather than a                
+           confirmed exhaustive scan. (found, from logql_query on               
+           nginx-web-server; query:                                             
+           {namespace="social-network",pod=~"nginx-thrift-([a-z0-9]+            
+           -[a-z0-9]+|[0-9]+)"})\n- nginx logged upstream connection            
+           failures or timeouts naming a specific backend host/port             
+           that would identify the failing downstream dependency                
+           (ruled_out, from logql_query on nginx-web-server; why: No            
+           lines of any level were returned for the nginx stream                
+           over the onset window, so there is no logged upstream                
+           identifier available from this source; any upstream                  
+           attribution must come from traces or service-mesh                    
+           telemetry instead.; query:                                           
+           {namespace="social-network",pod=~"nginx-thrift-([a-z0-9]+            
+           -[a-z0-9]+|[0-9]+)"})\n- nginx itself was the origin of              
+           the incident, surfacing config-reload errors, worker                 
+           crashes, or 5xx generation in its own logs (ruled_out,               
+           from logql_query on nginx-web-server; why: An                        
+           nginx-originated fault of that kind would normally leave             
+           error-log entries in this window; none exist, which                  
+           removes log-based support for nginx as the originating               
+           component.; query:                                                   
+           {namespace="social-network",pod=~"nginx-thrift-([a-z0-9]+            
+           -[a-z0-9]+|[0-9]+)"})\n- The investigation can proceed by            
+           reading nginx access/error logs to correlate request                 
+           paths with onset (ruled_out, from logql_query on                     
+           nginx-web-server; why: This log stream is unusable for               
+           correlation in this window; the next step is to validate             
+           the pod label/name pattern and log shipping rather than              
+           to re-query the same selector.; query:                               
+           {namespace="social-network",pod=~"nginx-thrift-([a-z0-9]+            
+           -[a-z0-9]+|[0-9]+)"})\n- A Loki query for                            
+           compose-post-service pods in the social-network namespace            
+           returned no matching log lines across the full 30-minute             
+           window ending at 07:09, so there is no logged evidence of            
+           connection errors, refusals, or upstream-identity                    
+           failures from this service in that period. (found, from              
+           logql_query on compose-post-service; query:                          
+           {namespace="social-network",pod=~"compose-post-service-([            
+           a-z0-9]+-[a-z0-9]+|[0-9]+)"})\n- The absence is total                
+           rather than selective — not a single line of any level or            
+           category was returned — which is itself anomalous for a              
+           request-serving component and is consistent with either              
+           the service not running/not being scheduled under the                
+           matched pod-name pattern, or its log pipeline not                    
+           delivering to Loki. (found, from logql_query on                      
+           compose-post-service; query:                                         
+           {namespace="social-network",pod=~"compose-post-service-([            
+           a-z0-9]+-[a-z0-9]+|[0-9]+)"})\n- The result carries a                
+           truncation flag despite being empty, so the query\'s                 
+           completeness cannot be fully guaranteed; a corroborating             
+           query (relaxed label selector, or pod listing) is needed             
+           before treating the silence as conclusive. (found, from              
+           logql_query on compose-post-service; query:                          
+           {namespace="social-network",pod=~"compose-post-service-([            
+           a-z0-9]+-[a-z0-9]+|[0-9]+)"})\n- compose-post-service                
+           logged explicit connection refusals or upstream connect              
+           errors at 07:09 that identify the failing downstream                 
+           dependency (ruled_out, from logql_query on                           
+           compose-post-service; why: No log lines at all were                  
+           returned for this service over the window, so no such                
+           error text exists in Loki for this selector; the                     
+           downstream dependency cannot be named from                           
+           compose-post-service logs.; query:                                   
+           {namespace="social-network",pod=~"compose-post-service-([            
+           a-z0-9]+-[a-z0-9]+|[0-9]+)"})\n- An upstream-identity or             
+           TLS/peer-verification error in compose-post-service is               
+           the root cause visible in its own logs (ruled_out, from              
+           logql_query on compose-post-service; why: The query                  
+           covering the incident window returned zero lines, so no              
+           identity or verification error was emitted to the log                
+           backend by this service.; query:                                     
+           {namespace="social-network",pod=~"compose-post-service-([            
+           a-z0-9]+-[a-z0-9]+|[0-9]+)"})\n- compose-post-service was            
+           healthy and logging normally, just without errors                    
+           (ruled_out, from logql_query on compose-post-service;                
+           why: Normal operation would still produce routine request            
+           or startup lines; the complete absence of any output is              
+           inconsistent with a healthy, logging service and points              
+           toward the pod being absent, renamed, crash-looping                  
+           before log emission, or its log shipping being broken.;              
+           query:                                                               
+           {namespace="social-network",pod=~"compose-post-service-([            
+           a-z0-9]+-[a-z0-9]+|[0-9]+)"})\n- Log evidence from                   
+           compose-post-service can be used to timestamp the onset              
+           of the incident (ruled_out, from logql_query on                      
+           compose-post-service; why: With no lines in the window               
+           there is no timestamp sequence to anchor onset; timing               
+           must come from metrics, traces, or neighbouring                      
+           services.; query:                                                    
+           {namespace="social-network",pod=~"compose-post-service-([            
+           a-z0-9]+-[a-z0-9]+|[0-9]+)"})\n\nReasoning:\nFour of six             
+           dispatches returned nothing, and two of those nothings               
+           are explained by instrument coverage rather than by the              
+           incident [tr_81d3c68dcd9a][tr_00357570b0e6]. Because                 
+           those services emit no traces, the total absence of spans            
+           [tr_ce237924350e] is consistent with health, freeze,                 
+           partition or error alike and discriminates nothing. The              
+           log silence [tr_c626ef4ef205][tr_4b6926841b8a] is                    
+           similarly unusable: the specialists flagged that the                 
+           selector may simply not match any running pod, and the               
+           results were marked truncated despite being empty. That              
+           leaves only the change record [tr_1808ab6d2147], which is            
+           evidence of an act, not of a mechanism - and its own                 
+           specialist ruled out config regression, staged rollout,              
+           human edit, upstream repointing and                                  
+           restart-from-prior-revision. Naming any fault class on               
+           this basis would be classifying by the upstream act                  
+           rather than by what the service is doing wrong, so the               
+           honest verdict is unknown with the investigation pointed             
+           at validating pod identity and finding a non-span                    
+           signal.\n\nAlternatives considered:\n1. nginx-web-server:            
+           The freshly created nginx-thrift ConfigMap names                     
+           upstreams that do not resolve, so nginx cannot route any             
+           request. (bad_config). Ranked lower because: Nothing read            
+           the ConfigMap\'s contents; the change record shows only              
+           that it was created. There is no prior version to revert             
+           to and no logged upstream error naming a wrong address or            
+           port.\n2. nginx-web-server: The nginx process is stopped             
+           while its socket still accepts, so callers hang and the              
+           service writes nothing. (process_freeze). Ranked lower               
+           because: The silence that would support this is not                  
+           probative: traces are absent because the service is                  
+           uninstrumented [tr_81d3c68dcd9a], and the log emptiness              
+           rests on an unvalidated selector with a truncation flag              
+           [tr_c626ef4ef205].\n\nOpen questions:\n- Do nginx-thrift             
+           and compose-post-service pods actually exist and are they            
+           Running? The Loki selectors were unvalidated regexes, so             
+           emptiness may be a label mismatch rather than a silent               
+           service.\n- What do nginx access/error logs show via a               
+           relaxed selector or an nginx exporter, since span metrics            
+           are structurally unavailable for this service?\n- Did the            
+           07:02 bootstrap complete successfully - did the container            
+           reach Ready, and does the freshly created nginx-thrift               
+           ConfigMap name upstreams that actually resolve?'}, 'TTL':            
+           594.6778702735901, 'phase.fix_kubernetes.duration_s':                
+           3.421, 'phase.undeploy_leftovers.duration_s': 0.115,                 
+           'phase.deploy.duration_s': 153.865,                                  
+           'phase.inject_fault.duration_s': 6.096,                              
+           'phase.stage:diagnosis.duration_s': 576.578,                         
+           'phase.stage:diagnosis.outcome': 'submitted',                        
+           'phase.evaluate:diagnosis.duration_s': 18.097,                       
+           'phase.cleanup.duration_s': 67.953, 'run_status':                    
+           'complete'}                                                          
+           ⏳ Waiting for agent process to complete...               main.py:661
+           ✅ Agent process completed with return code 0             main.py:667
+           🧹 Cleaned up agent process for faultline                 main.py:677
+[10/03/26 07:14:03] INFO     __main__ - ⏳ Attempt 1 of 1 for problem           
+                             k8s_target_port-misconfig complete - Intermediate  
+                             results written to                                 
+                             _running_k8s_target_port-misconfig_faultline_result
+                             s.csv; artifacts published to                      
+                             results/1003_0700/faultline/k8s_target_port-misconf
+                             ig/run_1                                           
+                    WARNING  sregym.traces.postprocess - No convertible session 
+                             in                                                 
+                             results/1003_0700/faultline/k8s_target_port-misconf
+                             ig/run_1                                           
+                    WARNING  __main__ - ⚠️ ATIF trajectory conversion skipped for
+                             results/1003_0700/faultline/k8s_target_port-misconf
+                             ig/run_1                                           
+                    INFO     __main__ - ✅ Problem k8s_target_port-misconfig for
+                             agent faultline complete! Results written to       
+                             results/1003_0700/faultline/k8s_target_port-misconf
+                             ig/k8s_target_port-misconfig_faultline_results.csv 
+  Benchmarking faultline — k8s_target_port-misconfig (attempt 1/1) ━━ 1… 0:… 0:…
+           🔓 Stopping Kubernetes API proxy...                       main.py:787
+                    INFO     all.sregym.conductor - Stopping Kubernetes API     
+                             filtering proxy...                                 
+[10/03/26 07:14:04] INFO     all.infra.k8s_proxy - Kubernetes API filtering     
+                             proxy stopped                                      
+                    WARNING  all.sregym.conductor_api - Shutting down API       
+                             server...                                          
+[10/03/26 07:14:04] INFO     uvicorn.error - Shutting down                      
+                    INFO     uvicorn.error - Finished server process [1369122]  
+                    INFO     __main__ - ✅ Benchmark complete! Results for      
+                             faultline written to                               
+                             results/1003_0700/faultline_ALL_results.csv        
