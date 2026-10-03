@@ -4617,6 +4617,19 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-10-03: T7.2 pilot, Addendum 7 - attempts 2 and 3 and the probe; each Faultline attempt's
+record is kept.***
+
+- **Claude Code** on the shop and on Hotel Reservation: both correct, 89/100, in 11.7 and 8.5
+  minutes.
+- **The probe**: the corrected log selector is accepted where the shipped one is refused;
+  `product-catalog`'s empty error ratio was arithmetic; the change commands' answers run to
+  328,279 characters, and one object alone can pass the 10,000-character cut.
+- **New**: Prometheus holds about three minutes of history per attempt, so Faultline's baseline
+  comparison has nothing to compare against. This is a design mismatch, recorded for the owner and
+  not tuned.
+- **Next**: attempt 4 (Faultline, Hotel Reservation), then `record a4`.
+
 ***2026-10-03: T7.2 pilot, Addendum 6 - attempt 1 ran end to end and found two adapter defects;
 the pilot goes on, with a probe beside attempt 2.***
 

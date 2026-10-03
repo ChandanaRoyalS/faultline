@@ -20,8 +20,9 @@
 #   Addendum 4), serve-on, key-check,
 #   judge-check, hold (nohup, the sampler), attempt shop faultline (nohup) with loki-watch shop
 #   beside it (nohup, Addendum 5: loki-read while Loki exists), attempt shop claudecode (nohup)
-#   with probe shop beside it (nohup, Addendum 6), the other four attempts, collect, teardown,
-#   host-off, cleanup, killswitch-off, incidents
+#   with probe shop beside it (nohup, Addendum 6), the other four attempts (nohup), record <tag>
+#   after each Faultline attempt (Addendum 7), collect, teardown, host-off, cleanup,
+#   killswitch-off, incidents
 #
 # The directory is 1c's (~/t7.2-1c, its kubeconfig at ~/t7.2-1c/kubeconfig and copied to
 # ~/.kube/config), so 1c's sampler runs unchanged, as in the topology runs.
@@ -294,6 +295,28 @@ loki-watch)
         sleep 30
     done
     echo "no reading in 80 minutes"; exit 1
+    ;;
+
+record)
+    # Addendum 7. Part B, read-only, after each Faultline attempt: its record, before the next
+    # Faultline attempt recreates the bench database and wipes the trajectory. Faultline's logs
+    # (the newest attempt.json under SREGym's results), the attempt's outputs, and the incident and
+    # trajectory tables as JSON lines, archived only if the key is in none of them.
+    tag="${2:?tag, as a4}"
+    A="$D/out/$tag-record"
+    rm -rf "$A" "$D/out/$tag-record.tgz"; mkdir -p "$A"
+    L=$(find "$SR/results" -name attempt.json -path '*faultline*' -printf '%T@ %p\n' | sort -n | tail -1 | cut -d' ' -f2-)
+    echo "record $tag at $(ts); faultline logs: ${L:-NOT FOUND}"
+    [ -n "$L" ] && cp -r "$(dirname "$L")" "$A/faultline-logs"
+    cp "$D"/out/"$tag"-*.txt "$A/" 2>/dev/null
+    log=$(ls -t "$D"/out/attempt-*-faultline.log 2>/dev/null | head -1); [ -n "$log" ] && cp "$log" "$A/"
+    for t in incidents trajectories trajectory_steps trajectory_tool_calls trajectory_retrievals trajectory_proposals; do
+        docker exec "$PG" psql -U postgres -d faultline -Atc "select row_to_json(x) from $t x" > "$A/db-$t.jsonl" 2>&1
+        echo "  $t: $(wc -l < "$A/db-$t.jsonl") rows"
+    done
+    if grep -rqF -f "$D/key" "$A"; then echo "KEY FOUND IN THE RECORD - not archived"; exit 1; fi
+    echo "key occurrences: 0"
+    tar -czf "$D/out/$tag-record.tgz" -C "$D/out" "$tag-record" && ls -la "$D/out/$tag-record.tgz"
     ;;
 
 probe)

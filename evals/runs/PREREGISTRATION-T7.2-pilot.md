@@ -533,3 +533,83 @@ Addendum 5 read in SREGym's code.
 
 **Nothing frozen changes in this addendum.** The adapter, the run's settings and the order of the
 attempts are as registered. The probe's output is recorded with attempt 2's.
+
+## Addendum 7 - attempts 2 and 3 and the probe; each Faultline attempt's record is kept
+
+**Written 2026-10-03, after attempt 3 and while attempt 4 runs, before its record is taken.**
+Outputs: `t72-pilot-b-a2-shop-claudecode.txt` (the attempt and the probe) and
+`t72-pilot-b-a3-hotel-claudecode.txt`.
+
+**The spend**: after attempt 2 the owner read the key's spend in the console as **well under the
+cap**, and went on. The figure is to be recorded in the pilot's result.
+
+**Attempt 2, Claude Code on `edge_request_filter_cpu_saturation`, 04:00:47-04:12:30 UTC, exit
+0:**
+
+- Judged **correct, 89/100**: localization 1.0, characterization 0.67, scope 1.0.
+- The agent's stage took 316 s, and the whole attempt 11.7 minutes.
+- After submitting, the agent went on issuing commands against the removed namespace, and SREGym
+  refused its second submission (`This attempt no longer accepts new submissions`). This did not
+  change the scored result.
+
+**Attempt 3, Claude Code on `update_incompatible_correlated`, 04:20:48-04:29:18 UTC, exit 0:**
+
+- Judged **correct, 89/100**: localization 1.0, characterization 1.0, scope 0.67.
+- The agent's stage took 140 s, and the whole attempt 8.5 minutes.
+
+**What the probe read, 04:08:24 UTC**, about four minutes into attempt 2's fault:
+
+1. **Loki**: the shipped selector was **refused** (HTTP 400) for both services. The corrected one
+   was **accepted**: `product-catalog` 1 stream and 2 lines, `frontend-proxy` 1 stream and 100
+   lines. **Addendum 6's first defect is confirmed, and so is its fix.**
+2. **Prometheus**: only **`frontend`, `frontend-proxy` and `load-generator`** have an
+   error-status series. `product-catalog` has none, so **its empty error ratio in attempt 1 was
+   the template's arithmetic, not a defect**. Whether `frontend` had one at attempt 1's moment is
+   not recoverable.
+3. **The adapter's range reads**, each `(q)[1800s:15s] @ now`:
+   - every read was accepted, except the memory query as shipped, which was refused, as the log
+     selector was;
+   - **every series held at most 12 points of the 121 a 30-minute window holds at a 15 s step**.
+   - The corrected memory query held 19.
+   - `call-rate frontend-proxy` was 0 throughout and its p95 undefined; the probe was taken during
+     the fault on that service.
+   - `latency-p95` read **0.005** for `frontend` and `product-catalog`.
+4. **The change commands' answers**, against SREGym's 10,000-character cut:
+
+| command | characters | items | largest single item | largest pod template |
+|---|---|---|---|---|
+| `get replicasets -o json` | **213,062** | 25 | 22,060 (3 items over the cut) | 14,077 |
+| `get statefulsets,controllerrevisions -o json` | **50,193** | 4 | 12,026 (2 over) | 6,568 |
+| `get events -o json` | **328,279** | 257 | 1,190 | - |
+| `get configmaps,secrets -o custom-columns=…` | 2,087 | - | - | - |
+
+**What the probe establishes, for the fixes decided after the pilot:**
+
+- **The selector's fix is measured.** Write the name unescaped; a Kubernetes name holds no RE2
+  metacharacter but `.`.
+- **The change commands cannot be fixed by asking per object.** One ReplicaSet, and one pod
+  template, can each exceed the cut. Any fix must ask for named fields only.
+- **New: the metric history is minutes long, not hours.**
+  - SREGym deploys Prometheus with each attempt (Addendum 5), so a 30-minute read holds about
+    three minutes of samples.
+  - Faultline's baseline comparison (incident window against the window before it, T3.2b's onset
+    − 30 min) **therefore has no baseline in SREGym**. In attempt 1 the baseline window ended
+    before Prometheus existed.
+  - **This is not an adapter defect but a mismatch between the agent's design and the benchmark's
+    world.** The plan's T7.2 requires *"the agent under test is the real one"*, so it is recorded
+    for the owner's decision and not tuned.
+- **Not established**: whether 0.005 is a real p95, which would need the duration histogram's
+  `le` bounds in SREGym's collector, or an artefact of a three-minute history.
+
+**The record of each Faultline attempt is kept** (`record <tag>`, new, read-only, run after
+attempts 4 and 5):
+
+- Each Faultline attempt recreates the bench database, which wipes the previous trajectory.
+- The stage saves what Addendum 6 saved for attempt 1:
+  - Faultline's logs (the newest `attempt.json` under SREGym's results);
+  - the attempt's outputs and SREGym's log;
+  - the incident and trajectory tables as JSON lines.
+- It archives them only if the key is in none of them.
+- It changes nothing.
+
+**Nothing frozen changes.** Attempts 4 to 6 run as registered.
