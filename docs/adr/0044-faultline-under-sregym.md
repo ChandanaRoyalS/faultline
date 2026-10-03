@@ -42,8 +42,11 @@ That is a different benchmark condition, and it is unregistered.
 **2. Change history is Kubernetes' own record**, through the `changes` seam `Tools` already had
 (the owner's decision of 2026-10-02).
 
-- Four fixed, read-only kubectl commands: revisions, pod-template diffs, ConfigMap and Secret
-  times, and events.
+- Fixed, read-only kubectl commands: revisions, pod-template diffs, ConfigMap and Secret
+  times, and events. **As the pilot rewrote them** (adapter registration, Addendum 4, F2), each
+  asks for named fields only, so that every answer fits SREGym's 10,000-character cut, and the
+  owner's decision of 2026-10-03 adds Services, NetworkPolicies and claims, by name and time
+  only.
 - Secrets are read for their names and times only, never their values.
 - **The leak guard** keeps annotations, labels, field managers and event reasons out of every
   record, and withholds any text that names the harness.
@@ -89,6 +92,11 @@ golden-text test holds it.
   would move the prompt digest for a label the prompts never read. Recorded, not fixed.
 - **Benchmark state never reaches the product**: a separate database, notifications off, and no
   corpus write that one attempt could read in the next.
+
+- **Two of SREGym's properties are reported as unavailable, never as numbers** (adapter
+  registration, Addendum 4): a service with no span-metric series, and Astronomy Shop's latency,
+  whose histogram tops out at 0.005 ms. Faultline's own windows are left as they are, although
+  SREGym's Prometheus holds minutes of history (the owner's decision of 2026-10-03).
 
 **Revisit if** SREGym's MCP servers gain range queries or larger caps (the overrides would then
 be giving up fidelity for nothing), or its agent container stops being root (Postgres could then

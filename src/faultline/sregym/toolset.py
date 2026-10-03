@@ -11,8 +11,9 @@ what the read cannot do through SREGym's servers is said in the result rather th
   `step` rather than to `start`.
 - **`metric_baseline`**: span-metric templates read SREGym's spelling (`Profile.span_metrics`).
   For a service with no series in the last hour, they are an **error**, never an empty answer
-  (ADR-0019; the owner's decision of 2026-10-03, after the dev read). Runtime memory is
-  cAdvisor's working set, for every application.
+  (ADR-0019; the owner's decision of 2026-10-03, after the dev read). So is `latency-p95` where
+  SREGym's histogram cannot measure it (`Profile.latency_readable`, Addendum 4's F4). Runtime
+  memory is cAdvisor's working set, for every application.
 - **`logql_query`**: `get_logs` reads a window **ending now**, the newest **100** lines, with
   timestamps in whole seconds. It is asked back to the window's start and filtered to it. A reply
   of 100 lines is `truncated`, even when none falls in the window. There is no forward read, so
@@ -22,7 +23,7 @@ what the read cannot do through SREGym's servers is said in the result rather th
   20 traces is `truncated`. `source` stays `tempo`: it is a contract literal, and the agent's
   prompts name no backend.
 - **`change_history`**: `faultline.sregym.kube.KubernetesChangeLog`, read-only, through `Tools`'
-  own `changes` seam, unchanged.
+  own `changes` seam, unchanged, and marked `truncated` when SREGym cut one of its answers.
 """
 
 from __future__ import annotations
@@ -41,8 +42,10 @@ from faultline.tools.metrics import (
     render_query,
     summarise,
 )
+from faultline.tools.ranking import RankingContext
 from faultline.tools.results import (
     BaselineResult,
+    ChangeResult,
     LogLine,
     LogResult,
     MetricResult,
@@ -86,9 +89,24 @@ def matrix(payload: Any) -> list[dict[str, Any]]:
     return [e for e in result if isinstance(e, dict)]
 
 
+WORKLOAD_NAME = re.compile(r"^[a-z0-9]([-a-z0-9.]{0,251}[a-z0-9])?$")
+"""A Kubernetes object name (DNS-1123 subdomain): the only RE2 metacharacter it can hold is `.`."""
+
+
 def pod_pattern(deployment: str) -> str:
-    """A Deployment's pods (`name-<hash>-<id>`) or a StatefulSet's (`name-<n>`), and no other."""
-    name = re.escape(deployment)
+    """A Deployment's pods (`name-<hash>-<id>`) or a StatefulSet's (`name-<n>`), and no other.
+
+    **Written for the double-quoted LogQL or PromQL string it is placed in** (adapter
+    registration, Addendum 4, F1). Both backends unquote that string as Go does before RE2 sees
+    it, and Go refuses an escape it does not know. `re.escape` wrote `product-catalog` as
+    `product\\-catalog`, so the pilot's every log query and the memory query on a hyphenated name
+    came back HTTP 400. A hyphen needs no escape outside a character class, so it is written as
+    itself. `.` is written `\\\\.`, which the string decodes to `\\.` for RE2. A name that is not
+    DNS-1123 is refused rather than escaped.
+    """
+    if not WORKLOAD_NAME.match(deployment):
+        raise ValueError(f"not a Kubernetes workload name: {deployment!r}")
+    name = deployment.replace(".", "\\\\.")
     return f"{name}-([a-z0-9]+-[a-z0-9]+|[0-9]+)"
 
 
@@ -196,12 +214,40 @@ class McpToolSet(Tools):
         self._span_series[service] = found
         return found
 
+    def unreadable(self, template: MetricTemplate, service: str) -> str | None:
+        """Why this template cannot be read on this application, or `None` if it can.
+
+        Both reasons are SREGym's as shipped, and both make a number that is not a measurement,
+        so the tool says *unavailable* rather than returning it:
+
+        - **no span-metric series** for the service (the owner's decision after the dev read);
+        - **a latency histogram whose top bound every span exceeds** (`Profile.latency_readable`;
+          the owner's decision of 2026-10-03, adapter registration Addendum 4, F4).
+        """
+        if template is MetricTemplate.RUNTIME_MEMORY:
+            return None
+        if self._profile.span_metrics is None or self.has_span_series(service) is False:
+            return (
+                f"{template.value} reads span metrics, and SREGym's Prometheus holds none "
+                f"for {service}: it sends no traces that become metrics. This is "
+                "unavailable, not zero"
+            )
+        if template is MetricTemplate.LATENCY_P95 and not self._profile.latency_readable:
+            return (
+                f"{template.value} cannot be read on this application: SREGym's span-metric "
+                "histogram for it tops out at 0.005 ms, so every span is above its top bound "
+                "and the 95th percentile is that bound whatever the latency. This is "
+                "unavailable, not fast"
+            )
+        return None
+
     def template_query(self, template: MetricTemplate, service: str) -> str | None:
-        """The PromQL for one template on this application, or `None` if it has no series."""
+        """The PromQL for one template on this application, or `None` if it cannot be read."""
         if template is MetricTemplate.RUNTIME_MEMORY:
             return memory_query(self._namespace, self._profile.deployment(service))
-        if self._profile.span_metrics is None or self.has_span_series(service) is False:
+        if self.unreadable(template, service) is not None:
             return None
+        assert self._profile.span_metrics is not None
         return render_query(template, service, self._profile.span_metrics)
 
     def metric_baseline(
@@ -230,11 +276,7 @@ class McpToolSet(Tools):
                 query="",
                 window=window,
                 baseline_window=before,
-                error=(
-                    f"{template.value} reads span metrics, and SREGym's Prometheus holds none "
-                    f"for {canonical}: it sends no traces that become metrics. This is "
-                    "unavailable, not zero"
-                ),
+                error=self.unreadable(template, canonical),
                 empty=True,
             )
         refusal = self._check_window("metric_baseline", query, before.start, end)
@@ -293,6 +335,27 @@ class McpToolSet(Tools):
             ],
             empty=not incident_points,
         )
+
+    # --- changes -------------------------------------------------------------------
+
+    def change_history(
+        self,
+        service: str,
+        start: datetime,
+        end: datetime,
+        ranking: RankingContext | None = None,
+    ) -> ChangeResult:
+        """`Tools.change_history`, unchanged, **marked truncated when an answer was cut**.
+
+        SREGym's kubectl server cuts every answer at 10,000 characters. The change log keeps the
+        lines a cut answer holds and names it (`KubernetesChangeLog.cut`), and the result says
+        so with the flag every other tool uses for a partial read (adapter registration,
+        Addendum 4, F2).
+        """
+        result = super().change_history(service, start, end, ranking)
+        if result.error is None and getattr(self._changes, "cut", None):
+            return result.model_copy(update={"truncated": True})
+        return result
 
     # --- logs ----------------------------------------------------------------------
 

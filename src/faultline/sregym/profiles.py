@@ -43,6 +43,14 @@ class Profile:
     the topology captures (`g4-social-mediafrontend.txt`: `nginx-thrift` serves as
     `nginx-web-server`); completed on the dev problems."""
 
+    latency_readable: bool = True
+    """Whether the `latency-p95` template measures anything here (adapter registration,
+    Addendum 4, F4). SREGym's collector (`sregym/observer/otel_collector/otel-collector.yaml` at
+    `46c853db`) measures OTLP spans with `spanmetrics/otlp`, whose buckets `[5 ... 5000]` the
+    connector reads as **nanoseconds**: the top finite bound is 0.005 ms, every span is above it,
+    and every p95 is 0.005, which is what the pilot's probe read on Astronomy Shop. Jaeger-protocol
+    spans take the other pipeline, whose buckets are 1 ms to 10 s."""
+
     def deployment(self, service: str) -> str:
         """The workload a service's pods belong to."""
         return self.deployments.get(service, service)
@@ -63,6 +71,7 @@ PROFILES: dict[str, Profile] = {
             app_name="OpenTelemetry Demo Astronomy Shop",
             front_door="frontend",
             span_metrics=V2,
+            latency_readable=False,
         ),
         Profile(
             application="sregym-hotel-reservation",

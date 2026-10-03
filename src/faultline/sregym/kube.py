@@ -7,15 +7,29 @@ the pod template it ran, and every object carries `managedFields` times. This re
 through the existing `changes` seam of `Tools`, so the change analyst calls the same tool it
 always did.
 
-**The commands are fixed, and they are the only ones this module can send**
-(adapter registration §3):
+**The commands are fixed templates, and they are the only ones this module can send**
+(adapter registration §3, as Addendum 4's F2 rewrote it). SREGym's kubectl server cuts every
+answer at 10,000 characters and refuses pipes, and the pilot measured `-o json` answers of up to
+328,279 characters, so every command asks for named fields only, in pieces that each fit:
 
-1. `kubectl get replicasets -n NS -o json`
-2. `kubectl get statefulsets,controllerrevisions -n NS -o json`
-3. `kubectl get configmaps,secrets -n NS -o custom-columns=...`: names and times only. The
-   registration says *"for metadata only. No value is ever read from a Secret"*; `-o json` would
-   have returned the values to this process, so the read itself is narrowed (ADR-0044).
-4. `kubectl get events -n NS -o json`
+1. `get replicasets -o jsonpath=...`: each ReplicaSet's name, owner, revision and creation time;
+2. `get controllerrevisions -o jsonpath=...`: the same for a StatefulSet's revisions;
+3. `get replicaset NAME` / `get controllerrevision NAME -o jsonpath=...`: one revision's pod
+   spec, as compact JSON, sent only for revisions in the window and the ones they replaced, at
+   most `MAX_SPECS` per call;
+4. `get configmaps,secrets -o custom-columns=...`: names and times only. The registration says
+   *"for metadata only. No value is ever read from a Secret"*, so the read itself is narrowed
+   (ADR-0044);
+5. `get services,networkpolicies,persistentvolumeclaims -o custom-columns=...`: names and times
+   only, **the owner's decision of 2026-10-03**. Editing a Service writes no event, so as frozen
+   a changed Service never showed;
+6. `get events --field-selector involvedObject.name=NAME -o jsonpath=...`: kind, name and
+   times. **Never the reason or the message.**
+
+Every name in a command is checked against DNS-1123 and comes from the profile or an earlier
+answer. **A cut answer is reported, never misparsed**: an index or table keeps the lines it holds
+and marks the result truncated; a pod spec that was cut becomes a record saying its revision
+could not be read.
 
 **The leak guard.** A fault injector writes things an agent must not read as evidence: annotations,
 labels, field-manager names, event reasons. **None of them reaches a record.** A summary is built
@@ -46,23 +60,80 @@ from faultline.tools.changes import (
 LEAK_VOCABULARY = BANNED_VOCABULARY | frozenset({"sregym"})
 
 NAMESPACE = re.compile(r"^[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?$")
+NAME = re.compile(r"^[a-z0-9]([-a-z0-9.]{0,251}[a-z0-9])?$")
+"""DNS-1123: what every object name sent in a command must be."""
 
 SECRET_COLUMNS = (
     "KIND:.kind,NAME:.metadata.name,CREATED:.metadata.creationTimestamp,"
     "CHANGED:.metadata.managedFields[*].time"
 )
+"""Names and times. The same columns serve ConfigMaps and Secrets, and Services, NetworkPolicies
+and claims."""
+
+CUT = "... [truncated]"
+"""What SREGym's kubectl server appends to an answer it cut at 10,000 characters
+(`mcp_server/kubectl_server_helper/utils.py:9` at `46c853db`)."""
+
+MAX_SPECS = 6
+"""The most pod specs one `change_history` call reads."""
+
+_INDEX = (
+    '\'{range .items[*]}{.metadata.name}{"\\t"}{.metadata.ownerReferences[0].kind}{"\\t"}'
+    '{.metadata.ownerReferences[0].name}{"\\t"}%s{"\\t"}{.metadata.creationTimestamp}'
+    '{"\\n"}{end}\''
+)
+_EVENTS = (
+    '\'{range .items[*]}{.involvedObject.kind}{"\\t"}{.involvedObject.name}{"\\t"}'
+    '{.lastTimestamp}{"\\t"}{.eventTime}{"\\n"}{end}\''
+)
+_SPEC = {
+    "replicaset": "'{.spec.template.spec}'",
+    "controllerrevision": "'{.data.spec.template.spec}'",
+}
 
 
-def commands(namespace: str) -> tuple[str, str, str, str]:
-    """The four commands, for one namespace. **Nothing else is ever sent to kubectl.**"""
-    if not NAMESPACE.match(namespace):
-        raise ValueError(f"not a Kubernetes namespace name: {namespace!r}")
-    return (
-        f"kubectl get replicasets -n {namespace} -o json",
-        f"kubectl get statefulsets,controllerrevisions -n {namespace} -o json",
-        f"kubectl get configmaps,secrets -n {namespace} -o custom-columns={SECRET_COLUMNS}",
-        f"kubectl get events -n {namespace} -o json",
-    )
+def _checked(name: str, pattern: re.Pattern[str] = NAME) -> str:
+    if not pattern.match(name):
+        raise ValueError(f"not a Kubernetes name: {name!r}")
+    return name
+
+
+class Commands:
+    """Every command this module can send, for one namespace. **Nothing else is ever sent.**"""
+
+    def __init__(self, namespace: str) -> None:
+        self.ns = _checked(namespace, NAMESPACE)
+
+    def replicasets(self) -> str:
+        revision = "{.metadata.annotations.deployment\\.kubernetes\\.io/revision}"
+        return f"kubectl get replicasets -n {self.ns} -o jsonpath={_INDEX % revision}"
+
+    def controllerrevisions(self) -> str:
+        return f"kubectl get controllerrevisions -n {self.ns} -o jsonpath={_INDEX % '{.revision}'}"
+
+    def spec(self, kind: str, name: str) -> str:
+        return f"kubectl get {kind} {_checked(name)} -n {self.ns} -o jsonpath={_SPEC[kind]}"
+
+    def config(self) -> str:
+        return f"kubectl get configmaps,secrets -n {self.ns} -o custom-columns={SECRET_COLUMNS}"
+
+    def objects(self) -> str:
+        return (
+            "kubectl get services,networkpolicies,persistentvolumeclaims "
+            f"-n {self.ns} -o custom-columns={SECRET_COLUMNS}"
+        )
+
+    def events(self, name: str) -> str:
+        return (
+            f"kubectl get events -n {self.ns} "
+            f"--field-selector involvedObject.name={_checked(name)} -o jsonpath={_EVENTS}"
+        )
+
+
+def commands(namespace: str) -> tuple[str, ...]:
+    """The fixed commands, for one namespace. The per-object ones are `Commands`' methods."""
+    sent = Commands(namespace)
+    return (sent.replicasets(), sent.controllerrevisions(), sent.config(), sent.objects())
 
 
 CONTAINER_FIELDS: dict[str, Resource] = {
@@ -188,40 +259,20 @@ def _record(
     )
 
 
-def _owned_by(item: dict[str, Any], kind: str, name: str) -> bool:
-    return any(
-        ref.get("kind") == kind and ref.get("name") == name
-        for ref in (item.get("metadata") or {}).get("ownerReferences") or []
-    )
-
-
-def _revision(item: dict[str, Any]) -> int:
-    """A ReplicaSet's revision is an annotation, read for ordering only and never rendered; a
-    ControllerRevision carries its own `revision`."""
-    if "revision" in item:
-        return int(item.get("revision") or 0)
-    annotations = (item.get("metadata") or {}).get("annotations") or {}
-    try:
-        return int(annotations.get("deployment.kubernetes.io/revision") or 0)
-    except ValueError:
-        return 0
-
-
-def _template_spec(item: dict[str, Any]) -> dict[str, Any]:
-    if item.get("kind") == "ControllerRevision":
-        data = item.get("data") or {}
-        return ((data.get("spec") or {}).get("template") or {}).get("spec") or {}
-    return (((item.get("spec") or {}).get("template") or {}).get("spec")) or {}
-
-
 def revision_records(
     service: str, revisions: list[dict[str, Any]], start: datetime, end: datetime
 ) -> list[ChangeRecord]:
-    """A workload's revisions, oldest first, as records for the revisions made in the window."""
-    ordered = sorted(revisions, key=_revision)
+    """A workload's revisions as records, for the revisions made in the window.
+
+    Each revision is `{"revision", "created", "spec"}`. `spec` is the pod spec, or a string saying
+    why it could not be read, or `None` if it was not read (more than `MAX_SPECS` in the window).
+    The revision number orders them and is never rendered. **Only the pod spec is ever compared**,
+    never the template's metadata, where labels and annotations live: the leak guard's first half.
+    """
+    ordered = sorted(revisions, key=lambda r: r["revision"])
     records: list[ChangeRecord] = []
     for index, item in enumerate(ordered):
-        at = _when((item.get("metadata") or {}).get("creationTimestamp"))
+        at = _when(item["created"])
         if at is None or not (start <= at <= end):
             continue
         if index == 0:
@@ -229,8 +280,19 @@ def revision_records(
                 _record(service, at, Resource.CONTAINER, Action.CREATED, "workload first created")
             )
             continue
-        previous = _template_spec(ordered[index - 1])
-        current = _template_spec(item)
+        current, previous = item.get("spec"), ordered[index - 1].get("spec")
+        if current is None or previous is None:
+            summary = (
+                f"a new revision was made; not read (more than {MAX_SPECS} pod specs "
+                "in this window)"
+            )
+            records.append(_record(service, at, Resource.CONTAINER, Action.UPDATED, summary))
+            continue
+        unreadable = next((x for x in (current, previous) if isinstance(x, str)), None)
+        if unreadable is not None:
+            summary = f"a new revision was made; it could not be compared: {unreadable}"
+            records.append(_record(service, at, Resource.CONTAINER, Action.UPDATED, summary))
+            continue
         for resource, path, old, new in diff_templates(previous, current):
             records.append(
                 _record(service, at, resource, Action.UPDATED, f"{path} changed", old, new)
@@ -315,42 +377,188 @@ def event_records(
     return records
 
 
+def referenced_claims(spec: dict[str, Any]) -> set[tuple[str, str]]:
+    """The PersistentVolumeClaims a pod spec mounts, as `(kind, name)`."""
+    return {
+        ("PersistentVolumeClaim", volume["persistentVolumeClaim"]["claimName"])
+        for volume in spec.get("volumes") or []
+        if (volume.get("persistentVolumeClaim") or {}).get("claimName")
+    }
+
+
+def object_records(
+    service: str,
+    table: str,
+    services: set[str],
+    claims: set[tuple[str, str]],
+    start: datetime,
+    end: datetime,
+) -> list[ChangeRecord]:
+    """Services named for the service, claims it mounts, and every NetworkPolicy, changed in the
+    window. **Names and times only** (the owner's decision of 2026-10-03)."""
+    wanted = {("Service", name) for name in services} | claims
+    records = config_records(service, table, wanted, start, end)
+    policies = {
+        ("NetworkPolicy", parts[1])
+        for parts in (line.split() for line in table.splitlines()[1:])
+        if len(parts) >= 2 and parts[0] == "NetworkPolicy"
+    }
+    for record in config_records(service, table, policies, start, end):
+        note = "; namespace-wide, and the pods it selects are not read"
+        records.append(record.model_copy(update={"summary": record.summary + note}))
+    return records
+
+
+def _cut(text: str) -> tuple[str, bool]:
+    """An answer without SREGym's cut marker, and whether it was cut. A cut table loses its last,
+    partial line."""
+    stripped = text.rstrip()
+    if not stripped.endswith(CUT):
+        return text, False
+    body = stripped[: -len(CUT)]
+    return body[: body.rfind("\n")] if "\n" in body else "", True
+
+
+def index_rows(text: str) -> list[dict[str, Any]]:
+    """`name  owner-kind  owner  revision  created`, one revision per line."""
+    rows: list[dict[str, Any]] = []
+    for line in text.splitlines():
+        parts = line.split("\t")
+        if len(parts) < 5 or not parts[0]:
+            continue
+        try:
+            revision = int(parts[3] or 0)
+        except ValueError:
+            revision = 0
+        rows.append(
+            {
+                "name": parts[0],
+                "owner_kind": parts[1],
+                "owner": parts[2],
+                "revision": revision,
+                "created": parts[4],
+            }
+        )
+    return rows
+
+
+def event_rows(text: str) -> list[dict[str, Any]]:
+    """`kind  name  lastTimestamp  eventTime`, as the event dicts `event_records` reads."""
+    events: list[dict[str, Any]] = []
+    for line in text.splitlines():
+        parts = line.split("\t")
+        if len(parts) < 4:
+            continue
+        events.append(
+            {
+                "involvedObject": {"kind": parts[0], "name": parts[1]},
+                "lastTimestamp": parts[2] or None,
+                "eventTime": parts[3] or None,
+            }
+        )
+    return events
+
+
 class KubernetesChangeLog:
     """`ChangeLog` over one namespace, through SREGym's kubectl server."""
 
     def __init__(self, client: McpClient, profile: Profile, namespace: str) -> None:
         self._client = client
         self._profile = profile
-        self._commands = commands(namespace)
+        self._commands = Commands(namespace)
+        self.cut: list[str] = []
+        """The answers the last `records_for` found cut, named. `McpToolSet` marks the result
+        truncated when any was."""
 
     def _get(self, command: str) -> str:
-        if command not in self._commands:  # pragma: no cover - the guard the tests assert
-            raise ValueError(f"not one of the four registered commands: {command!r}")
         text = self._client.call("kubectl", "exec_kubectl_cmd_safely", {"cmd": command})
         if text.startswith(("Command Rejected", "Error", "error:")):
             raise RuntimeError(f"kubectl refused or failed: {text[:300]}")
         return text
 
-    def _json(self, command: str) -> list[dict[str, Any]]:
-        payload = json.loads(self._get(command))
-        return [item for item in payload.get("items") or [] if isinstance(item, dict)]
+    def _table(self, command: str, what: str) -> str:
+        text, was_cut = _cut(self._get(command))
+        if was_cut:
+            self.cut.append(what)
+        return text
+
+    def _spec(self, kind: str, name: str) -> dict[str, Any] | str:
+        """One revision's pod spec, or why it could not be read."""
+        try:
+            text = self._get(self._commands.spec(kind, name))
+        except (RuntimeError, ValueError) as exc:
+            return str(exc).splitlines()[0][:200]
+        _, was_cut = _cut(text)
+        if was_cut:
+            self.cut.append(f"{kind} {name}")
+            return "its pod spec was cut at 10,000 characters"
+        try:
+            spec = json.loads(text) if text.strip() else {}
+        except json.JSONDecodeError:
+            return "its pod spec was not readable JSON"
+        return spec if isinstance(spec, dict) else {}
+
+    def _revision_records(
+        self, service: str, kind: str, rows: list[dict[str, Any]], start: datetime, end: datetime
+    ) -> tuple[list[ChangeRecord], dict[str, Any]]:
+        """Records for the revisions made in the window, and the latest revision's pod spec.
+
+        Pod specs are read only for the revisions in the window and the ones they replaced,
+        newest first, and the latest revision's (its config and claims are what the service
+        reads now): at most `MAX_SPECS`.
+        """
+        ordered = sorted(rows, key=lambda r: r["revision"])
+        in_window = [
+            i for i, r in enumerate(ordered) if (at := _when(r["created"])) and start <= at <= end
+        ]
+        needed: list[int] = [len(ordered) - 1] if ordered else []
+        for i in sorted(in_window, reverse=True):
+            needed += [j for j in (i, i - 1) if j >= 0 and j not in needed]
+        specs = {j: self._spec(kind, ordered[j]["name"]) for j in needed[:MAX_SPECS]}
+        revisions = [
+            {"revision": r["revision"], "created": r["created"], "spec": specs.get(j)}
+            for j, r in enumerate(ordered)
+        ]
+        latest = specs.get(len(ordered) - 1)
+        records = revision_records(service, revisions, start, end)
+        return records, latest if isinstance(latest, dict) else {}
 
     def records_for(self, service: str, start: datetime, end: datetime) -> list[ChangeRecord]:
-        replicasets_cmd, revisions_cmd, config_cmd, events_cmd = self._commands
+        self.cut = []
         workload = self._profile.deployment(service)
-        replicasets = [
-            r for r in self._json(replicasets_cmd) if _owned_by(r, "Deployment", workload)
-        ]
-        revisions = [
+        sent = self._commands
+        rows = [
             r
-            for r in self._json(revisions_cmd)
-            if r.get("kind") == "ControllerRevision" and _owned_by(r, "StatefulSet", workload)
+            for r in index_rows(self._table(sent.replicasets(), "the ReplicaSet index"))
+            if r["owner_kind"] == "Deployment" and r["owner"] == workload
         ]
-        history = replicasets or revisions
-        records = revision_records(service, history, start, end)
-        latest = _template_spec(max(history, key=_revision)) if history else {}
+        kind = "replicaset"
+        if not rows:
+            kind = "controllerrevision"
+            rows = [
+                r
+                for r in index_rows(
+                    self._table(sent.controllerrevisions(), "the ControllerRevision index")
+                )
+                if r["owner_kind"] == "StatefulSet" and r["owner"] == workload
+            ]
+        records, latest = self._revision_records(service, kind, rows, start, end)
         records += config_records(
-            service, self._get(config_cmd), referenced_config(latest), start, end
+            service,
+            self._table(sent.config(), "the ConfigMap and Secret table"),
+            referenced_config(latest),
+            start,
+            end,
         )
-        records += event_records(service, {service, workload}, self._json(events_cmd), start, end)
+        records += object_records(
+            service,
+            self._table(sent.objects(), "the Service, NetworkPolicy and claim table"),
+            {service, workload},
+            referenced_claims(latest),
+            start,
+            end,
+        )
+        for name in sorted({service, workload}):
+            events = event_rows(self._table(sent.events(name), f"the events on {name}"))
+            records += event_records(service, {service, workload}, events, start, end)
         return sorted(records, key=lambda r: (r.at, r.summary))
