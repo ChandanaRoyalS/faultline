@@ -4617,6 +4617,31 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-10-03: the owner's go on T7.2 - the run scaled to the budget, and Phase 7 with it.***
+
+- **The owner declined the registered run's cost** (about $420) and kept every deliverable at a
+  smaller scale.
+- **T7.2** ([run registration, Addendum 1](../evals/runs/PREREGISTRATION-T7.2-run.md)):
+  - 11 problems per application, R = 1, both arms: 66 attempts, about $43;
+  - a $50 cap that includes the re-check;
+  - the two adapter defects and the slow opening fixed first;
+  - Faultline itself unchanged.
+- **The rest of Phase 7, about $135 in total, as the owner set it.** Each task registers its own
+  scale before it runs:
+
+  | task | scale | about |
+  |---|---|---|
+  | T7.2 benchmark | as above, plus the re-check | $46 |
+  | T7.1 headline on the 39 v2 scenarios | R = 1, with B0, B1 and B2 | $45 |
+  | T7.3 ablations | the plan's experiments on 12 scenarios, R = 1, paired against the headline runs; B1 is the single-agent ablation | $40 |
+  | T7.4 dashboard | from the eval database | $0 |
+  | T7.5 launch pack | the writeup at $0, the demo re-recorded at about $3 | $3 |
+
+- **R = 1 is below the plan's R = 5** (T4.6), by the owner's explicit decision. Every figure still
+  carries n, R and its interval, and a difference inside its MDE is reported as *no measurable
+  effect at this n*.
+- **Next**: the fixes, registered as an addendum to the adapter's registration.
+
 ***2026-10-03: T7.2 pilot - the six attempts ran, part B closed, and the result names what must
 change before the scored run.***
 

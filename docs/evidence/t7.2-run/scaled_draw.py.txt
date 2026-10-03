@@ -1,0 +1,21 @@
+"""Read-only: the scaled T7.2 run's problems (run registration, Addendum 1).
+11 problems per application, drawn from run-table.tsv's scored rows (the dev problems are never
+scored), each application's list sorted, in the order Astronomy Shop, Hotel Reservation, Social
+Network, by one random.Random(SEED).sample per application. Run from this directory."""
+import csv, random
+SEED = 20261003
+PER_APP = 11
+APPS = ["sregym-astronomy-shop", "sregym-hotel-reservation", "sregym-social-network"]
+rows = list(csv.DictReader(open("run-table.tsv"), delimiter="\t"))
+rng = random.Random(SEED)
+with open("scaled-sample.tsv", "w") as f:
+    f.write("application\tproblem\tfamily\tq126_flag\n")
+    for app in APPS:
+        scored = sorted(r["problem"] for r in rows if r["application"] == app and r["split"] == "scored")
+        chosen = sorted(rng.sample(scored, PER_APP))
+        print(f"{app}: {len(scored)} scored, drew {len(chosen)}")
+        for r in rows:
+            if r["problem"] in chosen and r["application"] == app:
+                f.write(f"{app}\t{r['problem']}\t{r['family']}\t{r['q126_flag']}\n")
+                print(f"  {r['problem']}  [{r['family']}]")
+print(f"seed {SEED}, {PER_APP} per application")
