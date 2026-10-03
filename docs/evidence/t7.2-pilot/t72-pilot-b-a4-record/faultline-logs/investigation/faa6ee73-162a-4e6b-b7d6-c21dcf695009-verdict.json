@@ -1,0 +1,169 @@
+{
+  "incident_id": "faa6ee73-162a-4e6b-b7d6-c21dcf695009",
+  "trajectory_id": "71bdd76d-2d69-4259-aaa9-256c20c94e32",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "frontend",
+    "mongodb-geo",
+    "mongodb-profile",
+    "mongodb-rate",
+    "mongodb-recommendation",
+    "mongodb-reservation",
+    "mongodb-user",
+    "rate",
+    "reservation",
+    "search"
+  ],
+  "unmeasured_edges": 3,
+  "exclude_origins": [],
+  "verdict": {
+    "root_cause": "rate never reaches serving: each pod reads config, logs the correct datastore URL mongodb-rate:27017, then panics ~12s later in database initialization with an unreachable-servers error, looping continuously [tr_88a01606ee27]. The dial deadline expiring at connect time, with no query-timeout or pool entries, points at mongodb-rate being present-but-unserving rather than at anything wrong inside rate. Config correctness, request-path bugs, and pool exhaustion in rate are each excluded by rate's own log [tr_88a01606ee27]. mongodb-rate's log query was rejected by Loki with a 400 on a malformed pod regex, so the culprit's own voice was never heard [tr_46428f62c4a4]; both metric baselines failed for structural instrumentation reasons [tr_bfcbc09c5459, tr_f6ed97dbcbce] and all change-history queries died on a parse error [tr_4d406f3b84ac, tr_1c9653913a48, tr_c183cd3a076b]. The surviving mechanism consistent with the one good signal is that mongodb-rate's process is stopped while its socket still exists, so rate hangs to its connect deadline and dies.",
+    "service": "mongodb-rate",
+    "fault_class": "process_freeze",
+    "remediation_class": "restart",
+    "confidence": "low",
+    "evidence": [
+      "tr_88a01606ee27",
+      "tr_46428f62c4a4",
+      "tr_bfcbc09c5459",
+      "tr_f6ed97dbcbce",
+      "tr_4d406f3b84ac"
+    ],
+    "reasoning": "Only one dispatch returned real data. It shows rate crash-looping in startup DB init against the correct endpoint, which localizes the fault to mongodb-rate rather than rate. The deadline-shaped failure (uniform ~12s to panic, no partial success, no slow-query lines) fits a datastore that does not complete the handshake. Distinguishing freeze from partition or a dead pod requires mongodb-rate's log, which was never retrieved because the selector was malformed; that gap is why confidence is low and why the class is a best-fit, not a settled finding. The mongodb-* and reservation alerts are consistent with the same blast radius propagating to callers.",
+    "open_questions": [
+      "mongodb-rate's own logs were never read (Loki 400) \u2014 re-run with a corrected pod selector to see whether mongod is silent (freeze), complaining it cannot reach anything (partition), refusing with no space left (disk fill), or absent entirely.",
+      "Pod/container state for mongodb-rate: is it Running, CrashLoopBackOff, Pending, or evicted? No infrastructure-level check was performed.",
+      "All change-history queries failed on a parse error, so a deploy, image, or config change to mongodb-rate or rate in the preceding 24h remains entirely unobserved; the window queried also started at onset rather than before it.",
+      "Whether the other alerting mongodb-* services share the same failure, which would point to a node- or cluster-level cause rather than one datastore."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "mongodb-rate is running but network-isolated from the hotel-reservation namespace, so rate's connects time out.",
+        "service": "mongodb-rate",
+        "fault_class": "network_partition",
+        "remediation_class": "reconnect",
+        "why_not": "Indistinguishable from a freeze using rate's log alone; demoted only because nothing yet shows mongodb-rate alive and complaining. The unread mongodb-rate log would decide it."
+      },
+      {
+        "root_cause": "A change to mongodb-rate (image, port, auth, or storage setting) left it unable to start or listening wrongly, and rate cannot connect as a result.",
+        "service": "mongodb-rate",
+        "fault_class": "bad_deploy",
+        "remediation_class": "rollback",
+        "why_not": "No change record was ever retrieved \u2014 every change query errored \u2014 so this rests on no evidence at all, whereas the connect-deadline shape is directly observed."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "payment-telemetry-blackout / What was never measured: Whether any user-facing failure occurred at all: every dispatch found the request path healthy and no frontend success-rate evidence was collected. Whether the export loss was confined to paymentservice or was collector-wide: collector health was never queried, and both produce t",
+    "cart-bad-image-tag / What was checked: **Error rate by service.** frontend, loadgenerator and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero. Read, wrongly, as evidence cart was\nhealthy.\n\n**loadgenerator.** Set aside. It is the synthetic client; its error rate restates what\nthe storefron",
+    "runbook:world-alert-timing / The instrument's constants: Prometheus scrapes at **5s** and evaluates at **15s**; the `faultline-slo` rule group carries its\nown `interval: 15s`. Both live in `compose/prometheus/prometheus-config.yaml`, which is under\n`observability_digest` precisely because it sets the sampling resolution of every captur"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 21613,
+    "pulled_tokens": 2310,
+    "pull_rate": 0.0966,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 433,
+        "content_tokens": 436,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1549,
+        "content_tokens": 1553,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 6390,
+        "content_tokens": 6366,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 6025,
+        "content_tokens": 6027,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 7216,
+        "content_tokens": 7193,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_88a01606ee27",
+      "tr_46428f62c4a4",
+      "tr_1c9653913a48",
+      "tr_f6ed97dbcbce"
+    ],
+    "expected_effect": "No action proposed, so no observable effect is predicted. The one good signal [tr_88a01606ee27] shows only rate's side of the story: config is read correctly, the dial to mongodb-rate:27017 fails at connect, and the pod panics ~12s in, looping. That is consistent with a frozen mongod, but equally consistent with mongodb-rate being evicted, crash-looping on its own, network-detached, or stopped by a change in the preceding 24h \u2014 and the three queries that would discriminate all failed as tooling errors, not as negatives [tr_46428f62c4a4 Loki 400 on a malformed pod regex, tr_1c9653913a48 change-history parse error, tr_f6ed97dbcbce no span metrics exist for this service]. restart_service requires evidence pointing at process state rather than at a change; we have no observation of mongodb-rate's process state at all, so that precondition is unmet by inference alone. Before any action: (1) re-run the Loki query with the backslash removed from the pod selector, e.g. {namespace=\"hotel-reservation\",pod=~\"mongodb-rate-.*\"}, and read whether mongod is silent, complaining, or out of disk; (2) check pod/container state for mongodb-rate (Running / CrashLoopBackOff / Pending / Evicted); (3) run the same corrected log query against the other five alerting mongodb-* services \u2014 if they share the symptom, the cause is node- or cluster-level and restarting one datastore fixes nothing; (4) re-run change_history in narrower slices starting at least 24h before onset, since the window queried began at onset.",
+    "confirm_within_seconds": 0,
+    "if_wrong": "This abstention is wrong if the corrected mongodb-rate log query comes back empty-but-successful with the container reported Running and no change records in the preceding 24h \u2014 that would meet restart_service's precondition properly and make a restart of mongodb-rate the right call, with rate's crash-loop ceasing and serving log lines appearing within about 120s. It is also wrong if the delay itself is costly: rate and reservation are already down and frontend and search are degraded, so every minute spent on diagnostics is user-visible outage. If the operator judges that cost higher than the cost of an irreversible restart on an unverified target, they should override this and restart mongodb-rate.",
+    "risk": "The risk of abstaining is prolonged outage: rate stays in its crash loop and nothing improves on its own. The risk of the action I declined to propose is why I declined it \u2014 restart_service is irreversible and destroys the evidence the open questions need. If mongodb-rate is actually evicted or Pending, a recreate either no-ops or replays the eviction. If the cause is a bad image or config pushed in the unobserved 24h, the restart brings the container back on the same broken definition and we have burned the state that would have shown it. If the cause is node- or cluster-level, restarting one of six affected datastores masks the pattern and sends the next investigator down the wrong path.",
+    "blast_radius": "No one, since nothing changes. For the restart that is being deferred: mongodb-rate directly, with rate as its caller, and transitively search which reaches rate, plus reservation and frontend which are already alerting in this incident. A restart would discard mongodb-rate's in-process cache and briefly reset connections for anything holding them."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "resource_exhaustion",
+    "confidence": "medium",
+    "reasoning": "Six MongoDB instances alerting simultaneously plus two dependent services points to a shared datastore-layer failure, not a single noisy latency warning. Simultaneity across independent DB instances suggests a shared host/resource constraint worth investigating."
+  }
+}

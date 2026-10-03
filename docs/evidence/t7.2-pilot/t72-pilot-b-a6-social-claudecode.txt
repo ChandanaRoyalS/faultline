@@ -1,0 +1,32 @@
+attempt k8s_target_port-misconfig / claudecode at 2026-10-03 05:20:02 UTC, model anthropic/claude-sonnet-4-6, judge anthropic/claude-sonnet-4-6
+exit 0 at 2026-10-03 05:27:24 UTC
+           results={'Diagnosis': {'judgment': 'True', 'reasoning':              
+           "evidence": "Diagnosis identifies user-service Service as            
+           "Yes", "evidence": "Diagnosis identifies misconfigured               
+           "evidence": "Diagnosis states \'targetPort 9999\' while              
+           "answer": "Yes", "evidence": "Diagnosis correctly                    
+           user-service as the fault component; diagnosis covers                
+           "D3-Q3", "answer": "Yes", "evidence": "Diagnosis states              
+           \'Connection refused\' errors from traffic routed to port            
+           'accuracy': 100.0, 'composite_score': 1.0, 'dimensions':             
+           {'D1': {'name': 'Fault Localization', 'score': 1.0},                 
+           'D2': {'name': 'Fault Characterization', 'score': 1.0},              
+           'D3': {'name': 'Scope Precision', 'score': 1.0}},                    
+           'D1-Q2', 'answer': 'Yes', 'evidence': 'Diagnosis                     
+           'evidence': 'Diagnosis identifies misconfigured                      
+           'evidence': "Diagnosis states 'targetPort 9999' while                
+           'answer': 'Yes', 'evidence': 'Diagnosis correctly                    
+           user-service as the fault component; diagnosis covers                
+           'D3-Q3', 'answer': 'Yes', 'evidence': "Diagnosis states              
+           'Connection refused' errors from traffic routed to port              
+           listening, resulting in "Connection refused" errors. The             
+           'phase.stage:diagnosis.duration_s': 96.393,                          
+           'phase.stage:diagnosis.outcome': 'submitted',                        
+           'phase.evaluate:diagnosis.duration_s': 11.144,                       
+                    INFO     uvicorn.error - Shutting down                      
+[10/03/26 05:27:24] INFO     uvicorn.error - Finished server process [1099311]  
+== results files
+  /home/deploy/t7.2-1c/SREGym/results/1003_0520/claudecode/k8s_target_port-misconfig/k8s_target_port-misconfig_claudecode_results.csv
+  /home/deploy/t7.2-1c/SREGym/results/1003_0451/faultline_ALL_results.csv
+  /home/deploy/t7.2-1c/SREGym/results/1003_0451/faultline/k8s_target_port-misconfig/k8s_target_port-misconfig_faultline_results.csv
+  /home/deploy/t7.2-1c/SREGym/results/1003_0451/faultline/k8s_target_port-misconfig/run_1/k8s_target_port-misconfig_results.csv

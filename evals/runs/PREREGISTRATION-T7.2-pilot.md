@@ -613,3 +613,40 @@ attempts 4 and 5):
 - It changes nothing.
 
 **Nothing frozen changes.** Attempts 4 to 6 run as registered.
+
+## Addendum 8 - attempts 4 to 6, and part B's close
+
+**Written 2026-10-03, after part B's close and before the pilot's result.** Outputs:
+`t72-pilot-b-a4-*`, `t72-pilot-b-a5-*`, `t72-pilot-b-a6-*`, `t72-pilot-b-results/`, and the
+closing stages' outputs (`collect`, `teardown`, `host-off`, `cleanup`, `cleanup-2`,
+`killswitch-off`, `incidents`, `hold`).
+
+**The attempts ran in the registered order**, each with every frozen setting. Their results are
+read in [`evals/attempts/T7.2-pilot/RESULT.md`](../attempts/T7.2-pilot/RESULT.md).
+`record a4` and `record a5` kept Faultline's records, the key absent from both.
+
+**Part B's close ran in the registered order**: `collect`, `teardown`, `host-off`, `cleanup`,
+`killswitch-off`, `incidents`. Four departures:
+
+1. **The sampler was stopped at 05:29:18**, before its six hours were up, so that its output could
+   be copied before `cleanup` deleted the directory.
+   - It wrote no summary.
+   - Its 387 samples, 02:16:03-05:29:04, are the record.
+   - The world's restart counts were read instead with `docker inspect`, in `collect`'s output.
+2. **The sampler's shell printed a syntax error after it stopped.**
+   - `pilot_vm.sh` had been copied over twice while `hold` was running (Addenda 6 and 7), and bash
+     reads a script as it runs it.
+   - The sampling is Python and was unaffected.
+   - No attempt, `probe` or `loki-watch` spanned a copy.
+   - **From now on, the script is copied only when no stage is running.**
+3. **`cleanup` could not delete three of SREGym's logs.**
+   - Claude Code's box writes `/logs` as root, so `rm` was refused.
+   - The key had been shredded first, and `collect` had found it in none of the logs.
+   - `sudo rm -rf ~/t7.2-1c` finished the cleanup (`t72-pilot-b-cleanup-2.txt`).
+4. **The world's prediction was wrong twice.** Both are recorded in the result:
+   - **an alert fired** at 04:34:34-04:36:34, and **`email-service` restarted** at 04:34:49;
+   - **MemAvailable fell to 4.04 GiB** during attempt 1, and below 5 GiB in 27 samples, all
+     during the two shop attempts.
+
+**`incidents`: no incident opened in the eight hours.** The kill switch is off, and every port is
+closed.

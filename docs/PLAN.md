@@ -4617,6 +4617,22 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-10-03: T7.2 pilot - the six attempts ran, part B closed, and the result names what must
+change before the scored run.***
+
+- **Claude Code**: right three times (89, 89, 100). **Faultline**: wrong three times (0, 22, 0),
+  with its log and change tools failing on every problem.
+- **Cost**: $1.94 and $1.95 for the two agents, from their tokens, plus the judge. **Time**: about
+  19 and 9 minutes per attempt.
+- **Projected to 648 attempts**: about $420 and 154 hours, both carrying the defects.
+- **For the owner** ([RESULT](../evals/attempts/T7.2-pilot/RESULT.md)): the selector, the change
+  commands, the missing metric history, the slow opening, the p95 reading, the shop's crash-loop
+  seed, operation, and R = 3 against the plan's R = 5.
+- **The world**: one alert and `email-service`'s restart, its own limit most likely; MemAvailable
+  down to 4.04 GiB. No incident.
+- **Next**: the owner's go, with an addendum for the fixes; then the re-check on the three dev
+  problems.
+
 ***2026-10-03: T7.2 pilot, Addendum 7 - attempts 2 and 3 and the probe; each Faultline attempt's
 record is kept.***
 

@@ -1,0 +1,32 @@
+attempt update_incompatible_correlated / faultline at 2026-10-03 04:33:19 UTC, model anthropic/claude-opus-5, judge anthropic/claude-sonnet-4-6
+exit 0 at 2026-10-03 04:45:24 UTC
+           queries died on a parse error [tr_4d406f3b84ac,                      
+           initialization with an unreachable-servers error roughly             
+           errors or timing out on individual requests under load               
+           returned HTTP 400 Bad Request, so the result is an error             
+           mongodb-rate; why: The empty payload is an error                     
+           are not implicated in the error.; query:                             
+           0-9]+-[a-z0-9]+|[0-9]+)"})\n- The error-ratio metric                 
+           a measurement of zero errors. (found, from                           
+           metric_baseline on rate)\n- No error rate, latency                   
+           error ratio for rate means the service was healthy and               
+           erroring at zero through 04:36:49. (ruled_out, from                  
+           infrastructure-level metrics instead.)\n- The error-ratio            
+           memory/cache usage, operation latency, and error counters            
+           zero error traffic — mongodb-rate emits no traces that               
+           metric_baseline on mongodb-rate)\n- mongodb-rate\'s error            
+           about mongodb-rate\'s error behaviour — healthy or                   
+           a parsing error, so no change records were retrieved.                
+           rate; why: The result is an error, not an empty set.                 
+           record was ever retrieved — every change query errored —             
+           parse error, so a deploy, image, or config change to                 
+           'phase.stage:diagnosis.duration_s': 456.523,                         
+           'phase.stage:diagnosis.outcome': 'submitted',                        
+           'phase.evaluate:diagnosis.duration_s': 17.755,                       
+[10/03/26 04:45:23] INFO     uvicorn.error - Shutting down                      
+                    INFO     uvicorn.error - Finished server process [777920]   
+== results files
+  /home/deploy/t7.2-1c/SREGym/results/1003_0401/claudecode/edge_request_filter_cpu_saturation/run_1/edge_request_filter_cpu_saturation_results.csv
+  /home/deploy/t7.2-1c/SREGym/results/1003_0421/claudecode_ALL_results.csv
+  /home/deploy/t7.2-1c/SREGym/results/1003_0421/claudecode/update_incompatible_correlated/update_incompatible_correlated_claudecode_results.csv
+  /home/deploy/t7.2-1c/SREGym/results/1003_0421/claudecode/update_incompatible_correlated/run_1/update_incompatible_correlated_results.csv
