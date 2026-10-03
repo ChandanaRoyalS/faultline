@@ -1,0 +1,19 @@
+"""Read-only: the scored run's attempt order (run registration, Addendum 2).
+The 33 problems of scaled-sample.tsv, shuffled by random.Random(SEED) so that no application's
+problems fall together in time, two attempts per problem, back to back. Which arm goes first
+alternates by position: odd positions Faultline first, even positions Claude Code first, so drift
+inside a session falls on neither arm. Run from this directory."""
+import csv, random
+SEED = 20261004
+rows = list(csv.DictReader(open("scaled-sample.tsv"), delimiter="\t"))
+order = sorted(rows, key=lambda r: (r["application"], r["problem"]))
+random.Random(SEED).shuffle(order)
+with open("scored-queue.tsv", "w") as f:
+    f.write("slot\tposition\tproblem\tapplication\tarm\n")
+    slot = 0
+    for position, r in enumerate(order, start=1):
+        arms = ("faultline", "claudecode") if position % 2 else ("claudecode", "faultline")
+        for arm in arms:
+            slot += 1
+            f.write(f"{slot}\t{position}\t{r['problem']}\t{r['application']}\t{arm}\n")
+print(f"{slot} attempts over {len(order)} problems, seed {SEED}")

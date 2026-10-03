@@ -24,3 +24,10 @@ write LF. Re-run with the changed script, the output was byte-identical to the c
 |---|---|
 | `scaled_draw.py.txt` | the scaled run's draw: 11 of each application's scored problems, `random.Random(20261003).sample` over the sorted list, from `run-table.tsv` |
 | `scaled-sample.tsv` | its output: 33 problems, with family and Q126's flag |
+
+**Addendum 2, 2026-10-03.** The scored run's operation:
+
+| file | what it is |
+|---|---|
+| `scored_queue.py.txt` | the attempt order: the 33 problems shuffled by `random.Random(20261004)`, two slots each, the first arm alternating by position |
+| `scored-queue.tsv` | its output: 66 slots, copied to the VM as `/tmp/scored-queue.tsv`. `pilot_vm.sh`'s `scored`, `batch`, `tally` and `status` stages run it |

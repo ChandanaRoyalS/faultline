@@ -4617,6 +4617,19 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-10-03: T7.2 run, Addendum 2 - how the scored run is operated.***
+
+- **66 slots in a fixed, seeded order**: the 33 problems shuffled, both arms back to back, the
+  first arm alternating.
+- **`pilot_vm.sh` gains `scored`, `batch`, `tally` and `status`**:
+  - a failed run is re-run once;
+  - each Faultline slot is recorded;
+  - the tally after every slot stops the run past $47;
+  - a batch can be started again after an interruption.
+- **Three sessions** of about four to five hours, the VM kept up between them for at most 48
+  hours.
+- **Next**: the set-up, then the first batch.
+
 ***2026-10-03: T7.2 re-check - the fixes hold on the live applications; one pass condition
 corrected after its result.***
 
