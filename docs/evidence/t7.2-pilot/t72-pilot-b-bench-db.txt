@@ -1,0 +1,15 @@
+bench-db at 2026-10-03 01:51:15 UTC
+WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.
+
+[notice] A new release of pip is available: 25.0.1 -> 26.2.1
+[notice] To update, run: pip install --upgrade pip
+schema at 0010
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]Loading weights: 100%|██████████| 103/103 [00:00<00:00, 3157.92it/s]
+error: /f/evals/scenarios/artifacts/dev/ad-memory-squeeze/postmortem.md has no acceptance for its current text (digest 9e0a2080fa6f). A postmortem joins the corpus when a person accepts it through the approval surface and not before; if it was accepted and then edited, the edit needs accepting too - the row pins the words that were read (PREREGISTRATION-T6.5.md §3).
+== the template
+  chunks: 5
+ERROR:  relation "corpus_state" does not exist
+LINE 1: select * from corpus_state
+                      ^
+kickoff_env password set in the run's checkout
