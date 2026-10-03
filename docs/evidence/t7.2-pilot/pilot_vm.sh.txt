@@ -1,0 +1,348 @@
+#!/usr/bin/env bash
+# T7.2 dev read and dev pilot, on the deployment. Registered in
+# evals/runs/PREREGISTRATION-T7.2-pilot.md before any stage is run.
+#
+# Copied to the VM as /tmp/pilot_vm.sh, with these beside it in /tmp:
+#   faultline-agent.patch      SREGym's side (evals/sregym/), applied at the pin
+#   faultline-src.tar.gz       the box's source bundle (part B only)
+#   faultline-seed.tar.gz      the seeding container's bundle (part B only)
+#   kind_measure_1c.py         1c's sampler, unchanged (docs/evidence/t7.2-kind-host/)
+# Run one stage at a time from the Mac, each output saved to ~/Downloads/t72-pilot-<stage>.txt and
+# read before the next:
+#     ssh "$VM" 'bash /tmp/pilot_vm.sh <stage> [args]'     (host-on/host-off: ssh -t ... sudo bash)
+#
+# Part A, the dev read ($0, no key on the VM):
+#   preread, killswitch-on, host-on, install, cluster, devread shop, cluster-reset,
+#   devread hotel, cluster-reset, devread social, teardown, host-off, cleanup, killswitch-off,
+#   incidents
+# Part B, the dev pilot (after the dev read's profile patch is merged):
+#   preread, killswitch-on, host-on, install, cluster, bench-db, serve-on, key-check,
+#   judge-check, hold (nohup, the sampler), attempt <app> <arm> x6, collect, teardown, host-off,
+#   cleanup, killswitch-off, incidents
+#
+# The directory is 1c's (~/t7.2-1c, its kubeconfig at ~/t7.2-1c/kubeconfig and copied to
+# ~/.kube/config), so 1c's sampler runs unchanged, as in the topology runs.
+
+set -uo pipefail
+D="$HOME/t7.2-1c"
+BIN="$D/bin"
+SR="$D/SREGym"
+SREGYM_PIN=46c853db
+PG=t72-bench-pg
+GW=172.17.0.1
+stage="${1:?stage}"
+ts() { date -u '+%Y-%m-%d %H:%M:%S UTC'; }
+kenv() { export PATH="$BIN:$HOME/.local/bin:$PATH" KUBECONFIG="$D/kubeconfig"; }
+renv() {
+    # SREGym's environment for a run: KUBECONFIG unset (it reads ~/.kube/config by fixed path),
+    # Helm's homes under the run's directory, its API on every interface - the boxed agents reach
+    # it through the egress proxy from docker0, and host-on's rules admit docker0 alone.
+    export PATH="$BIN:$HOME/.local/bin:$D/uvbin:$PATH"
+    unset KUBECONFIG
+    export HELM_CONFIG_HOME="$D/helm/config" HELM_CACHE_HOME="$D/helm/cache" HELM_DATA_HOME="$D/helm/data"
+    export UV_CACHE_DIR="$D/uv-cache"
+}
+
+app_vars() {
+    case "$1" in
+        shop)   PROBLEM=edge_request_filter_cpu_saturation; NS=astronomy-shop ;;
+        hotel)  PROBLEM=update_incompatible_correlated;     NS=hotel-reservation ;;
+        social) PROBLEM=k8s_target_port-misconfig;          NS=social-network ;;
+        *) echo "unknown app: $1"; exit 2 ;;
+    esac
+}
+
+world() {
+    echo "== memory, load, disk"
+    free -m | sed 's/^/  /'; echo "  load: $(cat /proc/loadavg)"; df -h / | sed 's/^/  /'
+    echo "== containers running: $(docker ps -q | wc -l); kind nodes: $(docker ps -aq --filter label=io.x-k8s.kind.cluster | wc -l)"
+    echo "== firing alerts on the world (Alertmanager :9093)"
+    curl -fsS -m 10 'http://localhost:9093/api/v2/alerts?active=true&silenced=false&inhibited=false' \
+        | python3 -c 'import json,sys; a=[x["labels"].get("alertname","?")+"/"+x["labels"].get("service_name","?") for x in json.load(sys.stdin)]; print("  %d: %s" % (len(a), ", ".join(a) or "none"))' \
+        || echo "  alertmanager unreadable"
+    echo "== git status of ~/faultline (empty means committed configuration)"
+    (cd ~/faultline && git status --short | sed 's/^/  /'); echo "  (end)"
+}
+
+prom() {
+    # One instant query through the API server's service proxy, read-only.
+    local q; q=$(python3 -c 'import sys, urllib.parse; print(urllib.parse.quote(sys.argv[1]))' "$1")
+    kubectl get --raw "/api/v1/namespaces/observe/services/prometheus-server:80/proxy/api/v1/query?query=$q" \
+        | python3 -c 'import json,sys; r=json.load(sys.stdin)["data"]["result"]; print("  %d series" % len(r)); [print("   ", e["metric"], e.get("value",[None,None])[1]) for e in r[:40]]' \
+        || echo "  (query failed)"
+}
+
+case "$stage" in
+
+preread)
+    echo "pilot pre-read at $(ts) on $(hostname), kernel $(uname -r), $(uptime -p)"
+    echo "== reboot pending: $([ -e /var/run/reboot-required ] && echo YES || echo no)"
+    echo "== timezone: $(timedatectl show -p Timezone --value 2>/dev/null || echo unknown); date +%Z: $(date +%Z)"
+    echo "== ports: $(for p in 8000 9954 16443 55432 55480; do printf '%s %s; ' $p "$(ss -ltnH "sport = :$p" | grep -q . && echo IN-USE || echo free)"; done)"
+    echo "== $D: $([ -e "$D" ] && echo present || echo absent); key file: $([ -e "$D/key" ] && echo PRESENT || echo absent)"
+    echo "== files in /tmp: $(ls /tmp/pilot_vm.sh /tmp/faultline-agent.patch /tmp/faultline-src.tar.gz /tmp/faultline-seed.tar.gz /tmp/kind_measure_1c.py 2>&1 | tr '\n' ' ')"
+    echo "== the kill switch now"
+    (cd ~/faultline/deploy && grep -n "KILL_SWITCH" compose.yml | sed 's/^/  /')
+    world
+    ;;
+
+killswitch-on|killswitch-off)
+    cd ~/faultline/deploy || exit 1
+    if [ "$stage" = killswitch-on ]; then
+        sed -i 's/FAULTLINE_EXECUTOR_KILL_SWITCH: "0"/FAULTLINE_EXECUTOR_KILL_SWITCH: "1"/' compose.yml
+    else
+        sed -i 's/FAULTLINE_EXECUTOR_KILL_SWITCH: "1"/FAULTLINE_EXECUTOR_KILL_SWITCH: "0"/' compose.yml
+    fi
+    grep -n "KILL_SWITCH" compose.yml
+    docker compose up -d executor
+    for _ in $(seq 1 10); do
+        docker compose exec -T executor curl -fsS localhost:8100/healthz < /dev/null && break
+        sleep 3
+    done
+    echo; echo "git status:"; cd ~/faultline && git status --short; echo "(git status end)"
+    ;;
+
+host-on)
+    # Run with sudo. SREGym's API (8000), MCP forward (9954) and Kubernetes proxy (16443) are
+    # dropped from every interface but the loopback, as in every T7.2 run so far; then docker0 is
+    # admitted for those three and for the benchmark database (55432) and the bundle (55480),
+    # because the boxed agents reach the host through the egress proxy on the default bridge
+    # (stage 0, Addendum 1). The ACCEPTs are inserted last, so they sit above the DROPs.
+    for p in 8000 9954 16443; do iptables -I INPUT ! -i lo -p tcp --dport "$p" -j DROP; done
+    for p in 8000 9954 16443 55432 55480; do iptables -I INPUT -i docker0 -p tcp --dport "$p" -j ACCEPT; done
+    iptables -S INPUT | grep -E 'dport (8000|9954|16443|55432|55480)'
+    sysctl -w fs.inotify.max_user_instances=1024 fs.inotify.max_user_watches=1048576
+    ;;
+
+host-off)
+    # Run with sudo.
+    for p in 8000 9954 16443 55432 55480; do iptables -D INPUT -i docker0 -p tcp --dport "$p" -j ACCEPT; done
+    for p in 8000 9954 16443; do iptables -D INPUT ! -i lo -p tcp --dport "$p" -j DROP; done
+    iptables -S INPUT | grep -E 'dport (8000|9954|16443|55432|55480)' || echo "rules gone"
+    sysctl -w fs.inotify.max_user_instances=128 fs.inotify.max_user_watches=124032
+    ;;
+
+install)
+    set -e
+    echo "install at $(ts)"
+    mkdir -p "$BIN" "$D/uvbin" "$D/out" && cd "$BIN"
+    curl -fsSLo kind https://kind.sigs.k8s.io/dl/v0.27.0/kind-linux-amd64
+    echo "$(curl -fsSL https://kind.sigs.k8s.io/dl/v0.27.0/kind-linux-amd64.sha256sum | awk '{print $1}')  kind" | sha256sum -c
+    curl -fsSLo kubectl https://dl.k8s.io/release/v1.32.1/bin/linux/amd64/kubectl
+    echo "$(curl -fsSL https://dl.k8s.io/release/v1.32.1/bin/linux/amd64/kubectl.sha256)  kubectl" | sha256sum -c
+    curl -fsSLo helm.tgz https://get.helm.sh/helm-v4.3.0-linux-amd64.tar.gz
+    echo "$(curl -fsSL https://get.helm.sh/helm-v4.3.0-linux-amd64.tar.gz.sha256sum | awk '{print $1}')  helm.tgz" | sha256sum -c
+    tar -xzf helm.tgz --strip-components=1 linux-amd64/helm && rm helm.tgz
+    chmod +x kind kubectl helm
+    command -v uv >/dev/null || curl -fsSL https://astral.sh/uv/install.sh | env UV_INSTALL_DIR="$D/uvbin" UV_NO_MODIFY_PATH=1 sh
+    renv
+    echo "uv: $(uv --version)"
+    git clone -q https://github.com/SREGym/SREGym.git "$SR"
+    cd "$SR"
+    git checkout -q "$SREGYM_PIN" && git log --oneline -1
+    git submodule update --init SREGym-applications
+    (cd SREGym-applications && git submodule update --init astronomy-shop)
+    git apply /tmp/faultline-agent.patch && echo "faultline-agent.patch applied"
+    git status --short | sed 's/^/  /'
+    uv sync --frozen 2>&1 | tail -2
+    # Part B only, and recorded: claudecode's version, pinned to npm's latest now (registration).
+    if [ -e /tmp/faultline-src.tar.gz ]; then
+        v=$(curl -fsS https://registry.npmjs.org/@anthropic-ai/claude-code/latest | python3 -c 'import json,sys; print(json.load(sys.stdin)["version"])')
+        python3 - "$v" <<'EOF'
+import re, sys
+p = "agents.yaml"; s = open(p).read()
+block = re.search(r"(  - name: claudecode\n(?:    .*\n)+?)    agent_version: null\n", s)
+assert block, "claudecode row not found"
+s = s.replace(block.group(0), block.group(1) + f'    agent_version: "{sys.argv[1]}"\n', 1)
+open(p, "w").write(s)
+print("claudecode pinned to", sys.argv[1])
+EOF
+        sha256sum /tmp/faultline-src.tar.gz /tmp/faultline-seed.tar.gz
+    fi
+    ;;
+
+cluster)
+    kenv
+    cd "$SR" || exit 1
+    date -u
+    bash kind/setup_kind_cluster.sh
+    kubectl get nodes
+    mkdir -p "$HOME/.kube" && install -m 600 "$D/kubeconfig" "$HOME/.kube/config"
+    cmp -s "$D/kubeconfig" "$HOME/.kube/config" && echo "~/.kube/config: identical" || echo "~/.kube/config: DIFFERS"
+    ;;
+
+cluster-reset)
+    # Between dev problems: a fresh cluster, so each application deploys as it would first.
+    kenv
+    echo "cluster-reset at $(ts)"
+    pkill -f '^kubectl port-forward svc/' || true
+    kind delete cluster
+    docker network rm kind
+    bash /tmp/pilot_vm.sh cluster
+    ;;
+
+devread)
+    # Part A. SREGym's external-harness deploy (1c's, no agent, no key), then read-only reads.
+    app_vars "${2:?app}"
+    renv
+    export API_BIND_HOST=127.0.0.1
+    echo "key-like variables in env: $(env | grep -cE '^[A-Za-z_]*(KEY|TOKEN|SECRET)[A-Za-z_]*=')"
+    cd "$SR" || exit 1
+    echo "deploy $PROBLEM at $(ts)"
+    timeout 45m uv run python main.py --use-external-harness --problem "$PROBLEM" --agent demo 2>&1 | tail -5
+    echo "deploy exit ${PIPESTATUS[0]} at $(ts)"
+    kenv
+    sleep 120
+    echo "== reads at $(ts), namespace $NS"
+    echo "== workloads (kind, name, containers)"
+    kubectl -n "$NS" get deploy,sts -o custom-columns=KIND:.kind,NAME:.metadata.name,CONTAINERS:.spec.template.spec.containers[*].name | sed 's/^/  /'
+    echo "== Jaeger services"
+    kubectl get --raw "/api/v1/namespaces/observe/services/jaeger-out:16686/proxy/api/services" | sed 's/^/  /'; echo
+    echo "== span-metric families";             prom 'count by (__name__) ({__name__=~"traces_span_metrics.*"})'
+    echo "== span-metric services";             prom 'count by (service_name) (traces_span_metrics_calls_total)'
+    echo "== kube_pod_owner in $NS";            prom "count(kube_pod_owner{namespace=\"$NS\"})"
+    echo "== kube_replicaset_owner in $NS";     prom "count(kube_replicaset_owner{namespace=\"$NS\"})"
+    echo "== cAdvisor working set in $NS";      prom "count(container_memory_working_set_bytes{namespace=\"$NS\",container!=\"\",container!=\"POD\"})"
+    echo "== the alarms, evaluated once now (registered rules, read-only)"
+    prom "max by (pod) (max_over_time(kube_pod_container_status_waiting_reason{namespace=\"$NS\",reason=\"CrashLoopBackOff\"}[5m])) >= 1"
+    prom "max by (pod) (kube_pod_status_phase{namespace=\"$NS\",phase=~\"Pending|Unknown|Failed\"}) > 0"
+    prom "kube_deployment_spec_replicas{namespace=\"$NS\"} != kube_deployment_status_replicas_available{namespace=\"$NS\"}"
+    echo "== Loki labels"
+    kubectl get --raw "/api/v1/namespaces/observe/services/loki:3100/proxy/loki/api/v1/labels" | sed 's/^/  /'; echo
+    echo "== Loki pod values in $NS"
+    kubectl get --raw "/api/v1/namespaces/observe/services/loki:3100/proxy/loki/api/v1/label/pod/values" | python3 -c 'import json,sys; v=[x for x in json.load(sys.stdin).get("data",[])]; print("  %d pods, e.g. %s" % (len(v), v[:8]))'
+    echo "== timezone: $(timedatectl show -p Timezone --value 2>/dev/null); date +%Z: $(date +%Z)"
+    ;;
+
+bench-db)
+    # Part B. The benchmark database: pgvector, on docker0 only, migrated and seeded into the
+    # template database by a throwaway container from the seed bundle, at the run's commit.
+    echo "bench-db at $(ts)"
+    umask 077
+    python3 -c 'import secrets; print(secrets.token_urlsafe(24))' > "$D/pg.pass"
+    docker run -d --name "$PG" -e POSTGRES_PASSWORD="$(cat "$D/pg.pass")" -p "$GW:55432:5432" pgvector/pgvector:pg16 > /dev/null
+    for _ in $(seq 1 30); do docker exec "$PG" pg_isready -q && break; sleep 2; done
+    docker exec "$PG" psql -U postgres -qc 'CREATE DATABASE faultline_seeded'
+    mkdir -p "$D/seed" && cp /tmp/faultline-seed.tar.gz "$D/seed/"
+    docker run --rm -v "$D/seed:/seed:ro" \
+        -e FAULTLINE_CONTEXT_POSTGRES_DSN="postgresql://postgres:$(cat "$D/pg.pass")@$GW:55432/faultline_seeded" \
+        python:3.12-slim bash -c '
+            set -e; mkdir /f && tar -xzf /seed/faultline-seed.tar.gz -C /f
+            pip install -q --extra-index-url https://download.pytorch.org/whl/cpu -e "/f[embeddings]"
+            cd /f && faultline-migrate && faultline-seed' 2>&1 | tail -12
+    echo "== the template"
+    docker exec "$PG" psql -U postgres -d faultline_seeded -tAc 'select count(*) from incident_chunks' | sed 's/^/  chunks: /'
+    docker exec "$PG" psql -U postgres -d faultline_seeded -tAc 'select * from corpus_state' | sed 's/^/  corpus_state: /'
+    # The password reaches the box through the faultline row's kickoff_env, in this checkout only.
+    python3 - "$SR/agents.yaml" "$(cat "$D/pg.pass")" <<'EOF'
+import sys
+p, pw = sys.argv[1], sys.argv[2]
+s = open(p).read()
+placeholder = '"<set for the run, never committed>"'
+assert placeholder in s
+open(p, "w").write(s.replace(placeholder, f'"{pw}"', 1))
+print("kickoff_env password set in the run's checkout")
+EOF
+    ;;
+
+serve-on)
+    # Part B. The box's bundle, on docker0's address only, for install-faultline.sh.
+    mkdir -p "$D/serve" && cp /tmp/faultline-src.tar.gz "$D/serve/"
+    nohup python3 -m http.server 55480 --bind "$GW" --directory "$D/serve" > "$D/serve.log" 2>&1 &
+    echo $! > "$D/serve.pid"; sleep 1
+    curl -fsS -o /dev/null -w "bundle over docker0: HTTP %{http_code}, %{size_download} bytes\n" "http://$GW:55480/faultline-src.tar.gz"
+    ;;
+
+key-check)
+    # Part B. The key was written to $D/key from the Mac by `ssh ... 'cat > ...' < file`; this
+    # says only whether it is there and its mode. It never prints the key.
+    [ -s "$D/key" ] && echo "key: present, mode $(stat -c %a "$D/key"), $(wc -c < "$D/key") bytes" || echo "key: ABSENT"
+    ;;
+
+judge-check)
+    # Part B. The judge's LiteLLM string: SREGym's README's, else the alias, by one 1-token call
+    # each (well under a cent). The one that answers is written to $D/judge and used by both arms.
+    renv
+    cd "$SR" || exit 1
+    for m in anthropic/claude-sonnet-4-6-20250627 anthropic/claude-sonnet-4-6; do
+        if ANTHROPIC_API_KEY="$(cat "$D/key")" uv run python -c "
+import litellm, sys
+litellm.completion(model=sys.argv[1], messages=[{'role': 'user', 'content': 'ok'}], max_tokens=1)
+" "$m" > /dev/null 2>&1; then echo "$m" > "$D/judge"; echo "judge: $m answers"; break; else echo "judge: $m refused"; fi
+    done
+    [ -s "$D/judge" ] || echo "NO JUDGE STRING ANSWERED"
+    ;;
+
+hold)
+    # Part B, started with nohup before the first attempt: 1c's sampler over the whole pilot.
+    echo "hold from $(ts)"
+    python3 -u /tmp/kind_measure_1c.py W "${2:-21600}"
+    echo "hold done at $(ts)"
+    ;;
+
+attempt)
+    # Part B. One problem, one arm, R = 1, every frozen setting of the run.
+    app_vars "${2:?app}"
+    arm="${3:?arm: faultline or claudecode}"
+    renv
+    export API_BIND_HOST=0.0.0.0
+    judge=$(cat "$D/judge")
+    case "$arm" in
+        faultline)  model=anthropic/claude-opus-5 ;;
+        claudecode) model="$judge" ;;
+        *) echo "unknown arm: $arm"; exit 2 ;;
+    esac
+    cd "$SR" || exit 1
+    echo "attempt $PROBLEM / $arm at $(ts), model $model, judge $judge"
+    ANTHROPIC_API_KEY="$(cat "$D/key")" timeout 75m uv run python main.py \
+        --problem "$PROBLEM" --agent "$arm" --model "$model" --judge-model "$judge" \
+        --stages diagnosis --n-attempts 1 --profile full --internet-access filtered \
+        --container-hardening on --agent-timeout 1800 --force-build \
+        > "$D/out/attempt-$2-$arm.log" 2>&1
+    echo "exit $? at $(ts)"
+    grep -iE "score|pass|diagnosis|judge|error|traceback" "$D/out/attempt-$2-$arm.log" | tail -25
+    echo "== results files"
+    find "$SR/results" -newer /tmp/pilot_vm.sh -name '*_results.csv' -printf '  %p\n' | tail -4
+    ;;
+
+collect)
+    # Part B. Every result and agent log the attempts wrote, for the Mac. The key is not in them:
+    # SREGym never writes it, and this checks.
+    cd "$D" || exit 1
+    tar -czf "$D/out/pilot-results.tgz" -C "$SR" results logs 2>/dev/null
+    tar -xzOf "$D/out/pilot-results.tgz" 2>/dev/null | grep -c -F -f "$D/key" | sed 's/^/key occurrences in the archive: /'
+    ls -la "$D/out"
+    ;;
+
+teardown)
+    kenv
+    echo "teardown at $(ts)"
+    pgrep -af 'port-forward svc/' || echo "no port-forward"
+    pkill -f '^kubectl port-forward svc/'
+    [ -f "$D/serve.pid" ] && kill "$(cat "$D/serve.pid")" 2>/dev/null
+    docker rm -f "$PG" 2>/dev/null && echo "bench database removed"
+    for port in 8000 9954 16443 55432 55480; do printf '%s %s\n' "$port" "$(ss -ltnH "sport = :$port" | grep -q . && echo LISTENING || echo closed)"; done
+    kind delete cluster
+    docker network rm kind
+    for id in $(docker image ls --no-trunc --format '{{.Repository}} {{.ID}}' | awk '$1 ~ /sregym\/kind-node|sregym-agent-base|mitmproxy\/mitmproxy/ {print $2}'); do docker rmi -f "$id"; done
+    docker image ls | grep -E 'sregym|mitmproxy' || echo "no sregym or proxy image left"
+    echo "running: $(docker ps -q | wc -l)"
+    ;;
+
+cleanup)
+    # After teardown and after the outputs are copied to the Mac. The key goes first.
+    [ -e "$D/key" ] && shred -u "$D/key" && echo "key shredded"
+    rm -rf "$D" "$HOME/cache_dir" "$HOME/.kube"
+    ls -d "$D" "$HOME/cache_dir" "$HOME/.kube" 2>&1
+    ;;
+
+incidents)
+    cd ~/faultline/deploy || exit 1
+    docker compose exec -T postgres psql -U faultline faultline \
+        -c "select id, state, opened_at from incidents where opened_at > now() - interval '${2:-8} hours' order by opened_at" < /dev/null
+    echo "rows above: incidents in the last ${2:-8} hours (none if empty)"
+    ;;
+
+*)
+    echo "unknown stage: $stage"; exit 2 ;;
+esac

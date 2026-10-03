@@ -40,19 +40,22 @@ index 0000000..65053bd
 +    sys.exit(main())
 diff --git a/docker/agents/install-scripts/install-faultline.sh b/docker/agents/install-scripts/install-faultline.sh
 new file mode 100755
-index 0000000..865d775
+index 0000000..655b046
 --- /dev/null
 +++ b/docker/agents/install-scripts/install-faultline.sh
-@@ -0,0 +1,12 @@
+@@ -0,0 +1,15 @@
 +#!/usr/bin/env bash
-+# Faultline's wheel, served from the host for the run, with the two extras the agent needs and
-+# CPU-only torch. Stage 0 measured this at 60-64 s inside the hardened, filtered container.
++# Faultline's source bundle (faultline.sregym.bundle), served from the host for the run, installed
++# editable under /opt/faultline so the runtime finds its repository data above its own __file__.
++# Stage 0 measured the install of the same dependencies at 60-64 s inside the hardened container.
 +set -euo pipefail
-+WHEEL="faultline-0.0.1-py3-none-any.whl"
-+WHEEL_URL="${FAULTLINE_WHEEL_URL:-http://host.docker.internal:55480/$WHEEL}"
-+echo "[$(date -Iseconds)] Installing Faultline from $WHEEL_URL"
-+curl -fsS -o "/tmp/$WHEEL" "$WHEEL_URL"
-+sha256sum "/tmp/$WHEEL"
++BUNDLE="faultline-src.tar.gz"
++BUNDLE_URL="${FAULTLINE_BUNDLE_URL:-http://host.docker.internal:55480/$BUNDLE}"
++echo "[$(date -Iseconds)] Installing Faultline from $BUNDLE_URL"
++curl -fsS -o "/tmp/$BUNDLE" "$BUNDLE_URL"
++sha256sum "/tmp/$BUNDLE"
++mkdir -p /opt/faultline
++tar -xzf "/tmp/$BUNDLE" -C /opt/faultline
 +python3 -m pip install --break-system-packages -q ${SSL_CERT_FILE:+--cert "$SSL_CERT_FILE"} \
-+    --extra-index-url https://download.pytorch.org/whl/cpu "/tmp/$WHEEL[agents,embeddings]"
-+echo "[$(date -Iseconds)] Faultline installed: $(python3 -c 'import importlib.metadata as m; print(m.version("faultline"))')"
++    --extra-index-url https://download.pytorch.org/whl/cpu -e "/opt/faultline[agents,embeddings]"
++echo "[$(date -Iseconds)] Faultline installed: $(python3 -c 'import faultline; print(faultline.__file__)')"

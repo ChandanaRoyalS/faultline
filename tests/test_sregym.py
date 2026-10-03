@@ -718,3 +718,18 @@ def test_the_leak_guard_does_not_withhold_a_default_dns_policy() -> None:
     assert kube._guarded("Default") == "Default"
     assert kube._guarded("chaos-mesh") == "[withheld: names the benchmark]"
     assert kube._guarded("sregym-agent") == "[withheld: names the benchmark]"
+
+
+# --- the bundle ---------------------------------------------------------------------------
+
+
+def test_the_bundle_carries_every_path_the_runtime_walks_up_to_find() -> None:
+    from faultline.sregym import bundle
+    from tests.test_packaging import REPO_DATA
+
+    corpus = "evals/scenarios/artifacts/dev"
+    assert set(REPO_DATA) - {corpus} <= set(bundle.BUNDLE_PATHS)
+    assert corpus not in bundle.BUNDLE_PATHS, "the box never holds the corpus source"
+    assert set(REPO_DATA) <= set(bundle.SEED_PATHS)
+    assert not any("holdout" in p for p in bundle.SEED_PATHS)
+    assert {"pyproject.toml", "src"} <= set(bundle.BUNDLE_PATHS), "installable as a project"
