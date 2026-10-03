@@ -27,3 +27,5 @@ archive for it.
 | `t72-pilot-b-doubled-preread.txt`, `t72-pilot-b-doubled-install.txt`, `t72-pilot-b-doubled-bench-db.txt` | part B's setup run a second time over the first (Addendum 3): the state it found, and migrate missing its database |
 | `t72-pilot-b-reset-teardown.txt`, `t72-pilot-b-reset-host-off.txt`, `t72-pilot-b-reset-cleanup.txt` | Addendum 3's reset: database removed, all five ports closed, both copies of the rules gone, directory deleted |
 | `t72-pilot-b-preread.txt` to `t72-pilot-b-serve-on.txt` | the clean setup: SREGym pinned, `claudecode` 2.1.288, four nodes, the bundle served; the seed refused for want of the committed acceptances (Addendum 4) |
+| `t72-pilot-b-bench-reset.txt`, `t72-pilot-b-bench-db-2.txt` | Addendum 4's recovery: the partial database removed, then the template seeded in full, 334 chunks over 65 documents, body digest `a6de378e3b55`, equal to the working tree's (Addendum 5) |
+| `t72-pilot-b-key-judge.txt` | the key on the VM (mode 600, 106 bytes, never printed); the README's dated judge string refused, the alias `anthropic/claude-sonnet-4-6` answered (Addendum 5) |
