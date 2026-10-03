@@ -31,3 +31,5 @@ archive for it.
 | `t72-pilot-b-key-judge.txt` | the key on the VM (mode 600, 106 bytes, never printed); the README's dated judge string refused, the alias `anthropic/claude-sonnet-4-6` answered (Addendum 5) |
 | `t72-pilot-b-a1-record/` | attempt 1, Faultline on the shop: SREGym's log, Faultline's logs (`attempt.json`, `investigate.log`, the verdict and narrative), and the trajectory, incident and tool calls from the bench database, as JSON lines; the key checked absent (Addendum 6) |
 | `t72-pilot-b-a1-hang.txt` | the read after the wait that never returned: SREGym gone, its port-forward left, the shop's and Loki's namespaces deleted, and the results CSV (Addendum 6) |
+| `t72-pilot-b-a2-shop-claudecode.txt` | attempt 2, Claude Code on the shop: correct, 89/100, 11.7 min; and the probe beside it: the shipped selector refused and the corrected one accepted, error-status series on three services only, about three minutes of metric history, the change commands' answers up to 328,279 characters (Addendum 7) |
+| `t72-pilot-b-a3-hotel-claudecode.txt` | attempt 3, Claude Code on Hotel Reservation: correct, 89/100, 8.5 min (Addendum 7) |
