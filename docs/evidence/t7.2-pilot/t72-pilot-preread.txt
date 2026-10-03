@@ -1,0 +1,20 @@
+pilot pre-read at 2026-10-03 00:36:45 UTC on ubuntu, kernel 6.8.0-142-generic, up 2 days, 15 hours, 30 minutes
+== reboot pending: no
+== timezone: Etc/UTC; date +%Z: UTC
+== ports: 8000 free; 9954 free; 16443 free; 55432 free; 55480 free; 
+== /home/deploy/t7.2-1c: absent; key file: absent
+== files in /tmp: ls: cannot access '/tmp/faultline-src.tar.gz': No such file or directory ls: cannot access '/tmp/faultline-seed.tar.gz': No such file or directory /tmp/faultline-agent.patch /tmp/kind_measure_1c.py /tmp/pilot_vm.sh 
+== the kill switch now
+  387:      FAULTLINE_EXECUTOR_KILL_SWITCH: "0"
+== memory, load, disk
+                 total        used        free      shared  buff/cache   available
+  Mem:           15936        4367        9071          48        2876       11568
+  Swap:              0           0           0
+  load: 0.44 0.36 0.31 1/1775 4093763
+  Filesystem      Size  Used Avail Use% Mounted on
+  /dev/vda1       464G   41G  424G   9% /
+== containers running: 35; kind nodes: 0
+== firing alerts on the world (Alertmanager :9093)
+  0: none
+== git status of ~/faultline (empty means committed configuration)
+  (end)

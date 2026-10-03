@@ -1,0 +1,98 @@
+key-like variables in env: 0
+deploy edge_request_filter_cpu_saturation at 2026-10-03 00:41:13 UTC
+                    WARNING  all.sregym.conductor_api - Shutting down API       
+                             server...                                          
+[10/03/26 00:46:23] INFO     uvicorn.error - Shutting down                      
+[10/03/26 00:46:24] INFO     uvicorn.error - Finished server process [4109662]  
+                    WARNING  __main__ - ⚠️ No results to write.                  
+deploy exit 0 at 2026-10-03 00:46:25 UTC
+== reads at 2026-10-03 00:48:25 UTC, namespace astronomy-shop
+== workloads (kind, name, containers)
+  KIND          NAME              CONTAINERS
+  Deployment    accounting        accounting
+  Deployment    ad                ad
+  Deployment    cart              cart
+  Deployment    checkout          checkout
+  Deployment    currency          currency
+  Deployment    email             email
+  Deployment    flagd             flagd,flagd-ui
+  Deployment    fraud-detection   fraud-detection
+  Deployment    frontend          frontend
+  Deployment    frontend-proxy    frontend-proxy
+  Deployment    grafana           grafana-sc-alerts,grafana-sc-dashboard,grafana-sc-datasources,grafana
+  Deployment    image-provider    image-provider
+  Deployment    jaeger            jaeger
+  Deployment    kafka             kafka
+  Deployment    llm               llm
+  Deployment    load-generator    load-generator,locust-exporter
+  Deployment    payment           payment
+  Deployment    postgresql        postgresql
+  Deployment    product-catalog   product-catalog
+  Deployment    product-reviews   product-reviews
+  Deployment    quote             quote
+  Deployment    recommendation    recommendation
+  Deployment    shipping          shipping
+  Deployment    valkey-cart       valkey-cart
+  StatefulSet   opensearch        opensearch
+== Jaeger services
+  {"data":["frontend-proxy","product-catalog","shipping","quote","flagd","load-generator","product-reviews","checkout","accounting","image-provider","email","fraud-detection","ad","frontend","currency","cart","recommendation","payment"],"total":18,"limit":0,"offset":0,"errors":null}
+== span-metric families
+  4 series
+    {'__name__': 'traces_span_metrics_calls_total'} 114
+    {'__name__': 'traces_span_metrics_duration_milliseconds_bucket'} 1596
+    {'__name__': 'traces_span_metrics_duration_milliseconds_count'} 114
+    {'__name__': 'traces_span_metrics_duration_milliseconds_sum'} 114
+== span-metric services
+  18 series
+    {'service_name': 'accounting'} 3
+    {'service_name': 'checkout'} 9
+    {'service_name': 'load-generator'} 14
+    {'service_name': 'quote'} 3
+    {'service_name': 'ad'} 2
+    {'service_name': 'flagd'} 9
+    {'service_name': 'cart'} 6
+    {'service_name': 'currency'} 1
+    {'service_name': 'email'} 3
+    {'service_name': 'frontend'} 35
+    {'service_name': 'frontend-proxy'} 3
+    {'service_name': 'image-provider'} 1
+    {'service_name': 'payment'} 5
+    {'service_name': 'product-catalog'} 3
+    {'service_name': 'product-reviews'} 7
+    {'service_name': 'recommendation'} 3
+    {'service_name': 'shipping'} 3
+    {'service_name': 'fraud-detection'} 4
+== kube_pod_owner in astronomy-shop
+  1 series
+    {} 29
+== kube_replicaset_owner in astronomy-shop
+  1 series
+    {} 25
+== cAdvisor working set in astronomy-shop
+  1 series
+    {} 39
+== the alarms, evaluated once now (registered rules, read-only)
+  1 series
+    {'pod': 'product-catalog-77497fdc44-pvpv4'} 1
+  0 series
+  0 series
+== Loki labels
+Error from server (NotFound): services "loki" not found
+
+== Loki pod values in astronomy-shop
+Error from server (NotFound): services "loki" not found
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+  File "/usr/lib/python3.12/json/__init__.py", line 293, in load
+    return loads(fp.read(),
+           ^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/json/__init__.py", line 346, in loads
+    return _default_decoder.decode(s)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/json/decoder.py", line 337, in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/json/decoder.py", line 355, in raw_decode
+    raise JSONDecodeError("Expecting value", s, err.value) from None
+json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+== timezone: Etc/UTC; date +%Z: UTC
