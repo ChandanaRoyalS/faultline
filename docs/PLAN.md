@@ -4617,6 +4617,17 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-10-03: T7.2 pilot, Addendum 4 - the clean setup ran; seeding needs the committed
+acceptances.***
+
+- **The reset and one clean setup** gave four nodes, the bundle served, migrations applied, and
+  `claudecode` pinned to 2.1.288.
+- **`faultline-seed` refused the first postmortem**: a fresh database has no acceptance rows, and
+  the script omitted `--import-acceptances`, which replicates the committed ledger.
+- **Fixed**, with the template now recorded by `body_digest_of`, and a `bench-reset` stage to redo
+  the database alone.
+- **Next**: `bench-reset`, `bench-db`, then the key. $0.
+
 ***2026-10-03: T7.2 pilot, Addendum 3 - part B's setup ran twice; the stages now refuse a second run,
 and migrate is given its database.***
 

@@ -16,7 +16,8 @@
 #   cluster-reset, devread hotel, cluster-reset, devread social, teardown, host-off, cleanup,
 #   killswitch-off, incidents
 # Part B, the dev pilot (after the dev read's profile patch is merged):
-#   preread, killswitch-on, host-on, install, cluster, bench-db, serve-on, key-check,
+#   preread, killswitch-on, host-on, install, cluster, bench-db (bench-reset to redo it,
+#   Addendum 4), serve-on, key-check,
 #   judge-check, hold (nohup, the sampler), attempt shop faultline, loki-read shop (Addendum 1),
 #   the other five attempts, collect, teardown, host-off, cleanup, killswitch-off, incidents
 #
@@ -276,10 +277,16 @@ bench-db)
         python:3.12-slim bash -c '
             set -e; mkdir /f && tar -xzf /seed/faultline-seed.tar.gz -C /f
             pip install -q --extra-index-url https://download.pytorch.org/whl/cpu -e "/f[embeddings]"
-            cd /f && faultline-migrate --dsn "$FAULTLINE_CONTEXT_POSTGRES_DSN" && faultline-seed' 2>&1 | tail -12
-    echo "== the template"
-    docker exec "$PG" psql -U postgres -d faultline_seeded -tAc 'select count(*) from incident_chunks' | sed 's/^/  chunks: /'
-    docker exec "$PG" psql -U postgres -d faultline_seeded -tAc 'select * from corpus_state' | sed 's/^/  corpus_state: /'
+            cd /f && faultline-migrate --dsn "$FAULTLINE_CONTEXT_POSTGRES_DSN" \
+                && faultline-seed --import-acceptances \
+                && python -c "
+import os, psycopg
+from faultline.context.corpus import body_digest_of
+rows = psycopg.connect(os.environ[\"FAULTLINE_CONTEXT_POSTGRES_DSN\"]).execute(
+    \"select document_id, section, body from incident_chunks\").fetchall()
+print(\"the template: %d chunks over %d documents, body digest %s\" % (
+    len(rows), len({r[0] for r in rows}), body_digest_of(rows)[:12]))
+"' 2>&1 | tail -14
     # The password reaches the box through the faultline row's kickoff_env, in this checkout only.
     python3 - "$SR/agents.yaml" "$(cat "$D/pg.pass")" <<'EOF'
 import sys
@@ -290,6 +297,26 @@ assert placeholder in s
 open(p, "w").write(s.replace(placeholder, f'"{pw}"', 1))
 print("kickoff_env password set in the run's checkout")
 EOF
+    ;;
+
+bench-reset)
+    # Addendum 4. The benchmark database removed, and the run's checkout's kickoff_env put back
+    # to its placeholder, so bench-db can run again from nothing. Changes nothing else.
+    docker rm -f "$PG" >/dev/null 2>&1 && echo "removed $PG"
+    if [ -s "$D/pg.pass" ]; then
+        python3 - "$SR/agents.yaml" "$(cat "$D/pg.pass")" <<'EOF'
+import sys
+p, pw = sys.argv[1], sys.argv[2]
+s = open(p).read()
+if f'"{pw}"' in s:
+    open(p, "w").write(s.replace(f'"{pw}"', '"<set for the run, never committed>"', 1))
+    print("kickoff_env password back to its placeholder")
+else:
+    print("kickoff_env holds no password from pg.pass")
+EOF
+        rm -f "$D/pg.pass"
+    fi
+    docker ps -a --format '{{.Names}}' | grep -qx "$PG" && echo "PG LEFT" || echo "no benchmark database left"
     ;;
 
 serve-on)

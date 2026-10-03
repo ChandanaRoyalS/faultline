@@ -323,3 +323,50 @@ failed, and no table exists in the template.
 - The cluster and its image are removed, the rules gone, and the directory deleted.
 - The kill switch is off.
 - **No incident opened in the two hours.**
+
+## Addendum 4 - the clean setup ran; seeding needs the committed acceptances; `bench-reset` added
+
+**Written 2026-10-03, after the clean setup and before anything else.** Outputs:
+`t72-pilot-b-reset-*.txt` and `t72-pilot-b-*.txt`.
+
+**The reset and the clean run, 01:46-01:53 UTC:**
+
+- **The reset**: the database removed, all five ports closed, both copies of the rules gone, and
+  the directory deleted.
+- **The clean preread** found five free ports, no directory, no key and the kill switch on.
+- **`install`**: SREGym at the pin, the patch applied, and **`claudecode` pinned to 2.1.288**.
+  The bundles' sha256s are `ea773f50…` (box) and `6a214629…` (seed), built at `afe6419`.
+- **`cluster`**: four nodes.
+- **`serve-on`**: the box's bundle served over docker0, 793,878 bytes.
+- **`bench-db`**: the template migrated (`schema at 0010`, so Addendum 3's `--dsn` fix worked),
+  then `faultline-seed` **refused**:
+
+  > `ad-memory-squeeze/postmortem.md has no acceptance for its current text … A postmortem joins
+  > the corpus when a person accepts it through the approval surface and not before`
+
+  So the template holds 5 chunks, the runbooks that seeded before the refusal, and no narrative.
+  **It is not the corpus Faultline runs with.**
+
+**Why: a fresh database has no acceptance rows.** T6.5's guard admits a postmortem only on a
+recorded acceptance of its exact text. `faultline-seed --import-acceptances` replicates the
+committed ledger (`evals/scenarios/artifacts/dev/ACCEPTANCES.json`, in the seed bundle) into the
+new database first. The flag's own help names it for this case: *"so a fresh deployment can admit
+the postmortems a person accepted elsewhere without anyone re-deciding"*. The script omitted it.
+
+**And the recording query was wrong.** `corpus_state` is a function of `evalharness.freeze`, not a
+table.
+
+**The changes to `pilot_vm.sh`:**
+
+1. `bench-db` seeds with **`faultline-seed --import-acceptances`**.
+2. The template is recorded from inside the seeding container: its chunk count, its document count
+   and **`body_digest_of`**, the corpus digest `faultline.context.corpus` defines.
+3. **`bench-reset`** (new) removes the database, puts the run's checkout's `kickoff_env` password
+   back to its placeholder and deletes `pg.pass`, so `bench-db` can run once more from nothing. It
+   touches nothing else.
+
+**Recovery**: `bench-reset`, then `bench-db`. The cluster, the install, the rules and the bundle
+server stay as they are.
+
+**Nothing frozen changes.** The corpus is still the committed dev split with its committed
+acceptances, as the image ships it.

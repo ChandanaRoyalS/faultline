@@ -25,3 +25,5 @@ archive for it.
 | `t72-pilot-devread-social.txt` | Social Network: names as spans but `nginx-thrift`, no trace, no span metric, no alarm |
 | `t72-pilot-teardown-a.txt`, `t72-pilot-host-off-a.txt`, `t72-pilot-cleanup-a.txt`, `t72-pilot-killswitch-off-a.txt`, `t72-pilot-incidents-a.txt` | part A closed: cluster and image removed, rules gone, directory deleted, kill switch off, no incident in two hours |
 | `t72-pilot-b-doubled-preread.txt`, `t72-pilot-b-doubled-install.txt`, `t72-pilot-b-doubled-bench-db.txt` | part B's setup run a second time over the first (Addendum 3): the state it found, and migrate missing its database |
+| `t72-pilot-b-reset-teardown.txt`, `t72-pilot-b-reset-host-off.txt`, `t72-pilot-b-reset-cleanup.txt` | Addendum 3's reset: database removed, all five ports closed, both copies of the rules gone, directory deleted |
+| `t72-pilot-b-preread.txt` to `t72-pilot-b-serve-on.txt` | the clean setup: SREGym pinned, `claudecode` 2.1.288, four nodes, the bundle served; the seed refused for want of the committed acceptances (Addendum 4) |
