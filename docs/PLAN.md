@@ -4617,6 +4617,16 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-10-03: T7.2 adapter fixes built - the selector, the change commands, the fifteen seconds
+and the shop's p95; both stamps unchanged; $0.***
+
+- **F1-F4 as registered** ([RESULT](../evals/attempts/T7.2-adapter-fixes/RESULT.md)).
+- **Tests**: 46 in `tests/test_sregym.py`, up from 37. Each fix, reverted alone, fails its own
+  test.
+- **Not yet established, for the re-check**: whether every projected answer fits on the live
+  applications, each tool call's time, and Hotel Reservation's p95.
+- **Next**: the re-check on the three dev problems.
+
 ***2026-10-03: T7.2 adapter, Addendum 4 - the pilot's fixes registered before they are coded.***
 
 - **F1, the selector**: written for the string literal it sits in, with `.` escaped and `-` as

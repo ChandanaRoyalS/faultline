@@ -8,8 +8,10 @@ a golden text, the tunnel against a local fake proxy, and `McpToolSet` as a `Too
 from __future__ import annotations
 
 import json
+import re
 import socket
 import threading
+import time
 from datetime import UTC, datetime, timedelta
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from queue import Queue
@@ -134,6 +136,70 @@ def test_mcp_client_speaks_the_sse_transport(
     )
 
 
+class _KeepAliveMcp(BaseHTTPRequestHandler):
+    """Answers every request, then holds the stream open, as SREGym's server does between its
+    keep-alives (every 15 s there; never, here, until the test ends it)."""
+
+    stop = threading.Event()
+    queues: ClassVar[dict[str, Queue[str]]] = {}
+
+    def log_message(self, *args: Any) -> None:
+        pass
+
+    def do_GET(self) -> None:
+        session = str(len(_KeepAliveMcp.queues))
+        queue: Queue[str] = Queue()
+        _KeepAliveMcp.queues[session] = queue
+        self.send_response(200)
+        self.send_header("Content-Type", "text/event-stream")
+        self.end_headers()
+        self.wfile.write(f"event: endpoint\ndata: /prometheus/messages/?s={session}\n\n".encode())
+        self.wfile.flush()
+        while not _KeepAliveMcp.stop.is_set():
+            try:
+                message = queue.get(timeout=0.05)
+            except Exception:
+                continue
+            self.wfile.write(f"event: message\ndata: {message}\n\n".encode())
+            self.wfile.flush()
+
+    def do_POST(self) -> None:
+        body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+        self.send_response(202)
+        self.end_headers()
+        if "id" in body:
+            text = {"content": [{"type": "text", "text": "ok"}]}
+            result = text if body["method"] == "tools/call" else {}
+            reply = json.dumps({"jsonrpc": "2.0", "id": body["id"], "result": result})
+            _KeepAliveMcp.queues[self.path.rsplit("=", 1)[1]].put(reply)
+
+
+def test_a_call_does_not_wait_for_the_next_keep_alive(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Adapter registration, Addendum 4, F3: the pilot's 15 s per call was the close waiting
+    for the server's next byte. The server here sends none until the test ends it."""
+    monkeypatch.delenv("HTTP_PROXY", raising=False)
+    monkeypatch.delenv("http_proxy", raising=False)
+    _KeepAliveMcp.stop.clear()
+    server = ThreadingHTTPServer(("127.0.0.1", 0), _KeepAliveMcp)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    url = f"http://127.0.0.1:{server.server_address[1]}"
+    try:
+        started = time.monotonic()
+        assert mcp.McpClient(url, timeout=5).call("prometheus", "get_metrics", {}) == "ok"
+        assert time.monotonic() - started < 2.0
+
+        # The close it replaces waits on the server, which is what the test exists to catch.
+        session = mcp.McpSession(url, "prometheus", timeout=5).__enter__()
+        assert session.call("get_metrics", {}) == "ok"
+        old_close = threading.Thread(target=session._stream.close, daemon=True)
+        old_close.start()
+        old_close.join(1.0)
+        assert old_close.is_alive(), "a plain close blocks until the server sends a byte"
+    finally:
+        _KeepAliveMcp.stop.set()
+        server.shutdown()
+
+
 def test_mcp_client_raises_on_a_tool_error(mcp_server: str) -> None:
     with pytest.raises(mcp.McpError, match="reported an error: boom"):
         mcp.McpClient(mcp_server, timeout=5).call("prometheus", "broken", {})
@@ -203,7 +269,7 @@ def test_metric_baseline_is_tools_own_body(monkeypatch: pytest.MonkeyPatch) -> N
     points = [(float(i * 15), 0.01 if i < 30 else 0.4) for i in range(40)]
     monkeypatch.setattr(Tools, "_points", lambda self, *a: list(points))
     traced = _vector({"service_name": "checkout"})
-    ours = tools(FakeClient({("prometheus", "get_metrics"): traced}), SHOP)
+    ours = tools(FakeClient({("prometheus", "get_metrics"): traced}), HOTEL)
     monkeypatch.setattr(toolset.McpToolSet, "_points", lambda self, *a: list(points))
     start, end = T0, T0 + timedelta(minutes=10)
     for template in (MetricTemplate.ERROR_RATIO, MetricTemplate.LATENCY_P95):
@@ -254,8 +320,68 @@ def test_runtime_memory_reads_cadvisor_for_the_workload() -> None:
         MetricTemplate.RUNTIME_MEMORY, "nginx-web-server"
     )
     assert query is not None
-    assert 'pod=~"nginx\\-thrift-([a-z0-9]+-[a-z0-9]+|[0-9]+)"' in query
+    assert 'pod=~"nginx-thrift-([a-z0-9]+-[a-z0-9]+|[0-9]+)"' in query
     assert "container_memory_working_set_bytes" in query and f'namespace="{NS}"' in query
+
+
+def _go_string(literal: str) -> str:
+    """Decode a double-quoted LogQL or PromQL string's body as Go does before RE2 sees it.
+
+    `json.loads` is the stand-in: it accepts `\\\\`, `\\"` and the control escapes, and refuses
+    `\\-` exactly as Go's `strconv.Unquote` does, which is the refusal behind the pilot's 400s."""
+    decoded = json.loads(f'"{literal}"')
+    assert isinstance(decoded, str)
+    return decoded
+
+
+@pytest.mark.parametrize(
+    ("workload", "pods", "not_pods"),
+    [
+        (
+            "product-catalog",
+            ["product-catalog-5897477844-f962m", "product-catalog-0"],
+            ["product-catalog-v2-5897477844-f962m", "xproduct-catalog-0"],
+        ),
+        ("rate", ["rate-7c9d8b6f5d-abcde"], ["mongodb-rate-7c9d8b6f5d-abcde"]),
+        ("a.b-c", ["a.b-c-1"], ["aXb-c-1"]),
+    ],
+)
+def test_the_selector_survives_the_string_it_is_placed_in(
+    workload: str, pods: list[str], not_pods: list[str]
+) -> None:
+    """Adapter registration, Addendum 4, F1: built as it is sent, decoded as Loki decodes it."""
+    pattern = _go_string(toolset.pod_pattern(workload))
+    for pod in pods:
+        assert re.fullmatch(pattern, pod), pod
+    for pod in not_pods:
+        assert not re.fullmatch(pattern, pod), pod
+
+
+def test_the_shipped_selector_is_the_one_loki_refused() -> None:
+    """The test can see the defect: `re.escape`'s spelling does not survive the decode."""
+    with pytest.raises(json.JSONDecodeError):
+        _go_string(re.escape("product-catalog") + "-[0-9]+")
+
+
+def test_a_name_that_is_not_kubernetes_is_refused_not_escaped() -> None:
+    for bad in ("Rate", 'rate"}', "rate|x", ""):
+        with pytest.raises(ValueError):
+            toolset.pod_pattern(bad)
+
+
+def test_the_shops_p95_is_unavailable_and_the_hotels_is_read() -> None:
+    """Adapter registration, Addendum 4, F4: SREGym's OTLP buckets top out at 0.005 ms."""
+    traced = _vector({"service_name": "frontend"})
+    shop = tools(FakeClient({("prometheus", "get_metrics"): traced}), SHOP)
+    result = shop.metric_baseline(
+        "frontend", MetricTemplate.LATENCY_P95, T0, T0 + timedelta(minutes=5)
+    )
+    assert result.empty and result.query == ""
+    assert result.error is not None and "0.005 ms" in result.error
+    assert "unavailable" in result.error
+    assert shop.template_query(MetricTemplate.ERROR_RATIO, "frontend") is not None
+    hotel = tools(FakeClient({("prometheus", "get_metrics"): traced}), HOTEL)
+    assert hotel.template_query(MetricTemplate.LATENCY_P95, "frontend") is not None
 
 
 LOKI_TEXT = "\n".join(
@@ -357,16 +483,14 @@ def test_an_otel_status_beats_the_error_tag() -> None:
 # --- the change mapping, and its leak guard ------------------------------------------------
 
 
-def _rs(revision: int, created: datetime, spec: dict[str, Any], **meta: Any) -> dict[str, Any]:
+def _rs(revision: int, created: datetime, spec: Any, **meta: Any) -> dict[str, Any]:
+    """One revision as `revision_records` reads it. `meta` stands for the template metadata a
+    fault injector writes, which the change log never requests, so it cannot reach a record."""
+    del meta
     return {
-        "kind": "ReplicaSet",
-        "metadata": {
-            "name": f"geo-{revision}",
-            "creationTimestamp": created.isoformat().replace("+00:00", "Z"),
-            "annotations": {"deployment.kubernetes.io/revision": str(revision), **meta},
-            "ownerReferences": [{"kind": "Deployment", "name": "geo"}],
-        },
-        "spec": {"template": {"metadata": {"annotations": meta}, "spec": spec}},
+        "revision": revision,
+        "created": created.isoformat().replace("+00:00", "Z"),
+        "spec": spec,
     }
 
 
@@ -399,12 +523,26 @@ AFTER = {
 }
 
 
-def test_commands_are_fixed_and_read_only() -> None:
-    sent = kube.commands(NS)
-    assert all(c.startswith("kubectl get ") for c in sent)
-    assert not any(" -o json" in c and "secrets" in c for c in sent), "secrets are never JSON"
+def test_commands_are_read_only_gets_with_checked_names() -> None:
+    sent = kube.Commands(NS)
+    every = [
+        *kube.commands(NS),
+        sent.spec("replicaset", "geo-5d9f"),
+        sent.spec("controllerrevision", "mongodb-0-7c9"),
+        sent.events("geo"),
+    ]
+    assert all(c.startswith("kubectl get ") for c in every)
+    assert not any(c.endswith("-o json") or "-o json " in c for c in every), (
+        "every answer is a projection, never the whole object"
+    )
+    assert not any(".reason" in c or ".message" in c for c in every), "never an event's text"
+    for bad in ("geo; kubectl delete ns x", "geo $(id)", "Geo", "geo|x"):
+        with pytest.raises(ValueError):
+            sent.spec("replicaset", bad)
+        with pytest.raises(ValueError):
+            sent.events(bad)
     with pytest.raises(ValueError):
-        kube.commands("x; kubectl delete ns y")
+        kube.Commands("x; kubectl delete ns y")
 
 
 def test_a_revision_diff_names_paths_and_values_by_resource() -> None:
@@ -484,42 +622,154 @@ def test_events_say_only_that_something_happened() -> None:
     assert record.summary == "Service geo: event recorded"
 
 
-def test_the_change_log_sends_only_its_four_commands() -> None:
+def _z(at: datetime) -> str:
+    return at.isoformat().replace("+00:00", "Z")
+
+
+def _index(*rows: tuple[str, str, str, int, datetime]) -> str:
+    return "".join(f"{n}\t{k}\t{o}\t{r}\t{_z(c)}\n" for n, k, o, r, c in rows)
+
+
+def _change_log(
+    answers: dict[str, str], profile: profiles.Profile = HOTEL
+) -> tuple[kube.KubernetesChangeLog, list[str]]:
+    """A change log over a fake kubectl that answers by command; every command recorded."""
     sent: list[str] = []
-    outputs = dict(
-        zip(
-            kube.commands(NS),
-            [
-                json.dumps(
-                    {
-                        "items": [
-                            _rs(1, T0 - timedelta(days=1), BEFORE),
-                            _rs(2, T0 + timedelta(minutes=2), AFTER),
-                        ]
-                    }
-                ),
-                json.dumps({"items": []}),
-                "KIND NAME CREATED CHANGED",
-                json.dumps({"items": []}),
-            ],
-            strict=True,
-        )
-    )
 
     def run(args: dict[str, Any]) -> str:
         sent.append(args["cmd"])
-        return outputs[args["cmd"]]
+        return answers.get(args["cmd"], "")
 
     log = kube.KubernetesChangeLog(
         FakeClient({("kubectl", "exec_kubectl_cmd_safely"): run}),  # type: ignore[arg-type]
-        HOTEL,
+        profile,
         NS,
     )
-    result = tools(FakeClient({}), changes=log).change_history(
-        "geo", T0 - timedelta(hours=1), T0 + timedelta(minutes=5)
+    return log, sent
+
+
+C = kube.Commands(NS)
+WINDOW = (T0 - timedelta(hours=1), T0 + timedelta(minutes=5))
+OBJECTS = "\n".join(
+    [
+        "KIND                    NAME       CREATED                CHANGED",
+        "Service                 geo        2026-09-01T00:00:00Z   2026-10-03T12:03:00Z",
+        "Service                 other      2026-09-01T00:00:00Z   2026-10-03T12:03:00Z",
+        "NetworkPolicy           deny-all   2026-10-03T12:01:00Z   2026-10-03T12:01:00Z",
+        "PersistentVolumeClaim   geo-data   2026-09-01T00:00:00Z   2026-10-03T12:02:00Z",
+    ]
+)
+
+
+def test_the_change_log_reads_projections_and_sends_nothing_else() -> None:
+    log, sent = _change_log(
+        {
+            C.replicasets(): _index(
+                ("geo-1", "Deployment", "geo", 1, T0 - timedelta(days=1)),
+                ("geo-2", "Deployment", "geo", 2, T0 + timedelta(minutes=2)),
+                ("other-1", "Deployment", "other", 1, T0 + timedelta(minutes=2)),
+            ),
+            C.spec("replicaset", "geo-1"): json.dumps(BEFORE),
+            C.spec("replicaset", "geo-2"): json.dumps(AFTER),
+            C.config(): "KIND NAME CREATED CHANGED\n"
+            "ConfigMap geo-config 2026-09-01T00:00:00Z 2026-10-03T12:03:00Z",
+            C.objects(): OBJECTS,
+            C.events("geo"): "Service\tgeo\t2026-10-03T12:04:00Z\t\n",
+        }
     )
-    assert set(sent) == set(kube.commands(NS))
-    assert result.error is None and len(result.records) >= 4
+    result = tools(FakeClient({}), changes=log).change_history("geo", *WINDOW)
+    allowed = {
+        C.replicasets(),
+        C.spec("replicaset", "geo-1"),
+        C.spec("replicaset", "geo-2"),
+        C.config(),
+        C.objects(),
+        C.events("geo"),
+    }
+    assert set(sent) == allowed, "the StatefulSet index is not asked once a Deployment answers"
+    assert result.error is None and not result.truncated
+    summaries = {r["summary"] for r in result.records}
+    assert "containers[hotel-reserv-geo].image changed" in summaries
+    assert "ConfigMap geo-config changed" in summaries
+    assert "Service geo changed" in summaries, "a changed Service shows (the owner's decision)"
+    assert "Service geo: event recorded" in summaries
+    assert (
+        "NetworkPolicy deny-all created; namespace-wide, and the pods it selects are not read"
+        in summaries
+    )
+    assert not any("other" in x or "geo-data" in x for x in summaries), (
+        "another service's objects and an unmounted claim are not this service's changes"
+    )
+
+
+def test_a_mounted_claim_and_a_statefulsets_revisions() -> None:
+    mounted = {
+        **AFTER,
+        "volumes": [{"name": "d", "persistentVolumeClaim": {"claimName": "geo-data"}}],
+    }
+    log, sent = _change_log(
+        {
+            C.controllerrevisions(): _index(
+                ("geo-0-a", "StatefulSet", "geo", 1, T0 - timedelta(days=1)),
+                ("geo-0-b", "StatefulSet", "geo", 2, T0 + timedelta(minutes=2)),
+            ),
+            C.spec("controllerrevision", "geo-0-a"): json.dumps(BEFORE),
+            C.spec("controllerrevision", "geo-0-b"): json.dumps(mounted),
+            C.objects(): OBJECTS,
+        }
+    )
+    result = tools(FakeClient({}), changes=log).change_history("geo", *WINDOW)
+    summaries = {r["summary"] for r in result.records}
+    assert C.controllerrevisions() in sent and C.spec("controllerrevision", "geo-0-b") in sent
+    assert "PersistentVolumeClaim geo-data changed" in summaries
+    assert "containers[hotel-reserv-geo].image changed" in summaries
+
+
+def test_a_cut_index_is_marked_truncated_and_keeps_what_it_holds() -> None:
+    held = _index(("geo-1", "Deployment", "geo", 1, T0 - timedelta(days=1)))
+    log, _ = _change_log(
+        {
+            C.replicasets(): held + "geo-2\tDeploy" + kube.CUT,
+            C.spec("replicaset", "geo-1"): json.dumps(BEFORE),
+            C.objects(): OBJECTS,
+        }
+    )
+    result = tools(FakeClient({}), changes=log).change_history("geo", *WINDOW)
+    assert result.error is None and result.truncated
+    assert log.cut == ["the ReplicaSet index"]
+    assert "Service geo changed" in {r["summary"] for r in result.records}
+
+
+def test_a_cut_pod_spec_says_its_revision_could_not_be_read() -> None:
+    log, _ = _change_log(
+        {
+            C.replicasets(): _index(
+                ("geo-1", "Deployment", "geo", 1, T0 - timedelta(days=1)),
+                ("geo-2", "Deployment", "geo", 2, T0 + timedelta(minutes=2)),
+            ),
+            C.spec("replicaset", "geo-1"): json.dumps(BEFORE),
+            C.spec("replicaset", "geo-2"): json.dumps(AFTER)[:9000] + kube.CUT,
+        }
+    )
+    result = tools(FakeClient({}), changes=log).change_history("geo", *WINDOW)
+    assert result.truncated
+    assert {r["summary"] for r in result.records} >= {
+        "a new revision was made; it could not be compared: its pod spec was cut at "
+        "10,000 characters"
+    }
+
+
+def test_at_most_six_pod_specs_are_read_and_the_rest_named() -> None:
+    rows = [
+        (f"geo-{n}", "Deployment", "geo", n, T0 - timedelta(minutes=50) + timedelta(minutes=5 * n))
+        for n in range(1, 11)
+    ]
+    answers = {C.replicasets(): _index(*rows)}
+    answers |= {C.spec("replicaset", name): json.dumps(BEFORE) for name, *_ in rows}
+    log, sent = _change_log(answers)
+    result = tools(FakeClient({}), changes=log).change_history("geo", *WINDOW)
+    assert sum(" get replicaset " in c for c in sent) == kube.MAX_SPECS
+    assert any(r["summary"].startswith("a new revision was made; not read") for r in result.records)
 
 
 # --- the opening --------------------------------------------------------------------------

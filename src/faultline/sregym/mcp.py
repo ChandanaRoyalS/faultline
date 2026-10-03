@@ -16,7 +16,8 @@ the proxy streams every response (`docker/egress_proxy.py`, `responseheaders`).
 **One session per call.** A session costs a GET and three POSTs, about a millisecond each through
 the proxy (stage 0's E: 61 ms for 50 round trips), against tool calls that take seconds. A
 long-lived session would be a reader thread to keep alive across a whole investigation for no
-measurable gain.
+measurable gain. **That held only once closing stopped waiting on the server**: until the pilot
+found it, every session cost one of the server's 15 s keep-alive intervals (`McpSession.__exit__`).
 """
 
 from __future__ import annotations
@@ -24,6 +25,7 @@ from __future__ import annotations
 import ast
 import contextlib
 import json
+import socket
 import threading
 import urllib.request
 from collections.abc import Callable, Iterator
@@ -77,6 +79,18 @@ def endpoint_url(base_url: str, server: str, data: str) -> str:
     if data.startswith("/"):
         return f"{root}/{server}{data}"
     return f"{root}/{server}/{data}"
+
+
+def _socket_of(stream: Any) -> socket.socket | None:
+    """The socket under an `urlopen` response (`HTTPResponse.fp` is a buffered `SocketIO`)."""
+    raw = getattr(getattr(stream, "fp", None), "raw", None)
+    sock = getattr(raw, "_sock", None)
+    return sock if isinstance(sock, socket.socket) else None
+
+
+def _close_quietly(stream: Any) -> None:
+    with contextlib.suppress(Exception):
+        stream.close()
 
 
 class McpSession:
@@ -136,9 +150,26 @@ class McpSession:
         return self
 
     def __exit__(self, *exc_info: object) -> None:
-        if self._stream is not None:
-            with contextlib.suppress(Exception):
-                self._stream.close()
+        """Close the stream **without waiting on the server**.
+
+        The reader thread is blocked in `readline` holding the response buffer's lock, and
+        closing the response needs that lock. So a plain `close()` waits until the next byte
+        arrives, which is the server's keep-alive: **every 15 s in SREGym's `fastmcp` server**.
+        That was the pilot's 15.0-15.4 s on every tool call (adapter registration, Addendum 4,
+        F3), reproduced offline at the keep-alive's interval. Shutting the socket down first
+        returns the reader at once. If the socket cannot be reached, the close is left to a
+        daemon thread, so a call never waits on it.
+        """
+        stream, self._stream = self._stream, None
+        if stream is None:
+            return
+        sock = _socket_of(stream)
+        if sock is None:
+            threading.Thread(target=_close_quietly, args=(stream,), daemon=True).start()
+            return
+        with contextlib.suppress(OSError):
+            sock.shutdown(socket.SHUT_RDWR)
+        _close_quietly(stream)
 
     # --- the reader --------------------------------------------------------------
 
