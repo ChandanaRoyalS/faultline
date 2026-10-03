@@ -4617,6 +4617,21 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-10-03: T7.2 dev read, Addendum 1 - the shop's names confirmed; Loki is not installed under
+the external harness, so its check moves to the pilot.***
+
+- **The shop**:
+  - span metrics present under v2's names;
+  - every workload named as its span service;
+  - owner and cAdvisor series present;
+  - the server in UTC.
+
+  `KubePodCrashLooping` fired on `product-catalog`, against a prediction of no kube alarm. A
+  read-only `podstate` tells a startup loop from a standing one.
+- **Loki was absent.** SREGym skips it under the external harness (`main.py:900`), so its labels
+  are read in part B, after attempt 1. The pilot stops if `namespace` and `pod` are not both
+  labels.
+
 ***2026-10-03: T7.2 dev read and dev pilot registered; a build defect found first: the box would
 have had no graph.***
 

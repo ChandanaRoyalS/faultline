@@ -1,0 +1,13 @@
+387:      FAULTLINE_EXECUTOR_KILL_SWITCH: "1"
+ Container faultline-deploy-postgres-1 Running 
+ Container faultline-deploy-executor-1 Recreate 
+ Container faultline-deploy-executor-1 Recreated 
+ Container faultline-deploy-postgres-1 Waiting 
+ Container faultline-deploy-postgres-1 Healthy 
+ Container faultline-deploy-executor-1 Starting 
+ Container faultline-deploy-executor-1 Started 
+curl: (7) Failed to connect to localhost port 8100 after 0 ms: Could not connect to server
+{"status":"ok","kill_switch":true}
+git status:
+ M deploy/compose.yml
+(git status end)

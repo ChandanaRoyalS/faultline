@@ -174,3 +174,46 @@ what.
 - with it, an addendum for anything the pilot forced. **A change to a frozen setting** (the
   rendering, the alarms, the change commands, the rules of the run) **is the owner's decision
   before the scored run**, never made silently.
+
+## Addendum 1 - Loki is not there under the external harness; the dev read's log check moves to part B
+
+**Written 2026-10-03, after `devread shop` and before anything else runs.** Outputs so far are in
+[`docs/evidence/t7.2-pilot/`](../../docs/evidence/t7.2-pilot/) (`t72-pilot-*`).
+
+**What the shop's read found** (`t72-pilot-devread-shop.txt`, 00:41-00:48 UTC):
+
+| item | predicted | read |
+|---|---|---|
+| Astronomy Shop's span metrics | uncertain | **present under v2's names**: `traces_span_metrics_calls_total` and the duration histogram, for 18 services. So `span_metrics = V2` stands, and Faultline's three rules apply |
+| workloads named differently | none for the shop | **none**: all 24 Deployments carry their span names |
+| `kube_pod_owner`, `kube_replicaset_owner`, cAdvisor | present | **present**: 29, 25 and 39 series |
+| time zone | UTC | **UTC** (`Etc/UTC`) |
+| the shop's alarms two minutes after the deploy | no kube alarm | **wrong**: `KubePodCrashLooping` fired on `product-catalog`, whose pod had been in `CrashLoopBackOff` within the last five minutes. The fault is in `frontend-proxy`, so this is either a startup crash loop or a standing one, as accounting's was (Q126). `podstate` reads which |
+| Loki's labels | `namespace` and `pod` among them | **not read**: `services "loki" not found` |
+
+**Why Loki was absent: SREGym does not install it under the external harness.** `main.py:900`
+passes `deploy_loki=not args.use_external_harness`, and `conductor.py:1431` logs *"Skipping Loki
+deployment (external harness mode)"*. **Part A cannot read Loki at all.** Loki exists only in agent
+runs, which is part B.
+
+**The changes, before anything else runs:**
+
+1. **`podstate shop`** (new, read-only, before `cluster-reset`): the shop's pods and every
+   restarted container's last termination, to tell a startup crash loop from a standing one.
+   **The dev reads for Hotel Reservation and Social Network print their pods too.**
+2. **The Loki check moves to part B.**
+   - A read-only `loki-read shop` runs right after attempt 1, Faultline on the shop, which deploys
+     Loki. It reads Loki's service, its labels and the pod values for the namespace.
+   - **If `namespace` and `pod` are not both labels, the pilot stops before attempt 2.** The
+     selector's fix is the owner's decision then.
+   - Attempt 1's own log results are read with it, since `get_logs` prints each line's labels.
+3. **The gate keeps its meaning** for the three items part A can read:
+   - span metrics;
+   - workload names;
+   - the time zone.
+
+   `PROFILE_READ` is set once Hotel Reservation's and Social Network's reads are in, recording
+   that Loki is read in part B.
+
+**Noticed, not changed**: `install` printed `uv 0.12.10`. A `uv` already in `~/.local/bin` sits
+ahead of the one installed into `uvbin` on `renv`'s PATH. Both read the same frozen lock.

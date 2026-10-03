@@ -12,13 +12,13 @@
 #     ssh "$VM" 'bash /tmp/pilot_vm.sh <stage> [args]'     (host-on/host-off: ssh -t ... sudo bash)
 #
 # Part A, the dev read ($0, no key on the VM):
-#   preread, killswitch-on, host-on, install, cluster, devread shop, cluster-reset,
-#   devread hotel, cluster-reset, devread social, teardown, host-off, cleanup, killswitch-off,
-#   incidents
+#   preread, killswitch-on, host-on, install, cluster, devread shop, podstate shop (Addendum 1),
+#   cluster-reset, devread hotel, cluster-reset, devread social, teardown, host-off, cleanup,
+#   killswitch-off, incidents
 # Part B, the dev pilot (after the dev read's profile patch is merged):
 #   preread, killswitch-on, host-on, install, cluster, bench-db, serve-on, key-check,
-#   judge-check, hold (nohup, the sampler), attempt <app> <arm> x6, collect, teardown, host-off,
-#   cleanup, killswitch-off, incidents
+#   judge-check, hold (nohup, the sampler), attempt shop faultline, loki-read shop (Addendum 1),
+#   the other five attempts, collect, teardown, host-off, cleanup, killswitch-off, incidents
 #
 # The directory is 1c's (~/t7.2-1c, its kubeconfig at ~/t7.2-1c/kubeconfig and copied to
 # ~/.kube/config), so 1c's sampler runs unchanged, as in the topology runs.
@@ -207,11 +207,46 @@ devread)
     prom "max by (pod) (max_over_time(kube_pod_container_status_waiting_reason{namespace=\"$NS\",reason=\"CrashLoopBackOff\"}[5m])) >= 1"
     prom "max by (pod) (kube_pod_status_phase{namespace=\"$NS\",phase=~\"Pending|Unknown|Failed\"}) > 0"
     prom "kube_deployment_spec_replicas{namespace=\"$NS\"} != kube_deployment_status_replicas_available{namespace=\"$NS\"}"
-    echo "== Loki labels"
-    kubectl get --raw "/api/v1/namespaces/observe/services/loki:3100/proxy/loki/api/v1/labels" | sed 's/^/  /'; echo
-    echo "== Loki pod values in $NS"
-    kubectl get --raw "/api/v1/namespaces/observe/services/loki:3100/proxy/loki/api/v1/label/pod/values" | python3 -c 'import json,sys; v=[x for x in json.load(sys.stdin).get("data",[])]; print("  %d pods, e.g. %s" % (len(v), v[:8]))'
+    echo "== pods in $NS, with restarts (Addendum 1)"
+    kubectl -n "$NS" get pods --no-headers | sed 's/^/  /'
+    echo "== Loki: not read here. SREGym skips Loki under the external harness (main.py:"
+    echo "   deploy_loki=not args.use_external_harness); part B's loki-read reads it (Addendum 1)"
     echo "== timezone: $(timedatectl show -p Timezone --value 2>/dev/null); date +%Z: $(date +%Z)"
+    ;;
+
+podstate)
+    # Addendum 1. Read-only: the pods of a deployed dev problem, and every container that has
+    # restarted, with its last termination. For the shop, run once before its cluster-reset.
+    app_vars "${2:?app}"
+    kenv
+    echo "pod state in $NS at $(ts)"
+    kubectl -n "$NS" get pods --no-headers | sed 's/^/  /'
+    kubectl -n "$NS" get pods -o json | python3 -c '
+import json, sys
+for pod in json.load(sys.stdin)["items"]:
+    for c in pod.get("status", {}).get("containerStatuses", []) or []:
+        if c.get("restartCount"):
+            last = (c.get("lastState") or {}).get("terminated") or {}
+            print("  %s/%s restarts=%s last=%s exit=%s at %s..%s" % (pod["metadata"]["name"], c["name"],
+                c["restartCount"], last.get("reason"), last.get("exitCode"), last.get("startedAt"), last.get("finishedAt")))'
+    echo "(end)"
+    ;;
+
+loki-read)
+    # Addendum 1. Part B, read-only, after attempt 1 has deployed Loki: its service, its labels and
+    # the pod values for the namespace - the labels McpToolSet's selector uses. If `namespace`
+    # and `pod` are not both among them, the pilot stops before attempt 2.
+    app_vars "${2:?app}"
+    kenv
+    echo "loki-read at $(ts)"
+    kubectl get svc -A --no-headers | grep -iE 'loki|promtail' | sed 's/^/  /'
+    lns=$(kubectl get svc -A --no-headers | awk '$2 == "loki" {print $1; exit}')
+    echo "loki service namespace: ${lns:-NONE}"
+    [ -n "$lns" ] || exit 1
+    kubectl get --raw "/api/v1/namespaces/$lns/services/loki:3100/proxy/loki/api/v1/labels" | sed 's/^/  /'; echo
+    q=$(python3 -c 'import sys, urllib.parse; print(urllib.parse.quote(sys.argv[1]))' "{namespace=\"$NS\"}")
+    kubectl get --raw "/api/v1/namespaces/$lns/services/loki:3100/proxy/loki/api/v1/label/pod/values?query=$q" \
+        | python3 -c 'import json,sys; v=json.load(sys.stdin).get("data") or []; print("  pod values for the namespace: %d, e.g. %s" % (len(v), v[:6]))'
     ;;
 
 bench-db)
