@@ -4617,6 +4617,46 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-10-04: T7.3's build, part D1 - the batch runner, its tally and stop, the corpus check,
+and Q124's cause.***
+
+- **`faultline-batch`** (`src/evalharness/batch.py`; headline Addendum 1, item 9; T7.3's
+  randomized queue):
+  - `queue headline|t73 --seed N` prints the queue for the owner to commit. Headline: dev pass then
+    holdout pass, each scenario's four arms back to back, the arm order rotating, the scenario order
+    shuffled by the seed (156 slots). T7.3: the 120 (scenario, configuration) pairs shuffled. E7's
+    pinned revision goes in the queue's header, and a queue with E7 and no revision is refused;
+  - `run` takes one slot at a time. Before each slot: the tally against the stop, the settle, both
+    stamps, the corpus at both pins with no holdout chunk, and the world check (a quote-clock
+    failure restarts quote and rechecks, Q121). Then it launches, judges a headline F run, and
+    tallies. Every switch is stripped from the inherited environment and only the slot's arm is
+    applied. A discard or exhausted refusal is re-run once at the end of its pass; a second removes
+    the scenario, named;
+  - **the tally is the registered rule**: trajectory tokens by role, each at the model that ran it,
+    × 1.26, plus the judge's tokens and one token per probe. `--also-count` adds the trial's label
+    inside the same cap. An unpriced model is refused. **The console stays the authority**;
+  - `corpus` reads the ingested store and writes the corpus of record: rows, both digests, holdout
+    chunks, and the drift against the tree.
+- **Found for the operation addendum (step 4), not decided here**: the harness's kafka headroom gate
+  projects over `--runs-remaining`. Over the whole queue (156 slots, about 54 h at
+  `SWEEP_RUN_HOURS`) at 151 MB/h it refuses every slot, as dev sweep 12's gate did. So the runner
+  counts down over the block it is given (`--from-slot`/`--to-slot`). The block size, and any kafka
+  recycle between blocks, are the operation addendum's, once the trial has read kafka's limit on v2.
+- **Q124 answered**: Alertmanager exited with the Docker engine on 2026-09-28 (255, not OOM) and its
+  restart policy is `no`. Its log is every delivery to the ingest at the host's port 8000 refused.
+  The registration's item 1 names *its configured receiver answering*, and part A had checked
+  Alertmanager alone, so **the world check now also requires the ingest's `/healthz`**. Evidence:
+  `docs/evidence/t7.3/alertmanager/`. The restart policy is not changed.
+- **The corpus, from the tree** (a cross-check; the pin is taken off the ingested store, Q61): 334
+  chunks over 65 documents, 45 runbooks, 10 accepted postmortems, 10 v1 narratives. No v2 narrative,
+  because `seed.CORPUS_WORLDS` is `("v1",)`, and no holdout document. Shape `b931588caf1d`, body
+  `a6de378e3b55`; both pins move at the ingest (Q92's corpus half).
+- Both stamps unchanged. Tests: `tests/test_batch.py`; four mutations of the runner each fail one.
+  $0.
+- **Next, part D2**: the owner's ingest on the Mac, `faultline-batch corpus`, and the commit that
+  moves `CURRENT_CORPUS_SHAPE` and `CURRENT_CORPUS_BODY` with that record. Then the 7 storm labels,
+  then the trial's registration.
+
 ***2026-10-04: T7.3's build, part C - the eight switches, E2 to E9, each off by default.***
 
 - **Built as registered** (T7.3 Addendum 1, the switches table). Every switch is a setting read from

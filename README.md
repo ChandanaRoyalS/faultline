@@ -354,6 +354,7 @@ unable to reproduce one.
 |---|---|
 | `faultline-eval` | one scored run. Needs `--single-run` or `--runs-remaining N`; refuses without |
 | `faultline-sweep` | the whole catalog, unattended. Counts the runs down for the gate itself; `--max-usd` is a hard ceiling read from the trajectory store before every launch (Q70) |
+| `faultline-batch` | the headline run's and T7.3's queue, one slot (a scenario and an arm) at a time: the world check, the corpus and both stamps before each slot, the registered tally after it, and the stop |
 | `faultline-gate` | the pre-flight: does the **world** pass the gate right now? Injects nothing; exit code is the answer. `--incidents` adds the two checks a world probe cannot see - open and settling incidents - which a scored run applies |
 | `faultline-replay` | the repair benchmark (T6.2): executes dev sweep 12's recorded proposals against fresh injections and scores whether the world recovered. Scored apart from diagnosis; no model call |
 | `faultline-reject-loop` | the rejection benchmark (T6.3): rejects a recorded proposal through the real approve/reject surface and measures what the agent proposes next. Two model calls, n = 2, an existence demonstration and never a rate |

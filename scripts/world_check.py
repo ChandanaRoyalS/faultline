@@ -8,9 +8,11 @@ Run from the repository, with the world up:
 brought into the repository unchanged in what it checks (the headline run's Addendum 1, item 1),
 with two checks added that a scored run needs and a recording did not:
 
-- **Alertmanager running and ready (Q124).** It routes Prometheus's alerts to Faultline's ingest
-  webhook. It had been stopped since 2026-09-28 and nothing looked, because a recording reads
-  Prometheus's `ALERTS` and never needed it. A scored run does: no alert, no incident.
+- **Alertmanager running and ready, and its receiver answering (Q124).** It routes Prometheus's
+  alerts to Faultline's ingest webhook. It had been stopped since 2026-09-28 and nothing looked,
+  because a recording reads Prometheus's `ALERTS` and never needed it. A scored run does: no alert,
+  no incident. The receiver half (the ingest's `/healthz` on port 8000) was added by the build's
+  part D: the registration names it, and part A had checked Alertmanager alone.
 - **quote's clock (Q121).** quote's spans drift into the past each time the Mac sleeps (one reading
   was 36 hours). Every order trace carries them, and `trace_query` orders traces by their start.
   This fails when any quote server span sits more than a second from the call that made it.
@@ -42,6 +44,10 @@ PROM = "http://localhost:9090"
 TEMPO = "http://localhost:3200"
 LOKI = "http://localhost:3100"
 ALERTMANAGER = "http://localhost:9093"
+RECEIVER = "http://localhost:8000"
+"""Alertmanager's configured receiver: `compose/prometheus/alertmanager.yml` posts to
+`host.docker.internal:8000/api/v1/alerts`, which is Faultline's ingest on the host. Its log until
+2026-09-28 is every delivery refused at that port (`docs/evidence/t7.3/alertmanager/`)."""
 
 QUOTE_MAX_OFFSET_SECONDS = 1.0
 """Q121's bound, the owner's decision of 2026-10-04: a quote server span more than a second from
@@ -163,6 +169,10 @@ def main() -> int:
         "alertmanager running and ready (Q124)",
         am == "running" and ready == 200,
         f"{am}, /-/ready {ready}",
+    )
+    receiver = status(f"{RECEIVER}/healthz")
+    check(
+        "alertmanager's receiver answering (Q124)", receiver == 200, f"ingest /healthz {receiver}"
     )
 
     # Q120: /ready says nothing about search. A one-minute search twenty minutes back reaches only

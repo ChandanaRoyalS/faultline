@@ -25,6 +25,10 @@ UNBOUNDED_BY_DESIGN = {
         "launches faultline-eval, which is one scored run; its docker verbs are bounded "
         "and test_the_sweeps_recycle_is_bounded holds that line"
     ),
+    "batch.py": (
+        "launches faultline-eval, which is one scored run; its world check, quote restart and "
+        "judge are bounded and test_the_batch_launch_is_its_only_unbounded_call holds that line"
+    ),
     "blind_cli.py": "wraps a full command on the operator's behalf",
     "depthpilot.py": "a pilot driver, run attended",
     "demo.py": "a demo, run attended",
@@ -92,3 +96,11 @@ def test_every_other_unbounded_call_is_on_the_list_with_a_reason() -> None:
             f"{path.relative_to(SRC)} runs an unbounded subprocess and is not on "
             "UNBOUNDED_BY_DESIGN. Add a timeout, or add the file with the reason it cannot have one"
         )
+
+
+def test_the_batch_launch_is_its_only_unbounded_call() -> None:
+    path = SRC / "evalharness" / "batch.py"
+    source = path.read_text().splitlines()
+    unbounded = _calls_without_timeout(path)
+    assert len(unbounded) == 1, unbounded
+    assert "subprocess.run(cmd, env=env, check=False)" in source[unbounded[0] - 1]
