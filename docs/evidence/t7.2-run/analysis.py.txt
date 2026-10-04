@@ -482,3 +482,19 @@ mins_i = [minutes(p, "faultline") for p in inv]
 out(f"  Faultline slot minutes: gated median {statistics.median(mins_g):.1f}, investigated median {statistics.median(mins_i):.1f}")
 first, last = min(r[6] for r in done), max(r[7] for r in done)
 out(f"  first slot start {first}; last slot end {last}")
+
+# --- 12. what the token count can see ----------------------------------------------------------
+
+out("\n== 12. Faultline's model calls: logged by its HTTP client against recorded in the trajectory")
+posts = steps = 0
+for p in sorted(APP, key=lambda q: A[(q, "faultline")]["slot"]):
+    s = A[(p, "faultline")]["slot"]
+    log = open(f"{REC}/s{s}-record/faultline-logs/investigate.log").read()
+    n_post = log.count("POST https://api.anthropic.com/v1/messages")
+    n_step = sum(1 for line in open(f"{REC}/s{s}-record/db-trajectory_steps.jsonl")
+                 if int(json.loads(line).get("tokens_in") or 0) > 0)
+    posts += n_post
+    steps += n_step
+    if n_post != n_step:
+        out(f"  s{s:<3} {p:<50} calls logged {n_post:>3}, steps with tokens {n_step:>3}")
+out(f"  all 33: calls logged {posts}, steps with tokens {steps}, not in the trajectory {posts - steps}")

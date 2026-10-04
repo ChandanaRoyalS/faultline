@@ -230,3 +230,39 @@ Social Network       n=11  diff -100.0 points  [-100.0, -100.0]  MDE 42 points (
   claudecode  slot minutes median 7.7, range 5.8-55.3, sum 5.9 h; agent stage median 124 s, max 1043 s
   Faultline slot minutes: gated median 6.1, investigated median 11.9
   first slot start 2026-10-03 07:54:11 UTC; last slot end 2026-10-03 23:36:09 UTC
+
+== 12. Faultline's model calls: logged by its HTTP client against recorded in the trajectory
+  s1   service_port_conflict_social_network               calls logged   1, steps with tokens   0
+  s4   missing_env_variable_astronomy_shop                calls logged   1, steps with tokens   0
+  s5   persistent_volume_affinity_violation               calls logged   1, steps with tokens   0
+  s8   wrong_dns_policy_astronomy_shop                    calls logged  14, steps with tokens  11
+  s9   astronomy_shop_ad_service_failure                  calls logged   1, steps with tokens   0
+  s12  duplicate_pvc_mounts_hotel_reservation             calls logged   1, steps with tokens   0
+  s13  kafka_queue_problems                               calls logged  13, steps with tokens  10
+  s16  pvc_claim_mismatch                                 calls logged  16, steps with tokens  12
+  s17  dev_shm_exhaustion_hotel_reservation               calls logged   1, steps with tokens   0
+  s20  network_policy_block                               calls logged  13, steps with tokens  11
+  s21  storage_user_unregistered-2                        calls logged   1, steps with tokens   0
+  s24  resource_request_too_large                         calls logged  14, steps with tokens  10
+  s25  astronomy_shop_payment_service_failure             calls logged  15, steps with tokens  13
+  s28  taint_no_toleration_social_network                 calls logged   1, steps with tokens   0
+  s29  astronomy_shop_ad_service_high_cpu                 calls logged   1, steps with tokens   0
+  s32  missing_service_social_network                     calls logged  16, steps with tokens  14
+  s33  liveness_probe_too_aggressive_social_network       calls logged   1, steps with tokens   0
+  s36  wrong_dns_policy_social_network                    calls logged  16, steps with tokens  13
+  s37  pod_anti_affinity_deadlock                         calls logged   1, steps with tokens   0
+  s40  stale_coredns_config_social_network                calls logged  18, steps with tokens  16
+  s41  finalizer_deadlock_controller_hotel_reservation    calls logged  14, steps with tokens  12
+  s44  kafka_poison_pill_hol_block                        calls logged   1, steps with tokens   0
+  s45  wrong_dns_policy_hotel_reservation                 calls logged   1, steps with tokens   0
+  s48  assign_to_non_existent_node                        calls logged   1, steps with tokens   0
+  s49  duplicate_pvc_mounts_social_network                calls logged   1, steps with tokens   0
+  s52  liveness_probe_misconfiguration_astronomy_shop     calls logged   1, steps with tokens   0
+  s53  liveness_probe_too_aggressive_hotel_reservation    calls logged   1, steps with tokens   0
+  s56  service_port_conflict_astronomy_shop               calls logged  17, steps with tokens  13
+  s57  cfs_cpu_throttling_hotel_reservation               calls logged  15, steps with tokens  11
+  s60  stale_coredns_config_astronomy_shop                calls logged  15, steps with tokens  10
+  s61  liveness_probe_misconfiguration_social_network     calls logged   1, steps with tokens   0
+  s64  duplicate_pvc_mounts_astronomy_shop                calls logged   1, steps with tokens   0
+  s65  admission_webhook_tls_mismatch_hotel_reservation   calls logged   1, steps with tokens   0
+  all 33: calls logged 216, steps with tokens 156, not in the trajectory 60
