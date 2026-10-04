@@ -43,7 +43,7 @@ pytestmark = pytest.mark.integration
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEV_ROOT = REPO_ROOT / "evals" / "scenarios" / "artifacts" / "dev"
 
-FOUNDED_ON_CORPUS = "cc473105c036ca668c08b87c8ce8c84ca1c30382b520bd76ca952eacf934cac9"
+FOUNDED_ON_CORPUS = "a6de378e3b55df2f496fe9f3a42e9d624f9e456d9504e6fcd0f162308bb7d1e5"
 """**The corpus body digest these constants were measured on** - `CURRENT_CORPUS_BODY` at the
 time of founding, restated as a literal so that a unit test can hold the two equal.
 
@@ -68,7 +68,15 @@ formula and the constant already standing - because there a fall *is* a regressi
 
 MEASURED_RECALL_AT_5 = 0.372
 MEASURED_MRR_AT_5 = 0.252
-"""**Third founding, 2026-09-18, on the T6.5 corpus** (311 chunks, 60 documents,
+"""**Fourth founding, 2026-10-04, on T7.3's corpus of record** (334 chunks, 65 documents,
+`FOUNDED_ON_CORPUS`, the T6.5 corpus plus T7.0's five class runbooks). `faultline-retrieval score`
+on the owner's freshly seeded store returned **the third founding's figures to the digit**:
+0.3721 and 0.2519 at `k = 5`, 0.3023 and 0.1977 at `k = 3`
+(`docs/evidence/t7.3/retrieval-rescore.json`). None of the five new runbooks is a golden answer
+(the four older class runbooks are), and the overall figures did not move at either depth. So the
+same margins give the same constants, and only the corpus they are founded on moves.
+
+**Third founding, 2026-09-18, on the T6.5 corpus** (311 chunks, 60 documents,
 `FOUNDED_ON_CORPUS`). The figures are `PREREGISTRATION-T6.5.md` §3's re-score - two independent
 re-seeds after Q68's tiebreaker, byte-identical - and CI's first reading on the committed
 acceptance ledger returned them to the digit: 0.3721 and 0.2519. The gate below is 9.5% and 9.1%

@@ -1,0 +1,1322 @@
+[
+  {
+    "k": 3,
+    "overall": {
+      "label": "all documents",
+      "k": 3,
+      "queries": 43,
+      "recall_at_k": 0.3023255813953488,
+      "mrr": 0.19767441860465115
+    },
+    "by_corpus_age": [
+      {
+        "label": "answer predates T6.4",
+        "k": 3,
+        "queries": 20,
+        "recall_at_k": 0.05,
+        "mrr": 0.016666666666666666
+      },
+      {
+        "label": "answer written for T6.4",
+        "k": 3,
+        "queries": 43,
+        "recall_at_k": 0.27906976744186046,
+        "mrr": 0.18992248062015502
+      }
+    ],
+    "by_role": [
+      {
+        "label": "role: planner",
+        "k": 3,
+        "queries": 21,
+        "recall_at_k": 0.5714285714285714,
+        "mrr": 0.38888888888888884
+      },
+      {
+        "label": "role: synthesizer",
+        "k": 3,
+        "queries": 22,
+        "recall_at_k": 0.045454545454545456,
+        "mrr": 0.01515151515151515
+      }
+    ],
+    "mean_documents_returned": 2.697674418604651,
+    "per_query": [
+      {
+        "id": "g00-plan-ad-memory-squeeze",
+        "documents": [
+          "scenario:ad-memory-squeeze",
+          "runbook:service-checkoutservice"
+        ],
+        "relevant": [
+          "runbook:service-frontend"
+        ],
+        "recall": 0.0,
+        "reciprocal_rank": 0.0
+      },
+      {
+        "id": "g01-plan-ad-memory-squeeze",
+        "documents": [
+          "scenario:ad-memory-squeeze",
+          "runbook:service-checkoutservice",
+          "runbook:service-frontend"
+        ],
+        "relevant": [
+          "runbook:service-frontend"
+        ],
+        "recall": 1.0,
+        "reciprocal_rank": 0.3333333333333333
+      },
+      {
+        "id": "g02-plan-ad-memory-squeeze",
+        "documents": [
+          "scenario:ad-memory-squeeze",
+          "runbook:service-checkoutservice",
+          "runbook:service-frontend"
+        ],
+        "relevant": [
+          "runbook:service-frontend"
+        ],
+        "recall": 1.0,
+        "reciprocal_rank": 0.3333333333333333
+      },
+      {
+        "id": "g03-plan-cart-bad-image-tag",
+        "documents": [
+          "scenario:ad-memory-squeeze",
+          "runbook:service-checkoutservice",
+          "scenario:product-catalog-flag-failure"
+        ],
+        "relevant": [
+          "runbook:service-frontend"
+        ],
+        "recall": 0.0,
+        "reciprocal_rank": 0.0
+      },
+      {
+        "id": "g04-plan-cart-bad-image-tag",
+        "documents": [
+          "runbook:service-checkoutservice",
+          "runbook:world-two-names-for-every-service"
+        ],
+        "relevant": [
+          "runbook:service-checkoutservice"
+        ],
+        "recall": 1.0,
+        "reciprocal_rank": 1.0
+      },
+      {
+        "id": "g05-plan-cart-bad-image-tag",
+        "documents": [
+          "scenario:ad-memory-squeeze",
+          "runbook:service-checkoutservice",
+          "scenario:product-catalog-flag-failure"
+        ],
+        "relevant": [
+          "runbook:service-checkoutservice"
+        ],
+        "recall": 1.0,
+        "reciprocal_rank": 0.5
+      },
+      {
+        "id": "g06-plan-cart-dependency-latency",
+        "documents": [
+          "scenario:cart-bad-image-tag",
+          "runbook:service-checkoutservice",
+          "scenario:cart-redis-misconfig"
+        ],
+        "relevant": [
+          "runbook:alert-high-latency",
+          "runbook:service-cartservice"
+        ],
+        "recall": 0.0,
+        "reciprocal_rank": 0.0
+      },
+      {
+        "id": "g07-plan-cart-dependency-latency",
+        "documents": [
+          "scenario:cart-bad-image-tag",
+          "runbook:service-checkoutservice",
+          "scenario:cart-redis-misconfig"
+        ],
+        "relevant": [
+          "runbook:alert-high-latency",
+          "runbook:service-cartservice"
+        ],
+        "recall": 0.0,
+        "reciprocal_rank": 0.0
+      },
+      {
+        "id": "g08-plan-frauddetection-memory-squeeze",
+        "documents": [
+          "scenario:frauddetection-memory-squeeze",
+          "postmortem:cart-redis-misconfig"
+        ],
+        "relevant": [
+          "runbook:service-frauddetectionservice"
+        ],
+        "recall": 0.0,
+        "reciprocal_rank": 0.0
+      },
+      {
+        "id": "g09-plan-payment-telemetry-blackout",
+        "documents": [
+          "postmortem:payment-telemetry-blackout",
+          "postmortem:shipping-quote-misconfig"
+        ],
+        "relevant": [
+          "runbook:service-paymentservice"
+        ],
+        "recall": 0.0,
+        "reciprocal_rank": 0.0
+      },
+      {
+        "id": "g10-plan-product-catalog-flag-failure",
+        "documents": [
+          "scenario:product-catalog-flag-failure",
+          "runbook:service-frontend",
+          "scenario:ad-memory-squeeze"
+        ],
+        "relevant": [
+          "runbook:service-frontend"
+        ],
+        "recall": 1.0,
+        "reciprocal_rank": 0.5
+      },
+      {
+        "id": "g11-plan-product-catalog-flag-failure",
+        "documents": [
+          "scenario:product-catalog-flag-failure",
+          "runbook:service-checkoutservice",
+          "scenario:ad-memory-squeeze"
+        ],
+        "relevant": [
+          "runbook:service-frontend"
+        ],
+        "recall": 0.0,
+        "reciprocal_rank": 0.0
+      },
+      {
+        "id": "g12-plan-product-catalog-flag-failure",
+        "documents": [
+          "scenario:product-catalog-flag-failure",
+          "runbook:service-frontend",
+          "scenario:ad-memory-squeeze"
+        ],
+        "relevant": [
+          "runbook:service-frontend"
+        ],
+        "recall": 1.0,
+        "reciprocal_rank": 0.5
+      },
+      {
+        "id": "g13-plan-redis-cart-dependency-latency",
+        "documents": [
+          "scenario:cart-bad-image-tag",
+          "runbook:service-checkoutservice",
+          "scenario:cart-redis-misconfig"
+        ],
+        "relevant": [
+          "runbook:alert-high-latency",
+          "runbook:service-cartservice"
+        ],
+        "recall": 0.0,
+        "reciprocal_rank": 0.0
+      },
+      {
+        "id": "g14-plan-redis-cart-dependency-latency",
+        "documents": [
+          "scenario:cart-bad-image-tag",
+          "runbook:service-checkoutservice",
+          "scenario:cart-redis-misconfig"
+        ],
+        "relevant": [
+          "runbook:alert-high-latency",
+          "runbook:service-cartservice"
+        ],
+        "recall": 0.0,
+        "reciprocal_rank": 0.0
+      },
+      {
+        "id": "g15-plan-shipping-quote-misconfig",
+        "documents": [
+          "runbook:service-checkoutservice",
+          "runbook:service-accountingservice",
+          "scenario:cart-bad-image-tag"
+        ],
+        "relevant": [
+          "runbook:service-checkoutservice"
+        ],
+        "recall": 1.0,
+        "reciprocal_rank": 1.0
+      },
+      {
+        "id": "g16-plan-shipping-quote-misconfig",
+        "documents": [
+          "scenario:cart-bad-image-tag",
+          "runbook:service-checkoutservice",
+          "runbook:service-accountingservice"
+        ],
+        "relevant": [
+          "runbook:service-checkoutservice"
+        ],
+        "recall": 1.0,
+        "reciprocal_rank": 0.5
+      },
+      {
+        "id": "g17-plan-shipping-quote-misconfig",
+        "documents": [
+          "runbook:service-checkoutservice",
+          "runbook:service-accountingservice"
+        ],
+        "relevant": [
+          "runbook:service-checkoutservice"
+        ],
+        "recall": 1.0,
+        "reciprocal_rank": 1.0
+      },
+      {
+        "id": "g18-plan-shipping-wrong-image",
+        "documents": [
+          "runbook:service-checkoutservice",
+          "runbook:world-two-names-for-every-service"
+        ],
+        "relevant": [
+          "runbook:service-checkoutservice"
+        ],
+        "recall": 1.0,
+        "reciprocal_rank": 1.0
+      },
+      {
+        "id": "g19-plan-shipping-wrong-image",
+        "documents": [
+          "runbook:service-checkoutservice",
+          "scenario:cart-bad-image-tag",
+          "runbook:service-frontend"
+        ],
+        "relevant": [
+          "runbook:service-checkoutservice"
+        ],
+        "recall": 1.0,
+        "reciprocal_rank": 1.0
+      },
+      {
+        "id": "g20-plan-shipping-wrong-image",
+        "documents": [
+          "scenario:ad-memory-squeeze",
+          "runbook:service-checkoutservice",
+          "scenario:product-catalog-flag-failure"
+        ],
+        "relevant": [
+          "runbook:service-checkoutservice"
+        ],
+        "recall": 1.0,
+        "reciprocal_rank": 0.5
+      },
+      {
+        "id": "g21-synt-ad-memory-squeeze",
+        "documents": [
+          "scenario:ad-memory-squeeze",
+          "scenario:cart-bad-image-tag"
+        ],
+        "relevant": [
+          "runbook:class-resource-exhaustion",
+          "runbook:service-adservice",
+          "runbook:world-change-records-have-no-prior-value"
+        ],
+        "recall": 0.0,
+        "reciprocal_rank": 0.0
+      },
+      {
+        "id": "g22-synt-ad-memory-squeeze",
+        "documents": [
+          "runbook:class-bad-config",
+          "postmortem:cart-redis-misconfig",
+          "postmortem:product-catalog-flag-failure"
+        ],
+        "relevant": [
+          "runbook:world-change-records-have-no-prior-value"
+        ],
+        "recall": 0.0,
+        "reciprocal_rank": 0.0
+      },
+      {
+        "id": "g23-synt-cart-bad-image-tag",
+        "documents": [
+          "runbook:class-bad-config",
+          "scenario:cart-bad-image-tag",
+          "postmortem:shipping-wrong-image"
+        ],
+        "relevant": [
+          "runbook:world-change-records-have-no-prior-value"
+        ],
+        "recall": 0.0,
+        "reciprocal_rank": 0.0
+      },
+      {
+        "id": "g24-synt-cart-bad-image-tag",
+        "documents": [
+          "postmortem:cart-dependency-latency",
+          "scenario:cart-bad-image-tag",
+          "postmortem:shipping-wrong-image"
+        ],
+        "relevant": [
+          "runbook:world-blast-radius-traversal",
+          "runbook:world-change-records-have-no-prior-value"
+        ],
+        "recall": 0.0,
+        "reciprocal_rank": 0.0
+      },
+      {
+        "id": "g25-synt-cart-dependency-latency",
+        "documents": [
+          "scenario:cart-bad-image-tag",
+          "postmortem:cart-dependency-latency",
+          "scenario:cart-dependency-latency"
+        ],
+        "relevant": [
+          "runbook:class-dependency-latency",
+          "runbook:service-cartservice",
+          "runbook:world-what-a-recreate-removes"
+        ],
+        "recall": 0.0,
+        "reciprocal_rank": 0.0
+      },
+      {
+        "id": "g26-synt-cart-dependency-latency",
+        "documents": [
+          "postmortem:redis-cart-dependency-latency",
+          "postmortem:cart-dependency-latency",
+          "scenario:cart-bad-image-tag"
+        ],
+        "relevant": [
+          "runbook:class-bad-deploy",
+          "runbook:class-dependency-latency",
+          "runbook:service-cartservice"
+        ],
+        "recall": 0.0,
+        "reciprocal_rank": 0.0
+      },
+      {
+        "id": "g27-synt-cart-redis-misconfig",
+        "documents": [
+          "postmortem:cart-redis-misconfig",
+          "scenario:cart-redis-misconfig"
+        ],
+        "relevant": [
+          "runbook:world-change-records-have-no-prior-value"
+        ],
+        "recall": 0.0,
+        "reciprocal_rank": 0.0
+      },
+      {
+        "id": "g28-synt-cart-redis-misconfig",
+        "documents": [
+          "postmortem:cart-dependency-latency",
+          "scenario:cart-bad-image-tag",
+          "runbook:service-frontend"
+        ],
+        "relevant": [
+          "runbook:world-blast-radius-traversal",
+          "runbook:world-change-records-have-no-prior-value"
+        ],
+        "recall": 0.0,
+        "reciprocal_rank": 0.0
+      },
+      {
+        "id": "g29-synt-frauddetection-memory-squeeze",
+        "documents": [
+          "scenario:frauddetection-memory-squeeze",
+          "scenario:shipping-wrong-image",
+          "postmortem:frauddetection-memory-squeeze"
+        ],
+        "relevant": [
+          "runbook:class-resource-exhaustion",
+          "runbook:service-frauddetectionservice",
+          "runbook:world-change-records-have-no-prior-value"
+        ],
+        "recall": 0.0,
+        "reciprocal_rank": 0.0
+      },
+      {
+        "id": "g30-synt-frauddetection-memory-squeeze",
+        "documents": [
+          "scenario:frauddetection-memory-squeeze",
+          "scenario:cart-bad-image-tag",
+          "runbook:class-resource-exhaustion"
+        ],
+        "relevant": [
+          "runbook:class-resource-exhaustion",
+          "runbook:service-frauddetectionservice",
+          "runbook:world-alert-timing",
+          "runbook:world-change-records-have-no-prior-value"
+        ],
+        "recall": 1.0,
+        "reciprocal_rank": 0.3333333333333333
+      },
+      {
+        "id": "g31-synt-none",
+        "documents": [
+          "postmortem:redis-cart-dependency-latency",
+          "scenario:cart-redis-misconfig",
+          "postmortem:cart-dependency-latency"
+        ],
+        "relevant": [
+          "runbook:class-bad-config",
+          "runbook:class-dependency-latency",
+          "runbook:world-what-a-recreate-removes"
+        ],
+        "recall": 0.0,
+        "reciprocal_rank": 0.0
+      },
+      {
+        "id": "g32-synt-none",
+        "documents": [
+          "postmortem:redis-cart-dependency-latency",
+          "scenario:cart-dependency-latency"
+        ],
+        "relevant": [
+          "runbook:class-dependency-latency",
+          "runbook:world-what-a-recreate-removes"
+        ],
+        "recall": 0.0,
+        "reciprocal_rank": 0.0
+      },
+      {
+        "id": "g33-synt-payment-telemetry-blackout",
+        "documents": [
+          "postmortem:payment-telemetry-blackout",
+          "scenario:cart-bad-image-tag"
+        ],
+        "relevant": [
+          "runbook:alert-no-traffic",
+          "runbook:class-bad-config",
+          "runbook:service-paymentservice"
+        ],
+        "recall": 0.0,
+        "reciprocal_rank": 0.0
+      },
+      {
+        "id": "g34-synt-payment-telemetry-blackout",
+        "documents": [
+          "postmortem:payment-telemetry-blackout",
+          "scenario:cart-redis-misconfig"
+        ],
+        "relevant": [
+          "runbook:alert-no-traffic",
+          "runbook:class-bad-config",
+          "runbook:service-paymentservice"
+        ],
+        "recall": 0.0,
+        "reciprocal_rank": 0.0
+      },
+      {
+        "id": "g35-synt-product-catalog-flag-failure",
+        "documents": [
+          "postmortem:cart-dependency-latency",
+          "scenario:cart-dependency-latency",
+          "runbook:world-log-volume"
+        ],
+        "relevant": [
+          "runbook:class-dependency-latency",
+          "runbook:service-productcatalogservice",
+          "runbook:world-what-a-recreate-removes"
+        ],
+        "recall": 0.0,
+        "reciprocal_rank": 0.0
+      },
+      {
+        "id": "g36-synt-product-catalog-flag-failure",
+        "documents": [
+          "scenario:ad-memory-squeeze",
+          "scenario:cart-bad-image-tag"
+        ],
+        "relevant": [
+          "runbook:world-blast-radius-traversal",
+          "runbook:world-change-records-have-no-prior-value"
+        ],
+        "recall": 0.0,
+        "reciprocal_rank": 0.0
+      },
+      {
+        "id": "g37-synt-redis-cart-dependency-latency",
+        "documents": [
+          "postmortem:redis-cart-dependency-latency",
+          "scenario:cart-redis-misconfig",
+          "postmortem:cart-redis-misconfig"
+        ],
+        "relevant": [
+          "runbook:class-bad-config",
+          "runbook:class-dependency-latency",
+          "runbook:service-redis-cart"
+        ],
+        "recall": 0.0,
+        "reciprocal_rank": 0.0
+      },
+      {
+        "id": "g38-synt-redis-cart-dependency-latency",
+        "documents": [
+          "postmortem:cart-redis-misconfig",
+          "scenario:cart-bad-image-tag"
+        ],
+        "relevant": [
+          "runbook:class-bad-config",
+          "runbook:class-dependency-latency",
+          "runbook:world-change-records-have-no-prior-value"
+        ],
+        "recall": 0.0,
+        "reciprocal_rank": 0.0
+      },
+      {
+        "id": "g39-synt-shipping-quote-misconfig",
+        "documents": [
+          "postmortem:cart-dependency-latency",
+          "scenario:cart-bad-image-tag",
+          "postmortem:shipping-wrong-image"
+        ],
+        "relevant": [
+          "runbook:alert-high-error-rate",
+          "runbook:world-blast-radius-traversal",
+          "runbook:world-change-records-have-no-prior-value"
+        ],
+        "recall": 0.0,
+        "reciprocal_rank": 0.0
+      },
+      {
+        "id": "g40-synt-shipping-quote-misconfig",
+        "documents": [
+          "runbook:service-frontend",
+          "postmortem:product-catalog-flag-failure",
+          "postmortem:cart-dependency-latency"
+        ],
+        "relevant": [
+          "runbook:alert-high-error-rate",
+          "runbook:world-change-records-have-no-prior-value"
+        ],
+        "recall": 0.0,
+        "reciprocal_rank": 0.0
+      },
+      {
+        "id": "g41-synt-shipping-wrong-image",
+        "documents": [
+          "postmortem:shipping-wrong-image",
+          "scenario:cart-bad-image-tag",
+          "postmortem:cart-dependency-latency"
+        ],
+        "relevant": [
+          "runbook:alert-high-error-rate",
+          "runbook:world-blast-radius-traversal",
+          "runbook:world-change-records-have-no-prior-value"
+        ],
+        "recall": 0.0,
+        "reciprocal_rank": 0.0
+      },
+      {
+        "id": "g42-synt-shipping-wrong-image",
+        "documents": [
+          "postmortem:cart-dependency-latency",
+          "scenario:cart-bad-image-tag",
+          "scenario:shipping-quote-misconfig"
+        ],
+        "relevant": [
+          "runbook:alert-high-error-rate",
+          "runbook:world-alert-timing"
+        ],
+        "recall": 0.0,
+        "reciprocal_rank": 0.0
+      }
+    ]
+  },
+  {
+    "k": 5,
+    "overall": {
+      "label": "all documents",
+      "k": 5,
+      "queries": 43,
+      "recall_at_k": 0.37209302325581395,
+      "mrr": 0.25193798449612403
+    },
+    "by_corpus_age": [
+      {
+        "label": "answer predates T6.4",
+        "k": 5,
+        "queries": 20,
+        "recall_at_k": 0.05,
+        "mrr": 0.016666666666666666
+      },
+      {
+        "label": "answer written for T6.4",
+        "k": 5,
+        "queries": 43,
+        "recall_at_k": 0.3488372093023256,
+        "mrr": 0.2441860465116279
+      }
+    ],
+    "by_role": [
+      {
+        "label": "role: planner",
+        "k": 5,
+        "queries": 21,
+        "recall_at_k": 0.7142857142857143,
+        "mrr": 0.5
+      },
+      {
+        "label": "role: synthesizer",
+        "k": 5,
+        "queries": 22,
+        "recall_at_k": 0.045454545454545456,
+        "mrr": 0.01515151515151515
+      }
+    ],
+    "mean_documents_returned": 4.186046511627907,
+    "per_query": [
+      {
+        "id": "g00-plan-ad-memory-squeeze",
+        "documents": [
+          "scenario:ad-memory-squeeze",
+          "runbook:service-frontend",
+          "runbook:service-checkoutservice"
+        ],
+        "relevant": [
+          "runbook:service-frontend"
+        ],
+        "recall": 1.0,
+        "reciprocal_rank": 0.5
+      },
+      {
+        "id": "g01-plan-ad-memory-squeeze",
+        "documents": [
+          "runbook:service-frontend",
+          "scenario:ad-memory-squeeze",
+          "runbook:service-checkoutservice"
+        ],
+        "relevant": [
+          "runbook:service-frontend"
+        ],
+        "recall": 1.0,
+        "reciprocal_rank": 1.0
+      },
+      {
+        "id": "g02-plan-ad-memory-squeeze",
+        "documents": [
+          "runbook:service-frontend",
+          "scenario:ad-memory-squeeze",
+          "runbook:service-checkoutservice"
+        ],
+        "relevant": [
+          "runbook:service-frontend"
+        ],
+        "recall": 1.0,
+        "reciprocal_rank": 1.0
+      },
+      {
+        "id": "g03-plan-cart-bad-image-tag",
+        "documents": [
+          "scenario:ad-memory-squeeze",
+          "runbook:service-checkoutservice",
+          "scenario:product-catalog-flag-failure",
+          "runbook:service-frontend",
+          "scenario:shipping-wrong-image"
+        ],
+        "relevant": [
+          "runbook:service-frontend"
+        ],
+        "recall": 1.0,
+        "reciprocal_rank": 0.25
+      },
+      {
+        "id": "g04-plan-cart-bad-image-tag",
+        "documents": [
+          "runbook:service-checkoutservice",
+          "scenario:cart-bad-image-tag",
+          "scenario:cart-redis-misconfig",
+          "runbook:world-two-names-for-every-service"
+        ],
+        "relevant": [
+          "runbook:service-checkoutservice"
+        ],
+        "recall": 1.0,
+        "reciprocal_rank": 1.0
+      },
+      {
+        "id": "g05-plan-cart-bad-image-tag",
+        "documents": [
+          "scenario:ad-memory-squeeze",
+          "runbook:service-checkoutservice",
+          "scenario:product-catalog-flag-failure",
+          "runbook:service-frontend",
+          "scenario:cart-redis-misconfig"
+        ],
+        "relevant": [
+          "runbook:service-checkoutservice"
+        ],
+        "recall": 1.0,
+        "reciprocal_rank": 0.5
+      },
+      {
+        "id": "g06-plan-cart-dependency-latency",
+        "documents": [
+          "scenario:cart-redis-misconfig",
+          "scenario:cart-bad-image-tag",
+          "runbook:service-checkoutservice",
+          "runbook:service-frontend"
+        ],
+        "relevant": [
+          "runbook:alert-high-latency",
+          "runbook:service-cartservice"
+        ],
+        "recall": 0.0,
+        "reciprocal_rank": 0.0
+      },
+      {
+        "id": "g07-plan-cart-dependency-latency",
+        "documents": [
+          "scenario:cart-redis-misconfig",
+          "scenario:cart-bad-image-tag",
+          "runbook:service-checkoutservice",
+          "runbook:service-frontend"
+        ],
+        "relevant": [
+          "runbook:alert-high-latency",
+          "runbook:service-cartservice"
+        ],
+        "recall": 0.0,
+        "reciprocal_rank": 0.0
+      },
+      {
+        "id": "g08-plan-frauddetection-memory-squeeze",
+        "documents": [
+          "scenario:frauddetection-memory-squeeze",
+          "postmortem:cart-redis-misconfig",
+          "runbook:class-bad-deploy"
+        ],
+        "relevant": [
+          "runbook:service-frauddetectionservice"
+        ],
+        "recall": 0.0,
+        "reciprocal_rank": 0.0
+      },
+      {
+        "id": "g09-plan-payment-telemetry-blackout",
+        "documents": [
+          "postmortem:payment-telemetry-blackout",
+          "scenario:payment-telemetry-blackout",
+          "postmortem:shipping-quote-misconfig"
+        ],
+        "relevant": [
+          "runbook:service-paymentservice"
+        ],
+        "recall": 0.0,
+        "reciprocal_rank": 0.0
+      },
+      {
+        "id": "g10-plan-product-catalog-flag-failure",
+        "documents": [
+          "scenario:product-catalog-flag-failure",
+          "runbook:service-frontend",
+          "scenario:ad-memory-squeeze",
+          "runbook:service-checkoutservice",
+          "postmortem:product-catalog-flag-failure"
+        ],
+        "relevant": [
+          "runbook:service-frontend"
+        ],
+        "recall": 1.0,
+        "reciprocal_rank": 0.5
+      },
+      {
+        "id": "g11-plan-product-catalog-flag-failure",
+        "documents": [
+          "scenario:product-catalog-flag-failure",
+          "runbook:service-checkoutservice",
+          "scenario:ad-memory-squeeze",
+          "runbook:service-frontend"
+        ],
+        "relevant": [
+          "runbook:service-frontend"
+        ],
+        "recall": 1.0,
+        "reciprocal_rank": 0.25
+      },
+      {
+        "id": "g12-plan-product-catalog-flag-failure",
+        "documents": [
+          "scenario:product-catalog-flag-failure",
+          "runbook:service-frontend",
+          "scenario:ad-memory-squeeze",
+          "runbook:service-checkoutservice",
+          "postmortem:product-catalog-flag-failure"
+        ],
+        "relevant": [
+          "runbook:service-frontend"
+        ],
+        "recall": 1.0,
+        "reciprocal_rank": 0.5
+      },
+      {
+        "id": "g13-plan-redis-cart-dependency-latency",
+        "documents": [
+          "scenario:cart-redis-misconfig",
+          "scenario:cart-bad-image-tag",
+          "runbook:service-checkoutservice",
+          "runbook:service-frontend"
+        ],
+        "relevant": [
+          "runbook:alert-high-latency",
+          "runbook:service-cartservice"
+        ],
+        "recall": 0.0,
+        "reciprocal_rank": 0.0
+      },
+      {
+        "id": "g14-plan-redis-cart-dependency-latency",
+        "documents": [
+          "scenario:cart-redis-misconfig",
+          "scenario:cart-bad-image-tag",
+          "runbook:service-checkoutservice",
+          "runbook:service-frontend"
+        ],
+        "relevant": [
+          "runbook:alert-high-latency",
+          "runbook:service-cartservice"
+        ],
+        "recall": 0.0,
+        "reciprocal_rank": 0.0
+      },
+      {
+        "id": "g15-plan-shipping-quote-misconfig",
+        "documents": [
+          "runbook:service-checkoutservice",
+          "scenario:cart-bad-image-tag",
+          "scenario:cart-redis-misconfig",
+          "runbook:service-accountingservice"
+        ],
+        "relevant": [
+          "runbook:service-checkoutservice"
+        ],
+        "recall": 1.0,
+        "reciprocal_rank": 1.0
+      },
+      {
+        "id": "g16-plan-shipping-quote-misconfig",
+        "documents": [
+          "scenario:cart-bad-image-tag",
+          "runbook:service-checkoutservice",
+          "scenario:cart-redis-misconfig",
+          "runbook:service-accountingservice",
+          "runbook:service-frontend"
+        ],
+        "relevant": [
+          "runbook:service-checkoutservice"
+        ],
+        "recall": 1.0,
+        "reciprocal_rank": 0.5
+      },
+      {
+        "id": "g17-plan-shipping-quote-misconfig",
+        "documents": [
+          "runbook:service-checkoutservice",
+          "runbook:service-accountingservice",
+          "scenario:cart-bad-image-tag",
+          "runbook:service-frontend"
+        ],
+        "relevant": [
+          "runbook:service-checkoutservice"
+        ],
+        "recall": 1.0,
+        "reciprocal_rank": 1.0
+      },
+      {
+        "id": "g18-plan-shipping-wrong-image",
+        "documents": [
+          "runbook:service-checkoutservice",
+          "runbook:world-two-names-for-every-service",
+          "runbook:service-accountingservice",
+          "runbook:service-frontend"
+        ],
+        "relevant": [
+          "runbook:service-checkoutservice"
+        ],
+        "recall": 1.0,
+        "reciprocal_rank": 1.0
+      },
+      {
+        "id": "g19-plan-shipping-wrong-image",
+        "documents": [
+          "runbook:service-checkoutservice",
+          "scenario:cart-bad-image-tag",
+          "scenario:cart-redis-misconfig",
+          "runbook:service-frontend",
+          "runbook:service-accountingservice"
+        ],
+        "relevant": [
+          "runbook:service-checkoutservice"
+        ],
+        "recall": 1.0,
+        "reciprocal_rank": 1.0
+      },
+      {
+        "id": "g20-plan-shipping-wrong-image",
+        "documents": [
+          "scenario:ad-memory-squeeze",
+          "runbook:service-checkoutservice",
+          "scenario:product-catalog-flag-failure",
+          "postmortem:payment-telemetry-blackout"
+        ],
+        "relevant": [
+          "runbook:service-checkoutservice"
+        ],
+        "recall": 1.0,
+        "reciprocal_rank": 0.5
+      },
+      {
+        "id": "g21-synt-ad-memory-squeeze",
+        "documents": [
+          "scenario:ad-memory-squeeze",
+          "scenario:cart-bad-image-tag",
+          "scenario:cart-dependency-latency"
+        ],
+        "relevant": [
+          "runbook:class-resource-exhaustion",
+          "runbook:service-adservice",
+          "runbook:world-change-records-have-no-prior-value"
+        ],
+        "recall": 0.0,
+        "reciprocal_rank": 0.0
+      },
+      {
+        "id": "g22-synt-ad-memory-squeeze",
+        "documents": [
+          "runbook:service-checkoutservice",
+          "runbook:service-frontend",
+          "runbook:class-bad-config",
+          "postmortem:cart-redis-misconfig",
+          "postmortem:product-catalog-flag-failure"
+        ],
+        "relevant": [
+          "runbook:world-change-records-have-no-prior-value"
+        ],
+        "recall": 0.0,
+        "reciprocal_rank": 0.0
+      },
+      {
+        "id": "g23-synt-cart-bad-image-tag",
+        "documents": [
+          "runbook:class-bad-config",
+          "scenario:cart-bad-image-tag",
+          "postmortem:shipping-wrong-image",
+          "scenario:cart-dependency-latency",
+          "runbook:service-frontend"
+        ],
+        "relevant": [
+          "runbook:world-change-records-have-no-prior-value"
+        ],
+        "recall": 0.0,
+        "reciprocal_rank": 0.0
+      },
+      {
+        "id": "g24-synt-cart-bad-image-tag",
+        "documents": [
+          "postmortem:cart-dependency-latency",
+          "scenario:cart-bad-image-tag",
+          "postmortem:shipping-wrong-image",
+          "postmortem:product-catalog-flag-failure",
+          "scenario:shipping-quote-misconfig"
+        ],
+        "relevant": [
+          "runbook:world-blast-radius-traversal",
+          "runbook:world-change-records-have-no-prior-value"
+        ],
+        "recall": 0.0,
+        "reciprocal_rank": 0.0
+      },
+      {
+        "id": "g25-synt-cart-dependency-latency",
+        "documents": [
+          "scenario:cart-bad-image-tag",
+          "postmortem:cart-dependency-latency",
+          "scenario:cart-dependency-latency",
+          "postmortem:cart-redis-misconfig"
+        ],
+        "relevant": [
+          "runbook:class-dependency-latency",
+          "runbook:service-cartservice",
+          "runbook:world-what-a-recreate-removes"
+        ],
+        "recall": 0.0,
+        "reciprocal_rank": 0.0
+      },
+      {
+        "id": "g26-synt-cart-dependency-latency",
+        "documents": [
+          "postmortem:redis-cart-dependency-latency",
+          "postmortem:cart-dependency-latency",
+          "scenario:cart-bad-image-tag",
+          "scenario:cart-dependency-latency"
+        ],
+        "relevant": [
+          "runbook:class-bad-deploy",
+          "runbook:class-dependency-latency",
+          "runbook:service-cartservice"
+        ],
+        "recall": 0.0,
+        "reciprocal_rank": 0.0
+      },
+      {
+        "id": "g27-synt-cart-redis-misconfig",
+        "documents": [
+          "postmortem:cart-redis-misconfig",
+          "scenario:cart-redis-misconfig",
+          "scenario:cart-bad-image-tag",
+          "postmortem:redis-cart-dependency-latency"
+        ],
+        "relevant": [
+          "runbook:world-change-records-have-no-prior-value"
+        ],
+        "recall": 0.0,
+        "reciprocal_rank": 0.0
+      },
+      {
+        "id": "g28-synt-cart-redis-misconfig",
+        "documents": [
+          "postmortem:cart-dependency-latency",
+          "scenario:cart-bad-image-tag",
+          "runbook:service-frontend",
+          "postmortem:product-catalog-flag-failure",
+          "scenario:shipping-wrong-image"
+        ],
+        "relevant": [
+          "runbook:world-blast-radius-traversal",
+          "runbook:world-change-records-have-no-prior-value"
+        ],
+        "recall": 0.0,
+        "reciprocal_rank": 0.0
+      },
+      {
+        "id": "g29-synt-frauddetection-memory-squeeze",
+        "documents": [
+          "scenario:frauddetection-memory-squeeze",
+          "scenario:shipping-wrong-image",
+          "postmortem:frauddetection-memory-squeeze",
+          "scenario:cart-bad-image-tag",
+          "scenario:ad-memory-squeeze"
+        ],
+        "relevant": [
+          "runbook:class-resource-exhaustion",
+          "runbook:service-frauddetectionservice",
+          "runbook:world-change-records-have-no-prior-value"
+        ],
+        "recall": 0.0,
+        "reciprocal_rank": 0.0
+      },
+      {
+        "id": "g30-synt-frauddetection-memory-squeeze",
+        "documents": [
+          "scenario:frauddetection-memory-squeeze",
+          "scenario:cart-bad-image-tag",
+          "runbook:class-resource-exhaustion",
+          "postmortem:cart-redis-misconfig",
+          "postmortem:frauddetection-memory-squeeze"
+        ],
+        "relevant": [
+          "runbook:class-resource-exhaustion",
+          "runbook:service-frauddetectionservice",
+          "runbook:world-alert-timing",
+          "runbook:world-change-records-have-no-prior-value"
+        ],
+        "recall": 1.0,
+        "reciprocal_rank": 0.3333333333333333
+      },
+      {
+        "id": "g31-synt-none",
+        "documents": [
+          "postmortem:redis-cart-dependency-latency",
+          "scenario:cart-redis-misconfig",
+          "postmortem:cart-dependency-latency",
+          "scenario:cart-dependency-latency",
+          "postmortem:cart-redis-misconfig"
+        ],
+        "relevant": [
+          "runbook:class-bad-config",
+          "runbook:class-dependency-latency",
+          "runbook:world-what-a-recreate-removes"
+        ],
+        "recall": 0.0,
+        "reciprocal_rank": 0.0
+      },
+      {
+        "id": "g32-synt-none",
+        "documents": [
+          "postmortem:redis-cart-dependency-latency",
+          "scenario:cart-dependency-latency",
+          "scenario:cart-bad-image-tag",
+          "postmortem:cart-dependency-latency"
+        ],
+        "relevant": [
+          "runbook:class-dependency-latency",
+          "runbook:world-what-a-recreate-removes"
+        ],
+        "recall": 0.0,
+        "reciprocal_rank": 0.0
+      },
+      {
+        "id": "g33-synt-payment-telemetry-blackout",
+        "documents": [
+          "postmortem:payment-telemetry-blackout",
+          "scenario:cart-bad-image-tag",
+          "scenario:payment-telemetry-blackout"
+        ],
+        "relevant": [
+          "runbook:alert-no-traffic",
+          "runbook:class-bad-config",
+          "runbook:service-paymentservice"
+        ],
+        "recall": 0.0,
+        "reciprocal_rank": 0.0
+      },
+      {
+        "id": "g34-synt-payment-telemetry-blackout",
+        "documents": [
+          "postmortem:payment-telemetry-blackout",
+          "scenario:cart-redis-misconfig"
+        ],
+        "relevant": [
+          "runbook:alert-no-traffic",
+          "runbook:class-bad-config",
+          "runbook:service-paymentservice"
+        ],
+        "recall": 0.0,
+        "reciprocal_rank": 0.0
+      },
+      {
+        "id": "g35-synt-product-catalog-flag-failure",
+        "documents": [
+          "postmortem:cart-dependency-latency",
+          "scenario:cart-dependency-latency",
+          "runbook:world-log-volume",
+          "scenario:cart-bad-image-tag",
+          "postmortem:cart-bad-image-tag"
+        ],
+        "relevant": [
+          "runbook:class-dependency-latency",
+          "runbook:service-productcatalogservice",
+          "runbook:world-what-a-recreate-removes"
+        ],
+        "recall": 0.0,
+        "reciprocal_rank": 0.0
+      },
+      {
+        "id": "g36-synt-product-catalog-flag-failure",
+        "documents": [
+          "scenario:ad-memory-squeeze",
+          "scenario:cart-bad-image-tag",
+          "postmortem:cart-bad-image-tag",
+          "scenario:redis-cart-dependency-latency"
+        ],
+        "relevant": [
+          "runbook:world-blast-radius-traversal",
+          "runbook:world-change-records-have-no-prior-value"
+        ],
+        "recall": 0.0,
+        "reciprocal_rank": 0.0
+      },
+      {
+        "id": "g37-synt-redis-cart-dependency-latency",
+        "documents": [
+          "postmortem:redis-cart-dependency-latency",
+          "scenario:cart-redis-misconfig",
+          "postmortem:cart-redis-misconfig",
+          "runbook:service-checkoutservice"
+        ],
+        "relevant": [
+          "runbook:class-bad-config",
+          "runbook:class-dependency-latency",
+          "runbook:service-redis-cart"
+        ],
+        "recall": 0.0,
+        "reciprocal_rank": 0.0
+      },
+      {
+        "id": "g38-synt-redis-cart-dependency-latency",
+        "documents": [
+          "postmortem:redis-cart-dependency-latency",
+          "postmortem:cart-redis-misconfig",
+          "scenario:cart-bad-image-tag",
+          "scenario:cart-redis-misconfig"
+        ],
+        "relevant": [
+          "runbook:class-bad-config",
+          "runbook:class-dependency-latency",
+          "runbook:world-change-records-have-no-prior-value"
+        ],
+        "recall": 0.0,
+        "reciprocal_rank": 0.0
+      },
+      {
+        "id": "g39-synt-shipping-quote-misconfig",
+        "documents": [
+          "postmortem:cart-dependency-latency",
+          "scenario:cart-bad-image-tag",
+          "postmortem:shipping-wrong-image",
+          "postmortem:product-catalog-flag-failure",
+          "postmortem:payment-telemetry-blackout"
+        ],
+        "relevant": [
+          "runbook:alert-high-error-rate",
+          "runbook:world-blast-radius-traversal",
+          "runbook:world-change-records-have-no-prior-value"
+        ],
+        "recall": 0.0,
+        "reciprocal_rank": 0.0
+      },
+      {
+        "id": "g40-synt-shipping-quote-misconfig",
+        "documents": [
+          "runbook:service-frontend",
+          "postmortem:product-catalog-flag-failure",
+          "postmortem:cart-dependency-latency",
+          "scenario:cart-bad-image-tag",
+          "scenario:shipping-quote-misconfig"
+        ],
+        "relevant": [
+          "runbook:alert-high-error-rate",
+          "runbook:world-change-records-have-no-prior-value"
+        ],
+        "recall": 0.0,
+        "reciprocal_rank": 0.0
+      },
+      {
+        "id": "g41-synt-shipping-wrong-image",
+        "documents": [
+          "postmortem:shipping-wrong-image",
+          "scenario:cart-bad-image-tag",
+          "postmortem:cart-dependency-latency",
+          "scenario:shipping-quote-misconfig"
+        ],
+        "relevant": [
+          "runbook:alert-high-error-rate",
+          "runbook:world-blast-radius-traversal",
+          "runbook:world-change-records-have-no-prior-value"
+        ],
+        "recall": 0.0,
+        "reciprocal_rank": 0.0
+      },
+      {
+        "id": "g42-synt-shipping-wrong-image",
+        "documents": [
+          "postmortem:cart-dependency-latency",
+          "scenario:cart-bad-image-tag",
+          "scenario:shipping-quote-misconfig",
+          "scenario:frauddetection-memory-squeeze",
+          "postmortem:shipping-wrong-image"
+        ],
+        "relevant": [
+          "runbook:alert-high-error-rate",
+          "runbook:world-alert-timing"
+        ],
+        "recall": 0.0,
+        "reciprocal_rank": 0.0
+      }
+    ]
+  }
+]

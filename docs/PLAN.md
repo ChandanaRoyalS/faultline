@@ -4617,6 +4617,25 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-10-04: T7.3's build, part D2 - the corpus of record, pinned.***
+
+- **The owner's decision, 2026-10-04: the corpus as registered** (*"the repository's corpus, every
+  runbook included"*). The v2 narratives stay out (`seed.CORPUS_WORLDS` is `("v1",)`); no code moves.
+- **Ingested on the Mac** with `faultline-seed`, after `docker compose --profile eval up` (Postgres
+  had been stopped), and read back with `faultline-batch corpus`: 334 chunks over 65 documents (45
+  runbooks, 10 accepted postmortems, 10 v1 narratives), `holdout_chunks` 0, agreeing with the tree.
+  Record: `docs/evidence/t7.3/corpus-of-record.json`.
+- **Both pins moved in this commit** (item 8; Q92's corpus half, now closed):
+  `CURRENT_CORPUS_SHAPE` `844fe623366c` → `b931588caf1d`, `CURRENT_CORPUS_BODY` `cc473105c036` →
+  `a6de378e3b55`. From here the batch runner refuses a slot whose store is off either pin.
+- **The retrieval gate re-founded in the same commit**, as its rule requires. `faultline-retrieval
+  score` on the seeded store returned the third founding's figures to the digit: recall@3 0.302,
+  MRR@3 0.198, recall@5 0.372, MRR@5 0.252 (`docs/evidence/t7.3/retrieval-rescore.json`). Same
+  margins, same constants; `FOUNDED_ON_CORPUS` moves.
+- **Frozen from now until the last scored run.** Both stamps unchanged. $0.
+- **Next**: the 7 storm labels owed from T7.1, then the trial's registration (about $13, not spent
+  until the owner's word).
+
 ***2026-10-04: T7.3's build, part D1 - the batch runner, its tally and stop, the corpus check,
 and Q124's cause.***
 
