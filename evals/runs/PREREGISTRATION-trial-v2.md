@@ -246,3 +246,31 @@ Ingested on the Mac by the owner (`faultline-seed --world v2 --replace`: 43 docu
 is set in this commit, and the runner refuses a v2 slot off either pin. **Frozen from here until
 the last v2 scored run.** v1's pins and the retrieval gate founded on them are unchanged. `ad` had
 fallen to 75 % of its limit by itself; no restart was made.
+
+## Addendum 6 - F's three slots on the v2 corpus: all scored; the headline's trial is complete (2026-10-04)
+
+Log: [`attempt-3-f.log`](../../docs/evidence/t7.3/trial/2026-10-04-attempt-3-f.log). **The runner's
+tally: $2.79** (stop $4). With Addendum 4's nine baseline runs, every one of the trial's twelve
+slots now has a counted run.
+
+| slot | scenario | class | culprit | fix | billed | start to finish |
+|---|---|---|---|---|---|---|
+| 1 | v2-cart-bad-image-tag | right | right | right | $0.96 | 15 min |
+| 2 | v2-product-catalog-freeze | wrong (`bad_deploy` on `cart`) | wrong | wrong | $0.92 | 15 min |
+| 3 | v2-ad-bad-image-tag | right | right | right | $0.88 | 18 min |
+
+- **The leave-one-out filter fired on every retrieval** (5 chunks removed each time), so the runs are
+  valid by the rule as written, not by Addendum 4's absence clause. The judge scored all three
+  (`same_mechanism`, `different`, `same_mechanism`).
+- **Slot 2's miss is Q57's confound**: its planner read the cart hotfix change record that slot 1's
+  injection had written twenty minutes earlier and named it the cause. The harness's own injections
+  are the only writer of change records, and a run reads the ones before it. Measured on v1 (a
+  median of 12 stale records against 1 of a run's own); the headline's randomized queue makes it part
+  of what every arm meets, and the report reads it by position. Nothing is changed for it.
+- **quote's clock** failed before slot 1 (24,487 s off after the Mac slept); the runner restarted
+  quote and the check passed on a recheck, as registered (Q121).
+
+**Measured, for the owner's go**: F $0.88-0.96 billed and 15-18 minutes a run; B1 $0.62-2.40;
+B2 about $0.05; B0 $0 and about 12 minutes (the injection, the settle and the scoring are most of a
+slot). The 156 project to **about $87 against the $60 cap**, which is the owner's decision at the go.
+**Both stamps unchanged**; the v2 corpus at its pins throughout.

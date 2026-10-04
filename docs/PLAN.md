@@ -4617,6 +4617,20 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-10-04: T7.3's trial, the headline half complete - F 2 of 3 right on every axis, $2.79.***
+
+- F's three slots on the v2 corpus all scored (`PREREGISTRATION-trial-v2.md`, Addendum 6): the two
+  bad-deploys right on class, culprit and fix; the catalog freeze missed, its planner reading the
+  previous slot's cart hotfix as the cause (Q57's stale-record confound, part of the measurement).
+  The leave-one-out filter removed 5 chunks on every retrieval.
+- With Addendum 4's nine baseline runs, the trial's twelve slots are all counted. **Trial spend so
+  far by the runner's tally: $8.76** ($5.97 + $2.79), against the registered about $5 for this half;
+  the console is the authority.
+- Measured: F about $0.92 and 15-18 min a run. **The 156 project to about $87 against the $60 cap**:
+  the owner's call at the go.
+- **Next**: the switch trial, E2-E9 on `v2-ad-bad-image-tag`, about $8, stop $12, on the owner's
+  word.
+
 ***2026-10-04: the v2 corpus pinned - 43 documents, 200 chunks, `738e834925e0`.***
 
 - Ingested on the Mac with `--world v2 --replace` (279 v1 chunks removed) and read back agreeing with
