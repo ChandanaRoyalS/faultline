@@ -512,6 +512,13 @@ class BatchResult:
         return lines
 
 
+WORLD_LOCK = 2
+RETRYABLE = CLEARABLE | {WORLD_LOCK}
+"""Codes where nothing was injected: the sweep's clearable refusals, and **a held world lock**,
+which the sweep counts as a failure. In the trial's first attempt the lock was held by the test
+suite run beside the batch (`tests/conftest.py` now keeps tests off the real lock); waiting a
+minute and asking again is the remedy, as for a refusal."""
+
 DISCARDS = frozenset({4, 6})
 """A discarded run and an INVALID one: each is *re-run once, at the end of its pass*."""
 
@@ -589,11 +596,12 @@ def run_batch(
             if slot.arm != "B0":
                 probes += 1
             code = int(launch(argv, env))
-            if code not in CLEARABLE or attempt == retries:
+            if code not in RETRYABLE or attempt == retries:
                 break
             wait(RETRY_WAIT_SECONDS)
-        if code not in CLEARABLE:
+        if code not in RETRYABLE:
             injected = True
+        standing = code in RETRYABLE and attempt == retries
         if code == 0 and judged(queue.kind, slot.arm):
             run_id = find_run(label, slot.slot)
             if run_id:
@@ -612,7 +620,18 @@ def run_batch(
         result.rows.append(row)
         log(row)
         print(f"=== [{slot.slot}] {row.outcome}; tally {result.tally.render()}", flush=True)
-        if code in DISCARDS or code in CLEARABLE:
+        if standing:
+            # **A refusal on every attempt is a standing condition, not this slot's luck** (the
+            # trial's first attempt, 2026-10-04: a missing API key refused all twelve slots six
+            # times each, an hour and a half of nothing). The sweep learned the same thing
+            # (`standing_refusal`). Stop and name it; nothing was injected, and the slot is
+            # unfinished rather than discarded.
+            return (
+                f"slot {slot.slot} was refused on all {retries} attempts ({row.outcome}): the "
+                f"condition is standing, not transient. Nothing was injected. Fix it and resume "
+                f"with --from-slot {slot.slot}"
+            )
+        if code in DISCARDS or code in RETRYABLE:
             if rerun:
                 second.add((slot.scenario, slot.arm))
                 if slot.scenario not in result.removed:
@@ -648,6 +667,26 @@ def logged_probes(path: Path) -> int:
         if len(cells) >= 6 and cells[3] != "B0":
             total += int(cells[5])
     return total
+
+
+KEY_PATH = Path.home() / ".faultline-anthropic-key"
+"""Where the owner keeps the key (README; `evalharness.demo` reads the same file). Read, never
+printed: only whether a key is present, and from where, is ever shown."""
+
+
+def with_api_key(base: Mapping[str, str], key_path: Path = KEY_PATH) -> tuple[dict[str, str], str]:
+    """The environment every slot inherits, with `ANTHROPIC_API_KEY` from the key file when the
+    shell has none. `faultline-eval` reads only the variable; the trial's first attempt refused
+    every slot because the key lived in the file and nothing passed it on."""
+    env = dict(base)
+    if env.get("ANTHROPIC_API_KEY"):
+        return env, "present (environment)"
+    if key_path.is_file():
+        key = key_path.read_text().strip()
+        if key:
+            env["ANTHROPIC_API_KEY"] = key
+            return env, f"present ({key_path.name})"
+    return env, "MISSING"
 
 
 def find_run(label: str, slot: int, root: Path = RUN_ROOT) -> str | None:
@@ -778,8 +817,20 @@ def main(argv: list[str] | None = None) -> int:  # pragma: no cover - the live p
     def world() -> tuple[bool, str]:
         return world_ready(run_world_check, restart_quote, time.sleep)
 
+    base_env, key_state = with_api_key(os.environ)
+    needs_model = any(s.arm != "B0" for s in queue.slots)
+
     if args.dry_run:
-        for name, check in (("stamps", stamps), ("corpus", corpus), ("world", world)):
+        # **Read-only**: the world check is run once and reported. The batch's own check restarts
+        # quote on a clock failure (Q121); a dry run must not act on the world, and the first one
+        # did.
+        def look() -> tuple[bool, str]:
+            result = run_world_check()
+            failed = [line for line in result.output.splitlines() if line.startswith("FAIL")]
+            return result.ok, "world check passed" if result.ok else "; ".join(failed)
+
+        print(f"api key: {key_state}")
+        for name, check in (("stamps", stamps), ("corpus", corpus), ("world", look)):
             print(f"{name}: {check()}")
         known = arms(queue.rerank_revision)
         for s in queue.slots:
@@ -788,6 +839,14 @@ def main(argv: list[str] | None = None) -> int:  # pragma: no cover - the live p
             remaining = len(queue.slots) - s.slot + 1
             print(f"{shown} {' '.join(slot_argv(s, arm, args.label, remaining, len(queue.slots)))}")
         return 0
+
+    if needs_model and key_state == "MISSING":
+        print(
+            f"REFUSED: no Anthropic key - ANTHROPIC_API_KEY is unset and {KEY_PATH} is missing. "
+            "Every model arm's pre-flight would refuse. Nothing was launched."
+        )
+        return 3
+    print(f"api key: {key_state}")
 
     log_path = RUN_ROOT / f"BATCH-{args.label}.tsv"
     probes_before = sum(
@@ -807,7 +866,7 @@ def main(argv: list[str] | None = None) -> int:  # pragma: no cover - the live p
         return subprocess.run(cmd, env=env, check=False).returncode
 
     def judge(run_id: str) -> None:
-        env = {**os.environ, **JUDGE_ENV}
+        env = {**base_env, **JUDGE_ENV}
         try:
             subprocess.run(["faultline-judge", run_id], env=env, check=False, timeout=600)
         except subprocess.TimeoutExpired:
@@ -832,6 +891,7 @@ def main(argv: list[str] | None = None) -> int:  # pragma: no cover - the live p
         corpus=corpus,
         log=log,
         probes_before=probes_before,
+        base_env=base_env,
     )
     print("\n".join(result.render()))
     return 1 if result.stopped else 0

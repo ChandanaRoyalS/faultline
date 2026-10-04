@@ -417,3 +417,48 @@ def test_the_committed_trial_queues_are_what_their_seeds_print() -> None:
     for name, queue in (("trial-headline", headline), ("trial-t73", switches)):
         committed = (REPO / f"evals/runs/QUEUE-{name}-v2.tsv").read_text()
         assert committed == batch.render_queue(queue), name
+
+
+# --- the trial's first attempt (2026-10-04): what it found ----------------------------------
+
+
+def test_no_test_holds_the_real_world_lock() -> None:
+    from injector.worldlock import LOCK_PATH, WorldLock
+
+    assert WorldLock.__init__.__defaults__ is not None
+    assert WorldLock.__init__.__defaults__[0] != LOCK_PATH
+
+
+def test_the_key_file_reaches_every_slot_and_is_never_shown(tmp_path: Path) -> None:
+    key = tmp_path / "key"
+    key.write_text("sk-test-secret\n")
+
+    env, state = batch.with_api_key({"PATH": "/bin"}, key)
+    assert env["ANTHROPIC_API_KEY"] == "sk-test-secret"
+    assert "sk-test" not in state
+
+    kept, state = batch.with_api_key({"ANTHROPIC_API_KEY": "from-shell"}, key)
+    assert kept["ANTHROPIC_API_KEY"] == "from-shell" and state == "present (environment)"
+    _, state = batch.with_api_key({}, tmp_path / "absent")
+    assert state == "MISSING"
+
+
+def test_a_refusal_on_every_attempt_stops_the_batch_at_that_slot() -> None:
+    queue = _queue(n_dev=2, n_hold=0)
+    first = queue.slots[0]
+    harness = _Harness({(first.scenario, first.arm): [3, 3]})
+    result = harness.run(queue)
+
+    assert len(harness.launched) == 2, "two attempts, then the stop, not seven more slots"
+    assert result.stopped and "standing" in result.stopped
+    assert result.unfinished[0].slot == 1
+
+
+def test_a_held_world_lock_is_retried_and_never_counted_as_a_discard() -> None:
+    queue = _queue(n_dev=1, n_hold=0)
+    first = queue.slots[0]
+    harness = _Harness({(first.scenario, first.arm): [2, 0]})
+    result = harness.run(queue)
+
+    assert result.rows[0].attempts == 2 and result.rows[0].outcome == "scored"
+    assert not result.stopped

@@ -77,6 +77,22 @@ class _NoLiveSubprocess:
 
 
 @pytest.fixture(autouse=True)
+def _no_real_world_lock(tmp_path_factory: pytest.TempPathFactory, monkeypatch: Any) -> None:
+    """**No test takes the real world lock** (`.faultline/harness.lock`).
+
+    `tests/test_rehearse.py` drives `rehearse("currency-cpu-throttle", ...)`, which takes
+    `WorldLock()` at its default path, so `make check` run beside a live batch held the real world
+    for a moment. On 2026-10-04 it refused a trial slot that way: *"another driver holds the
+    world ... doing: rehearse currency-cpu-throttle"*. The default is bound when `WorldLock` is
+    defined, so it is the default that moves, to a lock of the test's own.
+    """
+    from injector.worldlock import WorldLock
+
+    path = tmp_path_factory.mktemp("worldlock") / "harness.lock"
+    monkeypatch.setattr(WorldLock.__init__, "__defaults__", (path,))
+
+
+@pytest.fixture(autouse=True)
 def _no_live_subprocess(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> None:
     """Fail loudly on any live subprocess from the rehearsal module."""
     monkeypatch.setattr(rehearse, "subprocess", _NoLiveSubprocess(request.node.nodeid))

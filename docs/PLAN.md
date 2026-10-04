@@ -4617,6 +4617,18 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-10-04: T7.3's trial, first attempt - nothing ran, $0 billed; four defects found.***
+
+- **Every slot was refused before injecting** (`PREREGISTRATION-trial-v2.md`, Addendum 2): the
+  key never reached `faultline-eval` (it reads only `ANTHROPIC_API_KEY`; the key lives in
+  `~/.faultline-anthropic-key`), the gate saw kafka serving no traffic, and once the world lock was
+  held by the test suite run beside the batch.
+- **Fixed** (`faultline-batch`, `tests/conftest.py`): the runner passes the key file's key to every
+  slot and refuses to start without one; a slot refused on every attempt stops the batch; a held
+  lock is retried; the dry run is read-only; no test takes the real world lock.
+- **Open**: kafka's silence, diagnosed read-only on the Mac before anything is changed.
+- Both stamps unchanged. $0.
+
 ***2026-10-04: T7.3's trial queues committed, E7's commit pinned.***
 
 - E7's cross-encoder at `233902d25c44`, resolved and downloaded on the Mac by the owner, in the

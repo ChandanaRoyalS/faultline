@@ -1,0 +1,931 @@
+--- stamps: faultline/0.0.1+prompts:9ce16b66bbcc cap:91279a09
+--- corpus: 334 rows; at both pins
+--- world: world check passed
+run 20261004T060720Z-v2-cart-bad-image-tag
+pre-flight: model reachable and billable...
+REFUSED: the configured model (claude-opus-5) could not be reached or billed.
+  "Could not resolve authentication method. Expected one of api_key, auth_token, or credentials to be set. Or for one of the `X-Api-Key` or `Authorization` headers to be explicitly omitted"
+Nothing was injected and the world is untouched. This is not a discard - the run
+never started, and counting it as one would inflate a number kept honest on purpose.
+Dev sweep 8 injected the same scenario four times before discovering this at the
+triage call; the check that would have caught it costs one token (Q20).
+run 20261004T060821Z-v2-cart-bad-image-tag
+pre-flight: model reachable and billable...
+REFUSED: the configured model (claude-opus-5) could not be reached or billed.
+  "Could not resolve authentication method. Expected one of api_key, auth_token, or credentials to be set. Or for one of the `X-Api-Key` or `Authorization` headers to be explicitly omitted"
+Nothing was injected and the world is untouched. This is not a discard - the run
+never started, and counting it as one would inflate a number kept honest on purpose.
+Dev sweep 8 injected the same scenario four times before discovering this at the
+triage call; the check that would have caught it costs one token (Q20).
+run 20261004T060922Z-v2-cart-bad-image-tag
+pre-flight: model reachable and billable...
+REFUSED: the configured model (claude-opus-5) could not be reached or billed.
+  "Could not resolve authentication method. Expected one of api_key, auth_token, or credentials to be set. Or for one of the `X-Api-Key` or `Authorization` headers to be explicitly omitted"
+Nothing was injected and the world is untouched. This is not a discard - the run
+never started, and counting it as one would inflate a number kept honest on purpose.
+Dev sweep 8 injected the same scenario four times before discovering this at the
+triage call; the check that would have caught it costs one token (Q20).
+run 20261004T061022Z-v2-cart-bad-image-tag
+pre-flight: model reachable and billable...
+REFUSED: the configured model (claude-opus-5) could not be reached or billed.
+  "Could not resolve authentication method. Expected one of api_key, auth_token, or credentials to be set. Or for one of the `X-Api-Key` or `Authorization` headers to be explicitly omitted"
+Nothing was injected and the world is untouched. This is not a discard - the run
+never started, and counting it as one would inflate a number kept honest on purpose.
+Dev sweep 8 injected the same scenario four times before discovering this at the
+triage call; the check that would have caught it costs one token (Q20).
+run 20261004T061123Z-v2-cart-bad-image-tag
+pre-flight: model reachable and billable...
+REFUSED: the configured model (claude-opus-5) could not be reached or billed.
+  "Could not resolve authentication method. Expected one of api_key, auth_token, or credentials to be set. Or for one of the `X-Api-Key` or `Authorization` headers to be explicitly omitted"
+Nothing was injected and the world is untouched. This is not a discard - the run
+never started, and counting it as one would inflate a number kept honest on purpose.
+Dev sweep 8 injected the same scenario four times before discovering this at the
+triage call; the check that would have caught it costs one token (Q20).
+run 20261004T061224Z-v2-cart-bad-image-tag
+pre-flight: model reachable and billable...
+REFUSED: the configured model (claude-opus-5) could not be reached or billed.
+  "Could not resolve authentication method. Expected one of api_key, auth_token, or credentials to be set. Or for one of the `X-Api-Key` or `Authorization` headers to be explicitly omitted"
+Nothing was injected and the world is untouched. This is not a discard - the run
+never started, and counting it as one would inflate a number kept honest on purpose.
+Dev sweep 8 injected the same scenario four times before discovering this at the
+triage call; the check that would have caught it costs one token (Q20).
+
+=== [1] F v2-cart-bad-image-tag   $ faultline-eval v2-cart-bad-image-tag --runs-remaining 12 --sweep trial-headline-v2 --sweep-slot 1 --sweep-of 12 --sweep-pass 1
+
+=== [1] F v2-cart-bad-image-tag   $ faultline-eval v2-cart-bad-image-tag --runs-remaining 12 --sweep trial-headline-v2 --sweep-slot 1 --sweep-of 12 --sweep-pass 1
+
+=== [1] F v2-cart-bad-image-tag   $ faultline-eval v2-cart-bad-image-tag --runs-remaining 12 --sweep trial-headline-v2 --sweep-slot 1 --sweep-of 12 --sweep-pass 1
+
+=== [1] F v2-cart-bad-image-tag   $ faultline-eval v2-cart-bad-image-tag --runs-remaining 12 --sweep trial-headline-v2 --sweep-slot 1 --sweep-of 12 --sweep-pass 1
+
+=== [1] F v2-cart-bad-image-tag   $ faultline-eval v2-cart-bad-image-tag --runs-remaining 12 --sweep trial-headline-v2 --sweep-slot 1 --sweep-of 12 --sweep-pass 1
+
+=== [1] F v2-cart-bad-image-tag   $ faultline-eval v2-cart-bad-image-tag --runs-remaining 12 --sweep trial-headline-v2 --sweep-slot 1 --sweep-of 12 --sweep-pass 1
+=== [1] gate refused; tally $0.00 over 0 run dir(s) and 6 probe(s)
+--- stamps: faultline/0.0.1+prompts:9ce16b66bbcc cap:91279a09
+--- corpus: 334 rows; at both pins
+--- world: world check passed
+run 20261004T061228Z-v2-cart-bad-image-tag
+pre-flight: model reachable and billable...
+  b0 makes no model call
+baseline gate...
+REFUSED: baseline gate refused; nothing was injected.
+  - serving no traffic: kafka (frontend-proxy at zero is the healthy state and is not counted)
+The world must be quiet before a scored run, or the run measures the world's prior state as well as the fault (ADR-0022 §3.1). Containers settle in 300s.
+run 20261004T061334Z-v2-cart-bad-image-tag
+pre-flight: model reachable and billable...
+  b0 makes no model call
+baseline gate...
+REFUSED: baseline gate refused; nothing was injected.
+  - serving no traffic: kafka (frontend-proxy at zero is the healthy state and is not counted)
+The world must be quiet before a scored run, or the run measures the world's prior state as well as the fault (ADR-0022 §3.1). Containers settle in 300s.
+run 20261004T061440Z-v2-cart-bad-image-tag
+pre-flight: model reachable and billable...
+  b0 makes no model call
+baseline gate...
+REFUSED: baseline gate refused; nothing was injected.
+  - serving no traffic: kafka (frontend-proxy at zero is the healthy state and is not counted)
+The world must be quiet before a scored run, or the run measures the world's prior state as well as the fault (ADR-0022 §3.1). Containers settle in 300s.
+run 20261004T061546Z-v2-cart-bad-image-tag
+pre-flight: model reachable and billable...
+  b0 makes no model call
+baseline gate...
+REFUSED: baseline gate refused; nothing was injected.
+  - serving no traffic: kafka (frontend-proxy at zero is the healthy state and is not counted)
+The world must be quiet before a scored run, or the run measures the world's prior state as well as the fault (ADR-0022 §3.1). Containers settle in 300s.
+run 20261004T061653Z-v2-cart-bad-image-tag
+pre-flight: model reachable and billable...
+  b0 makes no model call
+baseline gate...
+REFUSED: baseline gate refused; nothing was injected.
+  - serving no traffic: kafka (frontend-proxy at zero is the healthy state and is not counted)
+The world must be quiet before a scored run, or the run measures the world's prior state as well as the fault (ADR-0022 §3.1). Containers settle in 300s.
+run 20261004T061758Z-v2-cart-bad-image-tag
+pre-flight: model reachable and billable...
+  b0 makes no model call
+baseline gate...
+REFUSED: baseline gate refused; nothing was injected.
+  - serving no traffic: kafka (frontend-proxy at zero is the healthy state and is not counted)
+The world must be quiet before a scored run, or the run measures the world's prior state as well as the fault (ADR-0022 §3.1). Containers settle in 300s.
+
+=== [2] B0 v2-cart-bad-image-tag   $ faultline-eval v2-cart-bad-image-tag --runs-remaining 11 --baseline b0 --sweep trial-headline-v2 --sweep-slot 2 --sweep-of 12 --sweep-pass 1
+
+=== [2] B0 v2-cart-bad-image-tag   $ faultline-eval v2-cart-bad-image-tag --runs-remaining 11 --baseline b0 --sweep trial-headline-v2 --sweep-slot 2 --sweep-of 12 --sweep-pass 1
+
+=== [2] B0 v2-cart-bad-image-tag   $ faultline-eval v2-cart-bad-image-tag --runs-remaining 11 --baseline b0 --sweep trial-headline-v2 --sweep-slot 2 --sweep-of 12 --sweep-pass 1
+
+=== [2] B0 v2-cart-bad-image-tag   $ faultline-eval v2-cart-bad-image-tag --runs-remaining 11 --baseline b0 --sweep trial-headline-v2 --sweep-slot 2 --sweep-of 12 --sweep-pass 1
+
+=== [2] B0 v2-cart-bad-image-tag   $ faultline-eval v2-cart-bad-image-tag --runs-remaining 11 --baseline b0 --sweep trial-headline-v2 --sweep-slot 2 --sweep-of 12 --sweep-pass 1
+
+=== [2] B0 v2-cart-bad-image-tag   $ faultline-eval v2-cart-bad-image-tag --runs-remaining 11 --baseline b0 --sweep trial-headline-v2 --sweep-slot 2 --sweep-of 12 --sweep-pass 1
+=== [2] gate refused; tally $0.00 over 0 run dir(s) and 6 probe(s)
+--- stamps: faultline/0.0.1+prompts:9ce16b66bbcc cap:91279a09
+--- corpus: 334 rows; at both pins
+--- world: world check passed
+run 20261004T061807Z-v2-cart-bad-image-tag
+pre-flight: model reachable and billable...
+REFUSED: the configured model (claude-opus-5) could not be reached or billed.
+  "Could not resolve authentication method. Expected one of api_key, auth_token, or credentials to be set. Or for one of the `X-Api-Key` or `Authorization` headers to be explicitly omitted"
+Nothing was injected and the world is untouched. This is not a discard - the run
+never started, and counting it as one would inflate a number kept honest on purpose.
+Dev sweep 8 injected the same scenario four times before discovering this at the
+triage call; the check that would have caught it costs one token (Q20).
+run 20261004T061908Z-v2-cart-bad-image-tag
+pre-flight: model reachable and billable...
+REFUSED: the configured model (claude-opus-5) could not be reached or billed.
+  "Could not resolve authentication method. Expected one of api_key, auth_token, or credentials to be set. Or for one of the `X-Api-Key` or `Authorization` headers to be explicitly omitted"
+Nothing was injected and the world is untouched. This is not a discard - the run
+never started, and counting it as one would inflate a number kept honest on purpose.
+Dev sweep 8 injected the same scenario four times before discovering this at the
+triage call; the check that would have caught it costs one token (Q20).
+run 20261004T062009Z-v2-cart-bad-image-tag
+pre-flight: model reachable and billable...
+REFUSED: the configured model (claude-opus-5) could not be reached or billed.
+  "Could not resolve authentication method. Expected one of api_key, auth_token, or credentials to be set. Or for one of the `X-Api-Key` or `Authorization` headers to be explicitly omitted"
+Nothing was injected and the world is untouched. This is not a discard - the run
+never started, and counting it as one would inflate a number kept honest on purpose.
+Dev sweep 8 injected the same scenario four times before discovering this at the
+triage call; the check that would have caught it costs one token (Q20).
+run 20261004T062109Z-v2-cart-bad-image-tag
+pre-flight: model reachable and billable...
+REFUSED: the configured model (claude-opus-5) could not be reached or billed.
+  "Could not resolve authentication method. Expected one of api_key, auth_token, or credentials to be set. Or for one of the `X-Api-Key` or `Authorization` headers to be explicitly omitted"
+Nothing was injected and the world is untouched. This is not a discard - the run
+never started, and counting it as one would inflate a number kept honest on purpose.
+Dev sweep 8 injected the same scenario four times before discovering this at the
+triage call; the check that would have caught it costs one token (Q20).
+run 20261004T062210Z-v2-cart-bad-image-tag
+pre-flight: model reachable and billable...
+REFUSED: the configured model (claude-opus-5) could not be reached or billed.
+  "Could not resolve authentication method. Expected one of api_key, auth_token, or credentials to be set. Or for one of the `X-Api-Key` or `Authorization` headers to be explicitly omitted"
+Nothing was injected and the world is untouched. This is not a discard - the run
+never started, and counting it as one would inflate a number kept honest on purpose.
+Dev sweep 8 injected the same scenario four times before discovering this at the
+triage call; the check that would have caught it costs one token (Q20).
+run 20261004T062311Z-v2-cart-bad-image-tag
+pre-flight: model reachable and billable...
+REFUSED: the configured model (claude-opus-5) could not be reached or billed.
+  "Could not resolve authentication method. Expected one of api_key, auth_token, or credentials to be set. Or for one of the `X-Api-Key` or `Authorization` headers to be explicitly omitted"
+Nothing was injected and the world is untouched. This is not a discard - the run
+never started, and counting it as one would inflate a number kept honest on purpose.
+Dev sweep 8 injected the same scenario four times before discovering this at the
+triage call; the check that would have caught it costs one token (Q20).
+
+=== [3] B1 v2-cart-bad-image-tag   $ faultline-eval v2-cart-bad-image-tag --runs-remaining 10 --baseline b1 --sweep trial-headline-v2 --sweep-slot 3 --sweep-of 12 --sweep-pass 1
+
+=== [3] B1 v2-cart-bad-image-tag   $ faultline-eval v2-cart-bad-image-tag --runs-remaining 10 --baseline b1 --sweep trial-headline-v2 --sweep-slot 3 --sweep-of 12 --sweep-pass 1
+
+=== [3] B1 v2-cart-bad-image-tag   $ faultline-eval v2-cart-bad-image-tag --runs-remaining 10 --baseline b1 --sweep trial-headline-v2 --sweep-slot 3 --sweep-of 12 --sweep-pass 1
+
+=== [3] B1 v2-cart-bad-image-tag   $ faultline-eval v2-cart-bad-image-tag --runs-remaining 10 --baseline b1 --sweep trial-headline-v2 --sweep-slot 3 --sweep-of 12 --sweep-pass 1
+
+=== [3] B1 v2-cart-bad-image-tag   $ faultline-eval v2-cart-bad-image-tag --runs-remaining 10 --baseline b1 --sweep trial-headline-v2 --sweep-slot 3 --sweep-of 12 --sweep-pass 1
+
+=== [3] B1 v2-cart-bad-image-tag   $ faultline-eval v2-cart-bad-image-tag --runs-remaining 10 --baseline b1 --sweep trial-headline-v2 --sweep-slot 3 --sweep-of 12 --sweep-pass 1
+=== [3] gate refused; tally $0.00 over 0 run dir(s) and 12 probe(s)
+--- stamps: faultline/0.0.1+prompts:9ce16b66bbcc cap:91279a09
+--- corpus: 334 rows; at both pins
+--- world: world check passed
+run 20261004T062314Z-v2-cart-bad-image-tag
+pre-flight: model reachable and billable...
+REFUSED: the configured model (claude-opus-5) could not be reached or billed.
+  "Could not resolve authentication method. Expected one of api_key, auth_token, or credentials to be set. Or for one of the `X-Api-Key` or `Authorization` headers to be explicitly omitted"
+Nothing was injected and the world is untouched. This is not a discard - the run
+never started, and counting it as one would inflate a number kept honest on purpose.
+Dev sweep 8 injected the same scenario four times before discovering this at the
+triage call; the check that would have caught it costs one token (Q20).
+run 20261004T062415Z-v2-cart-bad-image-tag
+pre-flight: model reachable and billable...
+REFUSED: the configured model (claude-opus-5) could not be reached or billed.
+  "Could not resolve authentication method. Expected one of api_key, auth_token, or credentials to be set. Or for one of the `X-Api-Key` or `Authorization` headers to be explicitly omitted"
+Nothing was injected and the world is untouched. This is not a discard - the run
+never started, and counting it as one would inflate a number kept honest on purpose.
+Dev sweep 8 injected the same scenario four times before discovering this at the
+triage call; the check that would have caught it costs one token (Q20).
+run 20261004T062516Z-v2-cart-bad-image-tag
+pre-flight: model reachable and billable...
+REFUSED: the configured model (claude-opus-5) could not be reached or billed.
+  "Could not resolve authentication method. Expected one of api_key, auth_token, or credentials to be set. Or for one of the `X-Api-Key` or `Authorization` headers to be explicitly omitted"
+Nothing was injected and the world is untouched. This is not a discard - the run
+never started, and counting it as one would inflate a number kept honest on purpose.
+Dev sweep 8 injected the same scenario four times before discovering this at the
+triage call; the check that would have caught it costs one token (Q20).
+run 20261004T062617Z-v2-cart-bad-image-tag
+pre-flight: model reachable and billable...
+REFUSED: the configured model (claude-opus-5) could not be reached or billed.
+  "Could not resolve authentication method. Expected one of api_key, auth_token, or credentials to be set. Or for one of the `X-Api-Key` or `Authorization` headers to be explicitly omitted"
+Nothing was injected and the world is untouched. This is not a discard - the run
+never started, and counting it as one would inflate a number kept honest on purpose.
+Dev sweep 8 injected the same scenario four times before discovering this at the
+triage call; the check that would have caught it costs one token (Q20).
+run 20261004T062718Z-v2-cart-bad-image-tag
+pre-flight: model reachable and billable...
+REFUSED: the configured model (claude-opus-5) could not be reached or billed.
+  "Could not resolve authentication method. Expected one of api_key, auth_token, or credentials to be set. Or for one of the `X-Api-Key` or `Authorization` headers to be explicitly omitted"
+Nothing was injected and the world is untouched. This is not a discard - the run
+never started, and counting it as one would inflate a number kept honest on purpose.
+Dev sweep 8 injected the same scenario four times before discovering this at the
+triage call; the check that would have caught it costs one token (Q20).
+run 20261004T062819Z-v2-cart-bad-image-tag
+pre-flight: model reachable and billable...
+REFUSED: the configured model (claude-opus-5) could not be reached or billed.
+  "Could not resolve authentication method. Expected one of api_key, auth_token, or credentials to be set. Or for one of the `X-Api-Key` or `Authorization` headers to be explicitly omitted"
+Nothing was injected and the world is untouched. This is not a discard - the run
+never started, and counting it as one would inflate a number kept honest on purpose.
+Dev sweep 8 injected the same scenario four times before discovering this at the
+triage call; the check that would have caught it costs one token (Q20).
+
+=== [4] B2 v2-cart-bad-image-tag   $ faultline-eval v2-cart-bad-image-tag --runs-remaining 9 --baseline b2 --sweep trial-headline-v2 --sweep-slot 4 --sweep-of 12 --sweep-pass 1
+
+=== [4] B2 v2-cart-bad-image-tag   $ faultline-eval v2-cart-bad-image-tag --runs-remaining 9 --baseline b2 --sweep trial-headline-v2 --sweep-slot 4 --sweep-of 12 --sweep-pass 1
+
+=== [4] B2 v2-cart-bad-image-tag   $ faultline-eval v2-cart-bad-image-tag --runs-remaining 9 --baseline b2 --sweep trial-headline-v2 --sweep-slot 4 --sweep-of 12 --sweep-pass 1
+
+=== [4] B2 v2-cart-bad-image-tag   $ faultline-eval v2-cart-bad-image-tag --runs-remaining 9 --baseline b2 --sweep trial-headline-v2 --sweep-slot 4 --sweep-of 12 --sweep-pass 1
+
+=== [4] B2 v2-cart-bad-image-tag   $ faultline-eval v2-cart-bad-image-tag --runs-remaining 9 --baseline b2 --sweep trial-headline-v2 --sweep-slot 4 --sweep-of 12 --sweep-pass 1
+
+=== [4] B2 v2-cart-bad-image-tag   $ faultline-eval v2-cart-bad-image-tag --runs-remaining 9 --baseline b2 --sweep trial-headline-v2 --sweep-slot 4 --sweep-of 12 --sweep-pass 1
+=== [4] gate refused; tally $0.00 over 0 run dir(s) and 18 probe(s)
+--- stamps: faultline/0.0.1+prompts:9ce16b66bbcc cap:91279a09
+--- corpus: 334 rows; at both pins
+--- world: world check passed on recheck 1
+run 20261004T062925Z-v2-product-catalog-freeze
+pre-flight: model reachable and billable...
+  b0 makes no model call
+baseline gate...
+REFUSED: baseline gate refused; nothing was injected.
+  - serving no traffic: kafka (frontend-proxy at zero is the healthy state and is not counted)
+The world must be quiet before a scored run, or the run measures the world's prior state as well as the fault (ADR-0022 §3.1). Containers settle in 300s.
+run 20261004T063031Z-v2-product-catalog-freeze
+pre-flight: model reachable and billable...
+  b0 makes no model call
+baseline gate...
+REFUSED: baseline gate refused; nothing was injected.
+  - serving no traffic: kafka (frontend-proxy at zero is the healthy state and is not counted)
+The world must be quiet before a scored run, or the run measures the world's prior state as well as the fault (ADR-0022 §3.1). Containers settle in 300s.
+run 20261004T063136Z-v2-product-catalog-freeze
+pre-flight: model reachable and billable...
+  b0 makes no model call
+baseline gate...
+REFUSED: baseline gate refused; nothing was injected.
+  - serving no traffic: kafka (frontend-proxy at zero is the healthy state and is not counted)
+The world must be quiet before a scored run, or the run measures the world's prior state as well as the fault (ADR-0022 §3.1). Containers settle in 300s.
+run 20261004T063242Z-v2-product-catalog-freeze
+pre-flight: model reachable and billable...
+  b0 makes no model call
+baseline gate...
+REFUSED: baseline gate refused; nothing was injected.
+  - serving no traffic: kafka (frontend-proxy at zero is the healthy state and is not counted)
+The world must be quiet before a scored run, or the run measures the world's prior state as well as the fault (ADR-0022 §3.1). Containers settle in 300s.
+run 20261004T063348Z-v2-product-catalog-freeze
+pre-flight: model reachable and billable...
+  b0 makes no model call
+baseline gate...
+REFUSED: baseline gate refused; nothing was injected.
+  - serving no traffic: kafka (frontend-proxy at zero is the healthy state and is not counted)
+The world must be quiet before a scored run, or the run measures the world's prior state as well as the fault (ADR-0022 §3.1). Containers settle in 300s.
+run 20261004T063455Z-v2-product-catalog-freeze
+pre-flight: model reachable and billable...
+  b0 makes no model call
+baseline gate...
+REFUSED: baseline gate refused; nothing was injected.
+  - serving no traffic: kafka (frontend-proxy at zero is the healthy state and is not counted)
+The world must be quiet before a scored run, or the run measures the world's prior state as well as the fault (ADR-0022 §3.1). Containers settle in 300s.
+
+=== [5] B0 v2-product-catalog-freeze   $ faultline-eval v2-product-catalog-freeze --runs-remaining 8 --baseline b0 --sweep trial-headline-v2 --sweep-slot 5 --sweep-of 12 --sweep-pass 1
+
+=== [5] B0 v2-product-catalog-freeze   $ faultline-eval v2-product-catalog-freeze --runs-remaining 8 --baseline b0 --sweep trial-headline-v2 --sweep-slot 5 --sweep-of 12 --sweep-pass 1
+
+=== [5] B0 v2-product-catalog-freeze   $ faultline-eval v2-product-catalog-freeze --runs-remaining 8 --baseline b0 --sweep trial-headline-v2 --sweep-slot 5 --sweep-of 12 --sweep-pass 1
+
+=== [5] B0 v2-product-catalog-freeze   $ faultline-eval v2-product-catalog-freeze --runs-remaining 8 --baseline b0 --sweep trial-headline-v2 --sweep-slot 5 --sweep-of 12 --sweep-pass 1
+
+=== [5] B0 v2-product-catalog-freeze   $ faultline-eval v2-product-catalog-freeze --runs-remaining 8 --baseline b0 --sweep trial-headline-v2 --sweep-slot 5 --sweep-of 12 --sweep-pass 1
+
+=== [5] B0 v2-product-catalog-freeze   $ faultline-eval v2-product-catalog-freeze --runs-remaining 8 --baseline b0 --sweep trial-headline-v2 --sweep-slot 5 --sweep-of 12 --sweep-pass 1
+=== [5] gate refused; tally $0.00 over 0 run dir(s) and 18 probe(s)
+--- stamps: faultline/0.0.1+prompts:9ce16b66bbcc cap:91279a09
+--- corpus: 334 rows; at both pins
+--- world: world check passed
+run 20261004T063504Z-v2-product-catalog-freeze
+pre-flight: model reachable and billable...
+REFUSED: the configured model (claude-opus-5) could not be reached or billed.
+  "Could not resolve authentication method. Expected one of api_key, auth_token, or credentials to be set. Or for one of the `X-Api-Key` or `Authorization` headers to be explicitly omitted"
+Nothing was injected and the world is untouched. This is not a discard - the run
+never started, and counting it as one would inflate a number kept honest on purpose.
+Dev sweep 8 injected the same scenario four times before discovering this at the
+triage call; the check that would have caught it costs one token (Q20).
+run 20261004T063605Z-v2-product-catalog-freeze
+pre-flight: model reachable and billable...
+REFUSED: the configured model (claude-opus-5) could not be reached or billed.
+  "Could not resolve authentication method. Expected one of api_key, auth_token, or credentials to be set. Or for one of the `X-Api-Key` or `Authorization` headers to be explicitly omitted"
+Nothing was injected and the world is untouched. This is not a discard - the run
+never started, and counting it as one would inflate a number kept honest on purpose.
+Dev sweep 8 injected the same scenario four times before discovering this at the
+triage call; the check that would have caught it costs one token (Q20).
+run 20261004T063705Z-v2-product-catalog-freeze
+pre-flight: model reachable and billable...
+REFUSED: the configured model (claude-opus-5) could not be reached or billed.
+  "Could not resolve authentication method. Expected one of api_key, auth_token, or credentials to be set. Or for one of the `X-Api-Key` or `Authorization` headers to be explicitly omitted"
+Nothing was injected and the world is untouched. This is not a discard - the run
+never started, and counting it as one would inflate a number kept honest on purpose.
+Dev sweep 8 injected the same scenario four times before discovering this at the
+triage call; the check that would have caught it costs one token (Q20).
+run 20261004T063806Z-v2-product-catalog-freeze
+pre-flight: model reachable and billable...
+REFUSED: the configured model (claude-opus-5) could not be reached or billed.
+  "Could not resolve authentication method. Expected one of api_key, auth_token, or credentials to be set. Or for one of the `X-Api-Key` or `Authorization` headers to be explicitly omitted"
+Nothing was injected and the world is untouched. This is not a discard - the run
+never started, and counting it as one would inflate a number kept honest on purpose.
+Dev sweep 8 injected the same scenario four times before discovering this at the
+triage call; the check that would have caught it costs one token (Q20).
+run 20261004T063907Z-v2-product-catalog-freeze
+pre-flight: model reachable and billable...
+REFUSED: the configured model (claude-opus-5) could not be reached or billed.
+  "Could not resolve authentication method. Expected one of api_key, auth_token, or credentials to be set. Or for one of the `X-Api-Key` or `Authorization` headers to be explicitly omitted"
+Nothing was injected and the world is untouched. This is not a discard - the run
+never started, and counting it as one would inflate a number kept honest on purpose.
+Dev sweep 8 injected the same scenario four times before discovering this at the
+triage call; the check that would have caught it costs one token (Q20).
+run 20261004T064008Z-v2-product-catalog-freeze
+pre-flight: model reachable and billable...
+REFUSED: the configured model (claude-opus-5) could not be reached or billed.
+  "Could not resolve authentication method. Expected one of api_key, auth_token, or credentials to be set. Or for one of the `X-Api-Key` or `Authorization` headers to be explicitly omitted"
+Nothing was injected and the world is untouched. This is not a discard - the run
+never started, and counting it as one would inflate a number kept honest on purpose.
+Dev sweep 8 injected the same scenario four times before discovering this at the
+triage call; the check that would have caught it costs one token (Q20).
+
+=== [6] B1 v2-product-catalog-freeze   $ faultline-eval v2-product-catalog-freeze --runs-remaining 7 --baseline b1 --sweep trial-headline-v2 --sweep-slot 6 --sweep-of 12 --sweep-pass 1
+
+=== [6] B1 v2-product-catalog-freeze   $ faultline-eval v2-product-catalog-freeze --runs-remaining 7 --baseline b1 --sweep trial-headline-v2 --sweep-slot 6 --sweep-of 12 --sweep-pass 1
+
+=== [6] B1 v2-product-catalog-freeze   $ faultline-eval v2-product-catalog-freeze --runs-remaining 7 --baseline b1 --sweep trial-headline-v2 --sweep-slot 6 --sweep-of 12 --sweep-pass 1
+
+=== [6] B1 v2-product-catalog-freeze   $ faultline-eval v2-product-catalog-freeze --runs-remaining 7 --baseline b1 --sweep trial-headline-v2 --sweep-slot 6 --sweep-of 12 --sweep-pass 1
+
+=== [6] B1 v2-product-catalog-freeze   $ faultline-eval v2-product-catalog-freeze --runs-remaining 7 --baseline b1 --sweep trial-headline-v2 --sweep-slot 6 --sweep-of 12 --sweep-pass 1
+
+=== [6] B1 v2-product-catalog-freeze   $ faultline-eval v2-product-catalog-freeze --runs-remaining 7 --baseline b1 --sweep trial-headline-v2 --sweep-slot 6 --sweep-of 12 --sweep-pass 1
+=== [6] gate refused; tally $0.00 over 0 run dir(s) and 24 probe(s)
+--- stamps: faultline/0.0.1+prompts:9ce16b66bbcc cap:91279a09
+--- corpus: 334 rows; at both pins
+--- world: world check passed
+run 20261004T064012Z-v2-product-catalog-freeze
+pre-flight: model reachable and billable...
+REFUSED: the configured model (claude-opus-5) could not be reached or billed.
+  "Could not resolve authentication method. Expected one of api_key, auth_token, or credentials to be set. Or for one of the `X-Api-Key` or `Authorization` headers to be explicitly omitted"
+Nothing was injected and the world is untouched. This is not a discard - the run
+never started, and counting it as one would inflate a number kept honest on purpose.
+Dev sweep 8 injected the same scenario four times before discovering this at the
+triage call; the check that would have caught it costs one token (Q20).
+run 20261004T064112Z-v2-product-catalog-freeze
+pre-flight: model reachable and billable...
+REFUSED: the configured model (claude-opus-5) could not be reached or billed.
+  "Could not resolve authentication method. Expected one of api_key, auth_token, or credentials to be set. Or for one of the `X-Api-Key` or `Authorization` headers to be explicitly omitted"
+Nothing was injected and the world is untouched. This is not a discard - the run
+never started, and counting it as one would inflate a number kept honest on purpose.
+Dev sweep 8 injected the same scenario four times before discovering this at the
+triage call; the check that would have caught it costs one token (Q20).
+run 20261004T064213Z-v2-product-catalog-freeze
+pre-flight: model reachable and billable...
+REFUSED: the configured model (claude-opus-5) could not be reached or billed.
+  "Could not resolve authentication method. Expected one of api_key, auth_token, or credentials to be set. Or for one of the `X-Api-Key` or `Authorization` headers to be explicitly omitted"
+Nothing was injected and the world is untouched. This is not a discard - the run
+never started, and counting it as one would inflate a number kept honest on purpose.
+Dev sweep 8 injected the same scenario four times before discovering this at the
+triage call; the check that would have caught it costs one token (Q20).
+run 20261004T064314Z-v2-product-catalog-freeze
+pre-flight: model reachable and billable...
+REFUSED: the configured model (claude-opus-5) could not be reached or billed.
+  "Could not resolve authentication method. Expected one of api_key, auth_token, or credentials to be set. Or for one of the `X-Api-Key` or `Authorization` headers to be explicitly omitted"
+Nothing was injected and the world is untouched. This is not a discard - the run
+never started, and counting it as one would inflate a number kept honest on purpose.
+Dev sweep 8 injected the same scenario four times before discovering this at the
+triage call; the check that would have caught it costs one token (Q20).
+run 20261004T064415Z-v2-product-catalog-freeze
+pre-flight: model reachable and billable...
+REFUSED: the configured model (claude-opus-5) could not be reached or billed.
+  "Could not resolve authentication method. Expected one of api_key, auth_token, or credentials to be set. Or for one of the `X-Api-Key` or `Authorization` headers to be explicitly omitted"
+Nothing was injected and the world is untouched. This is not a discard - the run
+never started, and counting it as one would inflate a number kept honest on purpose.
+Dev sweep 8 injected the same scenario four times before discovering this at the
+triage call; the check that would have caught it costs one token (Q20).
+run 20261004T064515Z-v2-product-catalog-freeze
+pre-flight: model reachable and billable...
+REFUSED: the configured model (claude-opus-5) could not be reached or billed.
+  "Could not resolve authentication method. Expected one of api_key, auth_token, or credentials to be set. Or for one of the `X-Api-Key` or `Authorization` headers to be explicitly omitted"
+Nothing was injected and the world is untouched. This is not a discard - the run
+never started, and counting it as one would inflate a number kept honest on purpose.
+Dev sweep 8 injected the same scenario four times before discovering this at the
+triage call; the check that would have caught it costs one token (Q20).
+
+=== [7] B2 v2-product-catalog-freeze   $ faultline-eval v2-product-catalog-freeze --runs-remaining 6 --baseline b2 --sweep trial-headline-v2 --sweep-slot 7 --sweep-of 12 --sweep-pass 1
+
+=== [7] B2 v2-product-catalog-freeze   $ faultline-eval v2-product-catalog-freeze --runs-remaining 6 --baseline b2 --sweep trial-headline-v2 --sweep-slot 7 --sweep-of 12 --sweep-pass 1
+
+=== [7] B2 v2-product-catalog-freeze   $ faultline-eval v2-product-catalog-freeze --runs-remaining 6 --baseline b2 --sweep trial-headline-v2 --sweep-slot 7 --sweep-of 12 --sweep-pass 1
+
+=== [7] B2 v2-product-catalog-freeze   $ faultline-eval v2-product-catalog-freeze --runs-remaining 6 --baseline b2 --sweep trial-headline-v2 --sweep-slot 7 --sweep-of 12 --sweep-pass 1
+
+=== [7] B2 v2-product-catalog-freeze   $ faultline-eval v2-product-catalog-freeze --runs-remaining 6 --baseline b2 --sweep trial-headline-v2 --sweep-slot 7 --sweep-of 12 --sweep-pass 1
+
+=== [7] B2 v2-product-catalog-freeze   $ faultline-eval v2-product-catalog-freeze --runs-remaining 6 --baseline b2 --sweep trial-headline-v2 --sweep-slot 7 --sweep-of 12 --sweep-pass 1
+=== [7] gate refused; tally $0.00 over 0 run dir(s) and 30 probe(s)
+--- stamps: faultline/0.0.1+prompts:9ce16b66bbcc cap:91279a09
+--- corpus: 334 rows; at both pins
+--- world: world check passed
+run 20261004T064519Z-v2-product-catalog-freeze
+pre-flight: model reachable and billable...
+REFUSED: the configured model (claude-opus-5) could not be reached or billed.
+  "Could not resolve authentication method. Expected one of api_key, auth_token, or credentials to be set. Or for one of the `X-Api-Key` or `Authorization` headers to be explicitly omitted"
+Nothing was injected and the world is untouched. This is not a discard - the run
+never started, and counting it as one would inflate a number kept honest on purpose.
+Dev sweep 8 injected the same scenario four times before discovering this at the
+triage call; the check that would have caught it costs one token (Q20).
+run 20261004T064620Z-v2-product-catalog-freeze
+pre-flight: model reachable and billable...
+REFUSED: the configured model (claude-opus-5) could not be reached or billed.
+  "Could not resolve authentication method. Expected one of api_key, auth_token, or credentials to be set. Or for one of the `X-Api-Key` or `Authorization` headers to be explicitly omitted"
+Nothing was injected and the world is untouched. This is not a discard - the run
+never started, and counting it as one would inflate a number kept honest on purpose.
+Dev sweep 8 injected the same scenario four times before discovering this at the
+triage call; the check that would have caught it costs one token (Q20).
+run 20261004T064721Z-v2-product-catalog-freeze
+pre-flight: model reachable and billable...
+REFUSED: the configured model (claude-opus-5) could not be reached or billed.
+  "Could not resolve authentication method. Expected one of api_key, auth_token, or credentials to be set. Or for one of the `X-Api-Key` or `Authorization` headers to be explicitly omitted"
+Nothing was injected and the world is untouched. This is not a discard - the run
+never started, and counting it as one would inflate a number kept honest on purpose.
+Dev sweep 8 injected the same scenario four times before discovering this at the
+triage call; the check that would have caught it costs one token (Q20).
+run 20261004T064822Z-v2-product-catalog-freeze
+pre-flight: model reachable and billable...
+REFUSED: the configured model (claude-opus-5) could not be reached or billed.
+  "Could not resolve authentication method. Expected one of api_key, auth_token, or credentials to be set. Or for one of the `X-Api-Key` or `Authorization` headers to be explicitly omitted"
+Nothing was injected and the world is untouched. This is not a discard - the run
+never started, and counting it as one would inflate a number kept honest on purpose.
+Dev sweep 8 injected the same scenario four times before discovering this at the
+triage call; the check that would have caught it costs one token (Q20).
+run 20261004T064923Z-v2-product-catalog-freeze
+pre-flight: model reachable and billable...
+REFUSED: the configured model (claude-opus-5) could not be reached or billed.
+  "Could not resolve authentication method. Expected one of api_key, auth_token, or credentials to be set. Or for one of the `X-Api-Key` or `Authorization` headers to be explicitly omitted"
+Nothing was injected and the world is untouched. This is not a discard - the run
+never started, and counting it as one would inflate a number kept honest on purpose.
+Dev sweep 8 injected the same scenario four times before discovering this at the
+triage call; the check that would have caught it costs one token (Q20).
+run 20261004T065023Z-v2-product-catalog-freeze
+pre-flight: model reachable and billable...
+REFUSED: the configured model (claude-opus-5) could not be reached or billed.
+  "Could not resolve authentication method. Expected one of api_key, auth_token, or credentials to be set. Or for one of the `X-Api-Key` or `Authorization` headers to be explicitly omitted"
+Nothing was injected and the world is untouched. This is not a discard - the run
+never started, and counting it as one would inflate a number kept honest on purpose.
+Dev sweep 8 injected the same scenario four times before discovering this at the
+triage call; the check that would have caught it costs one token (Q20).
+
+=== [8] F v2-product-catalog-freeze   $ faultline-eval v2-product-catalog-freeze --runs-remaining 5 --sweep trial-headline-v2 --sweep-slot 8 --sweep-of 12 --sweep-pass 1
+
+=== [8] F v2-product-catalog-freeze   $ faultline-eval v2-product-catalog-freeze --runs-remaining 5 --sweep trial-headline-v2 --sweep-slot 8 --sweep-of 12 --sweep-pass 1
+
+=== [8] F v2-product-catalog-freeze   $ faultline-eval v2-product-catalog-freeze --runs-remaining 5 --sweep trial-headline-v2 --sweep-slot 8 --sweep-of 12 --sweep-pass 1
+
+=== [8] F v2-product-catalog-freeze   $ faultline-eval v2-product-catalog-freeze --runs-remaining 5 --sweep trial-headline-v2 --sweep-slot 8 --sweep-of 12 --sweep-pass 1
+
+=== [8] F v2-product-catalog-freeze   $ faultline-eval v2-product-catalog-freeze --runs-remaining 5 --sweep trial-headline-v2 --sweep-slot 8 --sweep-of 12 --sweep-pass 1
+
+=== [8] F v2-product-catalog-freeze   $ faultline-eval v2-product-catalog-freeze --runs-remaining 5 --sweep trial-headline-v2 --sweep-slot 8 --sweep-of 12 --sweep-pass 1
+=== [8] gate refused; tally $0.00 over 0 run dir(s) and 36 probe(s)
+--- stamps: faultline/0.0.1+prompts:9ce16b66bbcc cap:91279a09
+--- corpus: 334 rows; at both pins
+--- world: world check passed
+run 20261004T065027Z-v2-ad-bad-image-tag
+pre-flight: model reachable and billable...
+REFUSED: the configured model (claude-opus-5) could not be reached or billed.
+  "Could not resolve authentication method. Expected one of api_key, auth_token, or credentials to be set. Or for one of the `X-Api-Key` or `Authorization` headers to be explicitly omitted"
+Nothing was injected and the world is untouched. This is not a discard - the run
+never started, and counting it as one would inflate a number kept honest on purpose.
+Dev sweep 8 injected the same scenario four times before discovering this at the
+triage call; the check that would have caught it costs one token (Q20).
+run 20261004T065128Z-v2-ad-bad-image-tag
+pre-flight: model reachable and billable...
+REFUSED: the configured model (claude-opus-5) could not be reached or billed.
+  "Could not resolve authentication method. Expected one of api_key, auth_token, or credentials to be set. Or for one of the `X-Api-Key` or `Authorization` headers to be explicitly omitted"
+Nothing was injected and the world is untouched. This is not a discard - the run
+never started, and counting it as one would inflate a number kept honest on purpose.
+Dev sweep 8 injected the same scenario four times before discovering this at the
+triage call; the check that would have caught it costs one token (Q20).
+run 20261004T065229Z-v2-ad-bad-image-tag
+pre-flight: model reachable and billable...
+REFUSED: the configured model (claude-opus-5) could not be reached or billed.
+  "Could not resolve authentication method. Expected one of api_key, auth_token, or credentials to be set. Or for one of the `X-Api-Key` or `Authorization` headers to be explicitly omitted"
+Nothing was injected and the world is untouched. This is not a discard - the run
+never started, and counting it as one would inflate a number kept honest on purpose.
+Dev sweep 8 injected the same scenario four times before discovering this at the
+triage call; the check that would have caught it costs one token (Q20).
+run 20261004T065330Z-v2-ad-bad-image-tag
+pre-flight: model reachable and billable...
+REFUSED: the configured model (claude-opus-5) could not be reached or billed.
+  "Could not resolve authentication method. Expected one of api_key, auth_token, or credentials to be set. Or for one of the `X-Api-Key` or `Authorization` headers to be explicitly omitted"
+Nothing was injected and the world is untouched. This is not a discard - the run
+never started, and counting it as one would inflate a number kept honest on purpose.
+Dev sweep 8 injected the same scenario four times before discovering this at the
+triage call; the check that would have caught it costs one token (Q20).
+run 20261004T065430Z-v2-ad-bad-image-tag
+pre-flight: model reachable and billable...
+REFUSED: the configured model (claude-opus-5) could not be reached or billed.
+  "Could not resolve authentication method. Expected one of api_key, auth_token, or credentials to be set. Or for one of the `X-Api-Key` or `Authorization` headers to be explicitly omitted"
+Nothing was injected and the world is untouched. This is not a discard - the run
+never started, and counting it as one would inflate a number kept honest on purpose.
+Dev sweep 8 injected the same scenario four times before discovering this at the
+triage call; the check that would have caught it costs one token (Q20).
+run 20261004T065531Z-v2-ad-bad-image-tag
+pre-flight: model reachable and billable...
+REFUSED: the configured model (claude-opus-5) could not be reached or billed.
+  "Could not resolve authentication method. Expected one of api_key, auth_token, or credentials to be set. Or for one of the `X-Api-Key` or `Authorization` headers to be explicitly omitted"
+Nothing was injected and the world is untouched. This is not a discard - the run
+never started, and counting it as one would inflate a number kept honest on purpose.
+Dev sweep 8 injected the same scenario four times before discovering this at the
+triage call; the check that would have caught it costs one token (Q20).
+
+=== [9] B1 v2-ad-bad-image-tag   $ faultline-eval v2-ad-bad-image-tag --runs-remaining 4 --baseline b1 --sweep trial-headline-v2 --sweep-slot 9 --sweep-of 12 --sweep-pass 1
+
+=== [9] B1 v2-ad-bad-image-tag   $ faultline-eval v2-ad-bad-image-tag --runs-remaining 4 --baseline b1 --sweep trial-headline-v2 --sweep-slot 9 --sweep-of 12 --sweep-pass 1
+
+=== [9] B1 v2-ad-bad-image-tag   $ faultline-eval v2-ad-bad-image-tag --runs-remaining 4 --baseline b1 --sweep trial-headline-v2 --sweep-slot 9 --sweep-of 12 --sweep-pass 1
+
+=== [9] B1 v2-ad-bad-image-tag   $ faultline-eval v2-ad-bad-image-tag --runs-remaining 4 --baseline b1 --sweep trial-headline-v2 --sweep-slot 9 --sweep-of 12 --sweep-pass 1
+
+=== [9] B1 v2-ad-bad-image-tag   $ faultline-eval v2-ad-bad-image-tag --runs-remaining 4 --baseline b1 --sweep trial-headline-v2 --sweep-slot 9 --sweep-of 12 --sweep-pass 1
+
+=== [9] B1 v2-ad-bad-image-tag   $ faultline-eval v2-ad-bad-image-tag --runs-remaining 4 --baseline b1 --sweep trial-headline-v2 --sweep-slot 9 --sweep-of 12 --sweep-pass 1
+=== [9] gate refused; tally $0.00 over 0 run dir(s) and 42 probe(s)
+--- stamps: faultline/0.0.1+prompts:9ce16b66bbcc cap:91279a09
+--- corpus: 334 rows; at both pins
+--- world: world check passed
+run 20261004T065534Z-v2-ad-bad-image-tag
+pre-flight: model reachable and billable...
+REFUSED: the configured model (claude-opus-5) could not be reached or billed.
+  "Could not resolve authentication method. Expected one of api_key, auth_token, or credentials to be set. Or for one of the `X-Api-Key` or `Authorization` headers to be explicitly omitted"
+Nothing was injected and the world is untouched. This is not a discard - the run
+never started, and counting it as one would inflate a number kept honest on purpose.
+Dev sweep 8 injected the same scenario four times before discovering this at the
+triage call; the check that would have caught it costs one token (Q20).
+run 20261004T065635Z-v2-ad-bad-image-tag
+pre-flight: model reachable and billable...
+REFUSED: the configured model (claude-opus-5) could not be reached or billed.
+  "Could not resolve authentication method. Expected one of api_key, auth_token, or credentials to be set. Or for one of the `X-Api-Key` or `Authorization` headers to be explicitly omitted"
+Nothing was injected and the world is untouched. This is not a discard - the run
+never started, and counting it as one would inflate a number kept honest on purpose.
+Dev sweep 8 injected the same scenario four times before discovering this at the
+triage call; the check that would have caught it costs one token (Q20).
+run 20261004T065735Z-v2-ad-bad-image-tag
+pre-flight: model reachable and billable...
+REFUSED: the configured model (claude-opus-5) could not be reached or billed.
+  "Could not resolve authentication method. Expected one of api_key, auth_token, or credentials to be set. Or for one of the `X-Api-Key` or `Authorization` headers to be explicitly omitted"
+Nothing was injected and the world is untouched. This is not a discard - the run
+never started, and counting it as one would inflate a number kept honest on purpose.
+Dev sweep 8 injected the same scenario four times before discovering this at the
+triage call; the check that would have caught it costs one token (Q20).
+run 20261004T065836Z-v2-ad-bad-image-tag
+pre-flight: model reachable and billable...
+REFUSED: the configured model (claude-opus-5) could not be reached or billed.
+  "Could not resolve authentication method. Expected one of api_key, auth_token, or credentials to be set. Or for one of the `X-Api-Key` or `Authorization` headers to be explicitly omitted"
+Nothing was injected and the world is untouched. This is not a discard - the run
+never started, and counting it as one would inflate a number kept honest on purpose.
+Dev sweep 8 injected the same scenario four times before discovering this at the
+triage call; the check that would have caught it costs one token (Q20).
+run 20261004T065937Z-v2-ad-bad-image-tag
+pre-flight: model reachable and billable...
+REFUSED: the configured model (claude-opus-5) could not be reached or billed.
+  "Could not resolve authentication method. Expected one of api_key, auth_token, or credentials to be set. Or for one of the `X-Api-Key` or `Authorization` headers to be explicitly omitted"
+Nothing was injected and the world is untouched. This is not a discard - the run
+never started, and counting it as one would inflate a number kept honest on purpose.
+Dev sweep 8 injected the same scenario four times before discovering this at the
+triage call; the check that would have caught it costs one token (Q20).
+run 20261004T070038Z-v2-ad-bad-image-tag
+pre-flight: model reachable and billable...
+REFUSED: the configured model (claude-opus-5) could not be reached or billed.
+  "Could not resolve authentication method. Expected one of api_key, auth_token, or credentials to be set. Or for one of the `X-Api-Key` or `Authorization` headers to be explicitly omitted"
+Nothing was injected and the world is untouched. This is not a discard - the run
+never started, and counting it as one would inflate a number kept honest on purpose.
+Dev sweep 8 injected the same scenario four times before discovering this at the
+triage call; the check that would have caught it costs one token (Q20).
+
+=== [10] B2 v2-ad-bad-image-tag   $ faultline-eval v2-ad-bad-image-tag --runs-remaining 3 --baseline b2 --sweep trial-headline-v2 --sweep-slot 10 --sweep-of 12 --sweep-pass 1
+
+=== [10] B2 v2-ad-bad-image-tag   $ faultline-eval v2-ad-bad-image-tag --runs-remaining 3 --baseline b2 --sweep trial-headline-v2 --sweep-slot 10 --sweep-of 12 --sweep-pass 1
+
+=== [10] B2 v2-ad-bad-image-tag   $ faultline-eval v2-ad-bad-image-tag --runs-remaining 3 --baseline b2 --sweep trial-headline-v2 --sweep-slot 10 --sweep-of 12 --sweep-pass 1
+
+=== [10] B2 v2-ad-bad-image-tag   $ faultline-eval v2-ad-bad-image-tag --runs-remaining 3 --baseline b2 --sweep trial-headline-v2 --sweep-slot 10 --sweep-of 12 --sweep-pass 1
+
+=== [10] B2 v2-ad-bad-image-tag   $ faultline-eval v2-ad-bad-image-tag --runs-remaining 3 --baseline b2 --sweep trial-headline-v2 --sweep-slot 10 --sweep-of 12 --sweep-pass 1
+
+=== [10] B2 v2-ad-bad-image-tag   $ faultline-eval v2-ad-bad-image-tag --runs-remaining 3 --baseline b2 --sweep trial-headline-v2 --sweep-slot 10 --sweep-of 12 --sweep-pass 1
+=== [10] gate refused; tally $0.01 over 0 run dir(s) and 48 probe(s)
+--- stamps: faultline/0.0.1+prompts:9ce16b66bbcc cap:91279a09
+--- corpus: 334 rows; at both pins
+--- world: world check passed
+run 20261004T070042Z-v2-ad-bad-image-tag
+pre-flight: model reachable and billable...
+REFUSED: the configured model (claude-opus-5) could not be reached or billed.
+  "Could not resolve authentication method. Expected one of api_key, auth_token, or credentials to be set. Or for one of the `X-Api-Key` or `Authorization` headers to be explicitly omitted"
+Nothing was injected and the world is untouched. This is not a discard - the run
+never started, and counting it as one would inflate a number kept honest on purpose.
+Dev sweep 8 injected the same scenario four times before discovering this at the
+triage call; the check that would have caught it costs one token (Q20).
+run 20261004T070142Z-v2-ad-bad-image-tag
+pre-flight: model reachable and billable...
+REFUSED: the configured model (claude-opus-5) could not be reached or billed.
+  "Could not resolve authentication method. Expected one of api_key, auth_token, or credentials to be set. Or for one of the `X-Api-Key` or `Authorization` headers to be explicitly omitted"
+Nothing was injected and the world is untouched. This is not a discard - the run
+never started, and counting it as one would inflate a number kept honest on purpose.
+Dev sweep 8 injected the same scenario four times before discovering this at the
+triage call; the check that would have caught it costs one token (Q20).
+run 20261004T070243Z-v2-ad-bad-image-tag
+pre-flight: model reachable and billable...
+REFUSED: the configured model (claude-opus-5) could not be reached or billed.
+  "Could not resolve authentication method. Expected one of api_key, auth_token, or credentials to be set. Or for one of the `X-Api-Key` or `Authorization` headers to be explicitly omitted"
+Nothing was injected and the world is untouched. This is not a discard - the run
+never started, and counting it as one would inflate a number kept honest on purpose.
+Dev sweep 8 injected the same scenario four times before discovering this at the
+triage call; the check that would have caught it costs one token (Q20).
+run 20261004T070344Z-v2-ad-bad-image-tag
+pre-flight: model reachable and billable...
+REFUSED: the configured model (claude-opus-5) could not be reached or billed.
+  "Could not resolve authentication method. Expected one of api_key, auth_token, or credentials to be set. Or for one of the `X-Api-Key` or `Authorization` headers to be explicitly omitted"
+Nothing was injected and the world is untouched. This is not a discard - the run
+never started, and counting it as one would inflate a number kept honest on purpose.
+Dev sweep 8 injected the same scenario four times before discovering this at the
+triage call; the check that would have caught it costs one token (Q20).
+run 20261004T070445Z-v2-ad-bad-image-tag
+pre-flight: model reachable and billable...
+REFUSED: the configured model (claude-opus-5) could not be reached or billed.
+  "Could not resolve authentication method. Expected one of api_key, auth_token, or credentials to be set. Or for one of the `X-Api-Key` or `Authorization` headers to be explicitly omitted"
+Nothing was injected and the world is untouched. This is not a discard - the run
+never started, and counting it as one would inflate a number kept honest on purpose.
+Dev sweep 8 injected the same scenario four times before discovering this at the
+triage call; the check that would have caught it costs one token (Q20).
+run 20261004T070546Z-v2-ad-bad-image-tag
+pre-flight: model reachable and billable...
+REFUSED: the configured model (claude-opus-5) could not be reached or billed.
+  "Could not resolve authentication method. Expected one of api_key, auth_token, or credentials to be set. Or for one of the `X-Api-Key` or `Authorization` headers to be explicitly omitted"
+Nothing was injected and the world is untouched. This is not a discard - the run
+never started, and counting it as one would inflate a number kept honest on purpose.
+Dev sweep 8 injected the same scenario four times before discovering this at the
+triage call; the check that would have caught it costs one token (Q20).
+
+=== [11] F v2-ad-bad-image-tag   $ faultline-eval v2-ad-bad-image-tag --runs-remaining 2 --sweep trial-headline-v2 --sweep-slot 11 --sweep-of 12 --sweep-pass 1
+
+=== [11] F v2-ad-bad-image-tag   $ faultline-eval v2-ad-bad-image-tag --runs-remaining 2 --sweep trial-headline-v2 --sweep-slot 11 --sweep-of 12 --sweep-pass 1
+
+=== [11] F v2-ad-bad-image-tag   $ faultline-eval v2-ad-bad-image-tag --runs-remaining 2 --sweep trial-headline-v2 --sweep-slot 11 --sweep-of 12 --sweep-pass 1
+
+=== [11] F v2-ad-bad-image-tag   $ faultline-eval v2-ad-bad-image-tag --runs-remaining 2 --sweep trial-headline-v2 --sweep-slot 11 --sweep-of 12 --sweep-pass 1
+
+=== [11] F v2-ad-bad-image-tag   $ faultline-eval v2-ad-bad-image-tag --runs-remaining 2 --sweep trial-headline-v2 --sweep-slot 11 --sweep-of 12 --sweep-pass 1
+
+=== [11] F v2-ad-bad-image-tag   $ faultline-eval v2-ad-bad-image-tag --runs-remaining 2 --sweep trial-headline-v2 --sweep-slot 11 --sweep-of 12 --sweep-pass 1
+=== [11] gate refused; tally $0.01 over 0 run dir(s) and 54 probe(s)
+--- stamps: faultline/0.0.1+prompts:9ce16b66bbcc cap:91279a09
+--- corpus: 334 rows; at both pins
+--- world: world check passed
+run 20261004T070550Z-v2-ad-bad-image-tag
+pre-flight: model reachable and billable...
+  b0 makes no model call
+baseline gate...
+REFUSED: baseline gate refused; nothing was injected.
+  - serving no traffic: kafka (frontend-proxy at zero is the healthy state and is not counted)
+The world must be quiet before a scored run, or the run measures the world's prior state as well as the fault (ADR-0022 §3.1). Containers settle in 300s.
+run 20261004T070655Z-v2-ad-bad-image-tag
+pre-flight: model reachable and billable...
+  b0 makes no model call
+baseline gate...
+REFUSED: baseline gate refused; nothing was injected.
+  - serving no traffic: kafka (frontend-proxy at zero is the healthy state and is not counted)
+The world must be quiet before a scored run, or the run measures the world's prior state as well as the fault (ADR-0022 §3.1). Containers settle in 300s.
+run 20261004T070801Z-v2-ad-bad-image-tag
+pre-flight: model reachable and billable...
+  b0 makes no model call
+baseline gate...
+REFUSED: baseline gate refused; nothing was injected.
+  - serving no traffic: kafka (frontend-proxy at zero is the healthy state and is not counted)
+The world must be quiet before a scored run, or the run measures the world's prior state as well as the fault (ADR-0022 §3.1). Containers settle in 300s.
+run 20261004T070906Z-v2-ad-bad-image-tag
+pre-flight: model reachable and billable...
+  b0 makes no model call
+baseline gate...
+REFUSED: baseline gate refused; nothing was injected.
+  - serving no traffic: kafka (frontend-proxy at zero is the healthy state and is not counted)
+The world must be quiet before a scored run, or the run measures the world's prior state as well as the fault (ADR-0022 §3.1). Containers settle in 300s.
+run 20261004T071012Z-v2-ad-bad-image-tag
+pre-flight: model reachable and billable...
+  b0 makes no model call
+baseline gate...
+REFUSED: baseline gate refused; nothing was injected.
+  - serving no traffic: kafka (frontend-proxy at zero is the healthy state and is not counted)
+The world must be quiet before a scored run, or the run measures the world's prior state as well as the fault (ADR-0022 §3.1). Containers settle in 300s.
+run 20261004T071119Z-v2-ad-bad-image-tag
+pre-flight: model reachable and billable...
+  b0 makes no model call
+baseline gate...
+REFUSED: baseline gate refused; nothing was injected.
+  - serving no traffic: kafka (frontend-proxy at zero is the healthy state and is not counted)
+The world must be quiet before a scored run, or the run measures the world's prior state as well as the fault (ADR-0022 §3.1). Containers settle in 300s.
+
+=== [12] B0 v2-ad-bad-image-tag   $ faultline-eval v2-ad-bad-image-tag --runs-remaining 1 --baseline b0 --sweep trial-headline-v2 --sweep-slot 12 --sweep-of 12 --sweep-pass 1
+
+=== [12] B0 v2-ad-bad-image-tag   $ faultline-eval v2-ad-bad-image-tag --runs-remaining 1 --baseline b0 --sweep trial-headline-v2 --sweep-slot 12 --sweep-of 12 --sweep-pass 1
+
+=== [12] B0 v2-ad-bad-image-tag   $ faultline-eval v2-ad-bad-image-tag --runs-remaining 1 --baseline b0 --sweep trial-headline-v2 --sweep-slot 12 --sweep-of 12 --sweep-pass 1
+
+=== [12] B0 v2-ad-bad-image-tag   $ faultline-eval v2-ad-bad-image-tag --runs-remaining 1 --baseline b0 --sweep trial-headline-v2 --sweep-slot 12 --sweep-of 12 --sweep-pass 1
+
+=== [12] B0 v2-ad-bad-image-tag   $ faultline-eval v2-ad-bad-image-tag --runs-remaining 1 --baseline b0 --sweep trial-headline-v2 --sweep-slot 12 --sweep-of 12 --sweep-pass 1
+
+=== [12] B0 v2-ad-bad-image-tag   $ faultline-eval v2-ad-bad-image-tag --runs-remaining 1 --baseline b0 --sweep trial-headline-v2 --sweep-slot 12 --sweep-of 12 --sweep-pass 1
+=== [12] gate refused; tally $0.01 over 0 run dir(s) and 54 probe(s)
+--- re-running discarded slot 1 once (end of pass)
+--- stamps: faultline/0.0.1+prompts:9ce16b66bbcc cap:91279a09
+--- corpus: 334 rows; at both pins
+--- world: world check passed
+run 20261004T071129Z-v2-cart-bad-image-tag
+pre-flight: model reachable and billable...
+REFUSED: the configured model (claude-opus-5) could not be reached or billed.
+  "Could not resolve authentication method. Expected one of api_key, auth_token, or credentials to be set. Or for one of the `X-Api-Key` or `Authorization` headers to be explicitly omitted"
+Nothing was injected and the world is untouched. This is not a discard - the run
+never started, and counting it as one would inflate a number kept honest on purpose.
+Dev sweep 8 injected the same scenario four times before discovering this at the
+triage call; the check that would have caught it costs one token (Q20).
+run 20261004T071229Z-v2-cart-bad-image-tag
+pre-flight: model reachable and billable...
+REFUSED: the configured model (claude-opus-5) could not be reached or billed.
+  "Could not resolve authentication method. Expected one of api_key, auth_token, or credentials to be set. Or for one of the `X-Api-Key` or `Authorization` headers to be explicitly omitted"
+Nothing was injected and the world is untouched. This is not a discard - the run
+never started, and counting it as one would inflate a number kept honest on purpose.
+Dev sweep 8 injected the same scenario four times before discovering this at the
+triage call; the check that would have caught it costs one token (Q20).
+run 20261004T071330Z-v2-cart-bad-image-tag
+REFUSED: another driver holds the world.
+    holder : pid 8296 on chandanas-MacBook-Air.local since 2026-10-04T07:13:30.659090+00:00
+    doing  : rehearse currency-cpu-throttle
+    lock   : /Users/chandana/dev/faultline/.faultline/harness.lock
+**Nothing was changed.** If that process is gone this lock reclaims itself automatically - a live holder is one that answers. If you believe the holder is wrong, stop it, or re-run with --force-lock, which takes the world and records that it did.
+
+=== [1] F v2-cart-bad-image-tag   $ faultline-eval v2-cart-bad-image-tag --runs-remaining 12 --sweep trial-headline-v2 --sweep-slot 1 --sweep-of 12 --sweep-pass 1
+
+=== [1] F v2-cart-bad-image-tag   $ faultline-eval v2-cart-bad-image-tag --runs-remaining 12 --sweep trial-headline-v2 --sweep-slot 1 --sweep-of 12 --sweep-pass 1
+
+=== [1] F v2-cart-bad-image-tag   $ faultline-eval v2-cart-bad-image-tag --runs-remaining 12 --sweep trial-headline-v2 --sweep-slot 1 --sweep-of 12 --sweep-pass 1
+=== [1] world lock; tally $0.01 over 0 run dir(s) and 57 probe(s)
+--- re-running discarded slot 2 once (end of pass)
+--- settling 300s before slot 2
+--- stamps: faultline/0.0.1+prompts:9ce16b66bbcc cap:91279a09
+--- corpus: 334 rows; at both pins
+--- world: world check passed
+run 20261004T071833Z-v2-cart-bad-image-tag
+pre-flight: model reachable and billable...
+  b0 makes no model call
+baseline gate...
+REFUSED: baseline gate refused; nothing was injected.
+  - serving no traffic: kafka (frontend-proxy at zero is the healthy state and is not counted)
+The world must be quiet before a scored run, or the run measures the world's prior state as well as the fault (ADR-0022 §3.1). Containers settle in 300s.
+run 20261004T071939Z-v2-cart-bad-image-tag
+pre-flight: model reachable and billable...
+  b0 makes no model call
+baseline gate...
+REFUSED: baseline gate refused; nothing was injected.
+  - serving no traffic: kafka (frontend-proxy at zero is the healthy state and is not counted)
+The world must be quiet before a scored run, or the run measures the world's prior state as well as the fault (ADR-0022 §3.1). Containers settle in 300s.
+run 20261004T072046Z-v2-cart-bad-image-tag
+pre-flight: model reachable and billable...
+  b0 makes no model call
+baseline gate...
+REFUSED: baseline gate refused; nothing was injected.
+  - serving no traffic: kafka (frontend-proxy at zero is the healthy state and is not counted)
+The world must be quiet before a scored run, or the run measures the world's prior state as well as the fault (ADR-0022 §3.1). Containers settle in 300s.
+run 20261004T072153Z-v2-cart-bad-image-tag
+pre-flight: model reachable and billable...
+  b0 makes no model call
+baseline gate...
+REFUSED: baseline gate refused; nothing was injected.
+  - serving no traffic: kafka (frontend-proxy at zero is the healthy state and is not counted)
+The world must be quiet before a scored run, or the run measures the world's prior state as well as the fault (ADR-0022 §3.1). Containers settle in 300s.
+run 20261004T072300Z-v2-cart-bad-image-tag
+pre-flight: model reachable and billable...
+  b0 makes no model call
+baseline gate...
+REFUSED: baseline gate refused; nothing was injected.
+  - serving no traffic: kafka (frontend-proxy at zero is the healthy state and is not counted)
+The world must be quiet before a scored run, or the run measures the world's prior state as well as the fault (ADR-0022 §3.1). Containers settle in 300s.
+run 20261004T072407Z-v2-cart-bad-image-tag
+pre-flight: model reachable and billable...
+  b0 makes no model call
+baseline gate...
+REFUSED: baseline gate refused; nothing was injected.
+  - serving no traffic: kafka (frontend-proxy at zero is the healthy state and is not counted)
+The world must be quiet before a scored run, or the run measures the world's prior state as well as the fault (ADR-0022 §3.1). Containers settle in 300s.
+
+=== [2] B0 v2-cart-bad-image-tag   $ faultline-eval v2-cart-bad-image-tag --runs-remaining 11 --baseline b0 --sweep trial-headline-v2 --sweep-slot 2 --sweep-of 12 --sweep-pass 1
+
+=== [2] B0 v2-cart-bad-image-tag   $ faultline-eval v2-cart-bad-image-tag --runs-remaining 11 --baseline b0 --sweep trial-headline-v2 --sweep-slot 2 --sweep-of 12 --sweep-pass 1
+
+=== [2] B0 v2-cart-bad-image-tag   $ faultline-eval v2-cart-bad-image-tag --runs-remaining 11 --baseline b0 --sweep trial-headline-v2 --sweep-slot 2 --sweep-of 12 --sweep-pass 1
+
+=== [2] B0 v2-cart-bad-image-tag   $ faultline-eval v2-cart-bad-image-tag --runs-remaining 11 --baseline b0 --sweep trial-headline-v2 --sweep-slot 2 --sweep-of 12 --sweep-pass 1
+
+=== [2] B0 v2-cart-bad-image-tag   $ faultline-eval v2-cart-bad-image-tag --runs-remaining 11 --baseline b0 --sweep trial-headline-v2 --sweep-slot 2 --sweep-of 12 --sweep-pass 1
+
+=== [2] B0 v2-cart-bad-image-tag   $ faultline-eval v2-cart-bad-image-tag --runs-remaining 11 --baseline b0 --sweep trial-headline-v2 --sweep-slot 2 --sweep-of 12 --sweep-pass 1
+=== [2] gate refused; tally $0.01 over 0 run dir(s) and 57 probe(s)
+--- re-running discarded slot 3 once (end of pass)
+--- settling 300s before slot 3
+--- stamps: faultline/0.0.1+prompts:9ce16b66bbcc cap:91279a09
+--- corpus: 334 rows; at both pins
+--- world: world check passed
+run 20261004T072928Z-v2-cart-bad-image-tag
+pre-flight: model reachable and billable...
+REFUSED: the configured model (claude-opus-5) could not be reached or billed.
+  "Could not resolve authentication method. Expected one of api_key, auth_token, or credentials to be set. Or for one of the `X-Api-Key` or `Authorization` headers to be explicitly omitted"
+Nothing was injected and the world is untouched. This is not a discard - the run
+never started, and counting it as one would inflate a number kept honest on purpose.
+Dev sweep 8 injected the same scenario four times before discovering this at the
+triage call; the check that would have caught it costs one token (Q20).
+run 20261004T073030Z-v2-cart-bad-image-tag
+pre-flight: model reachable and billable...
+REFUSED: the configured model (claude-opus-5) could not be reached or billed.
+  "Could not resolve authentication method. Expected one of api_key, auth_token, or credentials to be set. Or for one of the `X-Api-Key` or `Authorization` headers to be explicitly omitted"
+Nothing was injected and the world is untouched. This is not a discard - the run
+never started, and counting it as one would inflate a number kept honest on purpose.
+Dev sweep 8 injected the same scenario four times before discovering this at the
+triage call; the check that would have caught it costs one token (Q20).
+run 20261004T073133Z-v2-cart-bad-image-tag
+pre-flight: model reachable and billable...
+REFUSED: the configured model (claude-opus-5) could not be reached or billed.
+  "Could not resolve authentication method. Expected one of api_key, auth_token, or credentials to be set. Or for one of the `X-Api-Key` or `Authorization` headers to be explicitly omitted"
+Nothing was injected and the world is untouched. This is not a discard - the run
+never started, and counting it as one would inflate a number kept honest on purpose.
+Dev sweep 8 injected the same scenario four times before discovering this at the
+triage call; the check that would have caught it costs one token (Q20).
+run 20261004T073236Z-v2-cart-bad-image-tag
+pre-flight: model reachable and billable...
+REFUSED: the configured model (claude-opus-5) could not be reached or billed.
+  "Could not resolve authentication method. Expected one of api_key, auth_token, or credentials to be set. Or for one of the `X-Api-Key` or `Authorization` headers to be explicitly omitted"
+Nothing was injected and the world is untouched. This is not a discard - the run
+never started, and counting it as one would inflate a number kept honest on purpose.
+Dev sweep 8 injected the same scenario four times before discovering this at the
+triage call; the check that would have caught it costs one token (Q20).
+run 20261004T073339Z-v2-cart-bad-image-tag
+pre-flight: model reachable and billable...
+REFUSED: the configured model (claude-opus-5) could not be reached or billed.
+  "Could not resolve authentication method. Expected one of api_key, auth_token, or credentials to be set. Or for one of the `X-Api-Key` or `Authorization` headers to be explicitly omitted"
+Nothing was injected and the world is untouched. This is not a discard - the run
+never started, and counting it as one would inflate a number kept honest on purpose.
+Dev sweep 8 injected the same scenario four times before discovering this at the
+triage call; the check that would have caught it costs one token (Q20).
+run 20261004T073443Z-v2-cart-bad-image-tag
+pre-flight: model reachable and billable...
+REFUSED: the configured model (claude-opus-5) could not be reached or billed.
+  "Could not resolve authentication method. Expected one of api_key, auth_token, or credentials to be set. Or for one of the `X-Api-Key` or `Authorization` headers to be explicitly omitted"
+Nothing was injected and the world is untouched. This is not a discard - the run
+never started, and counting it as one would inflate a number kept honest on purpose.
+Dev sweep 8 injected the same scenario four times before discovering this at the
+triage call; the check that would have caught it costs one token (Q20).
+
+=== [3] B1 v2-cart-bad-image-tag   $ faultline-eval v2-cart-bad-image-tag --runs-remaining 10 --baseline b1 --sweep trial-headline-v2 --sweep-slot 3 --sweep-of 12 --sweep-pass 1
+
+=== [3] B1 v2-cart-bad-image-tag   $ faultline-eval v2-cart-bad-image-tag --runs-remaining 10 --baseline b1 --sweep trial-headline-v2 --sweep-slot 3 --sweep-of 12 --sweep-pass 1
+
+=== [3] B1 v2-cart-bad-image-tag   $ faultline-eval v2-cart-bad-image-tag --runs-remaining 10 --baseline b1 --sweep trial-headline-v2 --sweep-slot 3 --sweep-of 12 --sweep-pass 1
+
+=== [3] B1 v2-cart-bad-image-tag   $ faultline-eval v2-cart-bad-image-tag --runs-remaining 10 --baseline b1 --sweep trial-headline-v2 --sweep-slot 3 --sweep-of 12 --sweep-pass 1
+
+=== [3] B1 v2-cart-bad-image-tag   $ faultline-eval v2-cart-bad-image-tag --runs-remaining 10 --baseline b1 --sweep trial-headline-v2 --sweep-slot 3 --sweep-of 12 --sweep-pass 1
+
+=== [3] B1 v2-cart-bad-image-tag   $ faultline-eval v2-cart-bad-image-tag --runs-remaining 10 --baseline b1 --sweep trial-headline-v2 --sweep-slot 3 --sweep-of 12 --sweep-pass 1
+=== [3] gate refused; tally $0.01 over 0 run dir(s) and 63 probe(s)
+--- re-running discarded slot 4 once (end of pass)
+--- settling 300s before slot 4
+--- stamps: faultline/0.0.1+prompts:9ce16b66bbcc cap:91279a09
+--- corpus: 334 rows; at both pins
+--- world: FAIL  nothing firing                               ServiceHighLatency/load-generator, ServiceHighLatency/frontend-proxy, ServiceHighLatency/checkout
+
+*** STOP: the world check failed before slot 4: FAIL  nothing firing                               ServiceHighLatency/load-generator, ServiceHighLatency/frontend-proxy, ServiceHighLatency/checkout
+
+tally: $0.01 over 0 run dir(s) and 63 probe(s)
+outcomes: gate refused 14, world lock 1
+removed after a second discard: v2-cart-bad-image-tag
+STOPPED: the world check failed before slot 4: FAIL  nothing firing                               ServiceHighLatency/load-generator, ServiceHighLatency/frontend-proxy, ServiceHighLatency/checkout
+unfinished: 9 slot(s)
+  4 dev v2-cart-bad-image-tag B2
+  5 dev v2-product-catalog-freeze B0
+  6 dev v2-product-catalog-freeze B1
+  7 dev v2-product-catalog-freeze B2
+  8 dev v2-product-catalog-freeze F
+  9 dev v2-ad-bad-image-tag B1
+  10 dev v2-ad-bad-image-tag B2
+  11 dev v2-ad-bad-image-tag F
+  12 dev v2-ad-bad-image-tag B0
