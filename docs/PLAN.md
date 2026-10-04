@@ -4617,6 +4617,19 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-10-04: T7.2's console reading - $50.53 billed on the key, and the cap held.***
+
+- **Billed on Oct 3 (UTC)** ([RESULT](../evals/attempts/T7.2-run/RESULT.md), *The console's
+  reading*): Opus 5 $17.30 (Faultline) and Sonnet 4.6 $33.23 (Claude Code and the judge). That
+  covers the pilot, the re-check and the scored run.
+- **The re-check and the scored run billed at most $46.64, and about $45.9**, under the $50 cap.
+- **The tally's two errors cancelled**:
+  - Faultline's trajectory tokens are 21 % below its bill: 60 of its 216 model calls are not in the
+    trajectory, 33 of them triage's;
+  - the judge cost about $0.04 a call against the $0.10 counted.
+- **For the later Phase 7 budgets**: Faultline's counted tokens × 1.26, and $0.04 a judge call,
+  each stated in its task's registration.
+
 ***2026-10-04: T7.2 scored run - 66 of 66 attempts; Faultline 2 of 33, the baseline 30 of 33;
 triage's gate is the largest single cause.***
 

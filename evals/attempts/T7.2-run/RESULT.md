@@ -84,13 +84,54 @@ a bootstrap of 0 of 11 or 11 of 11 has no width by construction.
 | the re-check | **$1.80** | Addendum 1's cap includes it |
 | **tally** | **$47.04** | it passed $47 only after slot 66, so nothing was cut |
 
-- **The owner's console reading for the key is the authority**, and replaces this tally when
-  recorded. It is not recorded yet.
+- **The owner's console reading is the authority, and is below** (*The console's reading*). It
+  replaces this tally.
 - **Time**:
   - three sessions of 3.4, 3.4 and 4.1 hours, 10.8 hours of slots in all;
   - Faultline's gated attempts took a median 6.1 minutes, and its investigated ones 11.9;
   - the longest agent stage was Faultline's 686 s and Claude Code's 1,043 s on a completed try,
     with the one timeout at 1,806 s.
+
+### The console's reading
+
+**Recorded by the owner on 2026-10-04** from the console's Cost page, filtered to the key
+`sregym-pilot`, Oct 2-4 (UTC), grouped by model
+([`t72-run-console-cost.png`](../../../docs/evidence/t7.2-run/scored/t72-run-console-cost.png)):
+
+| model | billed, Oct 3 (UTC) | what used it |
+|---|---|---|
+| Claude Opus 5 | **$17.30** | Faultline |
+| Claude Sonnet 4.6 | **$33.23** | Claude Code and the judge |
+| **billed total** | **$50.53** | nothing on Oct 2 or Oct 4 |
+
+**That day holds the whole key's use**, not only this run: the pilot (01:46-05:33), the re-check
+(06:31-07:20) and the scored run (07:54-23:36). The console gives no hourly split, so the cap's
+scope is bounded and estimated against the token counts:
+
+| | token count | billed | difference |
+|---|---|---|---|
+| Faultline, pilot + re-check + run | $1.94 + $1.49 + $10.26 = **$13.69** | **$17.30** | the count is **21 % low** |
+| Claude Code, pilot + run | $1.95 + $28.37 = **$30.32** | | |
+| the judge, 76 calls at the $0.10 ceiling | **$7.60** | $33.23 − $30.32 = **$2.91**, about $0.04 a call | the ceiling is **2.6 times** the cost |
+| **all** | **$51.61** | **$50.53** | about 2 % high, from two errors that cancel |
+
+- **The $50 cap held.**
+  - The pilot billed at least its two agents' counted $3.89, so the re-check and the scored run
+    together billed **at most $46.64**.
+  - Corrected by the two ratios above, they billed **about $45.9**.
+  - The $47 stop line was not passed in billed terms either.
+- **Why Faultline's count is low** ([`analysis-output.txt`](../../../docs/evidence/t7.2-run/scored/analysis-output.txt),
+  section 12):
+  - its HTTP client logged **216** model calls over the 33 attempts, and its trajectory recorded
+    tokens for **156**;
+  - the 60 missing include the 33 triage calls, which are not persisted, as recorded before;
+  - the other 27 are in the investigated attempts. **Which roles made them is not established.**
+- **Claude Code's console page for the key showed $24.13**, marked there as an analytics estimate.
+  The billed Sonnet total above is the figure of record, and it agrees with the session-token count
+  if the judge cost about $0.04 a call.
+- **For Phase 7's later budgets**: a tally from Faultline's trajectory tokens needs about 1.26 times
+  its value, and a Sonnet 4.6 judge call costs about $0.04, not $0.10. Each task's registration
+  states the rule it uses.
 
 ## The error taxonomy
 
@@ -318,6 +359,5 @@ own task, registered before it is built.
 
 ## Next
 
-- **The owner's console reading** of the key's spend, recorded here when given.
 - Phase 7 continues at the owner's scale. **T7.1's headline** registers its own scale before it
   runs.

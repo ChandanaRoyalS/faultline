@@ -23,6 +23,7 @@ Addenda 1 and 2, and reported in [`evals/attempts/T7.2-run/RESULT.md`](../../../
 | `results/` | SREGym's per-attempt results file for every attempt, 67 in all, in SREGym's own layout. Slot 58's first try is the incomplete one |
 | `claudecode-usage.tsv` | Claude Code's token counts per attempt, extracted once from the session logs in `collect`'s archive. The logs are 19 MB and are kept off the repository |
 | `analysis-output.txt` | [`../analysis.py.txt`](../analysis.py.txt)'s output, run from this directory's files. Every figure in the result is in it |
+| `t72-run-console-cost.png` | the owner's screenshot of the console's Cost page, 2026-10-04: the key `sregym-pilot`, Oct 2-4 (UTC), by model. Opus 5 $17.30, Sonnet 4.6 $33.23, $50.53 billed, all on Oct 3 |
 | `t72-run-collect.txt`, `-teardown.txt`, `-cleanup.txt`, `-close.txt` | the close: no key in either archive, no world restart, the cluster and images removed, the rules gone, the key shredded, the directory removed with `sudo`, the kill switch off, no incident |
 
 **To re-run the analysis:**
