@@ -135,6 +135,26 @@ def test_any_other_service_at_zero_does_block() -> None:
     assert any("accountingservice" in why for why in reading.refusals)
 
 
+def test_on_v2_kafka_at_zero_is_the_healthy_state_and_on_v1_it_is_not() -> None:
+    """Q118: v2's broker emits no spans at rest. The trial's first attempt (2026-10-04) was refused
+    24 times on *"serving no traffic: kafka"* while kafka carried every order."""
+    v2 = reading_with(world="v2", rates={"cart": 4.2, "accounting": 0.4, "kafka": 0.0})
+    v1 = reading_with(rates={"cartservice": 4.2, "kafka": 0.0})
+
+    assert v2.unexpected_silent == []
+    assert v2.passed, v2.refusals
+    assert v1.unexpected_silent == ["kafka"]
+    assert not v1.passed
+
+
+def test_on_v2_a_silent_consumer_still_blocks() -> None:
+    """kafka is excused, not the services that read from it: a silent consumer is a fault."""
+    reading = reading_with(world="v2", rates={"cart": 4.2, "accounting": 0.0, "kafka": 0.0})
+
+    assert reading.unexpected_silent == ["accounting"]
+    assert not reading.passed
+
+
 def test_the_post_restart_hazard_is_the_recorders_own_gate_reused() -> None:
     """**The second known-good fact.** CATALOG.md: readings taken 0.8, 4.0 and 14.2 minutes
     after cart reverts were written up as evidence cartservice is bimodal and reaches 353ms.

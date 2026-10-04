@@ -4617,6 +4617,19 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-10-04: kafka's "no traffic" was the gate's defect - kafka at zero excused on v2.***
+
+- **The read-only diagnosis**: kafka's own span rate 0.00 for twelve hours, while its consumers read
+  every order (accounting 0.2-0.5 a second, fraud-detection 0.15-0.35) and nothing was firing.
+  **Q118 had measured why**: v2's broker emits no spans at rest. A9's `kafka` series of 2026-09-30
+  sat at zero, and the gate refused on it.
+- **Fixed by addendum** (`PREREGISTRATION-trial-v2.md`, Addendum 3; `docs/DEVIATIONS.md`):
+  `gate.EXPECTED_SILENT_BY_WORLD`, kafka excused on v2 only; v1 unchanged; a silent consumer still
+  refuses. Tests in `tests/test_harness_run.py`.
+- **Recorded against the diagnosis itself**: its last step ran a Kafka tool inside the broker's
+  container, which Q118 says pages on itself; it failed to connect and read nothing.
+- Both stamps unchanged. $0. **Next**: the trial again, from slot 1.
+
 ***2026-10-04: T7.3's trial, first attempt - nothing ran, $0 billed; four defects found.***
 
 - **Every slot was refused before injecting** (`PREREGISTRATION-trial-v2.md`, Addendum 2): the

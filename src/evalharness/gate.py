@@ -82,6 +82,24 @@ every clean reading taken across T3.4-T3.5 sat far below it and every degraded o
 EXPECTED_SILENT = frozenset({"frontend-proxy"})
 """Services whose zero request rate is the healthy state. See the module docstring, fact 1."""
 
+EXPECTED_SILENT_BY_WORLD: dict[str, frozenset[str]] = {
+    "v1": EXPECTED_SILENT,
+    "v2": EXPECTED_SILENT | {"kafka"},
+}
+"""**Each world's own set** (the trial's registration, Addendum 3, 2026-10-04). On v2 **kafka's
+broker emits no spans at rest** (Q118, measured during A9): its spans come only from a Kafka
+command-line tool run inside its container, which carries the tracing agent. Once any such
+command has created a `kafka` series, the series sits at zero, and the gate refused every v2 run
+as *"serving no traffic: kafka"* while kafka carried every order (accounting and fraud-detection
+consumed at 0.4 and 0.3 a second over the same twelve hours). kafka's health on v2 is read by the
+world check (running, its log directory, under 50 % used) and by its consumers' spans, not by a
+rate the broker does not emit. v1 is unchanged."""
+
+
+def expected_silent(world: str) -> frozenset[str]:
+    """The world's expected-silent services; a world without a set gets v1's, the stricter."""
+    return EXPECTED_SILENT_BY_WORLD.get(world, EXPECTED_SILENT)
+
 
 def settle_window() -> timedelta:
     """The orchestrator's settle window, read from its configuration rather than copied.
@@ -754,11 +772,13 @@ def read(
     reading.latency_invisible = sorted(serving - set(windows))
 
     reading.silent_services = sorted(s for s, v in rates.items() if v == 0.0)
-    reading.unexpected_silent = [s for s in reading.silent_services if s not in EXPECTED_SILENT]
+    silent_ok = expected_silent(world)
+    reading.unexpected_silent = [s for s in reading.silent_services if s not in silent_ok]
     if reading.unexpected_silent:
         reading.refusals.append(
             f"serving no traffic: {', '.join(reading.unexpected_silent)} "
-            f"(frontend-proxy at zero is the healthy state and is not counted)"
+            f"({', '.join(sorted(silent_ok))} at zero is the healthy state on world {world} "
+            f"and is not counted)"
         )
 
     uptimes = container_uptimes()
