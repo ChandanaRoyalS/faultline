@@ -360,3 +360,42 @@ def test_faultline_batch_is_a_console_script() -> None:
     assert project["project"]["scripts"]["faultline-batch"] == "evalharness.batch:run_cli"
     args = batch.parser().parse_args(["run", "q.tsv", "--label", "hl", "--stop-usd", "57"])
     assert args.stop_usd == 57.0 and args.also_count == []
+
+
+# --- the trial (`PREREGISTRATION-trial-v2.md`) -------------------------------------------------
+
+
+def test_the_trial_is_the_registered_draw_and_the_switch_scenario_is_outside_the_twelve() -> None:
+    from evalharness import sweep
+
+    dev = sweep.runnable(world="v2")
+    drawn = batch.trial_scenarios(dev)
+    assert drawn == ["v2-cart-bad-image-tag", "v2-ad-bad-image-tag", "v2-product-catalog-freeze"]
+    chosen = batch.switch_scenario(drawn, batch.t73_scenarios())
+    assert chosen == "v2-ad-bad-image-tag"
+
+    slots = batch.trial_headline_queue(dev)
+    assert len(slots) == 12 and {s.pass_name for s in slots} == {"dev"}
+    assert Counter(s.scenario for s in slots) == Counter({d: 4 for d in drawn})
+
+
+def test_the_switch_trial_is_e2_to_e9_once_each_on_one_scenario() -> None:
+    slots = batch.trial_t73_queue("v2-ad-bad-image-tag", 20261007)
+
+    assert sorted(s.arm for s in slots) == list(batch.SWITCH_ARMS)
+    assert {s.scenario for s in slots} == {"v2-ad-bad-image-tag"}
+    assert [s.arm for s in slots] != list(batch.SWITCH_ARMS)
+    queue = Queue("trial-t73", 20261007, slots, "abc123")
+    assert batch.read_queue(batch.render_queue(queue)) == queue
+
+
+def test_the_switch_scenario_pages_critical_so_the_noise_gate_cannot_take_it() -> None:
+    manifest = next(REPO.glob("evals/scenarios/artifacts/dev/v2-ad-bad-image-tag/manifest.json"))
+    page = json.loads(manifest.read_text())["alerts_at_fire"]
+    assert page and all(a.startswith("ServiceHighErrorRate/") for a in page)
+
+
+def test_the_headline_trial_judges_its_f_and_the_switch_trial_judges_nothing() -> None:
+    assert batch.judged("trial-headline", "F")
+    assert not batch.judged("trial-headline", "B1")
+    assert not batch.judged("trial-t73", "E3")
