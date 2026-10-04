@@ -243,6 +243,8 @@ def test_the_world_check_fails_without_alertmanager_and_exits_non_zero() -> None
     source = inspect.getsource(wc.main)
 
     assert "alertmanager running and ready (Q124)" in source
+    assert "alertmanager's receiver answering (Q124)" in source
+    assert wc.RECEIVER == "http://localhost:8000"
     assert "check_quote_clock()" in source
     assert "return 0 if not failed else 1" in source
 

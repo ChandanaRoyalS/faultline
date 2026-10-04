@@ -1,0 +1,10 @@
+alertmanager restart=no project=world-v2 files=/Users/chandana/dev/faultline/world-v2/docker-compose.yml,/Users/chandana/dev/faultline/compose/world-v2.override.yml,/Users/chandana/dev/faultline/compose/telemetry-v2.yml
+prometheus restart=unless-stopped project=world-v2 files=/Users/chandana/dev/faultline/world-v2/docker-compose.yml,/Users/chandana/dev/faultline/compose/world-v2.override.yml,/Users/chandana/dev/faultline/compose/telemetry-v2.yml
+quote restart=unless-stopped project=world-v2 files=/Users/chandana/dev/faultline/world-v2/docker-compose.yml,/Users/chandana/dev/faultline/compose/world-v2.override.yml,/Users/chandana/dev/faultline/compose/telemetry-v2.yml
+--- start
+alertmanager
+status=running started=2026-10-04T03:29:29.995269469Z
+--- ready
+200
+--- config receiver
+['pagerduty_url: https://events.pagerduty.com/v2/enqueue', 'opsgenie_api_url: https://api.opsgenie.com/', 'wechat_api_url: https://qyapi.weixin.qq.com/cgi-bin/', 'victorops_api_url: https://alert.victorops.com/integrations/generic/20131114/alert/', 'telegram_api_url: https://api.telegram.org', 'webex_api_url: https://webexapis.com/v1/messages', 'receiver: faultline', 'receivers:', 'url: <secret>', 'url_file: ""']
