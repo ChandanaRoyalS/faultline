@@ -462,3 +462,17 @@ def test_a_held_world_lock_is_retried_and_never_counted_as_a_discard() -> None:
 
     assert result.rows[0].attempts == 2 and result.rows[0].outcome == "scored"
     assert not result.stopped
+
+
+def test_the_f_only_trial_queue_is_the_trial_s_three_f_slots_in_order() -> None:
+    from evalharness import sweep
+
+    dev = sweep.runnable(world="v2")
+    slots = batch.trial_f_queue(dev)
+    assert [s.scenario for s in slots] == [
+        s.scenario for s in batch.trial_headline_queue(dev) if s.arm == "F"
+    ]
+    assert [s.slot for s in slots] == [1, 2, 3] and {s.arm for s in slots} == {"F"}
+    assert batch.judged("trial-headline-f", "F")
+    committed = (REPO / "evals/runs/QUEUE-trial-headline-f-v2.tsv").read_text()
+    assert committed == batch.render_queue(Queue("trial-headline-f", 20261004, slots))

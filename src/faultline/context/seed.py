@@ -28,6 +28,7 @@ Three guards, in order of how much they are trusted:
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -78,6 +79,9 @@ class SeedResult:
     seeded: list[str] = field(default_factory=list)
     skipped: list[tuple[str, str]] = field(default_factory=list)
     """(scenario id, why). Skipping is reported, never silent."""
+
+    document_ids: set[str] = field(default_factory=set)
+    """Every document this seed wrote, so `--replace` can remove the rest (T7.3's v2 corpus)."""
 
 
 def require_dev_root(root: Path) -> Path:
@@ -145,7 +149,7 @@ def _reconcile(store: PastIncidentStore, chunks: list[Chunk]) -> int:
     return store.prune_document(document_id, {chunk_key(chunk) for chunk in chunks})
 
 
-def dev_bundles(root: Path) -> list[tuple[Path, str | None]]:
+def dev_bundles(root: Path, world: str = "v1") -> list[tuple[Path, str | None]]:
     """Every directory under `root`, with why it is skipped or `None` if it seeds.
 
     **Extracted so the corpus-drift check enumerates what the seeder enumerates** (Q45). A second
@@ -159,8 +163,8 @@ def dev_bundles(root: Path) -> list[tuple[Path, str | None]]:
             out.append((bundle, "no incident.md"))
         elif (bundle / INVALID).is_file():
             out.append((bundle, "bundle is marked INVALID"))
-        elif (world := bundle_world(bundle)) not in CORPUS_WORLDS:
-            out.append((bundle, f"recorded on world {world}; the corpus holds {CORPUS_WORLDS}"))
+        elif (recorded := bundle_world(bundle)) not in (held := corpus_worlds(world)):
+            out.append((bundle, f"recorded on world {recorded}; the corpus holds {held}"))
         else:
             out.append((bundle, None))
     return out
@@ -177,6 +181,52 @@ and it would move `CURRENT_CORPUS_SHAPE` outside the commit Q92 names for that. 
 narratives share one corpus, and when v2's join, is T7.1's corpus piece (Q92). Until then this
 keeps the corpus as it is. It is a skip with a stated reason, like `INVALID.md`, and not a
 refusal: the bundle is valid, it is just not this corpus's world."""
+
+
+CORPUS_WORLDS_BY_WORLD: dict[str, tuple[str, ...]] = {"v1": CORPUS_WORLDS, "v2": ("v2",)}
+"""**Which narratives each world's corpus holds** (T7.3's trial, Addendum 4; the owner's decision of
+2026-10-04). The v1 corpus is `CORPUS_WORLDS`, unchanged. **The v2 corpus holds v2's narratives and
+no v1 one**: the trial's first Faultline runs on v2 met a corpus of v1 documents alone, a planner
+dispatched `productcatalogservice` (v1's name for v2's `product-catalog`) twice and the run failed,
+and every leave-one-out exclusion removed nothing because no v2 narrative was there to remove."""
+
+
+def corpus_worlds(world: str) -> tuple[str, ...]:
+    """The worlds whose narratives the given world's corpus holds. An unknown world is refused."""
+    if world not in CORPUS_WORLDS_BY_WORLD:
+        raise ValueError(f"no corpus is defined for world {world!r}")
+    return CORPUS_WORLDS_BY_WORLD[world]
+
+
+V2_RUNBOOK_KINDS = ("class-", "action-", "alert-")
+"""The runbook kinds a v2 corpus may hold: the fault classes, the actions and the alert rules, which
+describe no one world. `service-*` runbooks name v1's services and `world-*` runbooks describe
+v1's world, so neither is in it."""
+
+
+def v1_only_services() -> frozenset[str]:
+    """Service names v1's catalog has and v2's does not (`cartservice`, `frontendproxy`, ...)."""
+    from faultline.context.catalog import ServiceCatalog
+
+    v1 = ServiceCatalog.from_snapshot(world="v1").services
+    v2 = ServiceCatalog.from_snapshot(world="v2").services
+    return frozenset(v1 - v2)
+
+
+def runbook_in_corpus(runbook_id: str, applies_to: list[str], text: str, world: str) -> bool:
+    """Whether a runbook belongs in `world`'s corpus. **v1's holds every runbook, as before.**
+
+    v2's holds a runbook only if it applies to any service, is a class, action or alert runbook,
+    and names no v1-only service anywhere in its text: two alert runbooks state v1 facts
+    (`checkoutservice`'s at-rest latency, `frontendproxy`'s no-traffic exclusion) and are out.
+    """
+    if world == "v1":
+        return True
+    corpus_worlds(world)
+    if applies_to != ["any"] or not runbook_id.startswith(V2_RUNBOOK_KINDS):
+        return False
+    words = set(re.findall(r"[a-z0-9-]+", text.lower()))
+    return not (words & v1_only_services())
 
 
 def bundle_world(bundle: Path) -> str:
@@ -267,6 +317,7 @@ def seed(
     store: PastIncidentStore,
     dev_root: Path,
     acceptances: AcceptanceStore | None = None,
+    world: str = "v1",
 ) -> SeedResult:
     """Seed every valid dev bundle's narrative, and any postmortem a person has accepted.
 
@@ -280,7 +331,7 @@ def seed(
     ledger = acceptances if acceptances is not None else InMemoryAcceptanceStore()
     result = SeedResult()
 
-    for bundle, skip in dev_bundles(root):
+    for bundle, skip in dev_bundles(root, world):
         if skip is not None:
             result.skipped.append((bundle.name, skip))
             continue
@@ -289,6 +340,7 @@ def seed(
         result.pruned += _reconcile(store, chunks)
         result.documents += 1
         result.seeded.append(bundle.name)
+        result.document_ids.update(c.document_id for c in chunks)
 
         accepted = postmortem_chunks(bundle, ledger)
         if accepted:
@@ -296,12 +348,13 @@ def seed(
             result.pruned += _reconcile(store, accepted)
             result.documents += 1
             result.seeded.append(f"{bundle.name} (postmortem)")
+            result.document_ids.update(c.document_id for c in accepted)
 
     return result
 
 
 def seed_runbooks(
-    store: PastIncidentStore, runbooks: tuple[Runbook, ...] | None = None
+    store: PastIncidentStore, runbooks: tuple[Runbook, ...] | None = None, world: str = "v1"
 ) -> SeedResult:
     """Seed the authored runbooks. **A second entry point, never a wider first one** (Q15).
 
@@ -331,8 +384,13 @@ def seed_runbooks(
                 "runbook is the one document class that is never excluded."
             )
         chunks = chunk_runbook(runbook, directory / f"{runbook.id}.md")
+        text = "\n".join([runbook.title, *(c.text for c in chunks)])
+        if not runbook_in_corpus(runbook.id, list(runbook.applies_to), text, world):
+            result.skipped.append((runbook.id, f"not in world {world}'s corpus"))
+            continue
         result.chunks += store.add(chunks)
         result.pruned += _reconcile(store, chunks)
         result.documents += 1
         result.seeded.append(runbook.id)
+        result.document_ids.update(c.document_id for c in chunks)
     return result

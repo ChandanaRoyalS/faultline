@@ -120,7 +120,9 @@ def documents_of(rows: list[tuple[str, str, str]]) -> dict[str, Document]:
     }
 
 
-def working_tree_rows(dev_root: Path | None = None) -> list[tuple[str, str, str]]:
+def working_tree_rows(
+    dev_root: Path | None = None, world: str = "v1"
+) -> list[tuple[str, str, str]]:
     """What `faultline-seed` would write, computed without a store.
 
     **Both of the seeder's entry points, because it has two and they are separately guarded**
@@ -129,12 +131,17 @@ def working_tree_rows(dev_root: Path | None = None) -> list[tuple[str, str, str]
     """
     from faultline.context.corpus import chunk_runbook
     from faultline.context.runbooks import load_runbooks, runbooks_dir
-    from faultline.context.seed import bundle_chunks, dev_bundles, postmortem_rows
+    from faultline.context.seed import (
+        bundle_chunks,
+        dev_bundles,
+        postmortem_rows,
+        runbook_in_corpus,
+    )
 
     root = dev_root or DEV_ROOT
     rows: list[tuple[str, str, str]] = []
     if root.is_dir():
-        for bundle, skip in dev_bundles(root):
+        for bundle, skip in dev_bundles(root, world):
             if skip is None:
                 rows += [(c.document_id, c.section, c.text) for c in bundle_chunks(bundle)]
                 # **Postmortems too, and without asking whether they were accepted** (T6.5).
@@ -148,7 +155,9 @@ def working_tree_rows(dev_root: Path | None = None) -> list[tuple[str, str, str]
     directory = runbooks_dir()
     for runbook in load_runbooks():
         chunks = chunk_runbook(runbook, directory / f"{runbook.id}.md")
-        rows += [(c.document_id, c.section, c.text) for c in chunks]
+        text = "\n".join([runbook.title, *(c.text for c in chunks)])
+        if runbook_in_corpus(runbook.id, list(runbook.applies_to), text, world):
+            rows += [(c.document_id, c.section, c.text) for c in chunks]
     return rows
 
 

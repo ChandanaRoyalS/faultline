@@ -63,6 +63,24 @@ def parser() -> argparse.ArgumentParser:
         ),
     )
     p.add_argument(
+        "--world",
+        choices=("v1", "v2"),
+        default="v1",
+        help=(
+            "which world's corpus to seed (T7.3's v2 corpus): v1 is every v1 narrative, accepted "
+            "postmortem and runbook, as always; v2 is v2's narratives and the runbooks that "
+            "describe no one world (default: %(default)s)"
+        ),
+    )
+    p.add_argument(
+        "--replace",
+        action="store_true",
+        help=(
+            "after seeding, remove every document this seed did not write, so the store holds "
+            "exactly the chosen world's corpus. Without it, documents already stored stay"
+        ),
+    )
+    p.add_argument(
         "--import-acceptances",
         action="store_true",
         help=(
@@ -131,11 +149,13 @@ def run(argv: list[str] | None = None) -> int:
             print(f"acceptances: imported {appended} of {len(rows)} row(s) from {ledger}")
 
     try:
-        result = seed(store, Path(args.dev_root), acceptances)  # type: ignore[arg-type]
+        result = seed(store, Path(args.dev_root), acceptances, args.world)  # type: ignore[arg-type]
         # **A second call, not a second root** (Q15). `seed` reads one directory and refuses
         # anything else; the runbooks arrive through their own entry point with their own
         # guard, so neither input can be widened into the other.
-        books = None if args.no_runbooks else seed_runbooks(store)  # type: ignore[arg-type]
+        books = (
+            None if args.no_runbooks else seed_runbooks(store, world=args.world)  # type: ignore[arg-type]
+        )
     except QuarantineError as exc:
         # Same shape as `faultline-inject`: a refusal is an error message and a non-zero
         # exit, not a traceback. The message is the guard's own and says what was refused.
@@ -148,9 +168,17 @@ def run(argv: list[str] | None = None) -> int:
         print(f"error: {exc}", file=sys.stderr)
         return 2
 
+    removed = 0
+    if args.replace:
+        written = result.document_ids | (books.document_ids if books else set())
+        removed = store.prune_except(written)  # type: ignore[attr-defined]
     total_documents = result.documents + (books.documents if books else 0)
     total_chunks = result.chunks + (books.chunks if books else 0)
-    print(f"documents={total_documents} chunks={total_chunks}")
+    print(f"world={args.world} documents={total_documents} chunks={total_chunks}")
+    if args.replace:
+        print(
+            f"replaced: {removed} chunk(s) of documents outside world {args.world}'s corpus removed"
+        )
     for name in result.seeded:
         print(f"  seeded  scenario:{name}")
     for name, why in result.skipped:
@@ -160,6 +188,8 @@ def run(argv: list[str] | None = None) -> int:
     else:
         for name in books.seeded:
             print(f"  seeded  runbook:{name}")
+        for name, why in books.skipped:
+            print(f"  skipped runbook:{name} - {why}")
     if args.dry_run:
         print("(dry run - nothing was written)")
     return 0

@@ -187,3 +187,52 @@ consumers' spans. In `docs/DEVIATIONS.md`.
 
 The latency alerts that stopped the first attempt (load-generator, frontend-proxy, checkout) had
 cleared by the diagnosis, and the world check before every slot still requires nothing firing.
+
+## Addendum 4 - the second attempt: twelve slots ran, and F met a v1 corpus (2026-10-04)
+
+All twelve slots ran (log: [`attempt-2.log`](../../docs/evidence/t7.3/trial/2026-10-04-attempt-2.log)).
+**The runner's tally: $5.97**, inside the $8 stop; the owner's console reading is the authority.
+
+| slot | arm | scenario | outcome | billed (cost × 1.26) |
+|---|---|---|---|---|
+| 1 | F | v2-cart-bad-image-tag | **invalid**: culprit `cart` right, class abstained | $0.89 |
+| 2-4 | B0, B1, B2 | v2-cart-bad-image-tag | scored; B1 right on class and culprit | $0, $0.62, $0.05 |
+| 5-7 | B0, B1, B2 | v2-product-catalog-freeze | scored | $0, $2.40, $0.05 |
+| 8 | F | v2-product-catalog-freeze | **discarded**: failed mid-investigation | $0.20 |
+| 9-10, 12 | B1, B2, B0 | v2-ad-bad-image-tag | scored; B1 right on class and culprit | $0.76, $0.05, $0 |
+| 11 | F | v2-ad-bad-image-tag | **invalid**: class, culprit and fix all right | $0.96 |
+
+**Faultline works end to end on v2**: two investigations reached cited verdicts, one fully right.
+**Three findings, each blocking:**
+
+1. **Both `invalid` runs were invalidated by the leave-one-out rule, and every holdout run would
+   be.** The rule voids a run whose exclusion removes nothing. On a v1-only corpus no v2 narrative
+   is there to remove, and a holdout narrative is never in any corpus (ADR-0008 axis 1). The
+   harness has scored no holdout run since the rule landed. **Fixed** (`run.absence_assertion`): a
+   silent exclusion is accepted only when it excluded exactly the scenario's own origin, the
+   absence was decided before the run (`run.absence_by_design`: a holdout scenario, or one the
+   seeder skips for this world's corpus), and the corpus holds no chunk of that origin, counted at
+   run time. A dev narrative the seeder should have written and did not still invalidates.
+2. **Slot 8's planner dispatched `productcatalogservice`, v1's name for `product-catalog`, twice**,
+   and the plan had nothing legal left. The corpus was v1's alone: fifteen service runbooks with
+   v1 names, v1's world runbooks, ten v1 postmortems and ten v1 narratives.
+   **The owner's decision of 2026-10-04: a v2 corpus.** `faultline-seed --world v2 --replace`
+   writes v2's 29 dev narratives and the 14 runbooks that describe no one world (the nine class,
+   four action and `alert-high-error-rate`), and removes everything else. The two other alert
+   runbooks state v1 facts and stay out. 43 documents, 200 chunks, no holdout document. **v1's
+   corpus is unchanged** (65 documents, `b931588caf1d`), and so is the retrieval gate founded on
+   it. v2's pins are set from the owner's ingest, in the commit that records it.
+3. **The money, for the owner's go.** Measured per run, billed: F $0.89-0.96, B1 $0.62-2.40, B2
+   about $0.05, B0 $0. **Projected over the 156: about $87, against the $60 cap and its $57
+   stop.** As registered, the owner decides at the go: raise the cap or trim, and a trim goes in
+   `docs/DEVIATIONS.md`. B1 rests on three runs, one of them $2.40.
+
+**What runs again, and what stands.** The corpus does not touch the baselines, which retrieve
+nothing, so **their nine trial runs stand**. Only F runs again, its three slots in the trial's order
+([`QUEUE-trial-headline-f-v2.tsv`](QUEUE-trial-headline-f-v2.tsv), label `trial-headline-f-v2`,
+stop $4, judged), after the v2 corpus is pinned. Both trial labels count inside the headline's $60.
+The switch trial follows on the same corpus, its comparison the new F run on `v2-ad-bad-image-tag`.
+
+**Also found**: after slot 12, `ad` sat at 90.3 % of its memory limit and the world check refused
+the end-of-pass re-runs. A restart of `ad` (no digest moves) before the next slot, recorded when it
+is made.
