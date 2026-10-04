@@ -1,0 +1,28 @@
+# T7.3's scenarios (PREREGISTRATION-T7.3.md): 12 of the v2 catalog's 26 dev fault scenarios.
+# One per fault class by random.Random(20261007).choice over each class's sorted ids, in class
+# order, then three more by .sample over the sorted remainder. Injection rows and holdout excluded.
+#
+#   python3 docs/evidence/t7.3/draw.py.txt > docs/evidence/t7.3/scenarios.tsv
+import collections
+import glob
+import random
+
+import yaml
+
+dev = collections.defaultdict(list)
+for path in sorted(glob.glob("evals/scenarios/v2/*.yaml")):
+    s = yaml.safe_load(open(path))
+    if s.get("blocked") or s["split"] != "dev" or s.get("kind", "fault") != "fault":
+        continue
+    dev[s["fault_class"]].append(s["id"])
+
+rng = random.Random(20261007)
+picked = [(rng.choice(sorted(dev[c])), c, "one per class") for c in sorted(dev)]
+chosen = {p[0] for p in picked}
+rest = sorted(i for c in dev for i in dev[c] if i not in chosen)
+by_id = {i: c for c in dev for i in dev[c]}
+picked += [(i, by_id[i], "the three more") for i in rng.sample(rest, 3)]
+
+print("scenario\tfault_class\thow")
+for row in picked:
+    print("\t".join(row))

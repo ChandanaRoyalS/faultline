@@ -410,3 +410,21 @@ bundle moved when they were added.
 **Distinctness is applied at rehearsal, per scenario, not here.** ADR-0042 made it an acceptance
 criterion; a slot is filled by a rehearsal whose page and evidence differ from its class-mates' on
 one of ADR-0043's dimensions, and one that cannot show that is `blocked` and releases the slot.
+
+## Addendum (the headline run, 2026-10-04): on the v2 world the headline is holdout-only
+
+The T1.6 addendum above made the full-set headline permanent **under the v1 world**, because the
+holdout could not grow past three there, and named its own condition for changing that: *"a
+different demo world"*. ADR-0042 moved to that world, and its catalog
+([`SPLIT-V2.md`](../../evals/scenarios/SPLIT-V2.md)) holds 39 valid scenarios, 10 of them holdout.
+
+**The owner's decision of 2026-10-04**
+([`PREREGISTRATION-headline-v2.md`](../../evals/runs/PREREGISTRATION-headline-v2.md)): on the
+v2 world, the headline is the holdout, as T1.6 and the execution plan's T5.3 specified.
+
+- The dev figures are reported beside it and labelled diagnostic.
+- **What does not change**:
+  - the v1 addendum stands for the v1 world and its three-scenario holdout;
+  - the v1 holdout ledger stays closed (ADR-0029);
+  - **`datastore_corruption` and `disk_fill` have no v2 holdout scenario**, so the generalisation
+    gap is narrower on v2, not gone, and every report says so.

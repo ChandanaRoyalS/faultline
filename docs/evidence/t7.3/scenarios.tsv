@@ -1,0 +1,13 @@
+scenario	fault_class	how
+v2-frontend-cart-misconfig	bad_config	one per class
+v2-cart-bad-image-tag	bad_deploy	one per class
+v2-cart-store-corruption	datastore_corruption	one per class
+v2-payment-dependency-latency	dependency_latency	one per class
+v2-kafka-disk-fill	disk_fill	one per class
+v2-fraud-detection-flag-queue-lag	feature_flag	one per class
+v2-ad-partition	network_partition	one per class
+v2-product-catalog-freeze	process_freeze	one per class
+v2-payment-memory-squeeze	resource_exhaustion	one per class
+v2-ad-memory-squeeze	resource_exhaustion	the three more
+v2-valkey-cart-dependency-latency	dependency_latency	the three more
+v2-currency-freeze	process_freeze	the three more
