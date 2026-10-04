@@ -105,13 +105,30 @@ def test_faultline_seed_takes_a_world_and_replace() -> None:
     assert parser().parse_args([]).world == "v1"
 
 
-def test_v2_has_no_pins_until_its_ingest_and_the_runner_refuses_until_then() -> None:
+def test_v2_s_pins_are_the_ingested_corpus_which_is_the_tree_s() -> None:
+    import json
+    from pathlib import Path
+
     from evalharness import batch
+    from evalharness.freeze import body_digest_of, shape_digest_of
     from evalharness.generations import corpus_pins
 
-    assert corpus_pins("v2") == (None, None)
-    ok, detail = batch.corpus_frozen({"sha256": "x", "body_sha256": "y", "rows": 1}, "v2")
-    assert not ok and "no pins yet" in detail
+    shape, body = corpus_pins("v2")
+    rows = working_tree_rows(world="v2")
+    assert shape == shape_digest_of([(d, s) for d, s, _ in rows])
+    assert body == body_digest_of(rows)
+    record = json.loads(
+        (
+            Path(__file__).resolve().parents[1] / "docs/evidence/t7.3/corpus-of-record-v2.json"
+        ).read_text()
+    )
+    assert (record["sha256"], record["body_sha256"]) == (shape, body)
+    assert record["holdout_chunks"] == 0 and record["rows"] == 200
+
+    ok, _ = batch.corpus_frozen({**record}, "v2")
+    assert ok
+    ok, detail = batch.corpus_frozen({**record, "sha256": "0" * 64}, "v2")
+    assert not ok and "world v2's pin" in detail
     with pytest.raises(ValueError):
         corpus_pins("v3")
 

@@ -4617,6 +4617,14 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-10-04: the v2 corpus pinned - 43 documents, 200 chunks, `738e834925e0`.***
+
+- Ingested on the Mac with `--world v2 --replace` (279 v1 chunks removed) and read back agreeing with
+  the tree, no holdout chunk (`docs/evidence/t7.3/corpus-of-record-v2.json`).
+  `CORPUS_PINS_BY_WORLD["v2"]` set; frozen until the last v2 scored run; v1 untouched. $0.
+- **Next**: F's three trial slots again (`QUEUE-trial-headline-f-v2.tsv`, about $2.80, stop $4), on
+  the owner's word.
+
 ***2026-10-04: T7.3's trial, second attempt - 12 slots, $5.97; F works on v2, met a v1 corpus.***
 
 - **Ran** (`PREREGISTRATION-trial-v2.md`, Addendum 4): nine baseline runs scored; F's three did not
