@@ -109,7 +109,7 @@ constant is what the scenario table's at-stamp columns compare against so that r
 cannot be printed as figures about the second. Move it when the observability files move, in the
 same commit that re-records the bundles."""
 
-CURRENT_CORPUS_SHAPE = "844fe623366ca03200a351df84c15d3d2011ebce36f24b4da0c287674564187d"
+CURRENT_CORPUS_SHAPE = "b931588caf1dfd7462a8af31bf7178a48c71f735d296b92422f808482d44a0b3"
 """The corpus `sha256` a figure at the current corpus is expected to carry (Q61).
 
 **The corpus is not in the generation name, and this is the decision.** Q61's row poses it as a
@@ -155,9 +155,18 @@ Grouped by `runtime_version`, every stamp is corpus-homogeneous - sweep 5's `1b0
 7-document corpus, every later stamp the 25-document one, and the only bucket holding both is the
 stampless one, which is unscored runs rather than figures. **That is timing, not a mechanism**:
 the corpus changed between sweeps rather than inside one, three times, unremarked each time.
+
+**Moved 2026-10-04, T7.3's corpus of record** (the headline run's Addendum 1, item 8; Q92's corpus
+half). `844fe623366c` → `b931588caf1d`, taken off the store the owner seeded on the Mac with
+`faultline-seed` and read back by `faultline-batch corpus`: 334 chunks over 65 documents (45
+runbooks, 10 accepted postmortems, 10 v1 narratives), `holdout_chunks` 0, and agreeing with the
+tree (`docs/evidence/t7.3/corpus-of-record.json`). What moved it is T7.0's five class runbooks,
+first ingested here. **No v2 narrative is in it** (`seed.CORPUS_WORLDS`), by the owner's decision
+of 2026-10-04 to keep the corpus as registered. Every run before this pin is off it, and no scored
+run exists on it yet.
 """
 
-CURRENT_CORPUS_BODY: str | None = "cc473105c036ca668c08b87c8ce8c84ca1c30382b520bd76ca952eacf934cac9"
+CURRENT_CORPUS_BODY: str | None = "a6de378e3b55df2f496fe9f3a42e9d624f9e456d9504e6fcd0f162308bb7d1e5"
 """The corpus `body_sha256` a figure at the current corpus is expected to carry - **once one
 exists**.
 
@@ -189,6 +198,10 @@ was describing something that was not on disk. It is corrected here rather than 
 the same claim reached Q45's row and [the T6.5 seed evidence]
 (../../docs/evidence/t6.5-seed/2026-09-15-the-seed-that-could-not-update-a-heading.md) is where
 it was caught.
+
+**Moved 2026-10-04 with `CURRENT_CORPUS_SHAPE`**, `cc473105c036` → `a6de378e3b55`, from the same
+corpus of record. The retrieval gate was re-founded in the same commit, as its rule requires
+(`tests/test_integration_retrieval_gate.py`).
 """
 
 WORLD_ERAS = (
