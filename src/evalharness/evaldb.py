@@ -62,8 +62,15 @@ FINGERPRINT_INPUTS = (
     "corpus_sha256",
     "corpus_body_sha256",
     "exclusion_policy",
+    "ablation_config",
 )
 """The behaviour-relevant settings, in the order T4.4 and T4.6 name them.
+
+**`ablation_config` is T7.3's** (`PREREGISTRATION-T7.3.md`, Addendum 1): the switches E2 to E9
+that are off their standing values. **`{}`, the standing pipeline, is left out of the hash** and is
+not reported missing: a full run therefore keeps the fingerprint it had before the key existed,
+and only an ablation arm hashes to a row of its own. That is `ablation`'s separation without its
+cost - no existing configuration is renamed.
 
 `runtime_version` covers *prompt versions* - it is a digest over every role system prompt and
 every contract schema. `models` and `efforts` are the model map. `budget` is the context and cost
@@ -211,6 +218,9 @@ def fingerprint(manifest: dict[str, Any]) -> Config:
     missing: list[str] = []
     for key in FINGERPRINT_INPUTS:
         value = _setting(manifest, key)
+        if key == "ablation_config" and not value:
+            # The standing pipeline, or a run made before the key: hashed as it always was.
+            continue
         if value is None:
             missing.append(key)
         else:

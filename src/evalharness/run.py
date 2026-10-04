@@ -166,7 +166,7 @@ def counts_toward_aggregates(manifest: dict[str, Any]) -> bool:
     return not manifest.get("demo", False) and "adversarial" not in manifest
 
 
-STANDING_PIPELINE_KEYS = ("baseline", "ablation", "exclusion_policy")
+STANDING_PIPELINE_KEYS = ("baseline", "ablation", "exclusion_policy", "ablation_config")
 """What makes a run something other than the standing pipeline. **Named, so the next one is.**"""
 
 
@@ -207,7 +207,62 @@ def is_standing_pipeline(manifest: dict[str, Any]) -> tuple[bool, str]:
     policy = manifest.get("exclusion_policy") or "own"
     if policy != "own":
         return False, f"a {policy!r} retrieval arm, which reads a narrower corpus (T6.5 §4)"
+    switched = manifest.get("ablation_config") or {}
+    if switched:
+        return False, f"a T7.3 ablation arm ({', '.join(sorted(switched))} off its standing value)"
     return True, ""
+
+
+def ablation_config() -> dict[str, Any]:
+    """T7.3's switches that are off their standing values, `{}` for the standing pipeline.
+
+    **Compared against each setting's declared default**, not against a second copy of it here:
+    a standing value restated in this function is one that could disagree with the setting it
+    describes. Every switch E2 to E9 is a field of `ContextSettings`, `AgentSettings` or
+    `ToolSettings`, read the way `faultline-investigate` reads it, from the environment it
+    inherits. E1 is `baseline: b1`, recorded where every baseline is.
+    """
+    from pydantic_settings import BaseSettings
+
+    from faultline.agents.settings import AgentSettings
+    from faultline.context.settings import ContextSettings
+    from faultline.tools.settings import ToolSettings
+
+    switches: dict[type[BaseSettings], tuple[str, ...]] = {
+        ContextSettings: (
+            "hop_radius",
+            "retrieval_mode",
+            "rerank_model",
+            "rerank_candidates",
+            "rerank_revision",
+        ),
+        AgentSettings: (
+            "evidence_mode",
+            "role_models",
+            "no_corpus",
+            "briefing_mode",
+            "budget_briefing_tokens",
+        ),
+        ToolSettings: (
+            "default_lookback_seconds",
+            "change_lookback_seconds",
+            "max_window_seconds",
+        ),
+    }
+    off: dict[str, Any] = {}
+    for settings_type, names in switches.items():
+        current = settings_type()
+        for name in names:
+            value = getattr(current, name)
+            field = settings_type.model_fields[name]
+            if value != field.get_default(call_default_factory=True):
+                off[name] = value
+    if "rerank_model" not in off:
+        # The pool size and the revision mean nothing without a reranker; recording either alone
+        # would make a standing run look like an ablation arm.
+        off.pop("rerank_candidates", None)
+        off.pop("rerank_revision", None)
+    return off
 
 
 EVENT_PREFIX = "@@EVENT "
@@ -1347,6 +1402,13 @@ def exclusion_policy(args: Any) -> str:
     return "own+class" if getattr(args, "exclude_same_class", False) else "own"
 
 
+def _no_corpus() -> bool:
+    """`FAULTLINE_AGENT_NO_CORPUS`, read the way `ablation_config` reads it."""
+    from faultline.agents.settings import AgentSettings
+
+    return AgentSettings().no_corpus
+
+
 def _investigate(incident_id: str, scenario_id: str, out: Path, args: Any) -> tuple[int, str]:
     """`faultline-investigate`, as a subprocess. **Its exit code is the contract being used.**"""
     cmd = [
@@ -1370,6 +1432,10 @@ def _investigate(incident_id: str, scenario_id: str, out: Path, args: Any) -> tu
         cmd += ["--baseline", args.baseline]
     for specialist in getattr(args, "without", None) or ():
         cmd += ["--without", specialist]
+    if _no_corpus():
+        # T7.3's E5 (`PREREGISTRATION-T7.3.md`, Addendum 1): the arm is set in the environment
+        # with the other switches, and passed through as the flag that already existed.
+        cmd += ["--no-corpus"]
     if args.postgres_dsn:
         cmd += ["--postgres-dsn", args.postgres_dsn]
     print(f"  $ {' '.join(cmd)}")
@@ -1640,6 +1706,11 @@ def main(argv: list[str] | None = None) -> int:
             # fingerprint must see "nothing withheld" as a stated value, or a full run recorded
             # after this field existed would be indistinguishable from one recorded before it.
             run.manifest["ablation"] = sorted(set(args.without))
+            # T7.3's switches E2-E9 (`PREREGISTRATION-T7.3.md`, Addendum 1): every one that is off
+            # its standing value, read from the environment `faultline-investigate` inherits.
+            # `{}` is the standing pipeline, and is written rather than omitted for `ablation`'s
+            # reason.
+            run.manifest["ablation_config"] = ablation_config()
             # T6.5 §4: which arm this run was, and what that resolved to. The policy is the
             # fingerprint input; the resolved list is recorded beside it so a reader can check
             # the derivation without the catalog this run was launched against.

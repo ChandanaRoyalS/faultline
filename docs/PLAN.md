@@ -4617,6 +4617,40 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-10-04: T7.3's build, part C - the eight switches, E2 to E9, each off by default.***
+
+- **Built as registered** (T7.3 Addendum 1, the switches table). Every switch is a setting read from
+  the environment, and unset is today's pipeline:
+  - **E2** `FAULTLINE_CONTEXT_HOP_RADIUS=99`: the setting that already existed;
+  - **E3** `FAULTLINE_AGENT_EVIDENCE_MODE=raw`: the synthesizer gets each cited result's whole
+    envelope instead of the board's samples;
+  - **E4** `FAULTLINE_AGENT_ROLE_MODELS`: **now applied**. It was recorded and read by nothing; the
+    CLI builds each role, triage and each specialist from its own entry;
+  - **E5** `FAULTLINE_AGENT_NO_CORPUS=1`: the harness passes the existing `--no-corpus`;
+  - **E6** `FAULTLINE_CONTEXT_RETRIEVAL_MODE=dense`: the text arm is skipped;
+  - **E7** `FAULTLINE_CONTEXT_RERANK_MODEL`: new `context/rerank.py`, a local cross-encoder over the
+    20 best fused candidates, keeping *k*;
+  - **E8** the three tools window settings at 7 days;
+  - **E9** `FAULTLINE_AGENT_BRIEFING_MODE=push`: no budget, and every brief gets the full allowlist,
+    every class and action runbook, and the retrieved incidents once retrieval has run. The briefing
+    budget setting now reaches every role (it reached none).
+- **How two registered phrases were built** (recorded here and in `docs/DEVIATIONS.md`):
+  - *"Every role's brief"* (E9): the five briefed roles (triage, planner, synthesizer, proposer,
+    scribe). **The specialists are not briefed**: each gets a dispatch question and reads its own
+    tools, so push leaves them unchanged. Triage runs before retrieval and the planner's first
+    round before any finding, so neither can be pushed what does not exist yet. The scribe's pushed
+    sections are repository and corpus text, so ADR-0020's leak boundary holds. The postmortem
+    scribe runs only from its own CLI, outside a scored run.
+  - *"Revision pinned"* (E7): `FAULTLINE_CONTEXT_RERANK_REVISION`, **required with the model**; the
+    store refuses an unpinned reranker. The commit is resolved on the Mac before the trials and
+    written into the operation addendum. This session could not reach the model hub.
+- **The record**: every manifest carries `ablation_config`, the switches that differ from their
+  defaults. It is part of the fingerprint only when non-empty, so standing runs keep the
+  fingerprint they had, and a run with any switch set is never the standing pipeline.
+- **Both stamps unchanged**: `cap:91279a09`, `prompts:9ce16b66bbcc`. No system prompt moved; the
+  pushed sections are in the user message. Tests: `tests/test_t73_switches.py`. $0.
+- **Next**: part D, the batch runner, the tally and the corpus of record.
+
 ***2026-10-04: T7.3's build, part B - B0, B1 and B2 know the nine classes and name a culprit.***
 
 - **B1 and B2** (headline Addendum 1, item 6):

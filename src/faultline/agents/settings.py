@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from faultline.agents.budget import Budget
@@ -36,6 +38,25 @@ class AgentSettings(BaseSettings):
     `{"scribe": "claude-haiku-4-5"}` is not the same experiment as one run without it, and a
     headline that says only `claude-opus-5` would not show the difference.
     """
+
+    evidence_mode: Literal["board", "raw"] = "board"
+    """**T7.3's E3 switch** (`PREREGISTRATION-T7.3.md`, Addendum 1). `board` is the standing
+    pipeline: the synthesizer reads the evidence board, each entry with a 400-character sample
+    (T3.6). `raw` gives it each dispatch's full envelope instead - the *raw context* arm of the
+    plan's *evidence compression vs. raw context*."""
+
+    briefing_mode: Literal["disclosure", "push"] = "disclosure"
+    """**T7.3's E9 switch.** `disclosure` is the standing pipeline (T3.2c): a budgeted brief per
+    role, sections dropped by priority. `push` assembles every brief with no budget, so nothing is
+    dropped, and gives every role that is briefed (triage, the planner, the synthesizer, the
+    proposer, the scribe) the sections the others are disclosed: the full allowlist, every class
+    and action runbook, and the retrieved past incidents once retrieval has run. The specialists
+    are not briefed - each receives a dispatch question and reads its own tool results - so they
+    are unchanged."""
+
+    no_corpus: bool = False
+    """**T7.3's E5 switch, read by the harness, not by `faultline-investigate`.** Set, the harness
+    passes `--no-corpus` (the flag that already existed) and the manifest records the arm."""
 
     provider: str = "anthropic"
     """`anthropic` or `openai-compatible`. **The self-hosted lane is a setting, not a branch
