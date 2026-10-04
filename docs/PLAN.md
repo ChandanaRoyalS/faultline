@@ -4617,6 +4617,24 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-10-04: T7.3's build, part A - the harness can run v2: the world check, the catalog, the
+freeze, the world's digests, and a gated run scored as a miss.***
+
+- **Built as registered** (headline Addendum 1, items 1-5):
+  - `scripts/world_check.py` is the Downloads check, plus Alertmanager (Q124) and quote's clock
+    (Q121), and it exits non-zero on a failure;
+  - `faultline-sweep --world v2` lists 29 dev and 39 with `--holdout`, and v1 is unchanged;
+  - the freeze reads v2 from `cart`;
+  - `compare` counts the catalog with its holdout, so v2's 39 switches the headline to holdout-only;
+  - `generations` pins `WORLD_V2` and its observability digest;
+  - every manifest records `world` (Q86);
+  - a `GATED` investigation is scored `gated` on every axis, never a discard.
+- **One defect found on the way**: `compare` had counted the catalog without its holdout since dev
+  sweep 12. That was harmless on v1, but on v2 it would have printed 29 and kept the holdout
+  headline off.
+- **Both stamps unchanged**: `cap:91279a09`, `prompts:9ce16b66bbcc`. Tests: `tests/test_headline_build.py`.
+- **Next**: part B, the baselines at nine classes with `service`.
+
 ***2026-10-04: T7.3's build registered - four world decisions, the shared v2 build, eight
 switches, and a decision point after the headline run.***
 

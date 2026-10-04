@@ -23,6 +23,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import subprocess
 import sys
 import time
@@ -695,6 +696,20 @@ def scenario_path(scenario_id: str) -> Path | None:
     return None
 
 
+def tools_world() -> str:
+    """`FAULTLINE_TOOLS_WORLD`, as `ToolSettings` reads it."""
+    from faultline.tools.settings import ToolSettings
+
+    return ToolSettings().world
+
+
+def scenario_world(scenario_id: str) -> str:
+    """`v2` for a scenario whose YAML is under `evals/scenarios/v2/`, else `v1`. Read off the
+    path `scenario_path` finds, so the two cannot disagree about where a scenario lives."""
+    path = scenario_path(scenario_id)
+    return "v2" if path is not None and path.parent.name == "v2" else "v1"
+
+
 def bundle_for(scenario_id: str) -> dict[str, Any]:
     for split in ("dev", "holdout"):
         path = REPO_ROOT / "evals/scenarios/artifacts" / split / scenario_id / "manifest.json"
@@ -1029,6 +1044,96 @@ def score(
     )
 
 
+# --- a run triage declined (the headline run's Addendum 1, item 5) ---------------------------
+
+INVESTIGATE_GATED = 5
+"""`faultline-investigate`'s `Exit.GATED`: triage declined the incident before any specialist ran,
+and the CLI wrote no verdict artifact. **Mirrored here, not imported**, because ADR-0004 keeps the
+harness reading the product's exit codes rather than its modules; a test holds the two equal."""
+
+GATED_LABEL = "gated"
+"""What a gated run is scored as having answered, on every axis. **Not an abstention**:
+`score_label` treats `None` and `unknown` as abstaining, and the owner's decision of 2026-10-04 is
+that a declined real incident is a miss, so the run must count in the accuracy ratio as wrong. A
+label no scenario carries is wrong against every truth by construction."""
+
+_JUDGED = re.compile(r"^triage judged: (\w+) \((\w+) confidence, suspects ([\w_-]+)\)\s*$", re.M)
+
+
+def gated_judgement(transcript: str) -> dict[str, Any]:
+    """Triage's disposition, confidence, suspected class and reasoning, read off the CLI's own
+    transcript lines (`triage judged: ...` and the indented line after it). A transcript that
+    carries no such line is recorded as such, never invented."""
+    match = _JUDGED.search(transcript)
+    if match is None:
+        return {"disposition": None, "confidence": None, "suspects": None, "reasoning": None}
+    following = transcript[match.end() :].lstrip("\n").splitlines()
+    reasoning = following[0].strip() if following and following[0].startswith("  ") else None
+    return {
+        "disposition": match.group(1),
+        "confidence": match.group(2),
+        "suspects": match.group(3),
+        "reasoning": reasoning,
+    }
+
+
+def gated_artifact(incident_id: str) -> dict[str, Any]:
+    """The verdict artifact a gated run is scored from: every axis answered `gated`, and nothing
+    the investigation would have produced, because nothing after triage ran."""
+    return {
+        "incident_id": incident_id,
+        "trajectory_id": None,
+        "states": [],
+        "blast_radius": [],
+        "unmeasured_edges": 0,
+        "verdict": {
+            "fault_class": GATED_LABEL,
+            "remediation_class": GATED_LABEL,
+            "service": GATED_LABEL,
+        },
+        "flags": [],
+        "failed_dispatches": [],
+        "narrative_error": None,
+    }
+
+
+def _score_gated(run: Any, args: Any, bundle: dict[str, Any], incident_id: str, ev: Any) -> int:
+    """Score a run triage declined as a miss on every axis, and say so everywhere it is read."""
+    from faultline.agents.stamp import runtime_version
+
+    transcript_path = run.path / "investigate.txt"
+    transcript = transcript_path.read_text() if transcript_path.exists() else ""
+    judgement = gated_judgement(transcript)
+    run.manifest["gated"] = judgement
+    run.manifest["unexpected_fields"] = {}
+    scored = score(
+        run.run_id,
+        args.scenario_id,
+        bundle,
+        gated_artifact(incident_id),
+        {"steps": 0, "runtime_version": runtime_version()},
+        run.manifest["models"],
+    )
+    scored.budget = dict(run.manifest["budget"])
+    scored.reachability = dict(bundle.get("reachability") or {})
+    scored.service_visibility = target_visibility(culprit_service(args.scenario_id))
+    run.manifest["score"] = scored.as_dict()
+    run.manifest["finished_at"] = datetime.now(UTC).isoformat()
+    emit(ev, "scored", run_dir=str(run.path), trajectory_id=None, gated=judgement)
+    run.save_manifest()
+    report = (
+        f"GATED by triage: {judgement['disposition']} ({judgement['confidence']} confidence)\n"
+        f"  {judgement['reasoning']}\n"
+        "Scored as a miss on every axis (PREREGISTRATION-headline-v2.md, Scoring). Triage's "
+        "single model call is not persisted, so the run's recorded cost is $0.\n\n"
+        + scored.report()
+    )
+    run.write("report.txt", report + "\n")
+    print("\n" + report)
+    print(f"\nartifacts under {run.path}")
+    return 0
+
+
 # --- the protocol ---------------------------------------------------------------
 
 EXIT_CODES: dict[int, str] = {
@@ -1227,7 +1332,7 @@ def exclusion_for(scenario_id: str, args: Any) -> list[str]:
     if getattr(args, "exclude_same_class", False):
         from evalharness.sweep import same_class_origins
 
-        return same_class_origins(scenario_id)
+        return same_class_origins(scenario_id, world=scenario_world(scenario_id))
     return [f"scenario:{scenario_id}"] if not scenario_id.startswith("scenario:") else [scenario_id]
 
 
@@ -1543,6 +1648,12 @@ def main(argv: list[str] | None = None) -> int:
             run.manifest["repeat_count"] = variance.TIERS[args.tier][0]
             run.manifest["tier"] = args.tier
             run.manifest["seed_policy"] = variance.SEED_POLICY
+            # Q86: the world the run was taken in, as its own provenance field beside
+            # `runtime_version`. The capability stamp does not distinguish worlds and must not be
+            # moved to (197 v1 runs would restamp); a `v1` and a `v2` run of one tool layer are
+            # told apart here instead. The tool layer's world, which `faultline-investigate`
+            # reads too, so the field says what the agent's tools were pointed at.
+            run.manifest["world"] = tools_world()
             block = sweep_block(args.sweep, args.sweep_slot, args.sweep_of, args.sweep_pass)
             if block is not None:
                 run.manifest["sweep"] = block
@@ -1669,6 +1780,8 @@ def main(argv: list[str] | None = None) -> int:
                 print(f"  WARNING: world not quiet after revert: {recovery.refusals}")
 
         artifact_path = run.path / f"{incident_id}-verdict.json"
+        if not artifact_path.exists() and code == INVESTIGATE_GATED:
+            return _score_gated(run, args, bundle, incident_id, ev)
         if not artifact_path.exists():
             raise RunError(
                 f"the investigation wrote no verdict artifact (exit {code}). "

@@ -82,6 +82,17 @@ WORLD_90E = "90e9f29e578e"
 `observability_digest` moved with it, to `f3011ba83021`, and again to `7aaba3818737` when the
 trace store's block duration was fixed - see `CURRENT_OBSERVABILITY`."""
 
+WORLD_V2 = "5a2bc6d912f9"
+"""The v2 world (ADR-0042) every one of the 39 valid v2 bundles was recorded on, 2026-09-27 to
+09-30: `compose_digest` `5a2bc6d912f9…` on the reference platform. `generation_of` names a v2 run
+by its own freeze, so this is the constant a report compares against, not a reconstruction (the
+headline run's Addendum 1, item 4)."""
+
+CURRENT_OBSERVABILITY_V2 = "7d6097ab0f00132d57993804ee4f4d9eff1abedfb71a273bdd7e553ef887637b"
+"""`observability_digest` of the v2 world's bundles. Pinned for `CURRENT_OBSERVABILITY`'s reason.
+**Q123 and Q108 were decided on 2026-10-04 so that this does not move**: the alert rules stay
+as recorded."""
+
 CURRENT_OBSERVABILITY = "7aaba3818737582359ef74b125ae107096b2a8d90fc94d57c7af5ccc2fc676c8"
 """The observability digest a figure at the current world is expected to carry.
 

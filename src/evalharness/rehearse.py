@@ -41,6 +41,7 @@ from pathlib import Path
 from typing import Any
 
 from evalharness import reachability
+from evalharness.freeze import REFERENCE_CONTAINER_BY_WORLD
 from evalharness.prom import (
     LOKI,
     POLL_SECONDS,
@@ -135,10 +136,6 @@ HEADROOM_ADVICE_BY_WORLD: dict[str, str] = {
 }
 """What the headroom refusal tells the operator to do, per world. **v1's advice was printed at v2
 until 2026-09-24**, naming v1's override file and a lock that described v1's recorded bundles."""
-
-REFERENCE_CONTAINER_BY_WORLD: dict[str, str] = {"v1": "cart-service", "v2": "cart"}
-"""The container whose image names the demo release a bundle was recorded against. v2's names
-are the service names; asking v2's docker for `cart-service` returns nothing and records `None`."""
 
 
 class RehearsalError(RuntimeError):

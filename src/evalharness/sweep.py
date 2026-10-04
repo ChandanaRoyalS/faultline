@@ -47,6 +47,20 @@ from evalharness import variance
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SCENARIO_ROOT = REPO_ROOT / "evals/scenarios"
 
+WORLDS = ("v1", "v2")
+"""The catalogs a sweep can list (the headline run's Addendum 1, item 2). **v1 is the default and
+reads exactly what it always read**: the YAML files at the top of `evals/scenarios/`. v2's files
+live in `evals/scenarios/v2/` (`SPLIT-V2.md`), and both worlds' bundles share
+`evals/scenarios/artifacts/<split>/<id>/`, so only the directory the YAML is read from moves."""
+
+
+def catalog_dir(root: Path = SCENARIO_ROOT, world: str = "v1") -> Path:
+    """Where a world's scenario YAML lives under `root`. Refuses a world it does not know."""
+    if world not in WORLDS:
+        raise ValueError(f"unknown world {world!r}; expected one of {', '.join(WORLDS)}")
+    return root if world == "v1" else root / world
+
+
 MEDIAN_RUN_USD = 0.53
 """Measured over the 87 recorded agent runs that carry a cost: median $0.53, range $0.26-$0.88.
 
@@ -147,7 +161,7 @@ covers it — a second hand-written copy of a contract is how a driver comes to 
 a run the harness calls INVALID."""
 
 
-def runnable(root: Path = SCENARIO_ROOT, *, holdout: bool = False) -> list[str]:
+def runnable(root: Path = SCENARIO_ROOT, *, holdout: bool = False, world: str = "v1") -> list[str]:
     """Every scenario that can be run, in a stable order. **Dev only unless `holdout` is set.**
 
     A bundle carrying `INVALID.md` is excluded: its fault produced nothing observable, so a run
@@ -181,7 +195,7 @@ def runnable(root: Path = SCENARIO_ROOT, *, holdout: bool = False) -> list[str]:
             for split in ("dev", "holdout")
         )
 
-    catalog = (Scenario.from_yaml(path) for path in sorted(root.glob("*.yaml")))
+    catalog = (Scenario.from_yaml(path) for path in sorted(catalog_dir(root, world).glob("*.yaml")))
     return sorted(
         s.id
         for s in catalog
@@ -190,7 +204,7 @@ def runnable(root: Path = SCENARIO_ROOT, *, holdout: bool = False) -> list[str]:
 
 
 def same_class_origins(
-    scenario_id: str, root: Path = SCENARIO_ROOT, *, holdout: bool = False
+    scenario_id: str, root: Path = SCENARIO_ROOT, *, holdout: bool = False, world: str = "v1"
 ) -> list[str]:
     """`scenario:S`, and every other **runnable** scenario of S's fault class, on S's split.
 
@@ -212,14 +226,19 @@ def same_class_origins(
     """
     from evalharness.scenario import Scenario
 
-    catalog = {s.id: s for s in (Scenario.from_yaml(path) for path in sorted(root.glob("*.yaml")))}
+    catalog = {
+        s.id: s
+        for s in (
+            Scenario.from_yaml(path) for path in sorted(catalog_dir(root, world).glob("*.yaml"))
+        )
+    }
     subject = catalog.get(scenario_id)
     if subject is None:
         raise UnknownScenarioError(
             f"{scenario_id!r} is not in the catalog, so its fault class cannot be read and the "
             "same-class exclusion cannot be derived."
         )
-    ids = set(runnable(root, holdout=holdout))
+    ids = set(runnable(root, holdout=holdout, world=world))
     return sorted(
         f"scenario:{s.id}"
         for s in catalog.values()
@@ -820,6 +839,17 @@ def parser() -> argparse.ArgumentParser:
         "--holdout, so before this flag existed a catalog sweep attempted three scenarios it "
         "could never run - and their place in --runs-remaining inflated the gate's projection",
     )
+    p.add_argument(
+        "--world",
+        choices=WORLDS,
+        default="v1",
+        help=(
+            "which catalog to list: v1's scenarios at the top of evals/scenarios/, or v2's under "
+            "evals/scenarios/v2/ (the headline run's Addendum 1). The world the runs are taken in "
+            "is FAULTLINE_TOOLS_WORLD's, which faultline-eval checks against each scenario "
+            "(default: %(default)s)"
+        ),
+    )
     p.add_argument("--baseline", choices=("b0", "b1", "b2"), default=None)
     p.add_argument(
         "--exclude-same-class",
@@ -918,7 +948,7 @@ def parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     args = parser().parse_args(argv)
-    ids = runnable(holdout=args.holdout)
+    ids = runnable(holdout=args.holdout, world=args.world)
 
     if args.only:
         try:

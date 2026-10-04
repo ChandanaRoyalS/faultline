@@ -252,14 +252,44 @@ def test_the_catalog_size_is_counted_rather_than_typed() -> None:
     holdout-only, so a stale constant is a stale policy claim in the report."""
     import inspect
 
-    from evalharness.compare import main
+    from evalharness.compare import catalog_size, main
     from evalharness.sweep import runnable
 
     source = inspect.getsource(main)
 
     assert '"--catalog-size", type=int, default=None' in source
-    assert "len(runnable())" in source
-    assert 18 not in {len(runnable())}, "if the catalog ever is 18, this guard proves nothing"
+    assert "catalog_size(args.world)" in source
+    assert catalog_size("v1") == len(runnable(holdout=True))
+    assert 18 not in {catalog_size("v1")}, "if the catalog ever is 18, this guard proves nothing"
+
+
+def test_the_catalog_size_counts_the_holdout_and_reads_each_world() -> None:
+    """T1.6 counts the catalog, holdout included. v2's is 39 valid scenarios, 10 of them holdout
+    (`SPLIT-V2.md`), which is what switches the headline to holdout-only (ADR-0008's 2026-10-04
+    addendum). Counting the dev list alone would have printed 29 and kept the policy off."""
+    from evalharness.compare import CATALOG_HOLDOUT_THRESHOLD, catalog_size
+    from evalharness.sweep import runnable
+
+    assert catalog_size("v2") == 39
+    assert len(runnable(world="v2")) == 29
+    assert catalog_size("v2") >= CATALOG_HOLDOUT_THRESHOLD > len(runnable(world="v2"))
+
+
+def test_at_thirty_or_more_the_holdout_is_the_headline() -> None:
+    """The branch that had never run (`pragma: no cover` until the v2 catalog existed)."""
+    a = arm(
+        "aaa",
+        [run("s1", "dev", fault_class_correct=1.0), run("s2", "holdout", fault_class_correct=0.0)],
+    )
+    b = arm(
+        "bbb",
+        [run("s1", "dev", fault_class_correct=1.0), run("s2", "holdout", fault_class_correct=1.0)],
+    )
+
+    text = "\n".join(compare.report(a, b, catalog_size=39, at=WHEN))
+
+    assert "at or above the threshold" in text
+    assert "the holdout figures are the headline and the dev figures are diagnostic" in text
 
 
 def test_arms_that_declared_no_repeat_count_are_not_described_as_mismatched() -> None:
