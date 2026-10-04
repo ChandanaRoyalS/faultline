@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import json
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
@@ -338,6 +338,7 @@ class Planner:
         max_tokens: int = 3000,
         effort: str = "medium",
         briefing_tokens: int = DEFAULT_BRIEFING_TOKENS,
+        briefing_mode: str = "disclosure",
     ):
         # 3000, matching the specialists. T3.3 raised theirs from 1200 after a truncated reply
         # arrived looking malformed and killed an investigation; the planner kept the old cap
@@ -348,6 +349,8 @@ class Planner:
         self._max_tokens = max_tokens
         self._effort = effort
         self._briefing_tokens = briefing_tokens
+        self._push = briefing_mode == "push"
+        """T7.3's E9 (`AgentSettings.briefing_mode`). `False` is the standing pipeline."""
         self.briefing: Briefing | None = None
 
     def plan(
@@ -362,8 +365,11 @@ class Planner:
         and loses the rest, each loss carried on the completion. Only a plan with nothing legal
         left is a failure of the round.
         """
+        sections = self.sections(triage, findings, retrieved)
+        if self._push:
+            sections += pushed_sections(allowlist=True, runbooks=True)
         self.briefing = assemble(
-            self.ROLE, self.sections(triage, findings, retrieved), self._briefing_tokens
+            self.ROLE, sections, PUSH_BRIEFING_TOKENS if self._push else self._briefing_tokens
         )
         request = ModelRequest(
             system=PLANNER_SYSTEM,
@@ -568,10 +574,17 @@ class Specialist:
 
 
 def build_specialists(
-    tools: ToolSet, model: LanguageModel, max_tokens: int = 3000, effort: str = "medium"
+    tools: ToolSet,
+    model: LanguageModel,
+    max_tokens: int = 3000,
+    effort: str = "medium",
+    models: Mapping[str, LanguageModel] | None = None,
 ) -> dict[SpecialistName, Specialist]:
+    """One `Specialist` per evidence type. `models` overrides `model` per specialist (T7.3's E4);
+    without it every specialist shares `model`, as it always has."""
+    chosen = models or {}
     return {
-        name: Specialist(name, tools, model, max_tokens=max_tokens, effort=effort)
+        name: Specialist(name, tools, chosen.get(name, model), max_tokens=max_tokens, effort=effort)
         for name in SPECIALISTS
     }
 
@@ -676,11 +689,17 @@ class Synthesizer:
         max_tokens: int = 3000,
         effort: str = "high",
         briefing_tokens: int = DEFAULT_BRIEFING_TOKENS,
+        evidence_mode: str = "board",
+        briefing_mode: str = "disclosure",
     ):
         self._model = model
         self._max_tokens = max_tokens
         self._effort = effort
         self._briefing_tokens = briefing_tokens
+        self._evidence_mode = evidence_mode
+        """T7.3's E3 (`AgentSettings.evidence_mode`). `board` is the standing pipeline."""
+        self._push = briefing_mode == "push"
+        """T7.3's E9. `False` is the standing pipeline."""
         self.briefing: Briefing | None = None
         """What the last call was actually given (T3.2c). Read by the runner to record briefing
         size and pull-rate; `None` until the role has run."""
@@ -692,10 +711,13 @@ class Synthesizer:
         retrieved: list[str],
         flags: list[str],
     ) -> Completion:
+        sections = self.sections(triage, findings, retrieved, flags, self._evidence_mode)
+        if self._push:
+            sections += pushed_sections(allowlist=True, runbooks=True)
         briefing = assemble(
             self.ROLE,
-            self.sections(triage, findings, retrieved, flags),
-            self._briefing_tokens,
+            sections,
+            PUSH_BRIEFING_TOKENS if self._push else self._briefing_tokens,
         )
         self.briefing = briefing
         return ask(
@@ -716,6 +738,7 @@ class Synthesizer:
         findings: list[SpecialistRun],
         retrieved: list[str],
         flags: list[str],
+        evidence_mode: str = "board",
     ) -> list[Section]:
         """The synthesizer's briefing, in priority order (T3.2c).
 
@@ -765,8 +788,19 @@ class Synthesizer:
                 name="evidence-board",
                 priority=20,
                 essential=True,
-                lines=["The evidence board. Cite by the ids in brackets:"]
-                + [f"  {entry}" for entry in render_board(board(findings))],
+                lines=(
+                    ["The evidence board. Cite by the ids in brackets:"]
+                    + [f"  {entry}" for entry in render_board(board(findings))]
+                    if evidence_mode != "raw"
+                    # T7.3's E3, raw context: the board's provenance without its 400-character
+                    # samples, and each dispatch's whole envelope after it - the transcripts the
+                    # board exists to replace (T3.6), for the arm that measures what replacing
+                    # them was worth.
+                    else ["The evidence board. Cite by the ids in brackets:"]
+                    + [f"  {entry}" for entry in render_board(board(findings), sample=False)]
+                    + ["", "Every dispatch's full result, as the specialist read it:"]
+                    + [line for run in findings for line in ("", run.envelope)]
+                ),
             ),
             Section(
                 name="incompleteness",
@@ -875,11 +909,16 @@ class Scribe:
         max_tokens: int = 3000,
         effort: str = "medium",
         briefing_tokens: int = DEFAULT_BRIEFING_TOKENS,
+        briefing_mode: str = "disclosure",
     ):
         self._model = model
         self._max_tokens = max_tokens
         self._effort = effort
         self._briefing_tokens = briefing_tokens
+        self._push = briefing_mode == "push"
+        """T7.3's E9. The pushed sections are the allowlist, the runbooks and the retrieved
+        incidents: repository and corpus text, none of it sampled tool output, so ADR-0020 §4's
+        leak boundary at this role holds in push mode too."""
         self.briefing: Briefing | None = None
 
     def draft(
@@ -889,6 +928,7 @@ class Scribe:
         verdict: Verdict,
         *,
         violation: str | None = None,
+        retrieved: list[str] | None = None,
     ) -> Completion:
         """One draft, or the regeneration T3.8 allows after a refused render.
 
@@ -938,7 +978,11 @@ class Scribe:
                 ),
             ),
         ]
-        self.briefing = assemble(self.ROLE, sections, self._briefing_tokens)
+        if self._push:
+            sections += pushed_sections(allowlist=True, runbooks=True, retrieved=retrieved)
+        self.briefing = assemble(
+            self.ROLE, sections, PUSH_BRIEFING_TOKENS if self._push else self._briefing_tokens
+        )
         return ask(
             self._model,
             ModelRequest(
@@ -950,6 +994,69 @@ class Scribe:
             ),
             NarrativeDraft,
         )
+
+
+# --- T7.3's push-everything arm (E9) -----------------------------------------------------------
+
+PUSH_BRIEFING_TOKENS = 10_000_000
+"""The budget every brief is assembled under in `push` mode: large enough that no section is ever
+dropped. **Not a tuned number**; it stands for *no budget*, which `assemble` has no other way to
+express. Only read when `AgentSettings.briefing_mode` is `push` (`PREREGISTRATION-T7.3.md`,
+Addendum 1); the standing pipeline never sees it."""
+
+
+def allowlist_lines() -> list[str]:
+    """Every allowlist action as the proposer's brief renders it. Moved out of `Proposer.sections`
+    unchanged, so the push arm can give the same lines to the planner and the synthesizer."""
+    actions = ["Actions this system is permitted to take:"]
+    for action in load_allowlist().actions:
+        if action.status is not ActionStatus.AVAILABLE:
+            # Listed, with its reason, so the model does not propose it and then discover
+            # the refusal. ADR-0029's measurement is worth more in the brief than in a
+            # rejection message the run may never reach.
+            actions.append(
+                f"  {action.id} ({action.remediation_class}): UNAVAILABLE - "
+                f"{' '.join((action.unperformable_reason or '').split())}"
+            )
+            continue
+        actions.append(f"  {action.id} ({action.remediation_class}): {action.summary.strip()}")
+        for precondition in action.preconditions:
+            actions.append(f"      requires: {precondition}")
+        actions.append(f"      blast radius: {' '.join(action.blast_radius.split())}")
+        actions.append(f"      reversible: {'yes' if action.reversible else 'no'}")
+    return actions
+
+
+def pushed_sections(
+    *, allowlist: bool, runbooks: bool, retrieved: list[str] | None = None
+) -> list[Section]:
+    """The sections a `push` brief adds to a role that does not already receive them.
+
+    **Every section any of the planner, the synthesizer and the proposer receives**, with nothing
+    narrowed by the pipeline: the full allowlist, every class and action runbook rather than the
+    ones a verdict makes applicable, and the retrieved past incidents. Priorities sit below every
+    standing section, and in `push` mode nothing is dropped anyway.
+    """
+    out: list[Section] = []
+    if allowlist:
+        out.append(Section(name="push-allowlist", priority=70, lines=allowlist_lines()))
+    if runbooks:
+        lines = ["Every class and action runbook:"]
+        for runbook in load_runbooks():
+            if runbook.id.startswith(("class-", "action-")):
+                lines.append(f"  --- {runbook.title} ({runbook.id}) ---")
+                lines.append(runbook.body.strip())
+        out.append(Section(name="push-runbooks", priority=80, lines=lines))
+    if retrieved:
+        out.append(
+            Section(
+                name="push-past-incidents",
+                priority=90,
+                lines=["Past incidents retrieved from the corpus (context, not answers):"]
+                + [f"  {chunk}" for chunk in retrieved],
+            )
+        )
+    return out
 
 
 class Proposer:
@@ -976,11 +1083,14 @@ class Proposer:
         effort: str = "high",
         runbooks: tuple[Runbook, ...] | None = None,
         briefing_tokens: int = DEFAULT_BRIEFING_TOKENS,
+        briefing_mode: str = "disclosure",
     ) -> None:
         self._model = model
         self._max_tokens = max_tokens
         self._effort = effort
         self._briefing_tokens = briefing_tokens
+        self._push = briefing_mode == "push"
+        """T7.3's E9. `False` is the standing pipeline."""
         self.briefing: Briefing | None = None
         self._runbooks = runbooks
         """Loaded lazily from `knowledge/runbooks/`. **Read directly rather than retrieved**: the
@@ -997,6 +1107,7 @@ class Proposer:
         *,
         violation: str | None = None,
         rejection: OperatorRejection | None = None,
+        retrieved: list[str] | None = None,
     ) -> Completion:
         """One proposal, checked against the allowlist and the incident's own topology.
 
@@ -1011,10 +1122,16 @@ class Proposer:
         input (`THREAT-MODEL.md` thesis 1).
         """
         scoped = {member.service for member in triage.blast_radius}
+        sections = self.sections(triage, verdict, findings, violation, rejection)
+        if self._push:
+            # T7.3's E9: every class and action runbook rather than the verdict's, and the past
+            # incidents the planner and the synthesizer were given. `retrieved` is read only here.
+            sections = [section for section in sections if section.name != "runbooks"]
+            sections += pushed_sections(allowlist=False, runbooks=True, retrieved=retrieved)
         self.briefing = assemble(
             self.ROLE,
-            self.sections(triage, verdict, findings, violation, rejection),
-            self._briefing_tokens,
+            sections,
+            PUSH_BRIEFING_TOKENS if self._push else self._briefing_tokens,
         )
         return ask(
             self._model,
@@ -1058,22 +1175,7 @@ class Proposer:
             lines.append(f"  {member.service} ({member.direction.value}{reached})")
         evidence = ["The evidence board. `rests_on` may cite only these ids:"]
         evidence += [f"  {entry}" for entry in render_board(board(findings))]
-        actions = ["Actions this system is permitted to take:"]
-        for action in load_allowlist().actions:
-            if action.status is not ActionStatus.AVAILABLE:
-                # Listed, with its reason, so the model does not propose it and then discover
-                # the refusal. ADR-0029's measurement is worth more in the brief than in a
-                # rejection message the run may never reach.
-                actions.append(
-                    f"  {action.id} ({action.remediation_class}): UNAVAILABLE - "
-                    f"{' '.join((action.unperformable_reason or '').split())}"
-                )
-                continue
-            actions.append(f"  {action.id} ({action.remediation_class}): {action.summary.strip()}")
-            for precondition in action.preconditions:
-                actions.append(f"      requires: {precondition}")
-            actions.append(f"      blast radius: {' '.join(action.blast_radius.split())}")
-            actions.append(f"      reversible: {'yes' if action.reversible else 'no'}")
+        actions = allowlist_lines()
         runbooks: list[str] = []
         applicable = self._applicable_runbooks(verdict)
         if applicable:
@@ -1161,11 +1263,15 @@ class Triager:
         max_tokens: int = 800,
         effort: str = "low",
         briefing_tokens: int = DEFAULT_BRIEFING_TOKENS,
+        briefing_mode: str = "disclosure",
     ) -> None:
         self._model = model
         self._max_tokens = max_tokens
         self._effort = effort
         self._briefing_tokens = briefing_tokens
+        self._push = briefing_mode == "push"
+        """T7.3's E9. Triage runs before retrieval, so it is pushed the allowlist and the
+        runbooks; there are no retrieved incidents yet to push."""
         self.briefing: Briefing | None = None
 
     def judge(self, triage: TriageResult, open_incidents: list[tuple[str, str, str]]) -> Completion:
@@ -1175,8 +1281,11 @@ class Triager:
         owns exact repeats, and the cross-fingerprint case needs to see what else is open.
         """
         known = {incident_id for incident_id, _, _ in open_incidents}
+        sections = self.sections(triage, open_incidents)
+        if self._push:
+            sections += pushed_sections(allowlist=True, runbooks=True)
         self.briefing = assemble(
-            self.ROLE, self.sections(triage, open_incidents), self._briefing_tokens
+            self.ROLE, sections, PUSH_BRIEFING_TOKENS if self._push else self._briefing_tokens
         )
         return ask(
             self._model,

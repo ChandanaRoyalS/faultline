@@ -26,6 +26,7 @@ from typing import Any, Protocol
 
 from faultline.context.corpus import Chunk
 from faultline.context.embedding import Embedder
+from faultline.context.rerank import Reranker
 
 
 def normalise_exclusions(origins: frozenset[str] | str | None) -> frozenset[str]:
@@ -257,17 +258,38 @@ class PgVectorPastIncidentStore:
     """
 
     def __init__(
-        self, connection: Any, embedder: Embedder, normalisation: int | None = None
+        self,
+        connection: Any,
+        embedder: Embedder,
+        normalisation: int | None = None,
+        mode: str | None = None,
+        reranker: Reranker | None = None,
+        rerank_candidates: int | None = None,
     ) -> None:
         self._conn = connection
         self._embedder = embedder
-        if normalisation is None:
-            from faultline.context.settings import ContextSettings
+        from faultline.context.settings import ContextSettings
 
-            normalisation = ContextSettings().text_normalisation
+        settings = ContextSettings()
+        if normalisation is None:
+            normalisation = settings.text_normalisation
         self._normalisation = int(normalisation)
         """Read once at construction, not per query: a store whose ranking could change
         mid-investigation would make a trajectory describe two pipelines."""
+        self._mode = mode or settings.retrieval_mode
+        """T7.3's E6: `hybrid` (standing) or `dense`. Read once, for the reason above."""
+        if reranker is None and settings.rerank_model:
+            from faultline.context.rerank import CrossEncoderReranker
+
+            if not settings.rerank_revision:
+                raise ValueError(
+                    "FAULTLINE_CONTEXT_RERANK_MODEL is set without "
+                    "FAULTLINE_CONTEXT_RERANK_REVISION: the E7 reranker runs pinned or not at all"
+                )
+            reranker = CrossEncoderReranker(settings.rerank_model, settings.rerank_revision)
+        self._reranker = reranker
+        """T7.3's E7: `None` (standing) or the cross-encoder that re-scores the candidates."""
+        self._rerank_candidates = int(rerank_candidates or settings.rerank_candidates)
 
     def add(self, chunks: list[Chunk]) -> int:
         if not chunks:
@@ -364,10 +386,13 @@ class PgVectorPastIncidentStore:
         # a NULL is NULL for every row and would return nothing at all. No origin is null today;
         # the form that cannot break that way costs nothing.
         exclusion = "" if not excluded else " AND origin <> ALL(%(origins)s)"
+        # T7.3's E7 widens the pool the reranker chooses from; every other configuration asks for
+        # exactly `k`, as it always has.
+        pool = max(k, self._rerank_candidates) if self._reranker is not None else k
         params: dict[str, Any] = {
             "q": query,
             "v": vector,
-            "k": k,
+            "k": pool,
             "origins": sorted(excluded),
         }
 
@@ -393,17 +418,21 @@ class PgVectorPastIncidentStore:
                 params,
             )
             dense = [str(row[0]) for row in cur.fetchall()]
-            cur.execute(
-                "WITH tq AS (SELECT " + TEXT_QUERY + " AS q) "
-                "SELECT id FROM incident_chunks, tq WHERE body_tsv @@ tq.q"
-                + exclusion
-                + f" ORDER BY ts_rank_cd(body_tsv, tq.q, {self._normalisation}) DESC, id"
-                + " LIMIT %(k)s",
-                params,
-            )
-            text = [str(row[0]) for row in cur.fetchall()]
+            arms = [dense]
+            # T7.3's E6: in `dense` mode the text arm is not asked at all.
+            if self._mode != "dense":
+                cur.execute(
+                    "WITH tq AS (SELECT " + TEXT_QUERY + " AS q) "
+                    "SELECT id FROM incident_chunks, tq WHERE body_tsv @@ tq.q"
+                    + exclusion
+                    + f" ORDER BY ts_rank_cd(body_tsv, tq.q, {self._normalisation}) DESC, id"
+                    + " LIMIT %(k)s",
+                    params,
+                )
+                text = [str(row[0]) for row in cur.fetchall()]
+                arms.append(text)
 
-            fused = fuse([dense, text], limit=k)
+            fused = fuse(arms, limit=pool)
             if not fused:
                 return []
             cur.execute(
@@ -414,8 +443,14 @@ class PgVectorPastIncidentStore:
             )
             rows = {row[0]: row for row in cur.fetchall()}
 
+        order: list[tuple[str, float]] = [(key, score) for key, (score, _) in fused.items()]
+        if self._reranker is not None:
+            from faultline.context.rerank import rerank
+
+            order = rerank(self._reranker, query, [(key, str(rows[key][4])) for key, _ in order], k)
         hits = []
-        for key, (score, ranks) in fused.items():
+        for key, score in order:
+            ranks = fused[key][1]
             row = rows[key]
             hits.append(
                 Hit(
@@ -435,7 +470,7 @@ class PgVectorPastIncidentStore:
                     ),
                     score=score,
                     dense_rank=ranks[0],
-                    text_rank=ranks[1],
+                    text_rank=ranks[1] if len(ranks) > 1 else None,
                 )
             )
         return hits

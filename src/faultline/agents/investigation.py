@@ -601,7 +601,11 @@ class Investigation:
         for attempt in (1, 2):
             try:
                 completion = self._scribe.draft(
-                    triage, result.runs, result.verdict, violation=violation
+                    triage,
+                    result.runs,
+                    result.verdict,
+                    violation=violation,
+                    retrieved=result.retrieved,
                 )
             except SchemaValidationError as failure:
                 state.spend_tokens(failure.response.input_tokens, failure.response.output_tokens)
@@ -950,6 +954,7 @@ class Investigation:
                     result.runs,
                     violation=violation,
                     rejection=self._rejection,
+                    retrieved=result.retrieved,
                 )
             except SchemaValidationError as failure:
                 state.spend_tokens(failure.response.input_tokens, failure.response.output_tokens)

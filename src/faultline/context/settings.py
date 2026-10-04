@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -91,6 +93,26 @@ class ContextSettings(BaseSettings):
     nothing, and ADR-0041 records that the retrieval side of its rule is already satisfied while
     the evidence that matters - whether a verdict changes - does not exist yet.
     """
+
+    retrieval_mode: Literal["hybrid", "dense"] = "hybrid"
+    """**T7.3's E6 switch** (`PREREGISTRATION-T7.3.md`, Addendum 1). `hybrid` is the standing
+    pipeline: the dense and text arms fused. `dense` skips the text query and fuses the dense arm
+    alone. Read once when the store is built, like `text_normalisation`."""
+
+    rerank_model: str | None = None
+    """**T7.3's E7 switch.** Unset, the standing pipeline: no reranking. Set to a cross-encoder's
+    name (the registered one is `cross-encoder/ms-marco-MiniLM-L-6-v2`), the store fuses
+    `rerank_candidates` candidates and keeps the `k` the cross-encoder scores highest. Local, from
+    the embedder's own dependency, so it costs no API money."""
+
+    rerank_candidates: int = 20
+    """How many fused candidates the reranker re-scores. Only read when `rerank_model` is set."""
+
+    rerank_revision: str | None = None
+    """The cross-encoder's Hugging Face commit, **required whenever `rerank_model` is set**: the
+    registration says *revision pinned*, so an unpinned reranker is refused rather than loaded at
+    whatever the hub serves that night. Resolved once on the machine that runs the batch and
+    recorded in the operation addendum."""
 
     retrieval_k: int = 3
     """How many chunks a retrieval returns.

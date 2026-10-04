@@ -309,18 +309,42 @@ def run(argv: list[str] | None = None) -> int:
     # check cannot interrupt a blocked call - which is how `20260910T002657Z-ad-memory-squeeze`
     # recorded 6596 s and still wrote itself as `scored`. No new setting: the bound is the budget
     # the run already declares and the freeze already records.
-    model = Resilient(
-        _model(args.model),
-        [_model(name) for name in _settings.fallback_models],
-        attempts=_settings.retry_attempts,
-        base_delay=_settings.retry_base_delay,
-        deadline_seconds=float(args.wall_clock),
-        breaker_cooldown_seconds=_settings.breaker_cooldown_seconds,
-    )
+    def _resilient(name: str) -> LanguageModel:
+        return Resilient(
+            _model(name),
+            [_model(fallback) for fallback in _settings.fallback_models],
+            attempts=_settings.retry_attempts,
+            base_delay=_settings.retry_base_delay,
+            deadline_seconds=float(args.wall_clock),
+            breaker_cooldown_seconds=_settings.breaker_cooldown_seconds,
+        )
+
+    model = _resilient(args.model)
+
+    # **Per-role models, applied** (T7.3's E4; ADR-0020's open decision). `role_models` was
+    # recorded in every manifest and read by nothing here, so a run with it set would have been
+    # fingerprinted as a different configuration and run identically. With the map empty - the
+    # standing pipeline - every role gets `model`, the one object it always got.
+    built: dict[str, LanguageModel] = {args.model: model}
+
+    def role_model(role: str) -> LanguageModel:
+        name = _settings.role_models.get(role)
+        if not name:
+            return model
+        if name not in built:
+            built[name] = _resilient(name)
+        return built[name]
+
+    briefing_tokens = _settings.budget_briefing_tokens
+    briefing_mode = _settings.briefing_mode
     archive = connect_or_none()
     engine = Investigation(
-        planner=Planner(model),
-        specialists=build_specialists(_tool_set(dsn), model),
+        planner=Planner(
+            role_model("planner"), briefing_tokens=briefing_tokens, briefing_mode=briefing_mode
+        ),
+        specialists=build_specialists(
+            _tool_set(dsn), model, models={name: role_model(name) for name in SPECIALISTS}
+        ),
         store=PostgresTrajectoryStore(psycopg.connect(dsn), archive),
         model=model,
         budget=Budget(
@@ -333,11 +357,21 @@ def run(argv: list[str] | None = None) -> int:
             max_dispatch_rounds=args.max_rounds,
         ),
         effort=settings.effort,
-        synthesizer=Synthesizer(model),
-        scribe=Scribe(model),
+        role_models=dict(_settings.role_models),
+        synthesizer=Synthesizer(
+            role_model("synthesizer"),
+            evidence_mode=_settings.evidence_mode,
+            briefing_tokens=briefing_tokens,
+            briefing_mode=briefing_mode,
+        ),
+        scribe=Scribe(
+            role_model("scribe"), briefing_tokens=briefing_tokens, briefing_mode=briefing_mode
+        ),
         corpus=corpus,
         retrieval_k=args.retrieval_k,
-        proposer=Proposer(model),
+        proposer=Proposer(
+            role_model("proposer"), briefing_tokens=briefing_tokens, briefing_mode=briefing_mode
+        ),
         withhold=tuple(args.without),
         rejection=rejection,
     )
@@ -351,7 +385,20 @@ def run(argv: list[str] | None = None) -> int:
     # a side effect and not the argument.
     gated = should_gate(args.no_gate, rejection)
     report = run_investigation(
-        store, incident, engine, triage, anchor, triager=Triager(model) if gated else None
+        store,
+        incident,
+        engine,
+        triage,
+        anchor,
+        triager=(
+            Triager(
+                role_model(Triager.ROLE),
+                briefing_tokens=briefing_tokens,
+                briefing_mode=briefing_mode,
+            )
+            if gated
+            else None
+        ),
     )
     _print_report(report)
     announce_report(report, incident.id, exclude=exclude, suppressed=args.no_notify)
