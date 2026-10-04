@@ -4617,6 +4617,37 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-10-04: T7.3's build registered - four world decisions, the shared v2 build, eight
+switches, and a decision point after the headline run.***
+
+- **The owner's world decisions**
+  ([headline Addendum 1](../evals/runs/PREREGISTRATION-headline-v2.md)):
+  - Q124: Alertmanager's logs are read, it is started, and a check is added;
+  - Q121: quote is restarted before each batch, the Mac kept awake, and its clock checked before
+    every run;
+  - Q123 and Q108: the alert rules stay as recorded.
+
+  No digest moves and no bundle is re-recorded.
+- **The shared build**:
+  - the world check into the repository;
+  - `faultline-sweep --world v2`;
+  - the freeze's v2 container;
+  - the v2 world in `generations` and `compare`, and `world` in every manifest (Q86);
+  - gated runs scored as registered;
+  - B1 and B2 at nine classes with `service`, and B0.4. **B0 cannot name the five new classes**,
+    which leave no change record, so its plan-defined rule answers `dependency_latency` on them;
+  - the corpus of record;
+  - the batch runner and tally.
+
+  Faultline's stamps must not move.
+- **T7.3's switches** ([Addendum 1](../evals/runs/PREREGISTRATION-T7.3.md)):
+  - E2 to E9, each defaulting to today, recorded under `ablation_config`;
+  - rerank as a local cross-encoder, off by default;
+  - one randomized queue.
+- **A second go**: T7.3's batch waits for the headline run's measured cost per run and gate rate.
+  If more than three of the 12 were gated, the owner decides before T7.3 spends.
+- **Next**: the code, then the trial.
+
 ***2026-10-04: T7.3 started - the plan checked first, the headline run as its first step, the
 nine ablations registered; `docs/DEVIATIONS.md` and CLAUDE.md rule 9.***
 

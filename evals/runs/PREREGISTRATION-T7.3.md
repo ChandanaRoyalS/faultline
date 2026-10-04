@@ -236,3 +236,51 @@ Most differences are predicted inside the MDE, because 12 scenarios cannot resol
 
 **T7.3 is finished when all nine reports are committed**, or when each missing one is registered
 in `docs/DEVIATIONS.md` with the reason.
+
+## Addendum 1 - a decision point after the headline run, and the switches
+
+**Written 2026-10-04, before any of it is coded.**
+
+### The decision point (the owner's decision, 2026-10-04)
+
+**T7.3's batch does not start on the owner's first go.** It needs a second go, given after the
+headline run, on two measured facts:
+
+- **the cost per run on v2**, billed, from the headline run's tally and the console;
+- **how often triage gated** the headline's Faultline runs on these 12 scenarios.
+
+**If triage gated more than three of the 12**, every Faultline arm would miss those scenarios the
+same way, so the owner decides before T7.3 spends: run as registered, run on fewer scenarios, or
+register the change in `docs/DEVIATIONS.md`. The scenarios are not redrawn.
+
+### The switches (the build, shared with the headline run's Addendum 1)
+
+**Every switch defaults to today's behaviour.** Each is an environment setting that
+`faultline-eval` passes to `faultline-investigate`. Each is recorded in the manifest under one
+new key, `ablation_config`, holding every switch's value, and that key enters the config
+fingerprint. A run with any switch off its default is never counted as the standing pipeline
+(`is_standing_pipeline`).
+
+| arm | switch | design |
+|---|---|---|
+| E2 | `FAULTLINE_CONTEXT_HOP_RADIUS=99` | larger than the v2 graph's diameter (every pair is within 5 hops, Q125), so the blast radius, the planner's brief and the proposal check cover the whole graph. **The orchestrator's correlation keeps radius 2**: the incident is formed as in F, and only the investigation is unscoped |
+| E3 | `FAULTLINE_AGENT_EVIDENCE_MODE=raw` | the synthesizer's evidence section carries each cited result's full envelope instead of the board's 400-character samples |
+| E4 | `FAULTLINE_AGENT_ROLE_MODELS` with the four specialists on `claude-sonnet-4-6` | `faultline-investigate` builds each role's model from `AgentSettings.model_for(role)`. **With the setting empty, every role gets the one model it gets today** |
+| E5 | `FAULTLINE_AGENT_NO_CORPUS=1` | the harness passes `--no-corpus`. The flag exists, and only the pass-through is new |
+| E6 | `FAULTLINE_CONTEXT_RETRIEVAL_MODE=dense` | the text query is skipped and only the dense arm is fused |
+| E7 | `FAULTLINE_CONTEXT_RERANK_MODEL=cross-encoder/ms-marco-MiniLM-L-6-v2` | the 20 best fused candidates are re-scored by a local cross-encoder (`sentence-transformers`, already the embedder's dependency, revision pinned), and the top *k* are kept. Local, so it costs no API money, and **off by default** |
+| E8 | the existing `FAULTLINE_TOOLS_DEFAULT_LOOKBACK_SECONDS`, `…_CHANGE_LOOKBACK_SECONDS` and `MAX_WINDOW_SECONDS`, all at 7 days | *unbounded* read as everything the stores hold since the world came up, capped at a week. The tools still truncate by their line and span caps, which is what an unscoped read meets in practice |
+| E9 | `FAULTLINE_AGENT_BRIEFING_MODE=push` | every role's brief carries every section any role receives (the alert, the scoped topology, the retrieved incidents and runbooks, the allowlist, the findings), with no budget and nothing left to pull. The briefing budget setting is also made to apply (a defect found 2026-10-04); **unset, the 4,000-token default stands as today** |
+
+**What holds F unchanged**:
+
+- a test per switch shows the default path takes the same code as before;
+- both stamps are computed again after the build (the headline's item 7);
+- a dry run of each arm, the switch trial, shows its switch took effect on its trajectory: a pull
+  rate of zero for E9, Sonnet in the specialists' steps for E4, no retrieval step for E5, and so on.
+
+### The randomized queue
+
+The 120 runs, 10 configurations × 12 scenarios, are put in one order by `random.Random(seed)`,
+with the seed fixed in the operation addendum before the queue is printed. The queue is committed
+before the batch, and nothing in it changes after a result.
