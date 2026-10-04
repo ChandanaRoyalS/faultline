@@ -370,3 +370,86 @@ expose.
 - **The v1 holdout ledger stays closed** (ADR-0029, entry 4 not opened). This is a different
   world's first entry.
 - **T7.3's ablations** are registered beside this ([`PREREGISTRATION-T7.3.md`](PREREGISTRATION-T7.3.md)). They share this run's build and run after it, with their own control.
+
+## Addendum 1 - the build, registered before it is coded
+
+**Written 2026-10-04, before any of it is coded or any world change is made.** This is *The
+order*'s step 2. The same build carries T7.3's switches (T7.3's Addendum 1).
+
+### The owner's world decisions, 2026-10-04
+
+| queue item | chosen | what it means |
+|---|---|---|
+| **Q124**, Alertmanager stopped since 2026-09-22 | **find why, start it, and add a check** | its logs are read before it is started; the world check gains a line that fails while it is not running |
+| **Q121**, quote's clock after the Mac sleeps | **restart quote before each batch, keep the Mac awake, and check before every run** | the world check gains a line that fails when quote's server span is more than a second from shipping's call. On a failure the batch restarts quote and checks again. **No change to Faultline's tools** |
+| **Q123**, `frontend-proxy`'s `ServiceNoTraffic` exclusion | **keep the rule as recorded, and record the true reason** | `alert-rules-v2.yml` is not touched, so `observability_digest` and all 39 bundles stand. The queue row records that the comment's reason is false on v2, and the effect: a silent proxy does not page *no traffic*; its other rules still do |
+| **Q108**, the flagd stream reconnect pages when orders stop | **kept as the world's own noise** | the rules are not touched. The report reads whether any run was misled by it |
+
+**None of the four moves a digest**, so no bundle is re-recorded.
+
+### What is built
+
+Each item states its design, what stays exactly as it is, and the test that holds it.
+
+1. **The world check enters the repository** as `scripts/world_check.py`.
+   - It is today's `~/Downloads/world_check.py`, unchanged, plus two lines:
+     - **Alertmanager running**, and its configured receiver answering;
+     - **quote's clock** within a second of shipping's call, read from Tempo the way Q120's
+       `skew_probe` reads it.
+   - It stays read-only.
+2. **`faultline-sweep` lists the v2 catalog** under a new `--world v2`.
+   - `runnable()` reads `evals/scenarios/v2/` for v2.
+   - **With no flag it reads what it reads today**, which a test pins against the current v1
+     list.
+3. **The freeze reads each world's own reference container**: `cart-service` on v1, `cart` on
+   v2. A test shows v1's freeze record is byte-identical.
+4. **`generations`, `compare` and the eval DB know the v2 world**:
+   - the world key `5a2bc6d912f9`;
+   - the catalog size counted per world;
+   - the holdout-headline branch, which has never run, exercised by a test;
+   - **`world` recorded beside `runtime_version` in every manifest (Q86)**, as a provenance field,
+     so no capability stamp moves.
+5. **A gated run is recorded as `gated` and scored as registered** (*Scoring*):
+   - the harness reads `faultline-investigate`'s `GATED` exit;
+   - it writes the score with every axis wrong and a `gated` outcome;
+   - it does not discard.
+
+   A test drives a gated investigation through `run`.
+6. **The baselines, nine classes and `service`**:
+   - **B1 and B2**: their prompts enumerate the nine classes, with the synthesizer's own
+     definitions, and their verdicts carry the `service` they are asked for. Their prompt
+     digests move, and each new digest is recorded.
+   - **B0 becomes B0.4**:
+     - its fix table covers the nine classes;
+     - its verdict carries the `service` its prediction already holds;
+     - **its class rule stays as the plan defines it**: alert attribution, the most recent
+       change, the largest error delta. The five new classes are injected with no change record
+       (`records_change = False` on all five), so B0 cannot tell them apart. It answers its
+       no-change rule, `dependency_latency`, on all of them.
+
+       That is a property of the plan's heuristic on this catalog, stated in every table, not
+       fixed by inventing new signals.
+7. **Faultline's stamps do not move.** After the build, `cap:91279a09` and
+   `prompts:9ce16b66bbcc` are computed again and printed in the build's result. **If either has
+   moved, nothing runs until this registration is amended.**
+8. **The corpus of record**:
+   - the repository's corpus, every runbook included, ingested once on the Mac;
+   - checked to hold no holdout chunk;
+   - `generations.CURRENT_CORPUS_SHAPE` moved in the same commit as that ingest (Q92's corpus
+     half, as its row requires);
+   - frozen from then until the last run.
+9. **The batch runner and its tally**, for the Mac:
+   - one slot at a time from a fixed queue;
+   - the world check before every slot;
+   - the tally after every slot by the registered rule;
+   - the stop.
+
+   The queue's order and seed belong to the operation addendum (step 4).
+
+### What the build does not do
+
+- It changes no alert rule, no compose file and no injector definition, so both world digests
+  stand.
+- It changes nothing in Faultline's roles, prompts or tools.
+- It runs nothing scored. The build's own checks are `make check` and one injection-free dry run
+  of the batch runner.
