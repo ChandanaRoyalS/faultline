@@ -4617,6 +4617,23 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-10-04: T7.3's build, part B - B0, B1 and B2 know the nine classes and name a culprit.***
+
+- **B1 and B2** (headline Addendum 1, item 6):
+  - their prompts carry the synthesizer's nine class definitions, and their schemas list nine;
+  - their verdicts now carry the `service` and `alternatives` they were always asked for and that
+    the artifact dropped. So the culprit axis gets a baseline column, and top-3 is no longer
+    B1's top-1 alone.
+  - New digests: B1 `aa84c9051695` (was `d26c8ccd8f57`), B2 `904de7de5fc5` (was
+    `6bafed783d03`).
+- **B0.4**:
+  - the fix table covers the nine, each row the label every v2 scenario of that class carries;
+  - the verdict carries B0's culprit;
+  - **the class rule is the plan's, unchanged**: on the five T7.0 classes, which write no change
+    record, it answers `dependency_latency`.
+- **Faultline's stamps unchanged**: `cap:91279a09`, `prompts:9ce16b66bbcc`.
+- **Next**: part C, T7.3's switches.
+
 ***2026-10-04: T7.3's build, part A - the harness can run v2: the world check, the catalog, the
 freeze, the world's digests, and a gated run scored as a miss.***
 

@@ -245,3 +245,94 @@ def test_the_world_check_fails_without_alertmanager_and_exits_non_zero() -> None
     assert "alertmanager running and ready (Q124)" in source
     assert "check_quote_clock()" in source
     assert "return 0 if not failed else 1" in source
+
+
+# --- item 6: the baselines at nine classes, with the culprit ----------------------------------
+
+NINE = (
+    "resource_exhaustion",
+    "dependency_latency",
+    "bad_deploy",
+    "bad_config",
+    "feature_flag",
+    "process_freeze",
+    "network_partition",
+    "datastore_corruption",
+    "disk_fill",
+)
+
+
+def test_b1_and_b2_are_shown_and_may_answer_all_nine_classes() -> None:
+    from evalharness import baseline_agent, baseline_prior
+
+    for prompt in (baseline_agent.system_prompt(), baseline_prior.B2_SYSTEM):
+        for fault_class in NINE:
+            assert f"`{fault_class}`" in prompt, fault_class
+    assert baseline_agent.NINE_CLASSES.split("|") == list(NINE)
+    for fault_class in NINE:
+        assert fault_class in baseline_prior.B2_SYSTEM.split("Reply with JSON only")[1]
+
+
+def test_b1_and_b2_carry_the_culprit_and_the_runners_up_into_the_scored_verdict() -> None:
+    from evalharness import baseline_agent, baseline_prior
+    from faultline.agents.contracts import Verdict
+
+    verdict = Verdict.model_validate(
+        {
+            "root_cause": "cart is frozen",
+            "service": "cart",
+            "fault_class": "process_freeze",
+            "remediation_class": "restart",
+            "confidence": "medium",
+            "evidence": [],
+            "reasoning": "silent",
+            "open_questions": [],
+            "alternatives": [
+                {
+                    "root_cause": "partition",
+                    "service": "cart",
+                    "fault_class": "network_partition",
+                    "why_not": "no log",
+                }
+            ],
+        }
+    )
+    for module, run in (
+        (baseline_agent, baseline_agent.B1Run(verdict=verdict)),
+        (baseline_prior, baseline_prior.B2Run(verdict=verdict)),
+    ):
+        scored = module.artifact("inc", "traj", [], 0, [], run)["verdict"]
+        assert scored["service"] == "cart"
+        assert scored["alternatives"][0]["fault_class"] == "network_partition"
+
+
+def test_b0_s_fix_table_matches_every_v2_scenario_s_label() -> None:
+    import yaml
+
+    from evalharness import baselines
+
+    for path in sorted((REPO / "evals/scenarios/v2").glob("*.yaml")):
+        scenario = yaml.safe_load(path.read_text())
+        if scenario.get("blocked"):
+            continue
+        assert (
+            baselines.CLASS_TO_REMEDIATION[scenario["fault_class"]]
+            == scenario["expected_remediation_class"]
+        ), path.name
+    assert set(baselines.CLASS_TO_REMEDIATION) == set(NINE)
+    assert baselines.BASELINE_RUNTIME.endswith("B0.4")
+
+
+def test_b0_carries_its_culprit_and_cannot_name_the_five_classes_with_no_change_record() -> None:
+    """The plan's three signals: on a T7.0 class there is no change record, so B0's no-change rule
+    answers `dependency_latency`. Stated, not repaired."""
+    from datetime import UTC, datetime
+
+    from evalharness import baselines
+
+    onset = datetime(2026, 10, 4, tzinfo=UTC)
+    prediction = baselines.predict(baselines.Signals(alerting=["cart", "checkout"]), onset)
+    row = baselines.artifact("inc", "traj", [], 0, [], prediction)["verdict"]
+
+    assert row["service"] == "cart"
+    assert row["fault_class"] == "dependency_latency"

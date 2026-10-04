@@ -96,7 +96,7 @@ from typing import Any, Protocol
 
 BASELINE_ID = "B0"
 
-BASELINE_VERSION = "3"
+BASELINE_VERSION = "4"
 """**A baseline that changes silently is not a baseline.**
 
 v1 is every run stamped `faultline/0.0.1+baseline:B0` with no version - one run,
@@ -114,6 +114,16 @@ therefore never ran in v1 at all"*. It had not run in v2 either.
 labelled rather than pooling with corrected ones. They are not invalidated: they are an honest
 record of a two-signal heuristic, and `evals/runs/` keeps them. What changes is that a reader can
 tell which B0 answered a given question.
+
+**v4, 2026-10-04 (Q92; the headline run's Addendum 1, item 6): the fix table covers the nine
+classes, and the verdict carries the culprit.** The class rule does not change, and that is the
+plan's B0 as written: alert attribution, the most recent change, the largest error delta. T7.0's
+five new classes are all injected with no change record (`records_change = False` on each), so
+B0's signals cannot tell them apart from each other or from a latency fault, and its no-change
+rule answers `dependency_latency` on every one. That is what a fifty-line heuristic can see on
+this catalog, stated in every table rather than repaired by inventing a signal the plan does not
+give it. `service` was always in B0's prediction and never in its verdict, so the culprit axis
+had no B0 column.
 """
 
 DESCRIPTION = "no-LLM heuristic: alert attribution + most-recent change + largest error delta"
@@ -142,9 +152,16 @@ CLASS_TO_REMEDIATION: dict[str, str] = {
     "bad_deploy": "rollback",
     "dependency_latency": "restart",
     "resource_exhaustion": "config_revert",
+    "feature_flag": "config_revert",
+    "process_freeze": "restart",
+    "network_partition": "restart",
+    "datastore_corruption": "restore_data",
+    "disk_fill": "free_storage",
 }
-"""One-to-one across all eighteen scenarios. See the module docstring: the remediation axis adds
-no information the fault class does not already carry."""
+"""One-to-one across the v1 catalog's eighteen scenarios and the v2 catalog's 39: each row is the
+`expected_remediation_class` every scenario of that class carries (v4 added the five T7.0 classes,
+read off `evals/scenarios/v2/`). See the module docstring: the remediation axis adds no
+information the fault class does not already carry."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -496,6 +513,8 @@ def artifact(
         "verdict": {
             "fault_class": prediction.fault_class,
             "remediation_class": prediction.fix_class,
+            # v4: the culprit B0 always predicted, now where the scorer reads it.
+            "service": prediction.service,
             "summary": "; ".join(prediction.why),
             "confidence": "n/a - B0 is a rule, not an estimate",
         },

@@ -97,6 +97,14 @@ if TYPE_CHECKING:  # pragma: no cover - import cycle only matters to a type chec
 
 BASELINE_ID = "B1"
 
+NINE_CLASSES = (
+    "resource_exhaustion|dependency_latency|bad_deploy|bad_config|feature_flag|process_freeze|"
+    "network_partition|datastore_corruption|disk_fill"
+)
+"""The nine classes B1 may answer, in the verdict schema it is shown (the headline run's Addendum 1,
+item 6). It listed four until 2026-10-04 (Q92), so on any of the five classes T7.0 added it could
+at best abstain - a four-class comparator scored on a nine-class catalog."""
+
 DESCRIPTION = "single agent, all tools, no fan-out: one model chooses, reads and concludes"
 
 TOOLS: tuple[str, ...] = ("metrics", "logs", "changes", "traces")
@@ -151,15 +159,30 @@ symptoms follow from it.
 CHOOSING `fault_class`. The class names what went wrong in the world - the failing mechanism -
 not which act caused it. A change record is evidence for a class, never the class itself.
 
-- `resource_exhaustion`: the service ran out of something it needed and failed because it ran out.
-- `dependency_latency`: something it depends on became slow, and it failed because it waited.
-- `bad_deploy`: the running artifact is not the one that should be running.
-- `bad_config`: a configuration value is itself wrong, and the wrongness of that value is the
-  failure.
+- `resource_exhaustion`: the service ran out of something it needed - memory, CPU, file
+  descriptors, connections, threads - and failed because it ran out.
+- `dependency_latency`: something the service depends on became slow, and the service failed
+  because it waited.
+- `bad_deploy`: the running artifact is not the one that should be running - a wrong image, a
+  wrong version, a build that cannot start.
+- `bad_config`: a configuration value is itself wrong - it names the wrong address, port,
+  credential, limit or flag - and the wrongness of that value is the failure.
+- `feature_flag`: a runtime flag was flipped in the flag store and the flagged code path is what
+  fails - no artifact and no configuration file changed, so the change log is empty.
+- `process_freeze`: the service's process is stopped while its socket still accepts - callers
+  hang to their deadlines rather than fail, and the service writes nothing at all.
+- `network_partition`: the service is cut off from the network - callers hang exactly as for a
+  freeze, but the service is running and its own log complains that it cannot reach anything.
+- `datastore_corruption`: the service's store is reachable and healthy and its contents cannot be
+  read - parse or decode failures on read, with the connection itself fine.
+- `disk_fill`: the service's storage is full - writes fail with no space left, and a service that
+  cannot write its data halts or refuses rather than running slow.
 
 A limit lowered until a process is killed for exceeding it is `resource_exhaustion`: the edit is
 how it started, exhaustion is what is happening. A setting that inserts delay into a call path is
-`dependency_latency`. An image reference pointed at the wrong artifact is `bad_deploy`.
+`dependency_latency`. An image reference pointed at the wrong artifact is `bad_deploy`. A frozen
+process is silent and a partitioned one logs that it cannot reach anything; a full disk says *no
+space left* in the service's own log.
 
 Cite evidence by the result ids you were given. Never quote log or metric text into a statement.
 Say what the evidence did not settle in `open_questions`.
@@ -397,7 +420,7 @@ def investigate(
                 ("Your tool budget is spent. " if run.budget_exhausted else "")
                 + "Give your verdict now, as JSON only, matching this schema:\n"
                 '{"root_cause": "<one sentence>", "service": "<the service you blame>", '
-                '"fault_class": "resource_exhaustion|dependency_latency|bad_deploy|bad_config", '
+                '"fault_class": "' + NINE_CLASSES + '", '
                 '"remediation_class": "<remediation class>", "confidence": "high|medium|low", '
                 '"evidence": ["<result_id>"], "reasoning": "<why>", "open_questions": ["<what '
                 'the evidence did not settle>"], '
@@ -455,6 +478,14 @@ def artifact(
         "verdict": {
             "fault_class": getattr(verdict, "fault_class", None),
             "remediation_class": getattr(verdict, "remediation_class", None),
+            # **Carried, as the agent's verdict carries them** (the headline run's Addendum 1,
+            # item 6). B1 was asked for `service` and `alternatives` and both were dropped here,
+            # so the culprit axis had no baseline column and top-3 scored B1's top-1 alone.
+            "service": getattr(verdict, "service", None),
+            "alternatives": [
+                a.model_dump() if hasattr(a, "model_dump") else a
+                for a in (getattr(verdict, "alternatives", None) or [])
+            ],
             "summary": getattr(verdict, "root_cause", "") or "",
             "confidence": getattr(verdict, "confidence", None),
             "evidence": list(getattr(verdict, "evidence", []) or []),
