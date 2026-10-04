@@ -1,0 +1,166 @@
+{
+  "incident_id": "24975509-cc44-4f36-a9a5-5bac0ae396d7",
+  "trajectory_id": "b98eb5b0-d7e9-4c49-98a5-c68308ac254a",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "compose-post-service",
+    "home-timeline-service",
+    "nginx-web-server",
+    "user-timeline-service"
+  ],
+  "unmeasured_edges": 3,
+  "exclude_origins": [],
+  "verdict": {
+    "root_cause": "Not established. Every observability dispatch failed in the tooling transport path \u2014 Prometheus, Loki and Jaeger hostnames all failed DNS resolution from the querying environment, so no metric, log or trace signal was obtained for any of the four services. The only substantive evidence is the change log: nginx-web-server, compose-post-service, home-timeline-service and user-timeline-service were each stood up for the first time at 17:16:04\u201317:16:05 by platform-automation, with ConfigMap, Service and container created together and no prior revision of any of them in the 24-hour window. That establishes the whole stack is seven minutes old at onset \u2014 so whatever is failing has been failing since first start rather than regressing \u2014 but it does not identify which service is at fault or by what mechanism. nginx-web-server is named only as the edge where failure was observed, not as a demonstrated culprit.",
+    "service": "nginx-web-server",
+    "fault_class": "unknown",
+    "remediation_class": "none",
+    "confidence": "low",
+    "evidence": [
+      "tr_e66eea973aa7",
+      "tr_8e06eccc4879",
+      "tr_bf905e3b47c4",
+      "tr_e81ca40ccc7b",
+      "tr_0968b4b0cc91",
+      "tr_a5b95ee9dcf7",
+      "tr_789300c8ad7c"
+    ],
+    "reasoning": "Seven of eleven dispatches returned nothing because the query never reached its backend, and each specialist was explicit that this is a transport failure rather than an empty result set, explicitly refusing to read the emptiness as a clean bill of health [tr_e66eea973aa7, tr_8e06eccc4879, tr_bf905e3b47c4, tr_e81ca40ccc7b]. Choosing a fault class requires precisely the missing discriminators: a freeze is told from a partition by whether the culprit logs anything, a disk fill from a bad config by what it writes, exhaustion from latency by whether it died or waited. None is available. The change evidence is consistent and negative across all four services \u2014 no image bump, no config mutation, no rollout to an existing workload, no human actor, only a single atomic first creation seven minutes before onset [tr_0968b4b0cc91, tr_a5b95ee9dcf7, tr_789300c8ad7c]. This excludes a regression-style bad_deploy and makes rollback unavailable, since no prior revision exists for any service. It does not supply a mechanism. The next step is restoring the investigator's DNS path to the observe namespace and re-running the selectors, which specialists confirmed were well-formed and never evaluated.",
+    "open_questions": [
+      "Which of the four services is actually failing \u2014 no trace, metric or log evidence implicates or exonerates any of them [tr_bf905e3b47c4].",
+      "Did the containers created at 17:16:04 reach a healthy running state or fail at startup? This needs kube events or restart counts, since the log path is unusable [tr_415f12bc7d74].",
+      "Is the DNS failure confined to the investigation tooling, or is cluster DNS degraded in a way that would also break service-to-service resolution inside social-network? The client-side judgement [tr_1ceb73156868] rests on the host being an observability endpoint, not on any test of in-cluster resolution."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "One of the four services was stood up with an originally wrong value in its freshly created ConfigMap or Service \u2014 wrong address, port or credential \u2014 so it has never served correctly.",
+        "service": "compose-post-service",
+        "fault_class": "bad_config",
+        "remediation_class": "config_revert",
+        "why_not": "Plausible on timing and on these being first creations, but wholly unevidenced: no one read the ConfigMap contents, and specialists ruled out config mutation without testing whether the created values are correct [tr_a5b95ee9dcf7]. Picking this service over the other three would be arbitrary, and there is no prior value to revert to."
+      },
+      {
+        "root_cause": "Cluster DNS is degraded, so social-network services cannot resolve their dependencies \u2014 the same resolution fault that blocked every observability query.",
+        "service": "nginx-web-server",
+        "fault_class": "network_partition",
+        "remediation_class": "reconnect",
+        "why_not": "The only resolution failures observed are on the investigation host against observe-namespace endpoints, and a specialist explicitly ruled out treating that as the incident's own DNS fault surfacing in a service dependency chain [tr_1ceb73156868]. A partition verdict requires the culprit's own log complaining it cannot reach anything, and no service log was retrieved at all."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "runbook:world-uninstrumented-services / featureflagservice: ADR-0006 replaced it with a stub that reproduces its gRPC contract and none of its\ninstrumentation. Measured against Prometheus: `count by (service_name) (calls_total)` returns\n15 services and it is not among them.\n\n**The consequence is exact.** Neither `calls_total` nor `latency",
+    "cart-bad-image-tag / What was checked: **Error rate by service.** frontend, loadgenerator and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero. Read, wrongly, as evidence cart was\nhealthy.\n\n**loadgenerator.** Set aside. It is the synthetic client; its error rate restates what\nthe storefron",
+    "runbook:world-alert-timing / The instrument's constants: Prometheus scrapes at **5s** and evaluates at **15s**; the `faultline-slo` rule group carries its\nown `interval: 15s`. Both live in `compose/prometheus/prometheus-config.yaml`, which is under\n`observability_digest` precisely because it sets the sampling resolution of every captur"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 56735,
+    "pulled_tokens": 3411,
+    "pull_rate": 0.0567,
+    "dropped_sections": 1,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 408,
+        "content_tokens": 410,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 2476,
+        "content_tokens": 2478,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 18237,
+        "content_tokens": 18213,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 16828,
+        "content_tokens": 16831,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 18786,
+        "content_tokens": 18789,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_bf905e3b47c4",
+      "tr_415f12bc7d74",
+      "tr_e81ca40ccc7b",
+      "tr_0968b4b0cc91",
+      "tr_a5b95ee9dcf7",
+      "tr_0a7a4390ab64",
+      "tr_789300c8ad7c"
+    ],
+    "expected_effect": "No action proposed, so no effect is expected. Nothing in the system state should change as a result of this proposal. The useful next step is not a remediation at all: restore the investigation host's DNS resolution for prometheus-server.observe.svc.cluster.local, loki.observe.svc.cluster.local and jaeger-out.observe.svc.cluster.local, or obtain kube events and container restart counts for the four workloads out-of-band, so that a culprit can be named before anything is touched.",
+    "confirm_within_seconds": 0,
+    "if_wrong": "This abstention is wrong if someone produces evidence meeting an action's precondition \u2014 e.g. kube events or restart counts showing one of the four containers in CrashLoopBackOff or repeatedly restarting since 17:16:04, which would point at process state and justify restart_service on that specific service. It is also wrong if change history outside the 24-hour window shows a prior image tag or prior ConfigMap for one of these services, which would make rollback_image or revert_config eligible. Note separately: with Prometheus, Loki and Jaeger all unreachable from this vantage point [tr_e66eea973aa7, tr_8e06eccc4879, tr_bf905e3b47c4], the effect of ANY remediation taken now could not be observed through metrics, logs or traces \u2014 an unverifiable action is a second reason to hold.",
+    "risk": "The risk of abstaining is that a genuinely broken service stays broken for longer while DNS or event access is repaired; the four services have been failing since first start seven minutes before onset, so no further degradation is accumulating from a previously-working state. The risk of NOT abstaining is larger and concrete: the three plausible actions each fail their preconditions. rollback_image and revert_config have no prior revision or prior config to return to for any of these four services \u2014 all recorded events are first creations by platform-automation [tr_0968b4b0cc91, tr_a5b95ee9dcf7, tr_0a7a4390ab64, tr_789300c8ad7c] \u2014 so a rollback would amount to deleting a service that may be the only working part of the stack. restart_service requires evidence pointing at process state, and there is none: no trace, metric or log signal implicates or exonerates any of the four [tr_bf905e3b47c4, tr_415f12bc7d74, tr_e81ca40ccc7b]. Restarting a service picked without evidence is a one-in-four guess, is irreversible, discards cache, and would muddy the startup-failure question that kube events still have to answer.",
+    "blast_radius": "Nobody. No service is touched and no caller sees a change. For contrast, had an action been proposed: a restart or rollback of compose-post-service, home-timeline-service or user-timeline-service would be seen as a connection reset by nginx-web-server, which is the inbound edge to all three and the alerted edge of this incident; an action on nginx-web-server itself would be seen by every external caller of the social-network namespace, since it is the edge.",
+    "_note": "Also recorded: scale_service, reconnect_service, restore_store and free_storage are listed UNAVAILABLE in the brief, so even if the mechanism were shown to be a missing network attachment or a poisoned store, this system could not act on it \u2014 a further reason the honest output here is an abstention rather than a substitute action."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "low",
+    "reasoning": "A critical alert on the user-facing entry point with no open incidents to attribute it to cannot be dismissed. Single seed with several unmeasured downstream edges gives no basis for a fault class prior."
+  }
+}

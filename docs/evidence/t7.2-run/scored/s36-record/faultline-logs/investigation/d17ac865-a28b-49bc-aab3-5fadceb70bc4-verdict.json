@@ -1,0 +1,164 @@
+{
+  "incident_id": "d17ac865-a28b-49bc-aab3-5fadceb70bc4",
+  "trajectory_id": "d73a27b8-0f1c-4e43-9440-92645668a75e",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "compose-post-service",
+    "home-timeline-service",
+    "nginx-web-server",
+    "user-timeline-service"
+  ],
+  "unmeasured_edges": 3,
+  "exclude_origins": [],
+  "verdict": {
+    "root_cause": "The front-door service nginx-web-server stopped doing work while remaining reachable: across the full ~30-minute window spanning onset it emitted no access or error log lines [tr_b42ca415bd08] and not a single span [tr_77d8e6acee83], which is anomalous for an edge proxy that normally logs every request. No change landed between its creation burst and onset to explain a content-level regression [tr_71f8714f5626], and downstream compose-post-service is equally silent [tr_bdff52fbd51f] because nothing is being forwarded to it. Total silence from the alerting entry service with no error signal anywhere is the signature of a stopped process whose socket still accepts, leaving callers to hang to their deadlines. Confidence is low: every metric dispatch returned an unavailable series rather than a measurement [tr_28928cb4f5ae][tr_e44cb5f7f0bc][tr_5c01829f25f9], and both log queries used pod-name regexes that could themselves have missed the pods.",
+    "service": "nginx-web-server",
+    "fault_class": "process_freeze",
+    "remediation_class": "restart",
+    "confidence": "low",
+    "evidence": [
+      "tr_77d8e6acee83",
+      "tr_b42ca415bd08",
+      "tr_71f8714f5626",
+      "tr_bdff52fbd51f",
+      "tr_28928cb4f5ae",
+      "tr_e44cb5f7f0bc"
+    ],
+    "reasoning": "The only positive observations are two total absences at the entry service: zero traces [tr_77d8e6acee83] and zero log lines [tr_b42ca415bd08]. The trace specialist noted the absence is total, not partial, which is inconsistent with a sampled, partially-degraded path. Metric emptiness carries no weight either way \u2014 all three metric dispatches failed as unavailable span-metric series, and the same gap exists in the pre-incident baseline, making it a standing instrumentation condition [tr_e44cb5f7f0bc][tr_28928cb4f5ae]. The change log rules out update, repoint, human edit, and redeploy on nginx, leaving only first-creation records and a quiet six-minute gap before onset [tr_71f8714f5626]. Among the hang-alike classes, a network_partition would normally leave the service's own log complaining it cannot reach upstreams, and disk_fill or bad_config would usually emit a diagnostic line; nginx wrote nothing at all. compose-post-service's silence [tr_bdff52fbd51f] follows from a frozen front door forwarding nothing, so no second fault is required.",
+    "open_questions": [
+      "Pod status and restart counts were never retrieved for nginx-thrift or compose-post-service; a crash-loop or never-ready pod looks identical to a freeze from these dispatches.",
+      "Both Loki queries used pod-name regexes rather than a namespace label and returned an inconsistent truncation flag [tr_b42ca415bd08][tr_bdff52fbd51f], so the zero-match may be a selector miss rather than genuine silence.",
+      "No caller-side evidence was gathered: whether clients hang to deadline or receive immediate errors is the distinction the verdict turns on, and it is unestablished."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "The nginx-thrift workload created six minutes before onset never started correctly, so the edge never served or logged anything.",
+        "service": "nginx-web-server",
+        "fault_class": "bad_deploy",
+        "remediation_class": "rollback",
+        "why_not": "The change record shows a first creation with no prior version to regress from and no failed-create, restart, or retry entries [tr_71f8714f5626]; onset followed a quiet six-minute gap rather than coinciding with creation. Viable only because pod status was never read."
+      },
+      {
+        "root_cause": "compose-post-service stalled and nginx merely hung waiting on it, making the edge the service that noticed rather than the culprit.",
+        "service": "compose-post-service",
+        "fault_class": "dependency_latency",
+        "remediation_class": "restart",
+        "why_not": "Zero spans and zero log lines exist for the entry service itself [tr_77d8e6acee83][tr_b42ca415bd08]; a proxy blocked on a slow backend would still log requests and timeouts. Nothing in the evidence implicates compose-post-service specifically [tr_ab2c2dafb187]."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "runbook:class-bad-config / What the change record holds: The variable and a timestamp, and **the new value only** - no change record in this world carries\na prior value, which `world-change-records-have-no-prior-value` sets out.\n\n**What the logs hold is not uniform, and this document had it wrong.** An earlier version said a\nservice po",
+    "cart-bad-image-tag / What was checked: **Error rate by service.** frontend, loadgenerator and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero. Read, wrongly, as evidence cart was\nhealthy.\n\n**loadgenerator.** Set aside. It is the synthetic client; its error rate restates what\nthe storefron",
+    "runbook:service-frontend / Acting on it: `restart_service`, `revert_config` and `rollback_image` are all performable, each recreating the\ncontainer from its declared definition. The allowlist records that callers see the connection\nreset while the container recreates; frontend's only caller is the load generator, which "
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 27937,
+    "pulled_tokens": 1581,
+    "pull_rate": 0.0536,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 408,
+        "content_tokens": 410,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1592,
+        "content_tokens": 1594,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 8594,
+        "content_tokens": 8571,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 8029,
+        "content_tokens": 8030,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 9314,
+        "content_tokens": 9291,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_b42ca415bd08",
+      "tr_bdff52fbd51f",
+      "tr_77d8e6acee83",
+      "tr_28928cb4f5ae",
+      "tr_71f8714f5626"
+    ],
+    "expected_effect": "No action proposed, so no effect is predicted. The only legal candidate was restart_service on nginx-web-server, and its precondition \u2014 'the evidence points at process state rather than at a change' \u2014 is not met. Every dispatch behind the freeze diagnosis is an absence, not a measurement: the error-ratio series was reported unavailable rather than zero for nginx-web-server [tr_28928cb4f5ae], the trace query returned no spans at all [tr_77d8e6acee83], and both log queries used pod-name regexes (nginx-thrift-*, compose-post-service-*) rather than a namespace/app label and returned an inconsistent truncation flag alongside their zero matches [tr_b42ca415bd08][tr_bdff52fbd51f]. No pod status, phase, or restart count was ever retrieved for either service, so a frozen process, a never-ready pod, a crash-loop, and a selector miss in Loki are all equally consistent with what is on the board. Change history shows only a first creation six minutes before onset with no mutation after [tr_71f8714f5626], which rules out rollback_image and revert_config (no prior image or config exists to return to) but does not positively establish process state either. Before any action: fetch pod phase and restartCount for nginx-thrift and compose-post-service, and re-run Loki with a namespace-only selector ({namespace=\"social-network\"}) to distinguish genuine silence from a selector miss. If restartCount is climbing, the fix class is not restart; if the pod is Running with zero restarts and the namespace-wide log query is still empty for these pods, restart_service becomes well-founded.",
+    "confirm_within_seconds": 0,
+    "if_wrong": "This abstention is wrong if the service is genuinely frozen and every minute of delay is lost availability at the front door. The observation that would overturn it is narrow and cheap: pod phase Running with restartCount stable at its creation value for nginx-thrift, plus a namespace-scoped Loki query that still returns zero lines for that pod while returning lines for its peers. That combination would meet the restart precondition and I would propose restart_service on nginx-web-server immediately. Conversely, a climbing restartCount, a Pending/CrashLoopBackOff phase, or logs appearing under a broader selector would each confirm the abstention and redirect the investigation.",
+    "risk": "The risk of abstaining is prolonged outage: if the diagnosis is right, the front door stays silent until someone acts. The risk I am declining to take is larger in expectation \u2014 restart_service is marked irreversible, it discards in-process state, and on a service created only six minutes before onset [tr_71f8714f5626] a recreate would destroy the one instance whose pod status nobody has yet read. If the real mechanism is a never-ready pod, a bad image pull, or a misconfiguration present from first boot (explicitly left viable by the change-history analysis), the restart reproduces the same broken state and burns the diagnostic evidence that would have identified it, while the recreate itself looks like remediation and may be mistaken for one.",
+    "blast_radius": "Had the restart been proposed, it would hit nginx-web-server alone for the duration of the container recreate, and its callers would see connection resets \u2014 in this incident's graph that is every external client of the front door, plus the three downstreams it fans out to (compose-post-service, home-timeline-service, user-timeline-service), which would see traffic cut and then resume. As an abstention, the blast radius is informational only: the on-call reader is told the incident is unremediated and is handed two specific queries to run before anyone acts."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "low",
+    "reasoning": "A critical alert on the user-facing edge service cannot be dismissed, and no open incident could account for it. The single seed gives no signal about which downstream dependency or failure mode is responsible."
+  }
+}

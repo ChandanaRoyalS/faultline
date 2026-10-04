@@ -612,6 +612,22 @@ Shown for context only. Same seven scenarios, two pipelines.
 [`SWEEP-2026-08-26.md`](evals/runs/SWEEP-2026-08-26.md) ·
 [`SWEEP-2026-08-26-taxonomy.md`](evals/runs/SWEEP-2026-08-26-taxonomy.md)
 
+### External benchmark — SREGym (T7.2)
+
+**Faultline 1 / 11 on Astronomy Shop, 1 / 11 on Hotel Reservation, 0 / 11 on Social Network.**
+SREGym's own Claude Code agent with Claude Sonnet 4.6 scored 9 / 11, 10 / 11 and 11 / 11 on the
+same problems ([RESULT](evals/attempts/T7.2-run/RESULT.md)).
+
+- **What the figures are**: a pass rate under SREGym's LLM judge at 0.70, with Sonnet 4.6 as the
+  judge. Diagnosis only, R = 1, 33 of the 108 eligible problems by the owner's budget.
+- **Read per application**: Astronomy Shop is this repository's own demo, and the other two are
+  foreign.
+- **What Faultline had**: no Kubernetes describe, and traces on Astronomy Shop only. The baseline
+  had kubectl.
+- **Not comparable to SREGym's leaderboard.**
+- **The largest single cause**: triage declined 20 of the 33 incidents as noise before any tool
+  ran.
+
 ### Coverage and abstention
 
 A verdict of `unknown` is an **abstention, not a wrong answer**: it is excluded from the accuracy

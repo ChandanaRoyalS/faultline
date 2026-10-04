@@ -1,0 +1,232 @@
+== 1. What ran
+problems 33; slots in done.tsv 66; complete 66 of 66
+  re-run: slot 58 cfs_cpu_throttling_hotel_reservation / claudecode: try 1 incomplete (agent_timeout), try 2 complete, scored on try 2 as registered
+  removed from both arms: none
+
+== 2. Pass rate per application and arm (SREGym's judge, threshold 0.70); 95 % percentile bootstrap over problems, 10000 resamples, seed 20261005
+application         arm           passes   rate   bootstrap 95 %   Wilson 95 % (supplementary)
+Astronomy Shop      faultline      1/11     9 %   [  0 %,  27 %]   [  2 %,  38 %]
+Astronomy Shop      claudecode     9/11    82 %   [ 55 %, 100 %]   [ 52 %,  95 %]
+Hotel Reservation   faultline      1/11     9 %   [  0 %,  27 %]   [  2 %,  38 %]
+Hotel Reservation   claudecode    10/11    91 %   [ 73 %, 100 %]   [ 62 %,  98 %]
+Social Network      faultline      0/11     0 %   [  0 %,   0 %]   [  0 %,  26 %]
+Social Network      claudecode    11/11   100 %   [100 %, 100 %]   [ 74 %, 100 %]
+all three (pooled)  faultline      2/33     6 %   [  0 %,  15 %]   [  2 %,  20 %]
+all three (pooled)  claudecode    30/33    91 %   [ 79 %, 100 %]   [ 76 %,  97 %]
+  The pooled rows are the two halves of Addendum 1's primary comparison (section 3), shown for that only. Registered clause 2: rates are published per application.
+
+== 3. Paired difference F - C (mean over problems of pass(F) - pass(C)), bootstrap 95 %
+all 33 (primary)     n=33  diff -84.8 points  [-97.0, -69.7]  MDE 24 points (assumed SD 0.5; observed SD 0.43)  -> beyond the MDE
+                     pairs: both pass 1, F only 1, C only 29, neither 2
+Astronomy Shop       n=11  diff -72.7 points  [-100.0, -36.4]  MDE 42 points (assumed SD 0.5; observed SD 0.62)  -> beyond the MDE
+                     pairs: both pass 0, F only 1, C only 9, neither 1
+Hotel Reservation    n=11  diff -81.8 points  [-100.0, -54.5]  MDE 42 points (assumed SD 0.5; observed SD 0.39)  -> beyond the MDE
+                     pairs: both pass 1, F only 0, C only 9, neither 1
+Social Network       n=11  diff -100.0 points  [-100.0, -100.0]  MDE 42 points (assumed SD 0.5; observed SD 0.00)  -> beyond the MDE
+                     pairs: both pass 0, F only 0, C only 11, neither 0
+
+== 4. Every problem (slot, judge's accuracy and dimensions D1/D2/D3, Faultline's opening)
+-- Astronomy Shop
+  astronomy_shop_ad_service_failure                  F s9     33 0.33/0.33/0.33 fail | C s10   100 1.00/1.00/1.00 PASS | triage noise, evals 2, fallback False | ServiceHighErrorRate@load-generator
+  astronomy_shop_ad_service_high_cpu                 F s29    33 0.33/0.33/0.33 fail | C s30   100 1.00/1.00/1.00 PASS | triage noise, evals 2, fallback False | ServiceHighErrorRate@load-generator
+  astronomy_shop_payment_service_failure             F s25    66 1.00/0.67/0.33 fail | C s26   100 1.00/1.00/1.00 PASS | triage investigate, evals 2, fallback False | ServiceHighErrorRate@checkout;ServiceHighErrorRate@frontend;ServiceHighErrorRate@load-generator;ServiceHighErrorRate@payment
+  duplicate_pvc_mounts_astronomy_shop                F s64    33 0.33/0.33/0.33 fail | C s63   100 1.00/1.00/1.00 PASS | triage noise, evals 1, fallback False | KubeDeploymentReplicasMismatch@frontend;KubePodNotReady@frontend
+  kafka_poison_pill_hol_block                        F s44    11 0.00/0.00/0.33 fail | C s43     0 0.00/0.00/0.00 fail | triage noise, evals 2, fallback False | ServiceHighErrorRate@load-generator
+  kafka_queue_problems                               F s13     0 0.00/0.00/0.00 fail | C s14    89 1.00/1.00/0.67 PASS | triage investigate, evals 2, fallback False | ServiceHighErrorRate@accounting
+  liveness_probe_misconfiguration_astronomy_shop     F s52    11 0.00/0.00/0.33 fail | C s51   100 1.00/1.00/1.00 PASS | triage noise, evals 1, fallback False | KubeDeploymentReplicasMismatch@frontend;KubePodCrashLooping@frontend
+  missing_env_variable_astronomy_shop                F s4     33 0.33/0.33/0.33 fail | C s3    100 1.00/1.00/1.00 PASS | triage noise, evals 1, fallback False | KubePodCrashLooping@product-catalog
+  service_port_conflict_astronomy_shop               F s56    56 1.00/0.00/0.67 fail | C s55   100 1.00/1.00/1.00 PASS | triage investigate, evals 1, fallback False | KubeDeploymentReplicasMismatch@ad;KubePodCrashLooping@product-catalog;KubePodNotReady@ad
+  stale_coredns_config_astronomy_shop                F s60     0 0.00/0.00/0.00 fail | C s59    89 1.00/1.00/0.67 PASS | triage investigate, evals 6, fallback True | SREGymProblemReported@frontend
+  wrong_dns_policy_astronomy_shop                    F s8    100 1.00/1.00/1.00 PASS | C s7      0 0.00/0.00/0.00 fail | triage investigate, evals 2, fallback False | ServiceHighErrorRate@frontend-proxy;ServiceHighErrorRate@load-generator
+-- Hotel Reservation
+  admission_webhook_tls_mismatch_hotel_reservation   F s65    11 0.00/0.00/0.33 fail | C s66   100 1.00/1.00/1.00 PASS | triage noise, evals 1, fallback False | KubeDeploymentReplicasMismatch@recommendation
+  cfs_cpu_throttling_hotel_reservation               F s57     0 0.00/0.00/0.00 fail | C s58    67 0.33/1.00/0.67 fail | triage investigate, evals 6, fallback True | SREGymProblemReported@frontend
+  dev_shm_exhaustion_hotel_reservation               F s17    33 0.33/0.33/0.33 fail | C s18   100 1.00/1.00/1.00 PASS | triage noise, evals 1, fallback False | KubeDeploymentReplicasMismatch@media-processor;KubePodCrashLooping@media-processor
+  duplicate_pvc_mounts_hotel_reservation             F s12    33 0.33/0.33/0.33 fail | C s11   100 1.00/1.00/1.00 PASS | triage noise, evals 1, fallback False | KubeDeploymentReplicasMismatch@frontend;KubePodNotReady@frontend
+  finalizer_deadlock_controller_hotel_reservation    F s41     0 0.00/0.00/0.00 fail | C s42   100 1.00/1.00/1.00 PASS | triage investigate, evals 6, fallback True | SREGymProblemReported@frontend
+  liveness_probe_too_aggressive_hotel_reservation    F s53    33 0.33/0.33/0.33 fail | C s54   100 1.00/1.00/1.00 PASS | triage noise, evals 1, fallback False | KubeDeploymentReplicasMismatch@aux-service;KubePodCrashLooping@aux-service
+  network_policy_block                               F s20    89 1.00/1.00/0.67 PASS | C s19   100 1.00/1.00/1.00 PASS | triage investigate, evals 6, fallback True | SREGymProblemReported@frontend
+  pvc_claim_mismatch                                 F s16    22 0.33/0.00/0.33 fail | C s15    89 1.00/1.00/0.67 PASS | triage investigate, evals 1, fallback False | KubeDeploymentReplicasMismatch@mongodb-geo;KubeDeploymentReplicasMismatch@mongodb-profile;KubeDeploymentReplicasMismatch@mongodb-rate;KubeDeploymentReplicasMismatch@mongodb-recommendation;KubeDeploymentReplicasMismatch@mongodb-reservation;KubeDeploymentReplicasMismatch@mongodb-user;KubePodNotReady@mongodb-geo;KubePodNotReady@mongodb-profile;KubePodNotReady@mongodb-rate;KubePodNotReady@mongodb-recommendation;KubePodNotReady@mongodb-reservation;KubePodNotReady@mongodb-user
+  resource_request_too_large                         F s24    56 1.00/0.00/0.67 fail | C s23   100 1.00/1.00/1.00 PASS | triage investigate, evals 1, fallback False | KubeDeploymentReplicasMismatch@mongodb-rate;KubePodNotReady@mongodb-rate
+  storage_user_unregistered-2                        F s21    11 0.00/0.00/0.33 fail | C s22   100 1.00/1.00/1.00 PASS | triage noise, evals 1, fallback False | KubeDeploymentReplicasMismatch@rate;KubePodCrashLooping@rate
+  wrong_dns_policy_hotel_reservation                 F s45    11 0.00/0.00/0.33 fail | C s46   100 1.00/1.00/1.00 PASS | triage noise, evals 2, fallback False | KubeDeploymentReplicasMismatch@profile;KubePodCrashLooping@profile
+-- Social Network
+  assign_to_non_existent_node                        F s48    33 0.33/0.33/0.33 fail | C s47   100 1.00/1.00/1.00 PASS | triage noise, evals 1, fallback False | KubeDeploymentReplicasMismatch@user-service;KubePodNotReady@user-service
+  duplicate_pvc_mounts_social_network                F s49    33 0.33/0.33/0.33 fail | C s50   100 1.00/1.00/1.00 PASS | triage noise, evals 1, fallback False | KubeDeploymentReplicasMismatch@jaeger;KubePodNotReady@jaeger
+  liveness_probe_misconfiguration_social_network     F s61    11 0.00/0.00/0.33 fail | C s62   100 1.00/1.00/1.00 PASS | triage noise, evals 4, fallback False | KubeDeploymentReplicasMismatch@user-service;KubePodCrashLooping@user-service
+  liveness_probe_too_aggressive_social_network       F s33    33 0.33/0.33/0.33 fail | C s34   100 1.00/1.00/1.00 PASS | triage noise, evals 1, fallback False | KubeDeploymentReplicasMismatch@aux-service;KubePodCrashLooping@aux-service
+  missing_service_social_network                     F s32     0 0.00/0.00/0.00 fail | C s31   100 1.00/1.00/1.00 PASS | triage investigate, evals 2, fallback False | ServiceHighErrorRate@nginx-web-server
+  persistent_volume_affinity_violation               F s5     33 0.33/0.33/0.33 fail | C s6    100 1.00/1.00/1.00 PASS | triage noise, evals 1, fallback False | KubeDeploymentReplicasMismatch@user-service;KubePodNotReady@user-service
+  pod_anti_affinity_deadlock                         F s37    11 0.00/0.00/0.33 fail | C s38   100 1.00/1.00/1.00 PASS | triage noise, evals 1, fallback False | KubeDeploymentReplicasMismatch@user-service;KubePodNotReady@user-service
+  service_port_conflict_social_network               F s1     11 0.00/0.00/0.33 fail | C s2    100 1.00/1.00/1.00 PASS | triage noise, evals 1, fallback False | KubeDeploymentReplicasMismatch@media-service;KubePodNotReady@media-service
+  stale_coredns_config_social_network                F s40     0 0.00/0.00/0.00 fail | C s39   100 1.00/1.00/1.00 PASS | triage investigate, evals 6, fallback True | SREGymProblemReported@nginx-web-server
+  taint_no_toleration_social_network                 F s28    33 0.33/0.33/0.33 fail | C s27   100 1.00/1.00/1.00 PASS | triage noise, evals 1, fallback False | KubeDeploymentReplicasMismatch@user-service;KubePodNotReady@user-service
+  wrong_dns_policy_social_network                    F s36     0 0.00/0.00/0.00 fail | C s35    89 1.00/1.00/0.67 PASS | triage investigate, evals 6, fallback True | SREGymProblemReported@nginx-web-server
+
+== 5. Error analysis: the five registered categories, per failed attempt
+  faultline   s1   service_port_conflict_social_network               4 no verdict or timeout
+  faultline   s4   missing_env_variable_astronomy_shop                4 no verdict or timeout
+  faultline   s5   persistent_volume_affinity_violation               4 no verdict or timeout
+  faultline   s9   astronomy_shop_ad_service_failure                  4 no verdict or timeout
+  faultline   s12  duplicate_pvc_mounts_hotel_reservation             4 no verdict or timeout
+  faultline   s13  kafka_queue_problems                               1 localisation miss
+  faultline   s16  pvc_claim_mismatch                                 1 localisation miss
+  faultline   s17  dev_shm_exhaustion_hotel_reservation               4 no verdict or timeout
+  faultline   s21  storage_user_unregistered-2                        4 no verdict or timeout
+  faultline   s24  resource_request_too_large                         2 characterisation miss
+  faultline   s25  astronomy_shop_payment_service_failure             3 scope miss
+  faultline   s28  taint_no_toleration_social_network                 4 no verdict or timeout
+  faultline   s29  astronomy_shop_ad_service_high_cpu                 4 no verdict or timeout
+  faultline   s32  missing_service_social_network                     4 no verdict or timeout
+  faultline   s33  liveness_probe_too_aggressive_social_network       4 no verdict or timeout
+  faultline   s36  wrong_dns_policy_social_network                    1 localisation miss
+  faultline   s37  pod_anti_affinity_deadlock                         4 no verdict or timeout
+  faultline   s40  stale_coredns_config_social_network                4 no verdict or timeout
+  faultline   s41  finalizer_deadlock_controller_hotel_reservation    4 no verdict or timeout
+  faultline   s44  kafka_poison_pill_hol_block                        4 no verdict or timeout
+  faultline   s45  wrong_dns_policy_hotel_reservation                 4 no verdict or timeout
+  faultline   s48  assign_to_non_existent_node                        4 no verdict or timeout
+  faultline   s49  duplicate_pvc_mounts_social_network                4 no verdict or timeout
+  faultline   s52  liveness_probe_misconfiguration_astronomy_shop     4 no verdict or timeout
+  faultline   s53  liveness_probe_too_aggressive_hotel_reservation    4 no verdict or timeout
+  faultline   s56  service_port_conflict_astronomy_shop               2 characterisation miss
+  faultline   s57  cfs_cpu_throttling_hotel_reservation               1 localisation miss
+  faultline   s60  stale_coredns_config_astronomy_shop                4 no verdict or timeout
+  faultline   s61  liveness_probe_misconfiguration_social_network     4 no verdict or timeout
+  faultline   s64  duplicate_pvc_mounts_astronomy_shop                4 no verdict or timeout
+  faultline   s65  admission_webhook_tls_mismatch_hotel_reservation   4 no verdict or timeout
+  claudecode  s7   wrong_dns_policy_astronomy_shop                    1 localisation miss
+  claudecode  s43  kafka_poison_pill_hol_block                        1 localisation miss
+  claudecode  s58  cfs_cpu_throttling_hotel_reservation               1 localisation miss
+  faultline: 31 failed: 1 localisation miss 4; 2 characterisation miss 2; 3 scope miss 1; 4 no verdict or timeout 24
+  claudecode: 3 failed: 1 localisation miss 3
+  sensitivity: the 'not established' verdicts read by their dimensions instead: {'1 localisation miss': 4}
+
+== 6. By family (Faultline / baseline passes); families under five problems are described attempt by attempt in the report
+  Application Fault Injector / Regular Application Problems          Astronomy Shop     n=1   F 0/1  C 1/1
+  Application Fault Injector / Regular Application Problems          Hotel Reservation  n=1   F 0/1  C 1/1
+  Direct K8S Api                                                     Hotel Reservation  n=3   F 1/3  C 3/3
+  Opentelemetry Fault Injector                                       Astronomy Shop     n=5   F 0/5  C 4/5
+  Virtualization Fault Injector / Regular Virtualization Problems    Astronomy Shop     n=5   F 1/5  C 4/5
+  Virtualization Fault Injector / Regular Virtualization Problems    Hotel Reservation  n=7   F 0/7  C 6/7
+  Virtualization Fault Injector / Regular Virtualization Problems    Social Network     n=11  F 0/11  C 11/11
+  Application Fault Injector / Regular Application Problems          all                n=2   F 0/2  C 2/2
+  Direct K8S Api                                                     all                n=3   F 1/3  C 3/3
+  Opentelemetry Fault Injector                                       all                n=5   F 0/5  C 4/5
+  Virtualization Fault Injector / Regular Virtualization Problems    all                n=23  F 1/23  C 21/23
+
+== 7. By the judge's dimensions (mean score)
+  faultline   all 33                               n=33  D1 0.28  D2 0.20  D3 0.31
+  faultline   investigated (triage did not gate)   n=13  D1 0.41  D2 0.21  D3 0.28
+  faultline   gated by triage                      n=20  D1 0.20  D2 0.20  D3 0.33
+  claudecode  all 33                               n=33  D1 0.92  D2 0.94  D3 0.89
+  the judge's accuracy on the identical text 'Faultline reached no verdict.' (20 attempts): 11 x8, 33 x12
+
+== 8. Faultline's opening and triage
+  alarms / investigate       7 attempts, Faultline passes 1, baseline passes 6
+  alarms / noise            20 attempts, Faultline passes 0, baseline passes 19
+  fallback / investigate     6 attempts, Faultline passes 1, baseline passes 5
+  the gated attempts:
+    s1   service_port_conflict_social_network               alarms on ['media-service'] (KubeDeploymentReplicasMismatch,KubePodNotReady; warning); truth media-service; alarm on truth: yes; alarmed services in the snapshot graph: none; triage confidence medium; baseline PASS
+    s4   missing_env_variable_astronomy_shop                alarms on ['product-catalog'] (KubePodCrashLooping; warning); truth frontend; alarm on truth: no; alarmed services in the snapshot graph: ['product-catalog']; triage confidence medium; baseline PASS
+    s5   persistent_volume_affinity_violation               alarms on ['user-service'] (KubeDeploymentReplicasMismatch,KubePodNotReady; warning); truth user-service; alarm on truth: yes; alarmed services in the snapshot graph: none; triage confidence low; baseline PASS
+    s9   astronomy_shop_ad_service_failure                  alarms on ['load-generator'] (ServiceHighErrorRate; critical); truth ad; alarm on truth: no; alarmed services in the snapshot graph: ['load-generator']; triage confidence high; baseline PASS
+    s12  duplicate_pvc_mounts_hotel_reservation             alarms on ['frontend'] (KubeDeploymentReplicasMismatch,KubePodNotReady; warning); truth frontend; alarm on truth: yes; alarmed services in the snapshot graph: ['frontend']; triage confidence medium; baseline PASS
+    s17  dev_shm_exhaustion_hotel_reservation               alarms on ['media-processor'] (KubeDeploymentReplicasMismatch,KubePodCrashLooping; warning); truth media-processor; alarm on truth: yes; alarmed services in the snapshot graph: none; triage confidence medium; baseline PASS
+    s21  storage_user_unregistered-2                        alarms on ['rate'] (KubeDeploymentReplicasMismatch,KubePodCrashLooping; warning); truth mongodb-rate; alarm on truth: no; alarmed services in the snapshot graph: ['rate']; triage confidence medium; baseline PASS
+    s28  taint_no_toleration_social_network                 alarms on ['user-service'] (KubeDeploymentReplicasMismatch,KubePodNotReady; warning); truth user-service; alarm on truth: yes; alarmed services in the snapshot graph: none; triage confidence medium; baseline PASS
+    s29  astronomy_shop_ad_service_high_cpu                 alarms on ['load-generator'] (ServiceHighErrorRate; critical); truth ad; alarm on truth: no; alarmed services in the snapshot graph: ['load-generator']; triage confidence medium; baseline PASS
+    s33  liveness_probe_too_aggressive_social_network       alarms on ['aux-service'] (KubeDeploymentReplicasMismatch,KubePodCrashLooping; warning); truth aux-service; alarm on truth: yes; alarmed services in the snapshot graph: none; triage confidence medium; baseline PASS
+    s37  pod_anti_affinity_deadlock                         alarms on ['user-service'] (KubeDeploymentReplicasMismatch,KubePodNotReady; warning); truth user-service; alarm on truth: yes; alarmed services in the snapshot graph: none; triage confidence medium; baseline PASS
+    s44  kafka_poison_pill_hol_block                        alarms on ['load-generator'] (ServiceHighErrorRate; critical); truth kafka; alarm on truth: no; alarmed services in the snapshot graph: ['load-generator']; triage confidence high; baseline fail
+    s45  wrong_dns_policy_hotel_reservation                 alarms on ['profile'] (KubeDeploymentReplicasMismatch,KubePodCrashLooping; warning); truth profile; alarm on truth: yes; alarmed services in the snapshot graph: ['profile']; triage confidence medium; baseline PASS
+    s48  assign_to_non_existent_node                        alarms on ['user-service'] (KubeDeploymentReplicasMismatch,KubePodNotReady; warning); truth user-service; alarm on truth: yes; alarmed services in the snapshot graph: none; triage confidence medium; baseline PASS
+    s49  duplicate_pvc_mounts_social_network                alarms on ['jaeger'] (KubeDeploymentReplicasMismatch,KubePodNotReady; warning); truth jaeger; alarm on truth: yes; alarmed services in the snapshot graph: none; triage confidence medium; baseline PASS
+    s52  liveness_probe_misconfiguration_astronomy_shop     alarms on ['frontend'] (KubeDeploymentReplicasMismatch,KubePodCrashLooping; warning); truth frontend; alarm on truth: yes; alarmed services in the snapshot graph: ['frontend']; triage confidence medium; baseline PASS
+    s53  liveness_probe_too_aggressive_hotel_reservation    alarms on ['aux-service'] (KubeDeploymentReplicasMismatch,KubePodCrashLooping; warning); truth aux-service; alarm on truth: yes; alarmed services in the snapshot graph: none; triage confidence medium; baseline PASS
+    s61  liveness_probe_misconfiguration_social_network     alarms on ['user-service'] (KubeDeploymentReplicasMismatch,KubePodCrashLooping; warning); truth user-service; alarm on truth: yes; alarmed services in the snapshot graph: none; triage confidence medium; baseline PASS
+    s64  duplicate_pvc_mounts_astronomy_shop                alarms on ['frontend'] (KubeDeploymentReplicasMismatch,KubePodNotReady; warning); truth frontend; alarm on truth: yes; alarmed services in the snapshot graph: ['frontend']; triage confidence medium; baseline PASS
+    s65  admission_webhook_tls_mismatch_hotel_reservation   alarms on ['recommendation'] (KubeDeploymentReplicasMismatch; warning); truth pod-policy.validation.k8s.io; alarm on truth: no; alarmed services in the snapshot graph: ['recommendation']; triage confidence medium; baseline PASS
+  gated 20 of 33; an alarm on the ground-truth component in 14 of 20
+  of the gated: load-generator alone 3; warning-severity Kubernetes alarms only 17
+  TRUTH's sources (the judge's D1-Q1 evidence):
+    admission_webhook_tls_mismatch_hotel_reservation   pod-policy.validation.k8s.io   [claudecode] Agent names 'ValidatingWebhookConfiguration pod-policy.validation.k8s.io' as the fault origin, matching the ground-truth target_component exactly.
+    assign_to_non_existent_node                        user-service                   [claudecode] The agent explicitly states 'The user-service deployment has an incorrect nodeSelector' matching the ground-truth target_component=user-service.
+    astronomy_shop_ad_service_failure                  ad                             [claudecode] Agent identifies 'the ad service' as the component experiencing failures due to the adFailure feature flag, matching ground-truth target_component=ad.
+    astronomy_shop_ad_service_high_cpu                 ad                             [claudecode] Agent diagnosis explicitly states 'The ad service is experiencing abnormally high CPU usage' identifying the ad service as the fault origin.
+    astronomy_shop_payment_service_failure             payment                        [claudecode] Diagnosis identifies the flagd-config ConfigMap and payment service as the fault origin, matching ground-truth target_component=payment and the ConfigMap mechanism.
+    cfs_cpu_throttling_hotel_reservation               geo                            [faultline] Agent diagnoses 'frontend' as the faulty component; ground-truth identifies 'deployment/geo' in namespace hotel-reservation as the fault origin.
+    dev_shm_exhaustion_hotel_reservation               media-processor                [claudecode] Agent identifies 'the media-processor pod' as the crash-looping component, matching the ground-truth target_component=deployment/media-processor.
+    duplicate_pvc_mounts_astronomy_shop                frontend                       [claudecode] The agent explicitly identifies 'the frontend deployment has 2 replicas' as the fault origin, matching deployment/frontend.
+    duplicate_pvc_mounts_hotel_reservation             frontend                       [claudecode] The agent explicitly identifies 'the frontend deployment' as the fault origin, matching target_component=deployment/frontend.
+    duplicate_pvc_mounts_social_network                jaeger                         [claudecode] Agent explicitly identifies 'The Jaeger deployment' as the misconfigured component, matching deployment/jaeger in the fault spec.
+    finalizer_deadlock_controller_hotel_reservation    configmap-cleanup-controller   [faultline] Agent identifies 'frontend' as faulty component; ground truth identifies ClusterRole/configmap-cleanup-controller and configmap/reservation-cleanup-token as fault origin.
+    kafka_poison_pill_hol_block                        kafka                          [claudecode] Agent diagnoses 'product-catalog service' as fault origin; ground-truth identifies kafka topic/orders-fulfillment and orders-validator consumer group.
+    kafka_queue_problems                               kafka                          [faultline] Agent identifies 'accounting' as the faulty component, but ground-truth identifies 'kafka' as the fault origin component.
+    liveness_probe_misconfiguration_astronomy_shop     frontend                       [claudecode] Agent states 'The frontend service is in a crash loop caused by a misconfigured liveness probe', matching the ground-truth target component 'frontend'.
+    liveness_probe_misconfiguration_social_network     user-service                   [claudecode] Agent states 'The user-service deployment has a misconfigured liveness probe' matching the ground-truth target_component=user-service.
+    liveness_probe_too_aggressive_hotel_reservation    aux-service                    [claudecode] Agent states 'The aux-service deployment has a misconfigured liveness probe' matching the ground-truth target_component=aux-service.
+    liveness_probe_too_aggressive_social_network       aux-service                    [claudecode] Agent diagnosis explicitly states 'The aux-service pod is crash-looping due to an overly aggressive liveness probe configuration.'
+    missing_env_variable_astronomy_shop                frontend                       [claudecode] Agent states 'The frontend service is missing the CART_ADDR environment variable' and 'the frontend deployment does not have this address configured'
+    missing_service_social_network                     user-service                   [faultline] Agent names 'nginx-web-server' as the faulty component, while ground-truth identifies 'user-service' as the fault origin (deleted Kubernetes Service).
+    network_policy_block                               recommendation                 [claudecode] Agent identifies 'recommendation service (hotel-reservation/recommendation)' as the fault origin, matching ground-truth component and namespace.
+    persistent_volume_affinity_violation               user-service                   [claudecode] The agent identifies 'user-service deployment' as the failing component, matching the ground-truth target_component=user-service.
+    pod_anti_affinity_deadlock                         user-service                   [claudecode] Agent explicitly identifies 'user-service deployment' as the misconfigured component with anti-affinity issues.
+    pvc_claim_mismatch                                 mongodb                        [faultline] Agent names mongodb instances in hotel-reservation namespace as the fault origin, matching ground-truth target_component=mongodb, namespace=hotel-reservation.
+    resource_request_too_large                         mongodb-rate                   [claudecode] The diagnosis explicitly names 'mongodb-rate deployment' as the fault origin, matching the ground-truth target_component.
+    service_port_conflict_astronomy_shop               ad                             [claudecode] Agent identifies 'the ad service pod' and 'ad deployment' as the fault origin, matching ground-truth component=deployment/ad.
+    service_port_conflict_social_network               media-service                  [claudecode] Agent identifies 'media-service deployment is misconfigured with hostPort: 9100' matching the ground-truth target component deployment/media-service.
+    stale_coredns_config_astronomy_shop                coredns                        [claudecode] The CoreDNS configmap in kube-system was modified to add a template plugin rule — matches configmap/coredns in kube-system.
+    stale_coredns_config_social_network                coredns                        [faultline] Agent names 'nginx-web-server' as faulty component; ground truth identifies configmap/coredns in kube-system namespace as the fault origin.
+    storage_user_unregistered-2                        mongodb-rate                   [claudecode] Agent identifies 'mongodb-rate' as the fault origin, matching the ground-truth component 'service/mongodb-rate'.
+    taint_no_toleration_social_network                 user-service                   [claudecode] Agent identifies 'user-service deployment (revision 2)' and 'user-service pods stuck in Pending state' as the fault origin, matching the ground-truth target_component=user-service.
+    wrong_dns_policy_astronomy_shop                    frontend                       [claudecode] Agent diagnoses 'accounting service' as the fault origin; ground-truth identifies 'frontend' deployment in astronomy-shop namespace.
+    wrong_dns_policy_hotel_reservation                 profile                        [claudecode] Agent identifies 'the profile service' and 'profile deployment' as the fault origin, matching ground-truth target_component=profile.
+    wrong_dns_policy_social_network                    user-service                   [faultline] Agent identifies 'nginx-web-server' as the faulty component, while ground-truth identifies 'user-service' as the fault origin.
+
+== 9. Faultline's tool calls (investigated attempts only; gated attempts called none)
+  change_history   data                 25
+  logql_query      data                 17
+  logql_query      empty                8
+  logql_query      error:dns            5
+  metric_baseline  data                 7
+  metric_baseline  empty                4
+  metric_baseline  error:breaker        1
+  metric_baseline  error:dns            2
+  metric_baseline  error:unavailable    12
+  trace_query      data                 2
+  trace_query      empty                7
+  trace_query      error:dns            2
+  total calls 92
+  DNS failures by attempt (the MCP servers could not resolve the observe namespace):
+    s40  stale_coredns_config_social_network                6 of 11 calls
+    s60  stale_coredns_config_astronomy_shop                3 of 6 calls
+  prediction 5, trace calls on the two DeathStarBench applications:
+    s20  network_policy_block                               trace_query on frontend: empty
+    s32  missing_service_social_network                     trace_query on nginx-web-server: empty
+    s36  wrong_dns_policy_social_network                    trace_query on nginx-web-server: empty
+    s40  stale_coredns_config_social_network                trace_query on nginx-web-server: error:dns
+    s41  finalizer_deadlock_controller_hotel_reservation    trace_query on frontend: empty
+    s57  cfs_cpu_throttling_hotel_reservation               trace_query on frontend: empty
+  latency-p95 calls: 0
+
+== 10. The registered predictions
+  1. Astronomy Shop: predicted 25 %-55 %; observed 9 % [0 %, 27 %]; interval width 27 vs range width 30
+  1. Hotel Reservation: predicted 10 %-40 %; observed 9 % [0 %, 27 %]; interval width 27 vs range width 30
+  1. Social Network: predicted 10 %-40 %; observed 0 % [0 %, 0 %]; interval width 0 vs range width 30
+  2. see section 3 (each application's difference against its 42-point MDE)
+  3. Astronomy Shop: virtualization 1/5, OpenTelemetry injector 0/5
+  4. see section 7
+  5. see section 9
+  6. no verdict or timeout: 24 of 33 (73 %); of which triage's gate 20, 'not established' 4, timeouts 0
+
+== 11. Cost from recorded tokens at the published prices, and time
+  Faultline   total $10.26; mean $0.31; investigated (n=13) mean $0.71, range $0.54-$1.08; gated counted at $0.05 each
+  Claude Code total $28.37; mean $0.86; range $0.23-$5.23 (slot 58's timed-out first try included)
+  judge: 66 judged slots at the $0.10 ceiling = $6.60 (not measured)
+  re-check (Addendum 1's cap): $1.80
+  tally $47.04
+  faultline   slot minutes median 7.6, range 5.4-17.4, sum 4.9 h; agent stage median 129 s, max 686 s
+  claudecode  slot minutes median 7.7, range 5.8-55.3, sum 5.9 h; agent stage median 124 s, max 1043 s
+  Faultline slot minutes: gated median 6.1, investigated median 11.9
+  first slot start 2026-10-03 07:54:11 UTC; last slot end 2026-10-03 23:36:09 UTC

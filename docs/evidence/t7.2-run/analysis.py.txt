@@ -1,0 +1,484 @@
+# T7.2 scored run - the report's analysis (run registration, the analysis as amended by Addendum 1).
+#
+#   cd docs/evidence/t7.2-run
+#   python3 analysis.py.txt scored scored/results . > scored/analysis-output.txt
+#
+# RECORDS  : the run's record archive, unpacked (done.tsv, sN-record/ for every Faultline slot,
+#            and claudecode-usage.tsv)
+# RESULTS  : SREGym's per-attempt results files, in SREGym's own layout
+#            (<run>/<arm>/<problem>/run_1/<problem>_results.csv)
+# EVIDENCE : docs/evidence/t7.2-run/ (scaled-sample.tsv)
+#
+# Claude Code's session logs are 19 MB and are kept off the repository. Their token counts were
+# extracted once, from collect's archive, with
+#   python3 analysis.py.txt usage <SREGym's results/ directory> > scored/claudecode-usage.tsv
+# and the analysis reads that file. The extraction is the tally stage's own rule: assistant
+# messages, each message id counted once.
+#
+# Everything printed is computed from those files, except TRUTH below, which is read by hand
+# from the judge's own records and printed beside its source so that it can be checked.
+# Standard library only. The bootstrap seed is fixed, so the output is reproducible.
+
+import ast
+import csv
+import glob
+import json
+import math
+import os
+import random
+import re
+import statistics
+import sys
+from collections import Counter, defaultdict
+
+csv.field_size_limit(10**9)
+
+if sys.argv[1] == "usage":
+    print("problem\trun\tmessages\tinput\toutput\tcache_read\tcache_write")
+    seen = set()
+    for path in sorted(glob.glob(f"{sys.argv[2]}/*/claudecode/*/run_*/sessions/projects/*/*.jsonl")):
+        parts = path.split(os.sep)
+        i = parts.index("claudecode")
+        problem, run = parts[i + 1], parts[i - 1]
+        n = tin = tout = cr = cw = 0
+        for line in open(path):
+            try:
+                r = json.loads(line)
+            except ValueError:
+                continue
+            m = r.get("message") if isinstance(r, dict) else None
+            if r.get("type") != "assistant" or not isinstance(m, dict) or not m.get("usage") or m.get("id") in seen:
+                continue
+            seen.add(m["id"])
+            u = m["usage"]
+            n += 1
+            tin += u.get("input_tokens", 0)
+            tout += u.get("output_tokens", 0)
+            cr += u.get("cache_read_input_tokens", 0)
+            cw += u.get("cache_creation_input_tokens", 0)
+        print(f"{problem}\t{run}\t{n}\t{tin}\t{tout}\t{cr}\t{cw}")
+    sys.exit(0)
+
+REC, RES, EVD = sys.argv[1:4]
+
+APPS = ["sregym-astronomy-shop", "sregym-hotel-reservation", "sregym-social-network"]
+SHORT = {"sregym-astronomy-shop": "Astronomy Shop", "sregym-hotel-reservation": "Hotel Reservation",
+         "sregym-social-network": "Social Network"}
+ARMS = ["faultline", "claudecode"]
+BOOT = 10_000
+SEED = 20261005
+
+# --- inputs -----------------------------------------------------------------------------------
+
+sample = list(csv.DictReader(open(f"{EVD}/scaled-sample.tsv"), delimiter="\t"))
+APP = {r["problem"]: r["application"] for r in sample}
+FAMILY = {r["problem"]: r["family"] for r in sample}
+Q126 = {r["problem"] for r in sample if r["q126_flag"] == "yes"}
+
+done = list(csv.reader(open(f"{REC}/done.tsv"), delimiter="\t"))
+SLOT = {(row[1], row[2]): row for row in done}
+
+
+def judged(arm, problem):
+    """The attempt's SREGym record: the run_1 results file whose run completed (a re-run slot has
+    two directories, the first incomplete)."""
+    found = []
+    for path in sorted(glob.glob(f"{RES}/*/{arm}/{problem}/run_1/{problem}_results.csv")):
+        r = next(csv.DictReader(open(path)))
+        found.append((path, r))
+    complete = [(p, r) for p, r in found if r.get("run_status") == "complete"]
+    return complete[-1] if complete else (found[-1] if found else (None, None)), found
+
+
+A = {}  # (problem, arm) -> attempt facts
+for problem in APP:
+    for arm in ARMS:
+        (path, r), every = judged(arm, problem)
+        dims = ast.literal_eval(r["Diagnosis.dimensions"]) if r and r.get("Diagnosis.dimensions") else {}
+        A[(problem, arm)] = {
+            "slot": int(SLOT[(problem, arm)][0]),
+            "run_dir": path.split(os.sep)[-5] if path else None,
+            "tries": len(every),
+            "first_try_status": every[0][1].get("run_status") if every else None,
+            "first_try_reason": every[0][1].get("incomplete_reason") if every else None,
+            "status": r.get("run_status") if r else None,
+            "success": (r or {}).get("Diagnosis.success") == "True",
+            "accuracy": float(r["Diagnosis.accuracy"]) if r and r.get("Diagnosis.accuracy") else None,
+            "D": {k: v["score"] for k, v in dims.items()},
+            "checklist": ast.literal_eval(r["Diagnosis.checklist"]) if r and r.get("Diagnosis.checklist") else [],
+            "submission": (r or {}).get("Diagnosis.submission") or "",
+            "agent_s": float(r["phase.stage:diagnosis.duration_s"]) if r and r.get("phase.stage:diagnosis.duration_s") else None,
+            "deploy_s": float(r["phase.deploy.duration_s"]) if r and r.get("phase.deploy.duration_s") else None,
+        }
+
+# The ground-truth component of each problem, read by hand from the judge's checklist answer
+# D1-Q1 on the baseline's attempt (or Faultline's, where that names it more exactly). Used only to
+# ask whether a gated alarm pointed at the right component; never used to score anything.
+TRUTH = {
+    "service_port_conflict_social_network": ("media-service", "claudecode"),
+    "missing_env_variable_astronomy_shop": ("frontend", "claudecode"),
+    "persistent_volume_affinity_violation": ("user-service", "claudecode"),
+    "wrong_dns_policy_astronomy_shop": ("frontend", "claudecode"),
+    "astronomy_shop_ad_service_failure": ("ad", "claudecode"),
+    "duplicate_pvc_mounts_hotel_reservation": ("frontend", "claudecode"),
+    "kafka_queue_problems": ("kafka", "faultline"),
+    "pvc_claim_mismatch": ("mongodb", "faultline"),
+    "dev_shm_exhaustion_hotel_reservation": ("media-processor", "claudecode"),
+    "network_policy_block": ("recommendation", "claudecode"),
+    "storage_user_unregistered-2": ("mongodb-rate", "claudecode"),
+    "resource_request_too_large": ("mongodb-rate", "claudecode"),
+    "astronomy_shop_payment_service_failure": ("payment", "claudecode"),
+    "taint_no_toleration_social_network": ("user-service", "claudecode"),
+    "astronomy_shop_ad_service_high_cpu": ("ad", "claudecode"),
+    "missing_service_social_network": ("user-service", "faultline"),
+    "liveness_probe_too_aggressive_social_network": ("aux-service", "claudecode"),
+    "wrong_dns_policy_social_network": ("user-service", "faultline"),
+    "pod_anti_affinity_deadlock": ("user-service", "claudecode"),
+    "stale_coredns_config_social_network": ("coredns", "faultline"),
+    "finalizer_deadlock_controller_hotel_reservation": ("configmap-cleanup-controller", "faultline"),
+    "kafka_poison_pill_hol_block": ("kafka", "claudecode"),
+    "wrong_dns_policy_hotel_reservation": ("profile", "claudecode"),
+    "assign_to_non_existent_node": ("user-service", "claudecode"),
+    "duplicate_pvc_mounts_social_network": ("jaeger", "claudecode"),
+    "liveness_probe_misconfiguration_astronomy_shop": ("frontend", "claudecode"),
+    "liveness_probe_too_aggressive_hotel_reservation": ("aux-service", "claudecode"),
+    "service_port_conflict_astronomy_shop": ("ad", "claudecode"),
+    "cfs_cpu_throttling_hotel_reservation": ("geo", "faultline"),
+    "stale_coredns_config_astronomy_shop": ("coredns", "claudecode"),
+    "liveness_probe_misconfiguration_social_network": ("user-service", "claudecode"),
+    "duplicate_pvc_mounts_astronomy_shop": ("frontend", "claudecode"),
+    "admission_webhook_tls_mismatch_hotel_reservation": ("pod-policy.validation.k8s.io", "claudecode"),
+}
+
+# The snapshots of record (run registration, "Read before registration"), for graph presence.
+SNAP = {"sregym-astronomy-shop": "g3-deps-60m.json", "sregym-hotel-reservation": "g4-hotel-deps-5m.json",
+        "sregym-social-network": "g4-social-deps-30m.json"}
+GRAPH = {}
+for app, name in SNAP.items():
+    path = os.path.join(EVD, "..", "t7.2-topology", name)
+    edges = json.load(open(path))["data"]
+    GRAPH[app] = {e["parent"] for e in edges} | {e["child"] for e in edges}
+
+# Faultline's own records, per slot.
+F = {}
+for problem in APP:
+    s = A[(problem, "faultline")]["slot"]
+    d = f"{REC}/s{s}-record"
+    att = json.load(open(f"{d}/faultline-logs/attempt.json"))
+    log = open(f"{d}/faultline-logs/investigate.log").read()
+    m = re.search(r"^triage judged: (\w+) \((\w+) confidence", log, re.M)
+    t = re.search(r"^triage: (\d+) services, severity (\w+), start from (.+?), (\d+) unmeasured", log, re.M)
+    calls = []
+    for line in open(f"{d}/db-trajectory_tool_calls.jsonl"):
+        r = json.loads(line)
+        head = r["envelope"].split("\n")[0]
+        if 'error="' in head:
+            err = head.split('error="', 1)[1]
+            kind = ("dns" if "NameResolutionError" in err else
+                    "unavailable" if "unavailable, not" in err else
+                    "breaker" if "modality unavailable" in err else "other")
+            status = "error:" + kind
+        else:
+            status = "empty" if 'empty="true"' in head else "data"
+        calls.append({"tool": r["tool"], "status": status, "template": re.search(r'template="([^"]*)"', head),
+                      "service": r["request"].get("service")})
+    tin = tout = 0
+    for line in open(f"{d}/db-trajectory_steps.jsonl"):
+        r = json.loads(line)
+        tin += int(r.get("tokens_in") or 0)
+        tout += int(r.get("tokens_out") or 0)
+    F[problem] = {
+        "attempt": att, "triage": m.group(1) if m else None, "triage_conf": m.group(2) if m else None,
+        "radius": int(t.group(1)) if t else None, "severity": t.group(2) if t else None,
+        "start_from": t.group(3) if t else None, "calls": calls, "tin": tin, "tout": tout,
+    }
+
+# --- helpers ----------------------------------------------------------------------------------
+
+
+def pct(x):
+    return f"{100 * x:.0f} %"
+
+
+def boot(values, rng):
+    """Percentile bootstrap over problems: the mean of a resample of `values`, BOOT times."""
+    n = len(values)
+    means = sorted(sum(values[rng.randrange(n)] for _ in range(n)) / n for _ in range(BOOT))
+    return means[int(0.025 * BOOT)], means[int(0.975 * BOOT) - 1]
+
+
+def wilson(k, n, z=1.959964):
+    p = k / n
+    c = (p + z * z / (2 * n)) / (1 + z * z / n)
+    h = z * math.sqrt(p * (1 - p) / n + z * z / (4 * n * n)) / (1 + z * z / n)
+    return max(0.0, c - h), min(1.0, c + h)
+
+
+NOT_ESTABLISHED = re.compile(r"^Root cause: (Not established|The (evidence|board) does not establish)", re.M)
+
+
+def category(problem, arm):
+    """The registered five categories, for a failed attempt. The rule, fixed before it is applied:
+    4 if the attempt submitted no diagnosis: `Faultline reached no verdict.` (triage's gate), a
+      verdict whose root cause says it is not established, or no submission (an agent timeout);
+    5 if the run did not complete (none did, after the registered re-run);
+    else by the judge's dimensions: D1 < 0.67 localisation, D2 < 0.67 characterisation, else scope."""
+    a = A[(problem, arm)]
+    if a["status"] != "complete":
+        return "5 adapter or harness failure"
+    sub = a["submission"]
+    if sub.startswith("Faultline reached no verdict") or NOT_ESTABLISHED.search(sub) or not sub.strip():
+        return "4 no verdict or timeout"
+    if a["D"].get("D1", 0) < 0.67:
+        return "1 localisation miss"
+    if a["D"].get("D2", 0) < 0.67:
+        return "2 characterisation miss"
+    return "3 scope miss"
+
+
+def fl_cost(problem):
+    f = F[problem]
+    return f["tin"] * 5e-6 + f["tout"] * 25e-6 if (f["tin"] or f["tout"]) else 0.05
+
+
+USAGE = list(csv.DictReader(open(f"{REC}/claudecode-usage.tsv"), delimiter="\t"))
+
+
+def cc_cost(problem):
+    """Sonnet 4.6: $3 input, $15 output, $0.30 cache read, $3.75 cache write, per million."""
+    return sum(int(u["input"]) * 3e-6 + int(u["output"]) * 15e-6 + int(u["cache_read"]) * 0.3e-6
+               + int(u["cache_write"]) * 3.75e-6 for u in USAGE if u["problem"] == problem)
+
+
+def minutes(problem, arm):
+    row = SLOT[(problem, arm)]
+    from datetime import datetime
+    fmt = "%Y-%m-%d %H:%M:%S UTC"
+    return (datetime.strptime(row[7], fmt) - datetime.strptime(row[6], fmt)).total_seconds() / 60
+
+
+def by_app(app):
+    return sorted(p for p in APP if APP[p] == app)
+
+
+rng = random.Random(SEED)
+out = print
+
+# --- 1. completeness --------------------------------------------------------------------------
+
+out("== 1. What ran")
+out(f"problems {len(APP)}; slots in done.tsv {len(done)}; complete "
+    f"{sum(1 for a in A.values() if a['status'] == 'complete')} of {len(A)}")
+for (p, arm), a in sorted(A.items(), key=lambda kv: kv[1]["slot"]):
+    if a["tries"] > 1:
+        out(f"  re-run: slot {a['slot']} {p} / {arm}: try 1 {a['first_try_status']} "
+            f"({a['first_try_reason']}), try 2 {a['status']}, scored on try 2 as registered")
+out("  removed from both arms: none")
+
+# --- 2. pass rates ----------------------------------------------------------------------------
+
+out("\n== 2. Pass rate per application and arm (SREGym's judge, threshold 0.70); "
+    f"95 % percentile bootstrap over problems, {BOOT} resamples, seed {SEED}")
+out(f"{'application':<20}{'arm':<12}{'passes':>8}{'rate':>7}   bootstrap 95 %   Wilson 95 % (supplementary)")
+rates = {}
+for app in APPS + ["all"]:
+    probs = sorted(APP) if app == "all" else by_app(app)
+    for arm in ARMS:
+        v = [1.0 if A[(p, arm)]["success"] else 0.0 for p in probs]
+        lo, hi = boot(v, rng)
+        wl, wh = wilson(int(sum(v)), len(v))
+        rates[(app, arm)] = (sum(v) / len(v), lo, hi)
+        name = "all three (pooled)" if app == "all" else SHORT[app]
+        out(f"{name:<20}{arm:<12}{int(sum(v)):>4}/{len(v):<3}{pct(sum(v) / len(v)):>7}   "
+            f"[{pct(lo):>5}, {pct(hi):>5}]   [{pct(wl):>5}, {pct(wh):>5}]")
+out("  The pooled rows are the two halves of Addendum 1's primary comparison (section 3), shown for "
+    "that only. Registered clause 2: rates are published per application.")
+
+out("\n== 3. Paired difference F - C (mean over problems of pass(F) - pass(C)), bootstrap 95 %")
+for app in ["all"] + APPS:
+    probs = sorted(APP) if app == "all" else by_app(app)
+    d = [(1.0 if A[(p, 'faultline')]['success'] else 0.0) - (1.0 if A[(p, 'claudecode')]['success'] else 0.0)
+         for p in probs]
+    lo, hi = boot(d, rng)
+    n = len(d)
+    mde = (1.959964 + 0.841621) * 0.5 / math.sqrt(n)
+    sd = statistics.pstdev(d)
+    name = "all 33 (primary)" if app == "all" else SHORT[app]
+    beyond = "beyond the MDE" if abs(sum(d) / n) > mde and (hi < 0 or lo > 0) else "no measurable effect at this n"
+    out(f"{name:<20} n={n:<3} diff {100 * sum(d) / n:+.1f} points  [{100 * lo:+.1f}, {100 * hi:+.1f}]  "
+        f"MDE {100 * mde:.0f} points (assumed SD 0.5; observed SD {sd:.2f})  -> {beyond}")
+    cells = Counter((A[(p, 'faultline')]['success'], A[(p, 'claudecode')]['success']) for p in probs)
+    out(f"{'':<20} pairs: both pass {cells[(True, True)]}, F only {cells[(True, False)]}, "
+        f"C only {cells[(False, True)]}, neither {cells[(False, False)]}")
+
+# --- 4. per-problem table ---------------------------------------------------------------------
+
+out("\n== 4. Every problem (slot, judge's accuracy and dimensions D1/D2/D3, Faultline's opening)")
+for app in APPS:
+    out(f"-- {SHORT[app]}")
+    for p in by_app(app):
+        f, c, ff = A[(p, "faultline")], A[(p, "claudecode")], F[p]
+        eps = ";".join(f"{e['alertname']}@{e['service']}" for e in ff["attempt"]["episodes"])
+        dims = lambda a: "/".join(f"{a['D'].get(k, float('nan')):.2f}" for k in ("D1", "D2", "D3"))
+        out(f"  {p:<50} F s{f['slot']:<3}{f['accuracy']:>5.0f} {dims(f)} {'PASS' if f['success'] else 'fail'}"
+            f" | C s{c['slot']:<3}{c['accuracy']:>5.0f} {dims(c)} {'PASS' if c['success'] else 'fail'}"
+            f" | triage {ff['triage']}, evals {ff['attempt']['evaluations']}, "
+            f"fallback {ff['attempt']['fallback']} | {eps}")
+
+# --- 5. error analysis ------------------------------------------------------------------------
+
+out("\n== 5. Error analysis: the five registered categories, per failed attempt")
+cats = {arm: Counter() for arm in ARMS}
+for arm in ARMS:
+    for p in sorted(APP, key=lambda q: A[(q, arm)]["slot"]):
+        if A[(p, arm)]["success"]:
+            continue
+        cat = category(p, arm)
+        cats[arm][cat] += 1
+        out(f"  {arm:<11} s{A[(p, arm)]['slot']:<3} {p:<50} {cat}")
+for arm in ARMS:
+    total = sum(cats[arm].values())
+    out(f"  {arm}: {total} failed: " + "; ".join(f"{k} {v}" for k, v in sorted(cats[arm].items())))
+alt = Counter()
+for p in APP:
+    a = A[(p, "faultline")]
+    if not a["success"] and NOT_ESTABLISHED.search(a["submission"]):
+        alt["1 localisation miss" if a["D"].get("D1", 0) < 0.67 else "2 characterisation miss"
+            if a["D"].get("D2", 0) < 0.67 else "3 scope miss"] += 1
+out(f"  sensitivity: the 'not established' verdicts read by their dimensions instead: {dict(alt)}")
+
+out("\n== 6. By family (Faultline / baseline passes); families under five problems are described "
+    "attempt by attempt in the report")
+fam = defaultdict(list)
+for p in APP:
+    fam[(FAMILY[p], APP[p])].append(p)
+for (fname, app), probs in sorted(fam.items()):
+    fpass = sum(A[(p, 'faultline')]['success'] for p in probs)
+    cpass = sum(A[(p, 'claudecode')]['success'] for p in probs)
+    out(f"  {fname:<66} {SHORT[app]:<18} n={len(probs):<3} F {fpass}/{len(probs)}  C {cpass}/{len(probs)}")
+for fname in sorted({FAMILY[p] for p in APP}):
+    probs = [p for p in APP if FAMILY[p] == fname]
+    out(f"  {fname:<66} {'all':<18} n={len(probs):<3} F {sum(A[(p, 'faultline')]['success'] for p in probs)}"
+        f"/{len(probs)}  C {sum(A[(p, 'claudecode')]['success'] for p in probs)}/{len(probs)}")
+
+out("\n== 7. By the judge's dimensions (mean score)")
+for arm in ARMS:
+    for label, probs in [("all 33", sorted(APP)),
+                         ("investigated (triage did not gate)", [p for p in APP if F[p]["triage"] != "noise"]),
+                         ("gated by triage", [p for p in APP if F[p]["triage"] == "noise"])]:
+        if arm == "claudecode" and label != "all 33":
+            continue
+        ms = {k: statistics.mean(A[(p, arm)]["D"][k] for p in probs) for k in ("D1", "D2", "D3")}
+        out(f"  {arm:<11} {label:<36} n={len(probs):<3} " + "  ".join(f"{k} {v:.2f}" for k, v in ms.items()))
+nov = [p for p in APP if A[(p, "faultline")]["submission"].startswith("Faultline reached no verdict")]
+acc = Counter(A[(p, "faultline")]["accuracy"] for p in nov)
+out(f"  the judge's accuracy on the identical text 'Faultline reached no verdict.' ({len(nov)} attempts): "
+    + ", ".join(f"{k:.0f} x{v}" for k, v in sorted(acc.items())))
+
+# --- 8. triage --------------------------------------------------------------------------------
+
+out("\n== 8. Faultline's opening and triage")
+groups = Counter()
+for p in APP:
+    ff = F[p]
+    key = ("fallback" if ff["attempt"]["fallback"] else "alarms") + " / " + ff["triage"]
+    groups[key] += 1
+for k, v in sorted(groups.items()):
+    probs = [p for p in APP if (("fallback" if F[p]["attempt"]["fallback"] else "alarms") + " / " + F[p]["triage"]) == k]
+    out(f"  {k:<24} {v:>3} attempts, Faultline passes {sum(A[(p, 'faultline')]['success'] for p in probs)}, "
+        f"baseline passes {sum(A[(p, 'claudecode')]['success'] for p in probs)}")
+out("  the gated attempts:")
+hits = 0
+for p in sorted(APP, key=lambda q: A[(q, "faultline")]["slot"]):
+    ff = F[p]
+    if ff["triage"] != "noise":
+        continue
+    truth, src = TRUTH[p]
+    services = {e["service"] for e in ff["attempt"]["episodes"]}
+    names = sorted({e["alertname"] for e in ff["attempt"]["episodes"]})
+    sev = sorted({e["severity"] for e in ff["attempt"]["episodes"]})
+    hit = truth in services or (truth == "mongodb" and any(s.startswith("mongodb") for s in services))
+    hits += hit
+    ingraph = sorted(s for s in services if s in GRAPH[APP[p]])
+    out(f"    s{A[(p, 'faultline')]['slot']:<3} {p:<50} alarms on {sorted(services)} ({','.join(names)}; {','.join(sev)}); "
+        f"truth {truth}; alarm on truth: {'yes' if hit else 'no'}; alarmed services in the snapshot graph: "
+        f"{ingraph or 'none'}; triage confidence {ff['triage_conf']}; baseline {'PASS' if A[(p, 'claudecode')]['success'] else 'fail'}")
+gated = [p for p in APP if F[p]["triage"] == "noise"]
+out(f"  gated {len(gated)} of 33; an alarm on the ground-truth component in {hits} of {len(gated)}")
+lg = [p for p in gated if {e['service'] for e in F[p]['attempt']['episodes']} == {"load-generator"}]
+kw = [p for p in gated if all(e["severity"] == "warning" for e in F[p]["attempt"]["episodes"])]
+out(f"  of the gated: load-generator alone {len(lg)}; warning-severity Kubernetes alarms only {len(kw)}")
+out("  TRUTH's sources (the judge's D1-Q1 evidence):")
+for p in sorted(TRUTH):
+    truth, src = TRUTH[p]
+    q = next((q for q in A[(p, src)]["checklist"] if q["id"] == "D1-Q1"), None)
+    out(f"    {p:<50} {truth:<30} [{src}] {q['evidence'][:200] if q else 'no checklist'}")
+
+# --- 9. tools ---------------------------------------------------------------------------------
+
+out("\n== 9. Faultline's tool calls (investigated attempts only; gated attempts called none)")
+tc = Counter()
+for p in APP:
+    for c in F[p]["calls"]:
+        tc[(c["tool"], c["status"])] += 1
+for k, v in sorted(tc.items()):
+    out(f"  {k[0]:<16} {k[1]:<20} {v}")
+out(f"  total calls {sum(tc.values())}")
+out("  DNS failures by attempt (the MCP servers could not resolve the observe namespace):")
+for p in sorted(APP, key=lambda q: A[(q, "faultline")]["slot"]):
+    n = sum(1 for c in F[p]["calls"] if c["status"] == "error:dns")
+    if n:
+        out(f"    s{A[(p, 'faultline')]['slot']:<3} {p:<50} {n} of {len(F[p]['calls'])} calls")
+out("  prediction 5, trace calls on the two DeathStarBench applications:")
+for p in sorted(APP, key=lambda q: A[(q, "faultline")]["slot"]):
+    if APP[p] == "sregym-astronomy-shop":
+        continue
+    for c in F[p]["calls"]:
+        if c["tool"] == "trace_query":
+            out(f"    s{A[(p, 'faultline')]['slot']:<3} {p:<50} trace_query on {c['service']}: {c['status']}")
+p95 = [(p, c) for p in APP for c in F[p]["calls"] if c["template"] and c["template"].group(1) == "latency-p95"]
+out(f"  latency-p95 calls: {len(p95)}" + "".join(f"\n    {p} {c['service']} {c['status']}" for p, c in p95))
+
+# --- 10. predictions --------------------------------------------------------------------------
+
+out("\n== 10. The registered predictions")
+for app, (lo_p, hi_p) in zip(APPS, [(0.25, 0.55), (0.10, 0.40), (0.10, 0.40)]):
+    r, lo, hi = rates[(app, "faultline")]
+    out(f"  1. {SHORT[app]}: predicted {pct(lo_p)}-{pct(hi_p)}; observed {pct(r)} [{pct(lo)}, {pct(hi)}]; "
+        f"interval width {100 * (hi - lo):.0f} vs range width {100 * (hi_p - lo_p):.0f}")
+out("  2. see section 3 (each application's difference against its 42-point MDE)")
+shop = by_app("sregym-astronomy-shop")
+v = [p for p in shop if FAMILY[p].startswith("Virtualization")]
+o = [p for p in shop if FAMILY[p].startswith("Opentelemetry")]
+out(f"  3. Astronomy Shop: virtualization {sum(A[(p, 'faultline')]['success'] for p in v)}/{len(v)}, "
+    f"OpenTelemetry injector {sum(A[(p, 'faultline')]['success'] for p in o)}/{len(o)}")
+out("  4. see section 7")
+out("  5. see section 9")
+nv = sum(1 for p in APP if category(p, "faultline").startswith("4"))
+out(f"  6. no verdict or timeout: {nv} of 33 ({pct(nv / 33)}); of which triage's gate "
+    f"{len(gated)}, 'not established' {nv - len(gated)}, timeouts 0")
+
+# --- 11. cost and time ------------------------------------------------------------------------
+
+out("\n== 11. Cost from recorded tokens at the published prices, and time")
+fc = {p: fl_cost(p) for p in APP}
+cc = {p: cc_cost(p) for p in APP}
+inv = [p for p in APP if F[p]["triage"] != "noise"]
+out(f"  Faultline   total ${sum(fc.values()):.2f}; mean ${statistics.mean(fc.values()):.2f}; investigated "
+    f"(n={len(inv)}) mean ${statistics.mean(fc[p] for p in inv):.2f}, range ${min(fc[p] for p in inv):.2f}-"
+    f"${max(fc[p] for p in inv):.2f}; gated counted at $0.05 each")
+out(f"  Claude Code total ${sum(cc.values()):.2f}; mean ${statistics.mean(cc.values()):.2f}; range "
+    f"${min(cc.values()):.2f}-${max(cc.values()):.2f} (slot 58's timed-out first try included)")
+out(f"  judge: {len(done)} judged slots at the $0.10 ceiling = ${0.10 * len(done):.2f} (not measured)")
+out(f"  re-check (Addendum 1's cap): $1.80")
+out(f"  tally ${sum(fc.values()) + sum(cc.values()) + 0.10 * len(done) + 1.80:.2f}")
+for arm in ARMS:
+    mins = [minutes(p, arm) for p in APP]
+    ag = [A[(p, arm)]["agent_s"] for p in APP if A[(p, arm)]["agent_s"]]
+    out(f"  {arm:<11} slot minutes median {statistics.median(mins):.1f}, range {min(mins):.1f}-{max(mins):.1f}, "
+        f"sum {sum(mins) / 60:.1f} h; agent stage median {statistics.median(ag):.0f} s, max {max(ag):.0f} s")
+mins_g = [minutes(p, "faultline") for p in gated]
+mins_i = [minutes(p, "faultline") for p in inv]
+out(f"  Faultline slot minutes: gated median {statistics.median(mins_g):.1f}, investigated median {statistics.median(mins_i):.1f}")
+first, last = min(r[6] for r in done), max(r[7] for r in done)
+out(f"  first slot start {first}; last slot end {last}")

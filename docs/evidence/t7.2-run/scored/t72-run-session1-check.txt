@@ -1,0 +1,38 @@
+s1-record evals=1 fallback=False verdict=False exit=5 alarms=['KubeDeploymentReplicasMismatch:media-service', 'KubePodNotReady:media-service']
+triage judged: noise (medium confidence, suspects unknown)
+GATED BEFORE FAN-OUT: no specialist ran and nothing was spent on this incident
+s12-record evals=1 fallback=False verdict=False exit=5 alarms=['KubeDeploymentReplicasMismatch:frontend', 'KubePodNotReady:frontend']
+triage judged: noise (medium confidence, suspects unknown)
+GATED BEFORE FAN-OUT: no specialist ran and nothing was spent on this incident
+s13-record evals=2 fallback=False verdict=True exit=0 alarms=['ServiceHighErrorRate:accounting']
+triage judged: investigate (low confidence, suspects unknown)
+s16-record evals=1 fallback=False verdict=True exit=0 alarms=['KubeDeploymentReplicasMismatch:mongodb-geo', 'KubeDeploymentReplicasMismatch:mongodb-profile', 'KubeDeploymentReplicasMismatch:mongodb-rate']
+triage judged: investigate (medium confidence, suspects resource_exhaustion)
+s17-record evals=1 fallback=False verdict=False exit=5 alarms=['KubeDeploymentReplicasMismatch:media-processor', 'KubePodCrashLooping:media-processor']
+triage judged: noise (medium confidence, suspects unknown)
+GATED BEFORE FAN-OUT: no specialist ran and nothing was spent on this incident
+s20-record evals=6 fallback=True verdict=True exit=0 alarms=['SREGymProblemReported:frontend']
+triage judged: investigate (low confidence, suspects unknown)
+s21-record evals=1 fallback=False verdict=False exit=5 alarms=['KubeDeploymentReplicasMismatch:rate', 'KubePodCrashLooping:rate']
+triage judged: noise (medium confidence, suspects unknown)
+GATED BEFORE FAN-OUT: no specialist ran and nothing was spent on this incident
+s4-record evals=1 fallback=False verdict=False exit=5 alarms=['KubePodCrashLooping:product-catalog']
+triage judged: noise (medium confidence, suspects unknown)
+GATED BEFORE FAN-OUT: no specialist ran and nothing was spent on this incident
+s5-record evals=1 fallback=False verdict=False exit=5 alarms=['KubeDeploymentReplicasMismatch:user-service', 'KubePodNotReady:user-service']
+triage judged: noise (low confidence, suspects unknown)
+GATED BEFORE FAN-OUT: no specialist ran and nothing was spent on this incident
+s8-record evals=2 fallback=False verdict=True exit=0 alarms=['ServiceHighErrorRate:frontend-proxy', 'ServiceHighErrorRate:load-generator']
+triage judged: investigate (medium confidence, suspects unknown)
+s9-record evals=2 fallback=False verdict=False exit=5 alarms=['ServiceHighErrorRate:load-generator']
+triage judged: noise (high confidence, suspects unknown)
+GATED BEFORE FAN-OUT: no specialist ran and nothing was spent on this incident
+== world
+(0 rows)
+
+rows above: incidents in the last 8 hours (none if empty)
+lowest MemAvailable GiB: 4.02
+/checkout-service restarts=6
+/frauddetection-service restarts=1
+/accounting-service restarts=6
+/email-service restarts=2

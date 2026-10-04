@@ -1,0 +1,164 @@
+{
+  "incident_id": "7bc2d656-019a-4e16-8997-8fddb2b331c4",
+  "trajectory_id": "1eeef6cd-c85b-42d1-8291-49469394e69f",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "frontend",
+    "profile",
+    "recommendation",
+    "reservation",
+    "search",
+    "user"
+  ],
+  "unmeasured_edges": 5,
+  "exclude_origins": [],
+  "verdict": {
+    "root_cause": "Platform automation halved the frontend workload's CPU ceiling (limits.cpu 1 -> 500m, request raised to match) about seven minutes before onset [tr_ec5e968a606a]. The edit recreated the pod: a full cold-start sequence appears at 21:10:11, one second after the change, with all five downstream gRPC clients connecting cleanly [tr_44133780e673]. From that point the frontend goes quiet \u2014 no further log output [tr_44133780e673], zero error spans across 22 samples [tr_a1e1555af34a, tr_d2052c256486], and three intervals with no spans at all, meaning it served nothing in those intervals [tr_a1e1555af34a, tr_d2052c256486]. That is CPU starvation under the new ceiling: requests stall rather than fail, so callers hang while the frontend reports no errors. The limit edit is how it started; exhaustion is the failing mechanism.",
+    "service": "frontend",
+    "fault_class": "resource_exhaustion",
+    "remediation_class": "config_revert",
+    "confidence": "medium",
+    "evidence": [
+      "tr_ec5e968a606a",
+      "tr_44133780e673",
+      "tr_a1e1555af34a",
+      "tr_d2052c256486",
+      "tr_adf228881c31",
+      "tr_eacfd29a4cab"
+    ],
+    "reasoning": "The only substantive change in the window is a CPU ceiling cut on the frontend itself; no image, version or flag change exists [tr_ec5e968a606a]. The restart timestamp matches the edit to the second and shows healthy service discovery and five successful downstream connections [tr_44133780e673], which argues against a wrong address, credential or dependency as the mechanism. The post-restart signature is absence rather than failure: flat-zero error ratio with zero variance plus intervals containing no spans at all [tr_a1e1555af34a, tr_d2052c256486] and silent logs [tr_44133780e673] \u2014 work not completing while nothing errors is what throttling looks like from outside the container. The downstream story is weak: the nine CheckAvailability failures are a single-second burst at 21:10:03, before the alert, and never recur [tr_44133780e673], while reservation logged no CheckAvailability activity at all [tr_eacfd29a4cab]. Traces could have arbitrated but returned nothing for frontend across the whole window including the healthy period, so the trace path is itself impaired [tr_adf228881c31]. The fix is restoring the previous CPU limit.",
+    "open_questions": [
+      "No container-level data was ever returned \u2014 CPU throttling ratio, restart counts and OOM/eviction events were requested but absent [tr_d2052c256486]; throttling is inferred, not measured.",
+      "Why frontend traces are missing for the entire window including the pre-incident baseline, and why a zero-result query was flagged truncated [tr_adf228881c31] \u2014 a broken telemetry pipeline would undermine the 'no spans means no traffic' inference.",
+      "What the 21:10:03 CheckAvailability burst actually hit; the log line carries no peer or status code and reservation's logs are empty under that filter [tr_44133780e673, tr_eacfd29a4cab]."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "The frontend telemetry pipeline is broken and the apparent outage is an observability gap rather than a service fault.",
+        "service": "frontend",
+        "fault_class": "unknown",
+        "remediation_class": "none",
+        "why_not": "It does not explain the alert at 21:17:39, and a concrete CPU-limit cut landing seven minutes before onset is a better fit than instrument failure [tr_ec5e968a606a]."
+      },
+      {
+        "root_cause": "A downstream dependency behind the search/availability path became slow, and the frontend hung waiting on it.",
+        "service": "search",
+        "fault_class": "dependency_latency",
+        "remediation_class": "restart",
+        "why_not": "The only evidence is a single-second error burst before onset that never recurs [tr_44133780e673]; no trace or metric data identifies a slow downstream, and reservation's logs are empty [tr_eacfd29a4cab, tr_adf228881c31]."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "runbook:service-frontend / The at-rest latency tail: **Measured over twelve hours at 15s resolution on a world at rest** (ADR-0025): frontend's\nmedian p95 is 42.3ms, and 127 of 2398 samples were above the 250ms threshold, 94 of them above\n1000ms, in excursions sustained past the rule's three-minute `for:` clause. Two episodes in th",
+    "cart-bad-image-tag / What was checked: **Error rate by service.** frontend, loadgenerator and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero. Read, wrongly, as evidence cart was\nhealthy.\n\n**loadgenerator.** Set aside. It is the synthetic client; its error rate restates what\nthe storefron",
+    "ad-memory-squeeze / Detection notes: - Onset to first page: **4m16s**.\n- Services alerting at the page: **2**. Over the whole incident: **3**, across 3\n  alerts.\n- Alerts that fired only during recovery: **none**.\n- **The page named the edge, twice over, and the culprit only as an absence two and a\n  half minutes la"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 23979,
+    "pulled_tokens": 2495,
+    "pull_rate": 0.0942,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 413,
+        "content_tokens": 415,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1739,
+        "content_tokens": 1743,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 7174,
+        "content_tokens": 7150,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 6660,
+        "content_tokens": 6663,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 7993,
+        "content_tokens": 7970,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "config_revert",
+    "action_id": "revert_config",
+    "target": "frontend",
+    "rests_on": [
+      "tr_ec5e968a606a",
+      "tr_44133780e673",
+      "tr_a1e1555af34a"
+    ],
+    "expected_effect": "Restoring frontend's prior resource config (limits.cpu 1 / requests.cpu 100m, undoing the 500m/500m edit at 21:10:10 [tr_ec5e968a606a]) and recreating the container should let frontend complete requests again. Observable as: the frontend span rate denominator becoming defined and non-zero in every 5m interval (no repeat of the three no-span intervals), and the frontend Loki stream emitting request lines beyond a single cold-start block instead of going silent as it did after 21:10:11.",
+    "confirm_within_seconds": 600,
+    "if_wrong": "Falsified if, 10 minutes after the revert and its cold start, frontend span rate is still undefined/zero and Loki still shows nothing past the startup block. Note two live doubts: container-level throttling, restart and OOM data were never returned [tr_d2052c256486], so starvation is inferred not measured; and Tempo returned nothing for the whole window with a truncated flag [tr_adf228881c31], so if logs show traffic while span metrics stay empty, suspect the telemetry pipeline rather than a failed fix.",
+    "risk": "If the diagnosis is wrong this is a wasted recreate of the alerted user-facing service, dropping in-flight requests and its in-process cache. Restoring a 1-core ceiling also lets frontend push more load downstream; if the real fault is a saturated dependency, this deepens it. It also reverses a platform-automation action, which may be re-applied and flap unless that automation is paused.",
+    "blast_radius": "frontend is recreated: external callers see resets for the restart duration. Its five downstream dependencies (profile, recommendation, reservation, search, user) see traffic stop, then resume at possibly higher volume."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "A critical alert on the user-facing frontend with no open incidents to attribute it to cannot be dismissed. Only the seed alerted, so the cause could be local to frontend or an unmeasured downstream dependency; no fault class is suggested yet."
+  }
+}

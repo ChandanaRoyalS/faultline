@@ -1,0 +1,33 @@
+pilot pre-read at 2026-10-03 07:47:51 UTC on ubuntu, kernel 6.8.0-142-generic, up 2 days, 22 hours, 41 minutes
+== reboot pending: no
+== timezone: Etc/UTC; date +%Z: UTC
+== ports: 8000 free; 9954 free; 16443 free; 55432 free; 55480 free; 
+== /home/deploy/t7.2-1c: absent; key file: absent
+== files in /tmp: /tmp/faultline-agent.patch /tmp/faultline-seed.tar.gz /tmp/faultline-src.tar.gz /tmp/kind_measure_1c.py /tmp/pilot_vm.sh 
+== the kill switch now
+  387:      FAULTLINE_EXECUTOR_KILL_SWITCH: "0"
+== memory, load, disk
+                 total        used        free      shared  buff/cache   available
+  Mem:           15936        3953       10279          48        2083       11982
+  Swap:              0           0           0
+  load: 0.17 0.21 0.54 2/1789 1538248
+  Filesystem      Size  Used Avail Use% Mounted on
+  /dev/vda1       464G   43G  422G  10% /
+== containers running: 35; kind nodes: 0
+== firing alerts on the world (Alertmanager :9093)
+  0: none
+== git status of ~/faultline (empty means committed configuration)
+  (end)
+387:      FAULTLINE_EXECUTOR_KILL_SWITCH: "1"
+ Container faultline-deploy-postgres-1 Running 
+ Container faultline-deploy-executor-1 Recreate 
+ Container faultline-deploy-executor-1 Recreated 
+ Container faultline-deploy-postgres-1 Waiting 
+ Container faultline-deploy-postgres-1 Healthy 
+ Container faultline-deploy-executor-1 Starting 
+ Container faultline-deploy-executor-1 Started 
+curl: (7) Failed to connect to localhost port 8100 after 0 ms: Could not connect to server
+{"status":"ok","kill_switch":true}
+git status:
+ M deploy/compose.yml
+(git status end)

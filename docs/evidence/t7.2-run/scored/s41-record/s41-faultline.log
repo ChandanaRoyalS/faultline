@@ -1,0 +1,809 @@
+[10/03/26 17:29:52] INFO     all.sregym.profile - Deployment profile: full      
+[10/03/26 17:29:52] INFO     __main__ - 🔧 Config — agent: faultline,           
+                             agent_model: anthropic/claude-opus-5,              
+                             judge_backend: api, judge_model:                   
+                             anthropic/claude-sonnet-4-6, reasoning_effort:     
+                             agent default, jev_model: disabled,                
+                             deployment_profile: full, internet_access:         
+                             filtered, container_hardening: on, agent_api_base: 
+                             unset, judge_api_base: unset                       
+                    INFO     __main__ - 🔍 Running pre-flight check for judge   
+                             model...                                           
+🔧 Initializing LLM backend — model: anthropic/claude-sonnet-4-6, api_base: unset
+[10/03/26 17:29:53] INFO     __main__ - ✅ Judge pre-flight check passed        
+[10/03/26 17:29:53] INFO     all.sregym.container_runner - 🐳 Building container
+                             image 'sregym-agent-base:latest'...                
+==> Building sregym-agent-base:latest with kubectl v1.32.1
+#0 building with "default" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile
+#1 transferring dockerfile: 4.62kB done
+#1 DONE 0.0s
+
+#2 [internal] load metadata for docker.io/library/ubuntu:22.04
+#2 DONE 0.3s
+
+#3 [ 1/18] FROM docker.io/library/ubuntu:22.04@sha256:b1066385161d28ddf6bc7e7b28a9170eec11484c821d1a5150d176cbde41d7f7
+#3 resolve docker.io/library/ubuntu:22.04@sha256:b1066385161d28ddf6bc7e7b28a9170eec11484c821d1a5150d176cbde41d7f7 0.0s done
+#3 DONE 0.0s
+
+#4 [internal] load build context
+#4 transferring context: 7.17kB 0.0s done
+#4 DONE 0.0s
+
+#5 [ 3/18] RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash -     && add-apt-repository ppa:deadsnakes/ppa
+#5 CACHED
+
+#6 [11/18] COPY llm_backend/    /opt/sregym/llm_backend/
+#6 CACHED
+
+#7 [ 5/18] RUN python3 -m ensurepip --upgrade     && python3 -m pip install --upgrade pip     && ln -sf /usr/bin/python3 /usr/bin/python
+#7 CACHED
+
+#8 [10/18] COPY logger/         /opt/sregym/logger/
+#8 CACHED
+
+#9 [ 2/18] RUN apt-get update     && apt-get install -y --no-install-recommends         ca-certificates curl gnupg software-properties-common     && rm -rf /var/lib/apt/lists/*
+#9 CACHED
+
+#10 [15/18] COPY docker/agents/install-scripts/ /opt/sregym/install-scripts/
+#10 CACHED
+
+#11 [ 7/18] COPY docker/agents/requirements-container.txt /tmp/requirements-container.txt
+#11 CACHED
+
+#12 [14/18] COPY sregym/service/apps/base.py sregym/service/apps/helpers.py /opt/sregym/sregym/service/apps/
+#12 CACHED
+
+#13 [ 4/18] RUN apt-get update     && apt-get install -y --no-install-recommends         git wget jq         nodejs         python3.12 python3.12-venv python3.12-dev     && update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.12 1     && rm -rf /var/lib/apt/lists/*
+#13 CACHED
+
+#14 [ 9/18] COPY clients/        /opt/sregym/clients/
+#14 CACHED
+
+#15 [ 8/18] RUN python3 -m pip install --break-system-packages -r /tmp/requirements-container.txt
+#15 CACHED
+
+#16 [16/18] RUN chmod +x /opt/sregym/install-scripts/*.sh
+#16 CACHED
+
+#17 [17/18] RUN mkdir -p /logs
+#17 CACHED
+
+#18 [13/18] COPY sregym/service/__init__.py sregym/service/kubectl.py sregym/service/helm.py /opt/sregym/sregym/service/
+#18 CACHED
+
+#19 [12/18] COPY sregym/__init__.py sregym/paths.py /opt/sregym/sregym/
+#19 CACHED
+
+#20 [ 6/18] RUN KUBECTL_ARCH="amd64"     && case "${KUBECTL_ARCH}" in amd64|arm64) ;; *) echo "Unsupported kubectl architecture: ${KUBECTL_ARCH}" >&2; exit 1 ;; esac     && if [ "v1.32.1" = stable ]; then KUBECTL_VERSION="$(curl -fsSL https://dl.k8s.io/release/stable.txt)"; fi     && curl -fsSLo kubectl "https://dl.k8s.io/release/v1.32.1/bin/linux/${KUBECTL_ARCH}/kubectl"     && chmod +x kubectl && mv kubectl /usr/local/bin/
+#20 CACHED
+
+#21 [18/18] WORKDIR /logs
+#21 CACHED
+
+#22 exporting to image
+#22 exporting layers done
+#22 exporting manifest sha256:1b74a7bb405d43412a3e637b37638417323d4f1fc4a6a2d6aa94b992abf54a9c done
+#22 exporting config sha256:5d9ad739d727a05d459f4a31004b6c88d90d21f830069c2e903de96901537afc done
+#22 exporting attestation manifest sha256:22af99c23e1b14e05302e954d7326ddfd9691c27be087328b57db66b2371f18d done
+#22 exporting manifest list sha256:2b738047045b68283b3358bf69629a8f4276474b20307a68a5fbb9906fcf45fe done
+#22 naming to docker.io/library/sregym-agent-base:latest done
+#22 unpacking to docker.io/library/sregym-agent-base:latest 0.0s done
+#22 DONE 0.1s
+[10/03/26 17:29:54] INFO     all.sregym.container_runner - ✅ Container image   
+                             'sregym-agent-base:latest' built successfully.     
+╭───────────────────────────── SREGym API Server ──────────────────────────────╮
+│  ____  ____  _____ ____                                                      │
+│ / ___||  _ \| ____/ ___|_   _ _ __ ___                                       │
+│ \___ \| |_) |  _|| |  _| | | | '_ ` _ \                                      │
+│  ___) |  _ <| |__| |_| | |_| | | | | | |                                     │
+│ |____/|_| \_\_____\____|\__, |_| |_| |_|                                     │
+│                         |___/                                                │
+│                                                                              │
+╰──────────────────────────── http://0.0.0.0:8000 ─────────────────────────────╯
+Available Endpoints                                                             
+
+ • POST /submit: { "stage": "diagnosis", "solution": "<your-solution>" } →      
+   grades the named stage                                                       
+ • GET /status: returns { "stage": "setup" | "diagnosis" | "mitigation" |       
+   "tearing_down" | "done" }                                                    
+/home/deploy/t7.2-1c/SREGym/.venv/lib/python3.12/site-packages/websockets/legacy/__init__.py:6: DeprecationWarning: websockets.legacy is deprecated; see https://websockets.readthedocs.io/en/stable/howto/upgrade.html for upgrade instructions
+  warnings.warn(  # deprecated in 14.0 - 2024-11-09
+/home/deploy/t7.2-1c/SREGym/.venv/lib/python3.12/site-packages/uvicorn/protocols/websockets/websockets_impl.py:17: DeprecationWarning: websockets.server.WebSocketServerProtocol is deprecated
+  from websockets.server import WebSocketServerProtocol
+[10/03/26 17:29:54] INFO     uvicorn.error - Started server process [241936]    
+                    INFO     uvicorn.error - Waiting for application startup.   
+                    INFO     uvicorn.error - Application startup complete.      
+                    INFO     uvicorn.error - Uvicorn running on                 
+                             http://0.0.0.0:8000 (Press CTRL+C to quit)         
+[17:29:55] Starting agent now: faultline                             main.py:255
+           🔒 Starting Kubernetes API proxy to hide chaos            main.py:259
+           namespaces...                                                        
+[10/03/26 17:29:55] INFO     all.sregym.conductor - Starting Kubernetes API     
+                             filtering proxy...                                 
+                    INFO     all.infra.k8s_proxy - Kubernetes API filtering     
+                             proxy started on 172.17.0.1:16443                  
+                    INFO     all.infra.k8s_proxy - Hidden namespaces:           
+                             {'chaos-mesh', 'khaos'}                            
+                    INFO     all.infra.k8s_proxy - Hidden labels: {'app':       
+                             {'load-generator', 'locust-fetcher'}, 'job':       
+                             {'workload'}, 'opentelemetry.io/name':             
+                             {'load-generator'}}                                
+                    INFO     all.infra.k8s_proxy - Generated agent kubeconfig at
+                             /tmp/sregym-agent-kubeconfig-dyjgvozb.yaml         
+                    INFO     all.sregym.conductor - Agent kubeconfig generated  
+                             at: /tmp/sregym-agent-kubeconfig-dyjgvozb.yaml     
+           🎯 Running single problem:                                main.py:300
+           finalizer_deadlock_controller_hotel_reservation                      
+                                                                     main.py:378
+           🔍 Starting problem:                                                 
+           finalizer_deadlock_controller_hotel_reservation (Attempt             
+           1 of 1)                                                              
+                    INFO     all.sregym.conductor - [Session Start] Problem ID: 
+                             finalizer_deadlock_controller_hotel_reservation    
+                    INFO     all.sregym.conductor - [STAGE] Start testing on    
+                             problem:                                           
+                             finalizer_deadlock_controller_hotel_reservation    
+                    INFO     all.sregym.conductor - Fixing Kubernetes... to     
+                             normal state.                                      
+                    INFO     all.sregym.conductor - [FIX] Imbalance leftover if 
+                             any                                                
+                    INFO     all.sregym.conductor - [FIX] KubeletCrash leftover 
+                             if any                                             
+Starting kubelet in kind-worker...
+Kubelet started in kind-worker
+Starting kubelet in kind-worker2...
+Kubelet started in kind-worker2
+Starting kubelet in kind-worker3...
+Kubelet started in kind-worker3
+Waiting for worker nodes {'kind-worker', 'kind-worker2', 'kind-worker3'} to become Ready...
+All worker nodes are Ready.
+                    INFO     all.sregym.conductor - [FIX]                       
+                             KubeletEvictionThresholdMisconfig leftover if any  
+Recovering disk pressure in kind-worker...
+Waiting for node kind-worker to become Ready...
+Node kind-worker is Ready.
+Recovering disk pressure in kind-worker2...
+Waiting for node kind-worker2 to become Ready...
+Node kind-worker2 is Ready.
+Recovering disk pressure in kind-worker3...
+Waiting for node kind-worker3 to become Ready...
+Node kind-worker3 is Ready.
+[10/03/26 17:29:56] INFO     all.sregym.conductor - [FIX] Calico                
+                             IPPool/strictAffinity leftover if any              
+[10/03/26 17:29:57] INFO     all.sregym.conductor - [FIX] Calico route-reflector
+                             label drift leftovers if any                       
+                    INFO     all.sregym.conductor - [FIX] Stale CoreDNS NXDOMAIN
+                             templates if any                                   
+No NXDOMAIN templates found in CoreDNS config; nothing to do
+                    INFO     all.sregym.conductor - [FIX] Leftover dm-flakey    
+                             infrastructure if any                              
+[dm-flakey] ⚠️ Could not remove dm-flakey on kind-control-plane (may not exist): No running Khaos pod found on node kind-control-plane
+[dm-flakey] ⚠️ Could not remove dm-flakey on kind-worker (may not exist): No running Khaos pod found on node kind-worker
+[dm-flakey] ⚠️ Could not remove dm-flakey on kind-worker2 (may not exist): No running Khaos pod found on node kind-worker2
+[dm-flakey] ⚠️ Could not remove dm-flakey on kind-worker3 (may not exist): No running Khaos pod found on node kind-worker3
+[10/03/26 17:29:58] INFO     all.sregym.conductor - [FIX] NightlyRebalanceOOM   
+                             kube-system actor leftover if any                  
+                    INFO     all.sregym.conductor - [FIX] Clock drift leftover  
+                             if any                                             
+No leftover node-probe pods found; nothing to do
+                    INFO     all.sregym.conductor - Fix Kubernetes completed.   
+                    INFO     all.sregym.conductor - Stages requested for this   
+                             run: ['diagnosis']                                 
+                    INFO     all.sregym.conductor - Undeploying app leftovers...
+[17:29:58] Waiting for namespace deletion...                      kubectl.py:341
+           Namespace 'hotel-reservation' has been deleted.        kubectl.py:349
+[10/03/26 17:30:03] INFO     all.sregym.conductor - App leftovers undeployed.   
+                    INFO     all.sregym.conductor - Deploying app...            
+                    INFO     all.infra.cluster_state - Baseline state loaded    
+                             from                                               
+                             /home/deploy/cache_dir/cluster_baseline_state.json 
+                    INFO     all.sregym.conductor - [DEPLOY] Loaded persisted   
+                             cluster baseline state                             
+                    INFO     all.sregym.conductor - [DEPLOY] Setting up         
+                             metrics-server…                                    
+                    INFO     all.sregym.conductor - [DEPLOY] metrics-server     
+                             already present and patched; skipping re-apply     
+[17:30:03] Waiting for all pods in namespace 'kube-system' to be  kubectl.py:204
+           ready...                                                             
+           All pods in namespace 'kube-system' are ready.         kubectl.py:245
+[10/03/26 17:30:04] INFO     all.sregym.conductor - [DEPLOY] Setting up OpenEBS…
+                    INFO     all.sregym.conductor - [DEPLOY] OpenEBS already    
+                             deployed; skipping operator re-apply               
+[17:30:04] Waiting for all pods in namespace 'openebs' to be      kubectl.py:204
+           ready...                                                             
+           All pods in namespace 'openebs' are ready.             kubectl.py:245
+                    INFO     all.sregym.conductor - [DEPLOY] Ensuring OpenEBS   
+                             LocalPV-Device StorageClass…                       
+                    INFO     all.sregym.conductor - [DEPLOY]                    
+                             StorageClass/openebs-device already exists; leaving
+                             it unchanged                                       
+                    INFO     all.sregym.conductor - [DEPLOY] Deploying          
+                             Prometheus…                                        
+                    INFO     all.infra.helm - Helm Uninstall: prometheus in     
+                             namespace observe                                  
+                    INFO     all.infra.helm - Helm Install: prometheus in       
+                             namespace observe                                  
+[17:30:05] Waiting for all pods in namespace 'observe' to be      kubectl.py:204
+           ready...                                                             
+[17:30:42] All pods in namespace 'observe' are ready.             kubectl.py:245
+[10/03/26 17:30:42] INFO     all.sregym.conductor - [DEPLOY] Deploying Jaeger…  
+[10/03/26 17:30:43] INFO     all.sregym.jaeger - Jaeger deployed successfully.  
+                    INFO     all.sregym.conductor - [DEPLOY] Deploying OTel     
+                             Collector…                                         
+[10/03/26 17:30:46] INFO     all.sregym.otel_collector - OTel Collector deployed
+                             successfully.                                      
+                    INFO     all.sregym.conductor - [DEPLOY] Deploying Loki…    
+[10/03/26 17:30:47] INFO     all.infra.helm - Helm Uninstall: loki in namespace 
+                             observe                                            
+                    INFO     all.infra.loki - Adding Grafana Helm repository... 
+[10/03/26 17:30:48] INFO     all.infra.helm - Helm Install: loki in namespace   
+                             observe                                            
+[17:30:49] Waiting for all pods in namespace 'observe' to be      kubectl.py:204
+           ready...                                                             
+[17:31:36] All pods in namespace 'observe' are ready.             kubectl.py:245
+[10/03/26 17:31:36] INFO     all.infra.loki - Deploying Promtail for Loki log   
+                             collection...                                      
+                    INFO     all.infra.helm - Helm Install: promtail in         
+                             namespace observe                                  
+                    WARNING  all.infra.helm - Helm install stderr output:       
+                             level=WARN msg="this chart is deprecated"          
+           Waiting for all pods in namespace 'observe' to be      kubectl.py:204
+           ready...                                                             
+[17:31:50] All pods in namespace 'observe' are ready.             kubectl.py:245
+[10/03/26 17:31:50] INFO     all.sregym.conductor - [DEPLOY] Deploying MCP      
+                             server…                                            
+                    INFO     all.sregym.mcp_server - MCP server RBAC resources  
+                             ensured.                                           
+                    INFO     all.sregym.mcp_server - MCP server already running,
+                             skipping redeploy.                                 
+                    INFO     all.sregym.mcp_server - Port-forward is absent or  
+                             stale, restarting.                                 
+[10/03/26 17:31:53] INFO     all.sregym.mcp_server - Port forwarding established
+                             at 9954. MCP_SERVER_PORT set.                      
+                    INFO     all.sregym.conductor - [ENV] Set up necessary      
+                             components: metrics-server, Khaos, OpenEBS,        
+                             Prometheus, Jaeger, Loki                           
+                    INFO     all.sregym.conductor - [DEPLOY] Deploying and      
+                             starting workload                                  
+                    INFO     all.application - Deploying Kubernetes             
+                             configurations in namespace: hotel-reservation     
+                    INFO     all.application - Namespace hotel-reservation not  
+                             found. Creating namespace.                         
+                    INFO     all.application - Namespace hotel-reservation      
+                             created successfully: namespace/hotel-reservation  
+                             created                                            
+                                                                                
+                    INFO     all.infra.kubectl - ConfigMap 'mongo-rate-script'  
+                             created in namespace 'hotel-reservation'           
+                    INFO     all.infra.kubectl - ConfigMap 'mongo-geo-script'   
+                             created in namespace 'hotel-reservation'           
+[10/03/26 17:31:55] INFO     all.infra.kubectl - ConfigMap 'failure-admin-rate' 
+                             created in namespace 'hotel-reservation'           
+                    INFO     all.infra.kubectl - ConfigMap 'failure-admin-geo'  
+                             created in namespace 'hotel-reservation'           
+[17:31:56] Waiting for all pods in namespace 'hotel-reservation'  kubectl.py:204
+           to be ready...                                                       
+[17:32:11] All pods in namespace 'hotel-reservation' are ready.   kubectl.py:245
+[10/03/26 17:32:11] INFO     all.sregym.conductor - [ENV] Deploy application:   
+                             Hotel Reservation                                  
+                    INFO     all.sregym.jaeger - Created ExternalName service   
+                             'jaeger' in namespace 'hotel-reservation' ->       
+                             otel-collector.observe.svc.cluster.local           
+                    INFO     all.sregym.jaeger - Created ExternalName service   
+                             'jaeger-agent' in namespace 'hotel-reservation' -> 
+                             otel-collector.observe.svc.cluster.local           
+                    INFO     all.sregym.jaeger - Created ExternalName service   
+                             'jaeger-collector' in namespace 'hotel-reservation'
+                             -> otel-collector.observe.svc.cluster.local        
+                    INFO     all.sregym.jaeger - Created ExternalName service   
+                             'jaeger-query' in namespace 'hotel-reservation' -> 
+                             otel-collector.observe.svc.cluster.local           
+                    INFO     all.infra.workload - Start Workload with Wrk2      
+                    INFO     all.infra.workload - Checking for existing         
+                             ConfigMap 'wrk2-payload-script'...                 
+                    INFO     all.infra.workload - Creating ConfigMap            
+                             'wrk2-payload-script'...                           
+                    INFO     all.infra.workload - ConfigMap                     
+                             'wrk2-payload-script' created successfully.        
+                    INFO     all.infra.workload - Job created: wrk2-job         
+                    INFO     all.sregym.conductor - [ENV] Start workload        
+                    INFO     all.sregym.conductor - App deployed.               
+== Fault Injection ==
+Controller `cleanup-controller` started with valid RBAC
+ClusterRole `configmap-cleanup-controller` changed to read-only
+Deleted ConfigMap `reservation-cleanup-token` with --wait=false semantics
+Resource: configmap/reservation-cleanup-token | Controller: deployment/cleanup-controller | Namespace: hotel-reservation
+
+[10/03/26 17:32:18] INFO     all.sregym.conductor - [ENV] Injected fault        
+                    INFO     all.sregym.conductor - [STAGE] Go to stage         
+                             diagnosis                                          
+                    INFO     all.sregym.conductor - ✅ Deployment complete.     
+                             Ready for submission. Current stage is: diagnosis  
+[10/03/26 17:32:20] INFO     all.sregym.container_runner - Starting             
+                             containerized agent [faultline-run]:               
+                             /opt/sregym/install-scripts/install-faultline.sh   
+                             2>&1 | tee /logs/install.log; I...                 
+[2026-10-03T17:32:20+00:00] Installing Faultline from http://host.docker.internal:55480/faultline-src.tar.gz
+9141dfe48a1a044e2bc84f6a39efd1d67d796838d83afa5c6432197e1bf8c674  /tmp/faultline-src.tar.gz
+WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.
+[2026-10-03T17:33:21+00:00] Faultline installed: /opt/faultline/src/faultline/__init__.py
+[10/03/26 17:33:22] INFO     uvicorn.access - 172.17.0.3:55968 - "GET /status   
+                             HTTP/1.1" 200                                      
+                    INFO     uvicorn.access - 172.17.0.3:55980 - "GET /get_app  
+                             HTTP/1.1" 200                                      
+[10/03/26 17:42:10] INFO     uvicorn.access - 172.17.0.3:53208 - "POST /submit  
+                             HTTP/1.1" 200                                      
+[10/03/26 17:42:10] INFO     all.sregym.conductor - Evaluating stage 'diagnosis'
+                    INFO     all.sregym.conductor - Start Eval for Diagnosis    
+== LLM-as-a-Judge Evaluation ==
+🔧 Initializing LLM backend — model: anthropic/claude-sonnet-4-6, api_base: unset
+{"started_at": "2026-10-03T17:33:22.081249+00:00", "app_name": "Hotel Reservation", "namespace": "hotel-reservation", "application": "sregym-hotel-reservation", "evaluations": 6, "fallback": true, "episodes": [{"alertname": "SREGymProblemReported", "service": "frontend", "severity": "critical"}], "opening_errors": [], "incident_id": "0e3751e5-f1c3-4335-af85-3d84a8598e50", "investigate_exit": 0, "trajectory_id": "dd9f5e42-0418-4c8d-bc5c-e12ba67383b5", "verdict": true, "evidence_cited": 3, "submitted": {"status": "200", "message": "Submission received", "stage": "diagnosis"}, "error": "", "ended_at": "2026-10-03T17:42:10.224145+00:00"}
+[17:42:12] ⚠️  Agent process exited with return code 0                main.py:582
+           ⏳ Waiting for conductor evaluation to complete...        main.py:586
+❌ Incorrect diagnosis: False (score: 0.0/100)
+   Expected: [fault_spec] component=ClusterRole/configmap-cleanup-controller and configmap/reservation-cleanup-to...
+   Got: Root cause: The board does not establish a cause for the 17:38:25 onset. The only concrete anomaly i...
+[10/03/26 17:42:21] INFO     all.sregym.conductor - [EVAL] Diagnosis Failed     
+                              TTL: 603.8059678077698                            
+                    INFO     all.sregym.conductor - [STAGE] Done, starting      
+                             teardown                                           
+                    INFO     all.sregym.conductor - [CLEANUP] Starting cleanup  
+                             (fault recovery, undeploy, reconcile)              
+                    INFO     all.sregym.conductor - [CLEANUP] Recovering        
+                             fault...                                           
+== Fault Recovery ==
+[17:42:21] 🧹 Running conductor cleanup after agent exit...          main.py:615
+ClusterRole `configmap-cleanup-controller` restored; controller completed cleanup
+Resource: configmap/reservation-cleanup-token | Namespace: hotel-reservation
+
+[10/03/26 17:42:23] INFO     all.sregym.conductor - [CLEANUP] Fault recovered   
+                    INFO     all.sregym.conductor - [CLEANUP] Undeploying app...
+[17:42:23] Waiting for namespace deletion...                      kubectl.py:341
+[17:43:04] Namespace 'hotel-reservation' has been deleted.        kubectl.py:349
+[10/03/26 17:43:04] INFO     all.infra.kubectl - Namespace 'hotel-reservation'  
+                             deleted successfully.                              
+           Waiting for namespace deletion...                      kubectl.py:341
+           Namespace 'hotel-reservation' has been deleted.        kubectl.py:349
+[10/03/26 17:43:09] INFO     all.sregym.conductor - [CLEANUP] App undeployed    
+                    INFO     all.sregym.conductor - [CLEANUP] Reconciling       
+                             cluster state to baseline...                       
+                    INFO     all.infra.cluster_state - Reconciling cluster to   
+                             baseline state...                                  
+                    INFO     all.infra.cluster_state - Deleting unexpected      
+                             namespace: observe                                 
+[17:43:09] Waiting for namespace deletion...                      kubectl.py:341
+[17:43:49] Namespace 'observe' has been deleted.                  kubectl.py:349
+[10/03/26 17:43:49] INFO     all.infra.kubectl - Namespace 'observe' deleted    
+                             successfully.                                      
+                    INFO     all.infra.cluster_state - Deleting unexpected      
+                             ClusterRole: promtail                              
+                    INFO     all.infra.cluster_state - Deleting unexpected      
+                             ClusterRole: configmap-cleanup-controller          
+                    INFO     all.infra.cluster_state - Deleting unexpected      
+                             ClusterRole: mcp-server                            
+                    INFO     all.infra.cluster_state - Deleting unexpected      
+                             ClusterRole: loki-clusterrole                      
+                    INFO     all.infra.cluster_state - Deleting unexpected      
+                             ClusterRole: prometheus-server                     
+                    INFO     all.infra.cluster_state - Deleting unexpected      
+                             ClusterRole: prometheus-kube-state-metrics         
+                    INFO     all.infra.cluster_state - Deleting unexpected      
+                             ClusterRoleBinding: configmap-cleanup-controller   
+                    INFO     all.infra.cluster_state - Deleting unexpected      
+                             ClusterRoleBinding: promtail                       
+                    INFO     all.infra.cluster_state - Deleting unexpected      
+                             ClusterRoleBinding: mcp-server                     
+                    INFO     all.infra.cluster_state - Deleting unexpected      
+                             ClusterRoleBinding: prometheus-server              
+                    INFO     all.infra.cluster_state - Deleting unexpected      
+                             ClusterRoleBinding: loki-clusterrolebinding        
+                    INFO     all.infra.cluster_state - Deleting unexpected      
+                             ClusterRoleBinding: prometheus-kube-state-metrics  
+                    INFO     all.infra.kubectl - [gc_localpv] Sweeping          
+                             /var/openebs/local on 4 node(s) (preserving 0 live 
+                             PV dir(s))                                         
+[10/03/26 17:44:06] INFO     all.infra.cluster_state - Reconciliation complete: 
+                             {'namespaces_deleted': ['observe'],                
+                             'cluster_roles_deleted': ['promtail',              
+                             'configmap-cleanup-controller', 'mcp-server',      
+                             'loki-clusterrole', 'prometheus-server',           
+                             'prometheus-kube-state-metrics'],                  
+                             'cluster_role_bindings_deleted':                   
+                             ['configmap-cleanup-controller', 'promtail',       
+                             'mcp-server', 'prometheus-server',                 
+                             'loki-clusterrolebinding',                         
+                             'prometheus-kube-state-metrics'],                  
+                             'persistent_volumes_deleted': [],                  
+                             'storage_classes_deleted': [], 'crds_deleted': [], 
+                             'validating_webhook_configs_deleted': [],          
+                             'mutating_webhook_configs_deleted': [],            
+                             'nodes_labels_reset': [], 'nodes_taints_reset': [],
+                             'coredns_reset': False}                            
+                    INFO     all.sregym.conductor - Cluster state reconciliation
+                             changes: {'namespaces_deleted': ['observe'],       
+                             'cluster_roles_deleted': ['promtail',              
+                             'configmap-cleanup-controller', 'mcp-server',      
+                             'loki-clusterrole', 'prometheus-server',           
+                             'prometheus-kube-state-metrics'],                  
+                             'cluster_role_bindings_deleted':                   
+                             ['configmap-cleanup-controller', 'promtail',       
+                             'mcp-server', 'prometheus-server',                 
+                             'loki-clusterrolebinding',                         
+                             'prometheus-kube-state-metrics'],                  
+                             'persistent_volumes_deleted': [],                  
+                             'storage_classes_deleted': [], 'crds_deleted': [], 
+                             'validating_webhook_configs_deleted': [],          
+                             'mutating_webhook_configs_deleted': [],            
+                             'nodes_labels_reset': [], 'nodes_taints_reset': [],
+                             'coredns_reset': False}                            
+                    INFO     all.sregym.conductor - [CLEANUP] Cluster state     
+                             reconciled                                         
+                    INFO     all.sregym.conductor - [CLEANUP] Cleanup complete, 
+                             stage set to 'done'                                
+                    INFO     all.sregym.conductor - [STAGE] Teardown complete   
+[17:44:06] ✅ Complete                                               main.py:655
+           finalizer_deadlock_controller_hotel_reservation:                     
+           results={'Diagnosis': {'judgment': 'False', 'reasoning':             
+           'Verdict: False (composite=0.00). D1 Fault Localization:             
+           0.00 | D2 Fault Characterization: 0.00 | D3 Scope                    
+           Precision: 0.00. Weakest dimension: Fault Localization               
+           (0.00). Checklist details: [{"id": "D1-Q1", "answer":                
+           "No", "evidence": "Agent identifies \'frontend\' as                  
+           faulty component; ground truth identifies                            
+           ClusterRole/configmap-cleanup-controller and                         
+           configmap/reservation-cleanup-token as fault origin.",               
+           "confidence": "High"}, {"id": "D1-Q2", "answer": "No",               
+           "evidence": "Agent focuses on frontend/consul bootstrap              
+           race; ground truth root cause is RBAC misconfiguration on            
+           cleanup-controller. Agent does not distinguish these                 
+           correctly.", "confidence": "High"}, {"id": "D1-Q3",                  
+           "answer": "No", "evidence": "Agent blames \'frontend\' as            
+           faulty component, which is not the fault origin per                  
+           ground truth. The real fault is in                                   
+           ClusterRole/configmap-cleanup-controller.", "confidence":            
+           "High"}, {"id": "D2-Q1", "answer": "No", "evidence":                 
+           "Agent identifies Consul discovery refusals and unknown              
+           fault type; ground truth specifies ClusterRole changed to            
+           read-only, missing patch permission causing HTTP 403                 
+           Forbidden.", "confidence": "High"}, {"id": "D2-Q2",                  
+           "answer": "No", "evidence": "Agent provides no details               
+           about RBAC, finalizers, ConfigMap termination, or missing            
+           patch permissions. It discusses Consul port 8500                     
+           connection refusals instead.", "confidence": "High"},                
+           {"id": "D2-Q3", "answer": "No", "evidence": "Agent                   
+           attributes fault to Consul discovery/dependency_latency              
+           issues; ground truth is an RBAC misconfiguration                     
+           (read-only ClusterRole missing patch permission) \\u2014             
+           entirely different fault type.", "confidence": "High"},              
+           {"id": "D3-Q1", "answer": "No", "evidence": "Agent blames            
+           frontend and consul as involved components; neither is               
+           identified in ground truth as contributing to the                    
+           fault.", "confidence": "High"}, {"id": "D3-Q2", "answer":            
+           "No", "evidence": "Agent never mentions                              
+           ClusterRole/configmap-cleanup-controller,                            
+           reservation-cleanup-token ConfigMap, cleanup-controller              
+           Deployment, finalizer                                                
+           cleanup.reservations.io/pending-cleanup, or RBAC.",                  
+           "confidence": "High"}, {"id": "D3-Q3", "answer": "No",               
+           "evidence": "Agent describes impact as Consul discovery              
+           failures affecting frontend; ground truth states                     
+           ConfigMap stuck in Terminating due to controller unable              
+           to remove finalizer because of 403 Forbidden.",                      
+           "confidence": "High"}]', 'success': False, 'accuracy':               
+           0.0, 'composite_score': 0.0, 'dimensions': {'D1':                    
+           {'name': 'Fault Localization', 'score': 0.0}, 'D2':                  
+           {'name': 'Fault Characterization', 'score': 0.0}, 'D3':              
+           {'name': 'Scope Precision', 'score': 0.0}}, 'checklist':             
+           [{'id': 'D1-Q1', 'answer': 'No', 'evidence': "Agent                  
+           identifies 'frontend' as faulty component; ground truth              
+           identifies ClusterRole/configmap-cleanup-controller and              
+           configmap/reservation-cleanup-token as fault origin.",               
+           'confidence': 'High'}, {'id': 'D1-Q2', 'answer': 'No',               
+           'evidence': 'Agent focuses on frontend/consul bootstrap              
+           race; ground truth root cause is RBAC misconfiguration on            
+           cleanup-controller. Agent does not distinguish these                 
+           correctly.', 'confidence': 'High'}, {'id': 'D1-Q3',                  
+           'answer': 'No', 'evidence': "Agent blames 'frontend' as              
+           faulty component, which is not the fault origin per                  
+           ground truth. The real fault is in                                   
+           ClusterRole/configmap-cleanup-controller.", 'confidence':            
+           'High'}, {'id': 'D2-Q1', 'answer': 'No', 'evidence':                 
+           'Agent identifies Consul discovery refusals and unknown              
+           fault type; ground truth specifies ClusterRole changed to            
+           read-only, missing patch permission causing HTTP 403                 
+           Forbidden.', 'confidence': 'High'}, {'id': 'D2-Q2',                  
+           'answer': 'No', 'evidence': 'Agent provides no details               
+           about RBAC, finalizers, ConfigMap termination, or missing            
+           patch permissions. It discusses Consul port 8500                     
+           connection refusals instead.', 'confidence': 'High'},                
+           {'id': 'D2-Q3', 'answer': 'No', 'evidence': 'Agent                   
+           attributes fault to Consul discovery/dependency_latency              
+           issues; ground truth is an RBAC misconfiguration                     
+           (read-only ClusterRole missing patch permission) —                   
+           entirely different fault type.', 'confidence': 'High'},              
+           {'id': 'D3-Q1', 'answer': 'No', 'evidence': 'Agent blames            
+           frontend and consul as involved components; neither is               
+           identified in ground truth as contributing to the                    
+           fault.', 'confidence': 'High'}, {'id': 'D3-Q2', 'answer':            
+           'No', 'evidence': 'Agent never mentions                              
+           ClusterRole/configmap-cleanup-controller,                            
+           reservation-cleanup-token ConfigMap, cleanup-controller              
+           Deployment, finalizer                                                
+           cleanup.reservations.io/pending-cleanup, or RBAC.',                  
+           'confidence': 'High'}, {'id': 'D3-Q3', 'answer': 'No',               
+           'evidence': 'Agent describes impact as Consul discovery              
+           failures affecting frontend; ground truth states                     
+           ConfigMap stuck in Terminating due to controller unable              
+           to remove finalizer because of 403 Forbidden.',                      
+           'confidence': 'High'}], 'submission': 'Root cause: The               
+           board does not establish a cause for the 17:38:25 onset.             
+           The only concrete anomaly is a ~4-second burst of Consul             
+           discovery refusals on consul:8500 right after frontend\'s            
+           cold start at 17:31:56                                               
+           [tr_141f2b9c494c][tr_b46c4a6267a3], a bootstrap race                 
+           between the frontend and consul workloads both first                 
+           created at 17:31:55 by platform-automation                           
+           [tr_57fd4b831076][tr_c4d033b6d797]. That burst ended at              
+           17:32:00 and never recurred, leaving ~6.5 clean minutes              
+           before the alert [tr_b46c4a6267a3], so it is not the                 
+           onset mechanism. Everything that could name the real                 
+           mechanism was structurally unavailable: no span metrics              
+           for frontend or user in either window                                
+           [tr_9e57cb00ad61][tr_3c200821e5c6], zero frontend traces             
+           for the hour [tr_e4ec257e6a74], and a truncated log slice            
+           covering only 17:31:56-17:32:00 [tr_141f2b9c494c]. The               
+           fault most likely lies on one of the five unmeasured                 
+           edges below frontend, unidentified.\nFaulty component:               
+           frontend\nFault type: unknown\nConfidence:                           
+           low\n\nEvidence:\n- Consul connection-refused lines on               
+           port 8500 from frontend are confined to a ~4-second burst            
+           immediately following the 17:31:56 cold start, with the              
+           last occurrence at 17:32:00; no further 8500 lines appear            
+           through the end of the window at 17:38:30. (found, from              
+           logql_query on frontend; query:                                      
+           {namespace="hotel-reservation",pod=~"frontend-([a-z0-9]+-            
+           [a-z0-9]+|[0-9]+)"} |= "8500")\n- The same cold start                
+           emitted the frontend\'s consul agent initialization and              
+           address-read lines at 17:31:56, confirming the refused               
+           attempts are startup-time discovery lookups against the              
+           consul service VIP rather than steady-state traffic.                 
+           (found, from logql_query on frontend; query:                         
+           {namespace="hotel-reservation",pod=~"frontend-([a-z0-9]+-            
+           [a-z0-9]+|[0-9]+)"} |= "8500")\n- The refused lookups                
+           covered all five downstream services (user,                          
+           recommendation, search, profile, reservation), indicating            
+           a whole-dependency outage of the Consul endpoint during              
+           that burst, not a single-service registration problem.               
+           (found, from logql_query on frontend; query:                         
+           {namespace="hotel-reservation",pod=~"frontend-([a-z0-9]+-            
+           [a-z0-9]+|[0-9]+)"} |= "8500")\n- No 8500-matching lines             
+           appear in the ~23 minutes of the window preceding the                
+           cold start (17:08:25 to 17:31:56), so discovery was not              
+           failing before the restart. (found, from logql_query on              
+           frontend; query:                                                     
+           {namespace="hotel-reservation",pod=~"frontend-([a-z0-9]+-            
+           [a-z0-9]+|[0-9]+)"} |= "8500")\n- Consul discovery                   
+           failures persisted from the cold start through to the                
+           17:38:25 onset and are the direct cause of the incident.             
+           (ruled_out, from logql_query on frontend; why: The query             
+           covers the full window and is not truncated; the last                
+           8500 refused line is at 17:32:00, leaving roughly six and            
+           a half minutes of clean discovery before onset.; query:              
+           {namespace="hotel-reservation",pod=~"frontend-([a-z0-9]+-            
+           [a-z0-9]+|[0-9]+)"} |= "8500")\n- Discovery was already              
+           degraded before the restart, making the cold start a                 
+           symptom of an earlier Consul problem. (ruled_out, from               
+           logql_query on frontend; why: No 8500 lines at all are               
+           present between the window start at 17:08:25 and the                 
+           17:31:56 initialization.; query:                                     
+           {namespace="hotel-reservation",pod=~"frontend-([a-z0-9]+-            
+           [a-z0-9]+|[0-9]+)"} |= "8500")\n- A single downstream                
+           service failed to register in Consul, starving one                   
+           dependency. (ruled_out, from logql_query on frontend;                
+           why: All five srv-* lookups failed identically within the            
+           same burst, which points at the Consul endpoint being                
+           unreachable rather than per-service registration.; query:            
+           {namespace="hotel-reservation",pod=~"frontend-([a-z0-9]+-            
+           [a-z0-9]+|[0-9]+)"} |= "8500")\n- Frontend was pointed at            
+           a wrong or stale Consul address, causing chronic                     
+           connection refusals. (ruled_out, from logql_query on                 
+           frontend; why: The same address and VIP that produced                
+           refusals at 17:31:56 stopped producing them by 17:32:00              
+           without any further address-read line, so the configured             
+           target became reachable.; query:                                     
+           {namespace="hotel-reservation",pod=~"frontend-([a-z0-9]+-            
+           [a-z0-9]+|[0-9]+)"} |= "8500")\n- The only error-level               
+           text emitted by frontend in the returned lines is a                  
+           repeated service-discovery failure: the Consul                       
+           load-balancer client cannot retrieve instances from the              
+           Consul agent, with the HTTP GET to the Consul health                 
+           endpoint failing as a refused TCP connection to the                  
+           cluster IP on port 8500. (found, from logql_query on                 
+           frontend; query:                                                     
+           {namespace="hotel-reservation",pod=~"frontend-([a-z0-9]+-            
+           [a-z0-9]+|[0-9]+)"})\n- The failures span every backend              
+           the frontend resolves (user, recommendation, profile,                
+           search, reservation), indicating the fault is at the                 
+           discovery dependency rather than specific to one                     
+           downstream service. (found, from logql_query on frontend;            
+           query:                                                               
+           {namespace="hotel-reservation",pod=~"frontend-([a-z0-9]+-            
+           [a-z0-9]+|[0-9]+)"})\n- The frontend pod went through a              
+           full cold start at 17:31:56 (config read, Jaeger init,               
+           Consul agent init, gRPC client init, HTTP serving), so               
+           the process restarted inside the alert window rather than            
+           running continuously. (found, from logql_query on                    
+           frontend; query:                                                     
+           {namespace="hotel-reservation",pod=~"frontend-([a-z0-9]+-            
+           [a-z0-9]+|[0-9]+)"})\n- Despite the discovery errors, the            
+           frontend completed startup and began serving HTTP ~1s                
+           later, so the process stayed up and kept retrying rather             
+           than crash-looping on this error. (found, from                       
+           logql_query on frontend; query:                                      
+           {namespace="hotel-reservation",pod=~"frontend-([a-z0-9]+-            
+           [a-z0-9]+|[0-9]+)"})\n- Returned lines are clustered in              
+           roughly 17:31:56–17:32:00 and the result is marked                   
+           truncated, so coverage of the full 17:08–17:38 window is             
+           not established. (found, from logql_query on frontend;               
+           query:                                                               
+           {namespace="hotel-reservation",pod=~"frontend-([a-z0-9]+-            
+           [a-z0-9]+|[0-9]+)"})\n- Frontend is failing due to a                 
+           panic, nil dereference, or other crash in its own                    
+           application code (ruled_out, from logql_query on                     
+           frontend; why: No panic, stack trace, or fatal-level                 
+           entry appears; the sole error class is the Consul                    
+           discovery call, and the process reaches its serving                  
+           state.; query:                                                       
+           {namespace="hotel-reservation",pod=~"frontend-([a-z0-9]+-            
+           [a-z0-9]+|[0-9]+)"})\n- A specific downstream                        
+           hotel-reservation service (e.g. search or reservation) is            
+           returning errors and dragging frontend down (ruled_out,              
+           from logql_query on frontend; why: The errors are not                
+           gRPC call failures against those services; they are                  
+           failures to look the services up at all, and they affect             
+           every backend uniformly.; query:                                     
+           {namespace="hotel-reservation",pod=~"frontend-([a-z0-9]+-            
+           [a-z0-9]+|[0-9]+)"})\n- DNS resolution for the Consul                
+           service is broken (ruled_out, from logql_query on                    
+           frontend; why: The Consul hostname resolves to a cluster             
+           IP in the error text; the failure mode is a refused                  
+           connection at that address, not a lookup failure.; query:            
+           {namespace="hotel-reservation",pod=~"frontend-([a-z0-9]+-            
+           [a-z0-9]+|[0-9]+)"})\n- TLS or certificate                           
+           misconfiguration on the frontend is blocking its                     
+           dependencies (ruled_out, from logql_query on frontend;               
+           why: Startup logs record TLS as disabled and report no               
+           certificate or handshake errors; the dependency failure              
+           is a plain refused TCP connection.; query:                           
+           {namespace="hotel-reservation",pod=~"frontend-([a-z0-9]+-            
+           [a-z0-9]+|[0-9]+)"})\n- Frontend failed to start or is               
+           stuck before binding its listener (ruled_out, from                   
+           logql_query on frontend; why: The startup sequence                   
+           completes and the HTTP serving line is emitted seconds               
+           after boot.; query:                                                  
+           {namespace="hotel-reservation",pod=~"frontend-([a-z0-9]+-            
+           [a-z0-9]+|[0-9]+)"})\n- Only two change records exist for            
+           consul in the 24-hour window, both timestamped                       
+           identically at 17:31:55 roughly six minutes before onset:            
+           a service-level config creation and a first-ever                     
+           container/workload creation, both attributed to the                  
+           platform-automation actor. (found, from change_history on            
+           consul)\n- The pairing of a service creation with a                  
+           \'first created\' workload indicates this was an initial             
+           stand-up of the Consul agent/server rather than a                    
+           modification of an already-running instance, placing a               
+           brand-new deployment immediately upstream of onset.                  
+           (found, from change_history on consul)\n- No change                  
+           activity is recorded for consul in the hours preceding               
+           17:31:55, so the entire earlier portion of the window is             
+           change-free for this service. (found, from change_history            
+           on consul)\n- A configuration edit or parameter change to            
+           an existing, previously healthy Consul deployment                    
+           regressed it and triggered the incident. (ruled_out, from            
+           change_history on consul; why: The only config record is             
+           a creation, not an update, and it is paired with a                   
+           first-time container creation — there was no prior                   
+           running instance for a config change to regress.)\n- A               
+           restart loop or repeated crash-restart cycle of the                  
+           Consul agent explains the symptoms. (ruled_out, from                 
+           change_history on consul; why: No restart events appear              
+           anywhere in the 24-hour window; the only container event             
+           is a single first creation.)\n- The orchestrator                     
+           rescheduled or evicted the Consul workload onto a                    
+           different node, causing disruption. (ruled_out, from                 
+           change_history on consul; why: No rescheduling, eviction,            
+           or migration events are recorded; the single container               
+           event is an initial creation with no predecessor                     
+           placement.)\n- A slow-acting change made hours earlier               
+           drifted into failure around onset. (ruled_out, from                  
+           change_history on consul; why: The window contains no                
+           change activity before 17:31:55, so there is no earlier              
+           change to have drifted.)\n- A human operator made an                 
+           ad-hoc manual change to Consul shortly before onset.                 
+           (ruled_out, from change_history on consul; why: Both                 
+           recorded changes are attributed to the                               
+           platform-automation actor, not a human                               
+           operator.)\n\nReasoning:\nFrontend\'s own code is                    
+           cleared: no panic or fatal entry, and the process reached            
+           its serving state [tr_141f2b9c494c]. No deploy, flag                 
+           flip, config edit, restart or human action touched                   
+           frontend or consul beyond initial creation                           
+           [tr_57fd4b831076][tr_c4d033b6d797], removing bad_deploy,             
+           feature_flag and a regressing config edit. A wrong Consul            
+           address is excluded because the same address stopped                 
+           refusing without any re-read [tr_b46c4a6267a3]. What                 
+           remains - a quiet, running frontend alerting six minutes             
+           after discovery recovered - cannot be resolved because               
+           metrics, traces and the onset-minute logs are all missing            
+           [tr_9e57cb00ad61][tr_e4ec257e6a74][tr_3c200821e5c6].                 
+           Naming a class here would be asserting past the                      
+           evidence.\n\nAlternatives considered:\n1. consul: Consul             
+           remained unhealthy or degraded after its 17:31:55                    
+           stand-up, so frontend\'s later re-resolutions stalled and            
+           callers waited. (dependency_latency). Ranked lower                   
+           because: The 8500-filtered query covered the full window             
+           without truncation and shows no refusals after 17:32:00              
+           [tr_b46c4a6267a3]; no Consul-side log or metric was ever             
+           gathered to support ongoing degradation.\n2. user: A                 
+           downstream hotel-reservation service became slow after               
+           17:32, and frontend\'s requests failed on waiting for it.            
+           (dependency_latency). Ranked lower because: Zero traces              
+           and no span metrics exist to attribute latency to any                
+           downstream service [tr_e4ec257e6a74][tr_3c200821e5c6];               
+           this is a plausible shape with no evidence naming a                  
+           culprit.\n\nOpen questions:\n- What did frontend log                 
+           between 17:32:00 and 17:38:30? The unfiltered query was              
+           truncated and never covered the onset minute.\n- Which of            
+           the five unmeasured downstream edges (user,                          
+           recommendation, profile, search, reservation) was slow or            
+           erroring at onset? No per-service logs or latency data               
+           were gathered for any of them.\n- Is Consul itself                   
+           healthy after 17:32:00? Its own logs and health were                 
+           never queried - only its change history.'}, 'TTL':                   
+           603.808874130249, 'phase.fix_kubernetes.duration_s':                 
+           3.046, 'phase.undeploy_leftovers.duration_s': 5.103,                 
+           'phase.deploy.duration_s': 128.584,                                  
+           'phase.inject_fault.duration_s': 6.15,                               
+           'phase.stage:diagnosis.duration_s': 592.103,                         
+           'phase.stage:diagnosis.outcome': 'submitted',                        
+           'phase.evaluate:diagnosis.duration_s': 11.703,                       
+           'phase.cleanup.duration_s': 104.172, 'run_status':                   
+           'complete'}                                                          
+           ⏳ Waiting for agent process to complete...               main.py:661
+           ✅ Agent process completed with return code 0             main.py:667
+           🧹 Cleaned up agent process for faultline                 main.py:677
+[10/03/26 17:44:06] INFO     __main__ - ⏳ Attempt 1 of 1 for problem           
+                             finalizer_deadlock_controller_hotel_reservation    
+                             complete - Intermediate results written to         
+                             _running_finalizer_deadlock_controller_hotel_reserv
+                             ation_faultline_results.csv; artifacts published to
+                             results/1003_1729/faultline/finalizer_deadlock_cont
+                             roller_hotel_reservation/run_1                     
+                    WARNING  sregym.traces.postprocess - No convertible session 
+                             in                                                 
+                             results/1003_1729/faultline/finalizer_deadlock_cont
+                             roller_hotel_reservation/run_1                     
+                    WARNING  __main__ - ⚠️ ATIF trajectory conversion skipped for
+                             results/1003_1729/faultline/finalizer_deadlock_cont
+                             roller_hotel_reservation/run_1                     
+                    INFO     __main__ - ✅ Problem                              
+                             finalizer_deadlock_controller_hotel_reservation for
+                             agent faultline complete! Results written to       
+                             results/1003_1729/faultline/finalizer_deadlock_cont
+                             roller_hotel_reservation/finalizer_deadlock_control
+                             ler_hotel_reservation_faultline_results.csv        
+Benchmarking faultline — finalizer_deadlock_controller_hotel_reservation (atte… 
+           🔓 Stopping Kubernetes API proxy...                       main.py:787
+                    INFO     all.sregym.conductor - Stopping Kubernetes API     
+                             filtering proxy...                                 
+                    INFO     all.infra.k8s_proxy - Kubernetes API filtering     
+                             proxy stopped                                      
+                    WARNING  all.sregym.conductor_api - Shutting down API       
+                             server...                                          
+[10/03/26 17:44:07] INFO     uvicorn.error - Shutting down                      
+                    INFO     uvicorn.error - Finished server process [241936]   
+                    INFO     __main__ - ✅ Benchmark complete! Results for      
+                             faultline written to                               
+                             results/1003_1729/faultline_ALL_results.csv        

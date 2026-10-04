@@ -1,0 +1,164 @@
+{
+  "incident_id": "d6c0dde4-a059-456b-88f2-724d72fb8a59",
+  "trajectory_id": "f3d75828-7d01-40da-af2d-af9a360f6fbf",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "frontend",
+    "profile",
+    "recommendation",
+    "reservation",
+    "search",
+    "user"
+  ],
+  "unmeasured_edges": 5,
+  "exclude_origins": [],
+  "verdict": {
+    "root_cause": "At 10:53:18, about six minutes before the 10:59:24 alert, platform-automation created a NetworkPolicy `deny-all-recommendation` recorded as namespace-wide rather than narrowly selected [tr_87652bf6467a][tr_0c99cf700f8c]. That policy cuts L3/L4 connectivity on the recommendation path inside the namespace, so frontend's calls on that edge no longer reach a peer. The mechanism is connectivity removal, not an application regression: frontend's change history holds no image bump, no flag toggle and no dependency change, only first-time creation of its Service and workload [tr_87652bf6467a], and its log shows a clean cold start at 10:53:05-10:53:06 that resolved all backends and reached a serving state, with no panic, exception, timeout or downstream error afterwards [tr_d3e4bb54f84b]. The Consul connection-refused lines at 10:53:05 precede the policy and clear within two seconds, so they are startup race noise. Frontend alerted because it is the caller that notices; what broke is the recommendation path being severed.",
+    "service": "recommendation",
+    "fault_class": "network_partition",
+    "remediation_class": "reconnect",
+    "confidence": "medium",
+    "evidence": [
+      "tr_87652bf6467a",
+      "tr_0c99cf700f8c",
+      "tr_d3e4bb54f84b",
+      "tr_2905d9ddfa34",
+      "tr_2cca751ac3a4"
+    ],
+    "reasoning": "Change history across a full 24 hours for two services contains exactly one suspicious act: the namespace-wide deny-all NetworkPolicy at 10:53:18, everything else being first-time stand-up of Services and workloads [tr_87652bf6467a][tr_0c99cf700f8c]. Frontend's log rules out the application-side stories - no deadline or context-cancellation wording, no panic or stack trace, and successful gRPC client init followed by an HTTP serving confirmation [tr_d3e4bb54f84b]; a crash or a slow dependency would have left one of those. The silent instruments are not negative evidence: the Prometheus error-ratio queries for frontend and profile failed structurally because neither emits span-derived metrics, over both incident and baseline windows [tr_2cca751ac3a4][tr_5dc2642b7db7], and the Tempo gap for frontend is uniform across the whole 30 minutes rather than onset-shaped [tr_2905d9ddfa34]. A deny-all policy named for the recommendation path is the mechanism that hangs a caller on one edge while the callee's process stays up - partition, not a wrong configuration value breaking a request. The fix is restoring the severed connectivity.",
+    "open_questions": [
+      "No dispatch reached recommendation itself; its logs would decide partition versus freeze, since a partitioned process complains it cannot reach anything and a frozen one writes nothing.",
+      "The policy's real selector is unresolved - one finding calls the selector metadata incomplete and says its practical effect is not established [tr_0c99cf700f8c], so the blast radius and the named service could both change.",
+      "Frontend wrote nothing after 10:53:06 [tr_d3e4bb54f84b] and emitted no spans all window [tr_2905d9ddfa34], so whether it was serving traffic at 10:59:24 - and why onset lagged the policy by six minutes - is unverified."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "The same namespace-wide deny-all policy isolates frontend itself rather than recommendation, cutting it off from all five backends.",
+        "service": "frontend",
+        "fault_class": "network_partition",
+        "remediation_class": "reconnect",
+        "why_not": "Same policy and mechanism, different victim, and the evidence barely separates them. It ranks second only because the policy is named for the recommendation path; frontend's log ends twelve seconds before the policy landed, so there is no post-policy frontend signal either way. One dispatch to recommendation could invert this."
+      },
+      {
+        "root_cause": "The policy's scope value is itself wrong - written namespace-wide when a narrow selector was intended - making the misconfiguration the failure.",
+        "service": "frontend",
+        "fault_class": "bad_config",
+        "remediation_class": "config_revert",
+        "why_not": "The wrong value is how this started, but what is happening now is severed connectivity; classifying by the upstream edit rather than the live mechanism. Reverting the policy is still the practical fix, so the two converge in action if not in class."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "cart-bad-image-tag / What was never measured: No pod or container lifecycle evidence was collected for cartservice after the reference change, so whether the new artifact failed to pull, came up and looped, or came up writing under a different log label was never observed. cartservice has no calls_total series in either wind",
+    "cart-bad-image-tag / What was checked: **Error rate by service.** frontend, loadgenerator and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero. Read, wrongly, as evidence cart was\nhealthy.\n\n**loadgenerator.** Set aside. It is the synthetic client; its error rate restates what\nthe storefron",
+    "ad-memory-squeeze / Detection notes: - Onset to first page: **4m16s**.\n- Services alerting at the page: **2**. Over the whole incident: **3**, across 3\n  alerts.\n- Alerts that fired only during recovery: **none**.\n- **The page named the edge, twice over, and the culprit only as an absence two and a\n  half minutes la"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 24260,
+    "pulled_tokens": 2459,
+    "pull_rate": 0.092,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 413,
+        "content_tokens": 415,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1537,
+        "content_tokens": 1540,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 7280,
+        "content_tokens": 7256,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 6880,
+        "content_tokens": 6882,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 8150,
+        "content_tokens": 8128,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_87652bf6467a",
+      "tr_0c99cf700f8c",
+      "tr_d3e4bb54f84b",
+      "tr_2905d9ddfa34"
+    ],
+    "expected_effect": "No action proposed, so no change in observables is predicted. The mechanism named by the verdict is a namespace-scoped NetworkPolicy `deny-all-recommendation` created at 10:53:18 by platform-automation [tr_87652bf6467a][tr_0c99cf700f8c]; the only effect that would clear it is removing or narrowing that policy (fix class `reconnect`), and `reconnect_service` is listed UNAVAILABLE - the executor performs only rollback_image, revert_config and restart_service. None of the three available actions meets its own preconditions here: rollback_image requires a prior image tag and a deploy/image change in the window, and the change history records no deploy and no image bump, only a first-ever workload creation [tr_87652bf6467a]; revert_config requires a prior configuration for the target service, and every recorded config event is a first creation (Service frontend, Service profile, the policy itself), so there is no earlier state to restore to [tr_87652bf6467a][tr_0c99cf700f8c]; restart_service requires evidence pointing at process state, and frontend's log shows a clean cold start reaching a serving state at 10:53:06 with no panic, exception or timeout afterwards [tr_d3e4bb54f84b], which points at connectivity removal, not at a wedged process. Escalate to an operator who can delete or re-scope the NetworkPolicy.",
+    "confirm_within_seconds": 0,
+    "if_wrong": "This abstention is wrong if the policy's real selector turns out not to cover the recommendation path - one finding calls the selector metadata incomplete and says its practical effect is not established [tr_0c99cf700f8c] - in which case the fault is something else and a different action might apply. It is also wrong if recommendation's own logs (never collected) show a frozen process rather than a partitioned one, which would make restart_service on recommendation defensible. Note that the confirming signal is itself weak here: frontend has no span metrics [tr_2905d9ddfa34] and wrote no logs after 10:53:06 [tr_d3e4bb54f84b], so any remediation's success would be hard to observe on the alerted service at all - a further reason to hold.",
+    "risk": "The risk of abstaining is that the partition persists and the recommendation path stays severed until a human intervenes; mean time to repair lengthens by the escalation delay. The risk of the alternative - proposing restart_service or revert_config on frontend anyway - is larger: a restart discards the serving process and its caches and would not touch the L3/L4 policy, so the outage would continue with a fresh process and a new cold-start error burst muddying the timeline; a config_revert on a service whose config was created, not modified, has no prior state and could leave it unconfigured.",
+    "blast_radius": "No one sees a change, because nothing is executed. The incident's existing blast radius is unchanged: frontend (alerted seed) and the five services reached from it - profile, recommendation, reservation, search, user. The humans who notice are the on-call responders, who now carry the fix rather than this system."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "low",
+    "reasoning": "A critical alert on the user-facing frontend with no open incidents to attribute it to cannot be dismissed. Only the seed alerted, so the cause could be frontend itself or any of five unmeasured downstream edges."
+  }
+}

@@ -1,0 +1,165 @@
+{
+  "incident_id": "bf319971-77de-4fb1-81a1-9be32f42ef16",
+  "trajectory_id": "d75bbe66-1041-40e1-a918-a65d49bae1f3",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "frontend",
+    "frontend-proxy",
+    "load-generator"
+  ],
+  "unmeasured_edges": 1,
+  "exclude_origins": [],
+  "verdict": {
+    "root_cause": "Two minutes before onset, platform-automation rewrote the frontend pod spec's DNS settings: it removed the cluster-default `dnsPolicy: ClusterFirst` and substituted an explicit `dnsConfig` pointing at a single public resolver (8.8.8.8) [tr_929c50e7f8bf]. A public resolver cannot answer for cluster-internal service names, so frontend can neither resolve nor reach any in-cluster dependency, and the value named in that config is itself the thing that breaks every request. The downstream picture is consistent: frontend produced no spans of any kind, inbound or outbound, across the whole window [tr_2dcc48fc8659] and no log lines at all [tr_66fc0c934048], while frontend-proxy \u2014 the caller that alerted \u2014 shows an error ratio near 0.905 with intervals where its call volume disappears entirely [tr_2635c8e1c2ef]. frontend-proxy is the service that noticed, not the service that failed; its Envoy restarted cleanly at ~08:48:51 with no fatal startup output [tr_362c05685e3e], so the proxy binary and bootstrap are not the defect. The failing mechanism is a configuration value that names the wrong resolver.",
+    "service": "frontend",
+    "fault_class": "bad_config",
+    "remediation_class": "config_revert",
+    "confidence": "medium",
+    "evidence": [
+      "tr_929c50e7f8bf",
+      "tr_2635c8e1c2ef",
+      "tr_2dcc48fc8659",
+      "tr_66fc0c934048",
+      "tr_362c05685e3e",
+      "tr_a9a3db832182"
+    ],
+    "reasoning": "The change record is the only concrete, timed act in the window and it is tightly adjacent to onset (~2 minutes) [tr_929c50e7f8bf]; the same record rules out an image/version bump and any feature-flag toggle, which removes bad_deploy and feature_flag as competing stories for how this started. What makes this bad_config rather than merely a config edit upstream of something else is that the wrong value *is* the mechanism: a pod whose only nameserver is a public resolver cannot resolve cluster-internal names, so each request fails at resolution rather than running slow, running out of a resource, or reading corrupt data. The caller-side signals follow from that: frontend-proxy emits overwhelmingly error-status spans and loses call volume for part of the window [tr_2635c8e1c2ef], which is what a proxy does when its upstream is unreachable. The specialists explicitly declined to treat frontend's empty metric and trace results as proof of health \u2014 the metric series are structurally absent for frontend in this Prometheus, in baseline as well as incident window [tr_a9a3db832182], and the trace absence is noted as ambiguous between 'not handling requests' and 'telemetry not arriving' [tr_2dcc48fc8659]. So frontend's silence neither confirms nor refutes; it is the change record plus the caller's error profile that carry the verdict, which is why confidence is medium rather than high. I did not choose network_partition because that class expects the cut-off service's own log to complain it cannot reach anything, and frontend logged nothing at all [tr_66fc0c934048]; more importantly the cut is not a network event but a named wrong address in the pod spec.",
+    "open_questions": [
+      "No direct confirmation that frontend is actually Running and Ready \u2014 pod status, restart counts and container exit reasons were never queried, so a fresh workload that simply failed to come up cannot be excluded.",
+      "No DNS-failure evidence was observed anywhere: frontend emitted no outbound spans [tr_2dcc48fc8659] and frontend-proxy returned no access logs or response-flag records such as no_healthy_upstream or upstream connect failure [tr_362c05685e3e], so the resolution-failure mechanism is inferred from the change record rather than witnessed.",
+      "Whether the Envoy (re)start at ~08:48:51 [tr_362c05685e3e] is a consequence of the rollout, an unrelated bring-up, or a contributor to the error ratio is unresolved; it lands between the DNS edit and onset.",
+      "The two earlier changes in the set (#3 and #4) were truncated in the sample and were never examined on their own merits.",
+      "Triage reported one unmeasured edge crossed; the service on the far side of it was never dispatched against, so a dependency below frontend remains unchecked.",
+      "frontend-proxy's HTTP status breakdown (5xx vs 503) and upstream connection-failure counters were never retrieved [tr_2635c8e1c2ef], so the caller-side failure shape is only partly characterised."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "The frontend workload was created ~3 minutes before onset and never came up correctly, so there was simply no backend behind frontend-proxy during the window.",
+        "service": "frontend",
+        "fault_class": "bad_deploy",
+        "remediation_class": "rollback",
+        "why_not": "The change set contains no image or version mutation at all \u2014 only DNS pod-spec fields plus creation events [tr_929c50e7f8bf] \u2014 so there is no wrong artifact to point at. Frontend's total telemetry silence is equally consistent with a pod that is up but unable to resolve anything, and the metric absence is structural rather than incident-onset [tr_a9a3db832182]. It stays plausible only because pod readiness was never directly checked.",
+        "_rank": 1
+      },
+      {
+        "root_cause": "frontend is running but severed from in-cluster connectivity, leaving frontend-proxy's calls to fail with no reachable upstream.",
+        "service": "frontend",
+        "fault_class": "network_partition",
+        "remediation_class": "reconnect",
+        "why_not": "A partitioned service normally logs that it cannot reach anything; frontend logged nothing whatsoever [tr_66fc0c934048]. And the isolation here has a named, recorded cause in a configuration value \u2014 a resolver address \u2014 rather than a network-layer event [tr_929c50e7f8bf], which makes config_revert the fix rather than restoring connectivity.",
+        "_rank": 2
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "runbook:action-restart-service / What it actually fixes here: `dependency_latency`. The injected delay lives in the container's network namespace, so\nrecreating the container removes it. That is the whole mechanism, and it is why this class\nresolves by restart rather than by touching configuration.",
+    "cart-dependency-latency / Detection notes: - Onset to first page: **3m35s**, against a three-minute persistence clause. Detection\n  is dominated by the clause, not by how long the signal took to appear \u2014 the underlying\n  measurement crossed the threshold almost immediately.\n- Services alerting at the page: **2**. Over the",
+    "runbook:class-network-partition / Why a cut-off service hangs rather than refuses, measured: Removing a container from its network removes its interface, and packets on the connections its\ncallers already hold are **dropped, not reset**: nothing sends a reset or an unreachable, so the\ncaller waits out its deadline. New connections fare no better - the name is gone from t"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 24152,
+    "pulled_tokens": 3698,
+    "pull_rate": 0.1328,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 374,
+        "content_tokens": 376,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1584,
+        "content_tokens": 1587,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 7141,
+        "content_tokens": 7117,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 6922,
+        "content_tokens": 6925,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 8131,
+        "content_tokens": 8109,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "config_revert",
+    "action_id": "revert_config",
+    "target": "frontend",
+    "rests_on": [
+      "tr_929c50e7f8bf",
+      "tr_2635c8e1c2ef"
+    ],
+    "expected_effect": "Restoring frontend's pre-08:49:31 config (dnsPolicy ClusterFirst, no explicit dnsConfig) [tr_929c50e7f8bf] should let it resolve in-cluster names again. Caller-side measurement on frontend-proxy: error ratio falls from ~0.905 toward zero, and the ratio becomes defined across consecutive 5m intervals instead of dropping out on empty denominators [tr_2635c8e1c2ef].",
+    "confirm_within_seconds": 600,
+    "if_wrong": "Falsified if after 10 minutes frontend-proxy's error ratio stays near 0.905 with undefined intervals. That would point at frontend never reaching Running/Ready (pod status and restart counts were never queried) or at the unmeasured edge below frontend. Note frontend's own span metrics are structurally absent [tr_a9a3db832182], so their continued absence is not evidence of failure.",
+    "risk": "If the diagnosis is wrong this buys a second outage interval for nothing: the container is recreated and in-process cache discarded. Changes #3 and #4 were truncated and never examined, so a blanket revert also moves settings nobody inspected. The DNS mechanism was inferred from the change record, never witnessed in traces or logs. Reversible, which is what keeps this above abstention at medium confidence.",
+    "blast_radius": "frontend directly; frontend-proxy (its inbound caller and the alerting service) and load-generator behind it see resets during the recreate."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Critical alert on frontend-proxy simultaneous with the load generator is not the isolated load-gen-only case, and it sits at the user-facing edge with frontend as a candidate cause. No open incidents to attribute it to, so it warrants investigation."
+  }
+}

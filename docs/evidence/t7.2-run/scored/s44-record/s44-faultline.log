@@ -1,0 +1,653 @@
+[10/03/26 18:07:31] INFO     all.sregym.profile - Deployment profile: full      
+[10/03/26 18:07:31] INFO     __main__ - 🔧 Config — agent: faultline,           
+                             agent_model: anthropic/claude-opus-5,              
+                             judge_backend: api, judge_model:                   
+                             anthropic/claude-sonnet-4-6, reasoning_effort:     
+                             agent default, jev_model: disabled,                
+                             deployment_profile: full, internet_access:         
+                             filtered, container_hardening: on, agent_api_base: 
+                             unset, judge_api_base: unset                       
+                    INFO     __main__ - 🔍 Running pre-flight check for judge   
+                             model...                                           
+🔧 Initializing LLM backend — model: anthropic/claude-sonnet-4-6, api_base: unset
+[10/03/26 18:07:32] INFO     __main__ - ✅ Judge pre-flight check passed        
+[10/03/26 18:07:32] INFO     all.sregym.container_runner - 🐳 Building container
+                             image 'sregym-agent-base:latest'...                
+==> Building sregym-agent-base:latest with kubectl v1.32.1
+#0 building with "default" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile
+#1 transferring dockerfile: 4.62kB done
+#1 DONE 0.0s
+
+#2 [internal] load metadata for docker.io/library/ubuntu:22.04
+#2 DONE 0.3s
+
+#3 [ 1/18] FROM docker.io/library/ubuntu:22.04@sha256:b1066385161d28ddf6bc7e7b28a9170eec11484c821d1a5150d176cbde41d7f7
+#3 resolve docker.io/library/ubuntu:22.04@sha256:b1066385161d28ddf6bc7e7b28a9170eec11484c821d1a5150d176cbde41d7f7 0.0s done
+#3 DONE 0.0s
+
+#4 [internal] load build context
+#4 transferring context: 7.17kB 0.0s done
+#4 DONE 0.0s
+
+#5 [12/18] COPY sregym/__init__.py sregym/paths.py /opt/sregym/sregym/
+#5 CACHED
+
+#6 [ 8/18] RUN python3 -m pip install --break-system-packages -r /tmp/requirements-container.txt
+#6 CACHED
+
+#7 [13/18] COPY sregym/service/__init__.py sregym/service/kubectl.py sregym/service/helm.py /opt/sregym/sregym/service/
+#7 CACHED
+
+#8 [11/18] COPY llm_backend/    /opt/sregym/llm_backend/
+#8 CACHED
+
+#9 [14/18] COPY sregym/service/apps/base.py sregym/service/apps/helpers.py /opt/sregym/sregym/service/apps/
+#9 CACHED
+
+#10 [17/18] RUN mkdir -p /logs
+#10 CACHED
+
+#11 [ 9/18] COPY clients/        /opt/sregym/clients/
+#11 CACHED
+
+#12 [ 7/18] COPY docker/agents/requirements-container.txt /tmp/requirements-container.txt
+#12 CACHED
+
+#13 [ 2/18] RUN apt-get update     && apt-get install -y --no-install-recommends         ca-certificates curl gnupg software-properties-common     && rm -rf /var/lib/apt/lists/*
+#13 CACHED
+
+#14 [ 5/18] RUN python3 -m ensurepip --upgrade     && python3 -m pip install --upgrade pip     && ln -sf /usr/bin/python3 /usr/bin/python
+#14 CACHED
+
+#15 [10/18] COPY logger/         /opt/sregym/logger/
+#15 CACHED
+
+#16 [15/18] COPY docker/agents/install-scripts/ /opt/sregym/install-scripts/
+#16 CACHED
+
+#17 [ 6/18] RUN KUBECTL_ARCH="amd64"     && case "${KUBECTL_ARCH}" in amd64|arm64) ;; *) echo "Unsupported kubectl architecture: ${KUBECTL_ARCH}" >&2; exit 1 ;; esac     && if [ "v1.32.1" = stable ]; then KUBECTL_VERSION="$(curl -fsSL https://dl.k8s.io/release/stable.txt)"; fi     && curl -fsSLo kubectl "https://dl.k8s.io/release/v1.32.1/bin/linux/${KUBECTL_ARCH}/kubectl"     && chmod +x kubectl && mv kubectl /usr/local/bin/
+#17 CACHED
+
+#18 [ 4/18] RUN apt-get update     && apt-get install -y --no-install-recommends         git wget jq         nodejs         python3.12 python3.12-venv python3.12-dev     && update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.12 1     && rm -rf /var/lib/apt/lists/*
+#18 CACHED
+
+#19 [16/18] RUN chmod +x /opt/sregym/install-scripts/*.sh
+#19 CACHED
+
+#20 [ 3/18] RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash -     && add-apt-repository ppa:deadsnakes/ppa
+#20 CACHED
+
+#21 [18/18] WORKDIR /logs
+#21 CACHED
+
+#22 exporting to image
+#22 exporting layers done
+#22 exporting manifest sha256:1b74a7bb405d43412a3e637b37638417323d4f1fc4a6a2d6aa94b992abf54a9c done
+#22 exporting config sha256:5d9ad739d727a05d459f4a31004b6c88d90d21f830069c2e903de96901537afc done
+#22 exporting attestation manifest sha256:f0a19c622964010ee7bc1a116057bd6852daf31e5c4720ab484d9f86adafac2f done
+#22 exporting manifest list sha256:ddd5d34b4df5654a1e14ec3b671361f0a12c7dbad6ddba061f45a753d337878e done
+#22 naming to docker.io/library/sregym-agent-base:latest done
+#22 unpacking to docker.io/library/sregym-agent-base:latest 0.0s done
+#22 DONE 0.1s
+[10/03/26 18:07:33] INFO     all.sregym.container_runner - ✅ Container image   
+                             'sregym-agent-base:latest' built successfully.     
+╭───────────────────────────── SREGym API Server ──────────────────────────────╮
+│  ____  ____  _____ ____                                                      │
+│ / ___||  _ \| ____/ ___|_   _ _ __ ___                                       │
+│ \___ \| |_) |  _|| |  _| | | | '_ ` _ \                                      │
+│  ___) |  _ <| |__| |_| | |_| | | | | | |                                     │
+│ |____/|_| \_\_____\____|\__, |_| |_| |_|                                     │
+│                         |___/                                                │
+│                                                                              │
+╰──────────────────────────── http://0.0.0.0:8000 ─────────────────────────────╯
+Available Endpoints                                                             
+
+ • POST /submit: { "stage": "diagnosis", "solution": "<your-solution>" } →      
+   grades the named stage                                                       
+ • GET /status: returns { "stage": "setup" | "diagnosis" | "mitigation" |       
+   "tearing_down" | "done" }                                                    
+/home/deploy/t7.2-1c/SREGym/.venv/lib/python3.12/site-packages/websockets/legacy/__init__.py:6: DeprecationWarning: websockets.legacy is deprecated; see https://websockets.readthedocs.io/en/stable/howto/upgrade.html for upgrade instructions
+  warnings.warn(  # deprecated in 14.0 - 2024-11-09
+/home/deploy/t7.2-1c/SREGym/.venv/lib/python3.12/site-packages/uvicorn/protocols/websockets/websockets_impl.py:17: DeprecationWarning: websockets.server.WebSocketServerProtocol is deprecated
+  from websockets.server import WebSocketServerProtocol
+[10/03/26 18:07:33] INFO     uvicorn.error - Started server process [422449]    
+                    INFO     uvicorn.error - Waiting for application startup.   
+                    INFO     uvicorn.error - Application startup complete.      
+                    INFO     uvicorn.error - Uvicorn running on                 
+                             http://0.0.0.0:8000 (Press CTRL+C to quit)         
+[18:07:34] Starting agent now: faultline                             main.py:255
+           🔒 Starting Kubernetes API proxy to hide chaos            main.py:259
+           namespaces...                                                        
+[10/03/26 18:07:34] INFO     all.sregym.conductor - Starting Kubernetes API     
+                             filtering proxy...                                 
+                    INFO     all.infra.k8s_proxy - Kubernetes API filtering     
+                             proxy started on 172.17.0.1:16443                  
+                    INFO     all.infra.k8s_proxy - Hidden namespaces: {'khaos', 
+                             'chaos-mesh'}                                      
+                    INFO     all.infra.k8s_proxy - Hidden labels: {'app':       
+                             {'load-generator', 'locust-fetcher'}, 'job':       
+                             {'workload'}, 'opentelemetry.io/name':             
+                             {'load-generator'}}                                
+                    INFO     all.infra.k8s_proxy - Generated agent kubeconfig at
+                             /tmp/sregym-agent-kubeconfig-rzg4v18v.yaml         
+                    INFO     all.sregym.conductor - Agent kubeconfig generated  
+                             at: /tmp/sregym-agent-kubeconfig-rzg4v18v.yaml     
+           🎯 Running single problem: kafka_poison_pill_hol_block    main.py:300
+                                                                     main.py:378
+           🔍 Starting problem: kafka_poison_pill_hol_block (Attempt            
+           1 of 1)                                                              
+                    INFO     all.application - Namespace astronomy-shop not     
+                             found. Creating namespace.                         
+                    INFO     all.application - Namespace astronomy-shop created 
+                             successfully: namespace/astronomy-shop created     
+                                                                                
+                    INFO     all.sregym.conductor - [Session Start] Problem ID: 
+                             kafka_poison_pill_hol_block                        
+                    INFO     all.sregym.conductor - [STAGE] Start testing on    
+                             problem: kafka_poison_pill_hol_block               
+                    INFO     all.sregym.conductor - Fixing Kubernetes... to     
+                             normal state.                                      
+                    INFO     all.sregym.conductor - [FIX] Imbalance leftover if 
+                             any                                                
+                    INFO     all.sregym.conductor - [FIX] KubeletCrash leftover 
+                             if any                                             
+Starting kubelet in kind-worker...
+Kubelet started in kind-worker
+Starting kubelet in kind-worker2...
+Kubelet started in kind-worker2
+Starting kubelet in kind-worker3...
+Kubelet started in kind-worker3
+Waiting for worker nodes {'kind-worker', 'kind-worker3', 'kind-worker2'} to become Ready...
+All worker nodes are Ready.
+[10/03/26 18:07:35] INFO     all.sregym.conductor - [FIX]                       
+                             KubeletEvictionThresholdMisconfig leftover if any  
+Recovering disk pressure in kind-worker...
+Waiting for node kind-worker to become Ready...
+Node kind-worker is Ready.
+Recovering disk pressure in kind-worker2...
+Waiting for node kind-worker2 to become Ready...
+Node kind-worker2 is Ready.
+Recovering disk pressure in kind-worker3...
+Waiting for node kind-worker3 to become Ready...
+Node kind-worker3 is Ready.
+[10/03/26 18:07:36] INFO     all.sregym.conductor - [FIX] Calico                
+                             IPPool/strictAffinity leftover if any              
+                    INFO     all.sregym.conductor - [FIX] Calico route-reflector
+                             label drift leftovers if any                       
+[10/03/26 18:07:37] INFO     all.sregym.conductor - [FIX] Stale CoreDNS NXDOMAIN
+                             templates if any                                   
+No NXDOMAIN templates found in CoreDNS config; nothing to do
+                    INFO     all.sregym.conductor - [FIX] Leftover dm-flakey    
+                             infrastructure if any                              
+[dm-flakey] ⚠️ Could not remove dm-flakey on kind-control-plane (may not exist): No running Khaos pod found on node kind-control-plane
+[dm-flakey] ⚠️ Could not remove dm-flakey on kind-worker (may not exist): No running Khaos pod found on node kind-worker
+[dm-flakey] ⚠️ Could not remove dm-flakey on kind-worker2 (may not exist): No running Khaos pod found on node kind-worker2
+[dm-flakey] ⚠️ Could not remove dm-flakey on kind-worker3 (may not exist): No running Khaos pod found on node kind-worker3
+                    INFO     all.sregym.conductor - [FIX] NightlyRebalanceOOM   
+                             kube-system actor leftover if any                  
+                    INFO     all.sregym.conductor - [FIX] Clock drift leftover  
+                             if any                                             
+No leftover node-probe pods found; nothing to do
+                    INFO     all.sregym.conductor - Fix Kubernetes completed.   
+                    INFO     all.sregym.conductor - Stages requested for this   
+                             run: ['diagnosis']                                 
+                    INFO     all.sregym.conductor - Undeploying app leftovers...
+                    INFO     all.infra.helm - Helm Uninstall: astronomy-shop in 
+                             namespace astronomy-shop                           
+[18:07:38] Waiting for namespace deletion...                      kubectl.py:341
+[18:07:44] Namespace 'astronomy-shop' has been deleted.           kubectl.py:349
+[10/03/26 18:07:44] INFO     all.infra.kubectl - Namespace 'astronomy-shop'     
+                             deleted successfully.                              
+                    INFO     all.sregym.conductor - App leftovers undeployed.   
+                    INFO     all.sregym.conductor - Deploying app...            
+                    INFO     all.infra.cluster_state - Baseline state loaded    
+                             from                                               
+                             /home/deploy/cache_dir/cluster_baseline_state.json 
+                    INFO     all.sregym.conductor - [DEPLOY] Loaded persisted   
+                             cluster baseline state                             
+                    INFO     all.sregym.conductor - [DEPLOY] Setting up         
+                             metrics-server…                                    
+                    INFO     all.sregym.conductor - [DEPLOY] metrics-server     
+                             already present and patched; skipping re-apply     
+           Waiting for all pods in namespace 'kube-system' to be  kubectl.py:204
+           ready...                                                             
+           All pods in namespace 'kube-system' are ready.         kubectl.py:245
+                    INFO     all.sregym.conductor - [DEPLOY] Setting up OpenEBS…
+                    INFO     all.sregym.conductor - [DEPLOY] OpenEBS already    
+                             deployed; skipping operator re-apply               
+           Waiting for all pods in namespace 'openebs' to be      kubectl.py:204
+           ready...                                                             
+           All pods in namespace 'openebs' are ready.             kubectl.py:245
+                    INFO     all.sregym.conductor - [DEPLOY] Ensuring OpenEBS   
+                             LocalPV-Device StorageClass…                       
+                    INFO     all.sregym.conductor - [DEPLOY]                    
+                             StorageClass/openebs-device already exists; leaving
+                             it unchanged                                       
+                    INFO     all.sregym.conductor - [DEPLOY] Deploying          
+                             Prometheus…                                        
+[10/03/26 18:07:45] INFO     all.infra.helm - Helm Uninstall: prometheus in     
+                             namespace observe                                  
+                    INFO     all.infra.helm - Helm Install: prometheus in       
+                             namespace observe                                  
+[18:07:46] Waiting for all pods in namespace 'observe' to be      kubectl.py:204
+           ready...                                                             
+[18:08:23] All pods in namespace 'observe' are ready.             kubectl.py:245
+[10/03/26 18:08:23] INFO     all.sregym.conductor - [DEPLOY] Deploying Jaeger…  
+                    INFO     all.sregym.jaeger - Jaeger deployed successfully.  
+                    INFO     all.sregym.conductor - [DEPLOY] Deploying OTel     
+                             Collector…                                         
+[10/03/26 18:08:27] INFO     all.sregym.otel_collector - OTel Collector deployed
+                             successfully.                                      
+                    INFO     all.sregym.conductor - [DEPLOY] Deploying Loki…    
+                    INFO     all.infra.helm - Helm Uninstall: loki in namespace 
+                             observe                                            
+                    INFO     all.infra.loki - Adding Grafana Helm repository... 
+[10/03/26 18:08:28] INFO     all.infra.helm - Helm Install: loki in namespace   
+                             observe                                            
+[18:08:29] Waiting for all pods in namespace 'observe' to be      kubectl.py:204
+           ready...                                                             
+[18:09:20] All pods in namespace 'observe' are ready.             kubectl.py:245
+[10/03/26 18:09:20] INFO     all.infra.loki - Deploying Promtail for Loki log   
+                             collection...                                      
+                    INFO     all.infra.helm - Helm Install: promtail in         
+                             namespace observe                                  
+[10/03/26 18:09:21] WARNING  all.infra.helm - Helm install stderr output:       
+                             level=WARN msg="this chart is deprecated"          
+[18:09:21] Waiting for all pods in namespace 'observe' to be      kubectl.py:204
+           ready...                                                             
+[18:09:36] All pods in namespace 'observe' are ready.             kubectl.py:245
+[10/03/26 18:09:36] INFO     all.sregym.conductor - [DEPLOY] Deploying MCP      
+                             server…                                            
+                    INFO     all.sregym.mcp_server - MCP server RBAC resources  
+                             ensured.                                           
+                    INFO     all.sregym.mcp_server - MCP server already running,
+                             skipping redeploy.                                 
+                    INFO     all.sregym.mcp_server - Port-forward is absent or  
+                             stale, restarting.                                 
+[10/03/26 18:09:39] INFO     all.sregym.mcp_server - Port forwarding established
+                             at 9954. MCP_SERVER_PORT set.                      
+                    INFO     all.sregym.conductor - [ENV] Set up necessary      
+                             components: metrics-server, Khaos, OpenEBS,        
+                             Prometheus, Jaeger, Loki                           
+                    INFO     all.sregym.conductor - [DEPLOY] Deploying and      
+                             starting workload                                  
+                    INFO     all.infra.kubectl - Namespace 'astronomy-shop' not 
+                             found. Creating namespace.                         
+                    INFO     all.infra.kubectl - Namespace 'astronomy-shop'     
+                             created successfully.                              
+                    INFO     all.infra.helm - Helm Repo Add: open-telemetry with
+                             url                                                
+                             https://open-telemetry.github.io/opentelemetry-helm
+                             -charts                                            
+                    INFO     all.infra.helm - Helm repo open-telemetry added    
+                             successfully: "open-telemetry" already exists with 
+                             the same configuration, skipping                   
+                    INFO     all.infra.helm - Helm Repo Add: jaegertracing with 
+                             url https://jaegertracing.github.io/helm-charts    
+[10/03/26 18:09:40] INFO     all.infra.helm - Helm repo jaegertracing added     
+                             successfully: "jaegertracing" already exists with  
+                             the same configuration, skipping                   
+                    INFO     all.infra.helm - Helm Repo Add:                    
+                             prometheus-community with url                      
+                             https://prometheus-community.github.io/helm-charts 
+                    INFO     all.infra.helm - Helm repo prometheus-community    
+                             added successfully: "prometheus-community" already 
+                             exists with the same configuration, skipping       
+                    INFO     all.infra.helm - Helm Repo Add: grafana with url   
+                             https://grafana.github.io/helm-charts              
+                    INFO     all.infra.helm - Helm repo grafana added           
+                             successfully: "grafana" already exists with the    
+                             same configuration, skipping                       
+                    INFO     all.infra.helm - Helm Repo Add: opensearch with url
+                             https://opensearch-project.github.io/helm-charts/  
+                    INFO     all.infra.helm - Helm repo opensearch added        
+                             successfully: "opensearch" already exists with the 
+                             same configuration, skipping                       
+                    INFO     all.infra.helm - Helm Install: astronomy-shop in   
+                             namespace astronomy-shop                           
+[18:09:42] Waiting for all pods in namespace 'astronomy-shop' to  kubectl.py:204
+           be ready...                                                          
+[18:10:23] All pods in namespace 'astronomy-shop' are ready.      kubectl.py:245
+[10/03/26 18:10:23] INFO     all.sregym.conductor - [ENV] Deploy application:   
+                             OpenTelemetry Demo Astronomy Shop                  
+[10/03/26 18:10:24] INFO     all.sregym.jaeger - Created ExternalName service   
+                             'jaeger' in namespace 'astronomy-shop' ->          
+                             otel-collector.observe.svc.cluster.local           
+                    INFO     all.sregym.jaeger - Created ExternalName service   
+                             'jaeger-agent' in namespace 'astronomy-shop' ->    
+                             otel-collector.observe.svc.cluster.local           
+                    INFO     all.sregym.jaeger - Created ExternalName service   
+                             'jaeger-collector' in namespace 'astronomy-shop' ->
+                             otel-collector.observe.svc.cluster.local           
+                    INFO     all.sregym.jaeger - Created ExternalName service   
+                             'jaeger-query' in namespace 'astronomy-shop' ->    
+                             otel-collector.observe.svc.cluster.local           
+                    INFO     all.sregym.jaeger - Restarted otel-collector-agent 
+                             DaemonSet in namespace 'astronomy-shop'            
+                    INFO     all.infra.workload - Start Workload with Locust    
+                    INFO     all.infra.workload - AstronomyShop has a built-in  
+                             load generator.                                    
+                    INFO     all.infra.workload - Creating locust-fetcher pod...
+Waiting for locust-fetcher pod to be created...
+Pod locust-fetcher created.
+[10/03/26 18:10:30] INFO     all.sregym.conductor - [ENV] Start workload        
+                    INFO     all.sregym.conductor - App deployed.               
+== Fault Injection: Kafka poison-pill HOL block ==
+                    INFO     all.sregym.inject_kafka - [Kafka pipeline] Removing
+                             any previous order-stream workloads                
+                    INFO     all.sregym.inject_kafka - [Kafka pipeline] Creating
+                             fresh topics and consumer position                 
+[10/03/26 18:10:35] ERROR    all.infra.kubectl - Command failed (exit 1):       
+                             kubectl exec -n astronomy-shop                     
+                             kafka-6fb5bb8f77-jsn9l -- env                      
+                             'KAFKA_HEAP_OPTS=-Xms32m -Xmx64m' KAFKA_OPTS=      
+                             /opt/kafka/bin/kafka-topics.sh --bootstrap-server  
+                             kafka:9092 --delete --topic orders-fulfillment &&  
+                             printf '\n__STREAM_ADMIN_OK__\n'                   
+                               stderr: [2026-10-03 18:10:35,606] ERROR          
+                             java.lang.IllegalArgumentException: Topic          
+                             'Optional[orders-fulfillment]' does not exist as   
+                             expected                                           
+                                     at                                         
+                             org.apache.kafka.tools.TopicCommand.ensureTopicExis
+                             ts(TopicCommand.java:218)                          
+                                     at                                         
+                             org.apache.kafka.tools.TopicCommand.access$700(Topi
+                             cCommand.java:81)                                  
+                                     at                                         
+                             org.apache.kafka.tools.TopicCommand$TopicService.de
+                             leteTopic(TopicCommand.java:656)                   
+                                     at                                         
+                             org.apache.kafka.tools.TopicCommand.execute(TopicCo
+                             mmand.java:113)                                    
+                                     at                                         
+                             org.apache.kafka.tools.TopicCommand.mainNoExit(Topi
+                             cCommand.java:90)                                  
+                                     at                                         
+                             org.apache.kafka.tools.TopicCommand.main(TopicComma
+                             nd.java:85)                                        
+                              (org.apache.kafka.tools.TopicCommand)             
+                             command terminated with exit code 1                
+[10/03/26 18:10:40] ERROR    all.infra.kubectl - Command failed (exit 1):       
+                             kubectl exec -n astronomy-shop                     
+                             kafka-6fb5bb8f77-jsn9l -- env                      
+                             'KAFKA_HEAP_OPTS=-Xms32m -Xmx64m' KAFKA_OPTS=      
+                             /opt/kafka/bin/kafka-topics.sh --bootstrap-server  
+                             kafka:9092 --delete --topic orders-processed &&    
+                             printf '\n__STREAM_ADMIN_OK__\n'                   
+                               stderr: [2026-10-03 18:10:40,249] ERROR          
+                             java.lang.IllegalArgumentException: Topic          
+                             'Optional[orders-processed]' does not exist as     
+                             expected                                           
+                                     at                                         
+                             org.apache.kafka.tools.TopicCommand.ensureTopicExis
+                             ts(TopicCommand.java:218)                          
+                                     at                                         
+                             org.apache.kafka.tools.TopicCommand.access$700(Topi
+                             cCommand.java:81)                                  
+                                     at                                         
+                             org.apache.kafka.tools.TopicCommand$TopicService.de
+                             leteTopic(TopicCommand.java:656)                   
+                                     at                                         
+                             org.apache.kafka.tools.TopicCommand.execute(TopicCo
+                             mmand.java:113)                                    
+                                     at                                         
+                             org.apache.kafka.tools.TopicCommand.mainNoExit(Topi
+                             cCommand.java:90)                                  
+                                     at                                         
+                             org.apache.kafka.tools.TopicCommand.main(TopicComma
+                             nd.java:85)                                        
+                              (org.apache.kafka.tools.TopicCommand)             
+                             command terminated with exit code 1                
+[10/03/26 18:10:46] INFO     all.sregym.inject_kafka - [Kafka pipeline] Applying
+                             ordinary producer and validator workloads          
+[10/03/26 18:10:51] INFO     all.sregym.inject_kafka - [Kafka pipeline]         
+                             Deployment 'order-stream' is ready                 
+[10/03/26 18:10:56] INFO     all.sregym.inject_kafka - [Kafka pipeline]         
+                             Deployment 'orders-validator' is ready             
+                    INFO     all.sregym.inject_kafka - [Kafka pipeline]         
+                             Validator is paused at source offset 20            
+Poison record at offset 20 of topic 'orders-fulfillment'; consumer group 'orders-validator' will stall there.
+                    INFO     all.sregym.conductor - [ENV] Injected fault        
+                    INFO     all.sregym.conductor - [STAGE] Go to stage         
+                             diagnosis                                          
+                    INFO     all.sregym.conductor - ✅ Deployment complete.     
+                             Ready for submission. Current stage is: diagnosis  
+[10/03/26 18:10:58] INFO     all.sregym.container_runner - Starting             
+                             containerized agent [faultline-run]:               
+                             /opt/sregym/install-scripts/install-faultline.sh   
+                             2>&1 | tee /logs/install.log; I...                 
+[2026-10-03T18:10:58+00:00] Installing Faultline from http://host.docker.internal:55480/faultline-src.tar.gz
+9141dfe48a1a044e2bc84f6a39efd1d67d796838d83afa5c6432197e1bf8c674  /tmp/faultline-src.tar.gz
+WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.
+[2026-10-03T18:11:57+00:00] Faultline installed: /opt/faultline/src/faultline/__init__.py
+[10/03/26 18:11:58] INFO     uvicorn.access - 172.17.0.3:51204 - "GET /status   
+                             HTTP/1.1" 200                                      
+                    INFO     uvicorn.access - 172.17.0.3:51220 - "GET /get_app  
+                             HTTP/1.1" 200                                      
+[10/03/26 18:13:05] INFO     uvicorn.access - 172.17.0.3:53802 - "POST /submit  
+                             HTTP/1.1" 200                                      
+[10/03/26 18:13:05] INFO     all.sregym.conductor - Evaluating stage 'diagnosis'
+{"started_at": "2026-10-03T18:11:58.347138+00:00", "app_name": "OpenTelemetry Demo Astronomy Shop", "namespace": "astronomy-shop", "application": "sregym-astronomy-shop", "evaluations": 2, "fallback": false, "episodes": [{"alertname": "ServiceHighErrorRate", "service": "load-generator", "severity": "critical"}], "opening_errors": [], "incident_id": "7c8e995e-2765-43d3-ba38-f8f88d2099e9", "investigate_exit": 5, "trajectory_id": "", "verdict": false, "evidence_cited": 0, "submitted": {"status": "200", "message": "Submission received", "stage": "diagnosis"}, "error": "", "ended_at": "2026-10-03T18:13:05.456237+00:00"}
+                    INFO     all.sregym.conductor - Start Eval for Diagnosis    
+== LLM-as-a-Judge Evaluation ==
+🔧 Initializing LLM backend — model: anthropic/claude-sonnet-4-6, api_base: unset
+[18:13:08] ⚠️  Agent process exited with return code 1                main.py:582
+           ⏳ Waiting for conductor evaluation to complete...        main.py:586
+❌ Incorrect diagnosis: False (score: 11.0/100)
+   Expected: [fault_spec] component=kafka topic/orders-fulfillment; namespace=astronomy-shop || An unprocessable ...
+   Got: Faultline reached no verdict.
+[10/03/26 18:13:14] INFO     all.sregym.conductor - [EVAL] Diagnosis Failed     
+                              TTL: 138.26967096328735                           
+                    INFO     all.sregym.conductor - [STAGE] Done, starting      
+                             teardown                                           
+                    INFO     all.sregym.conductor - [CLEANUP] Starting cleanup  
+                             (fault recovery, undeploy, reconcile)              
+                    INFO     all.sregym.conductor - [CLEANUP] Recovering        
+                             fault...                                           
+== Fault Recovery: Kafka poison-pill HOL block ==
+                    INFO     all.sregym.inject_kafka - [Kafka pipeline]         
+                             Recovery: stopping the validator                   
+[18:13:14] 🧹 Running conductor cleanup after agent exit...          main.py:615
+[10/03/26 18:13:21] INFO     all.sregym.inject_kafka - [Kafka pipeline] Consumer
+                             group advanced to offset 21                        
+[10/03/26 18:13:26] INFO     all.sregym.inject_kafka - [Kafka pipeline]         
+                             Deployment 'orders-validator' is ready             
+                    INFO     all.sregym.conductor - [CLEANUP] Fault recovered   
+                    INFO     all.sregym.conductor - [CLEANUP] Undeploying app...
+                    INFO     all.infra.helm - Helm Uninstall: astronomy-shop in 
+                             namespace astronomy-shop                           
+[10/03/26 18:13:27] WARNING  all.infra.helm - Helm uninstall stderr output:     
+                             level=WARN msg="skipping delete of resource not    
+                             owned by this release" kind=Service name=jaeger    
+                             namespace=astronomy-shop release=astronomy-shop    
+[18:13:27] Waiting for namespace deletion...                      kubectl.py:341
+[18:14:11] Namespace 'astronomy-shop' has been deleted.           kubectl.py:349
+[10/03/26 18:14:11] INFO     all.infra.kubectl - Namespace 'astronomy-shop'     
+                             deleted successfully.                              
+                    INFO     all.sregym.conductor - [CLEANUP] App undeployed    
+                    INFO     all.sregym.conductor - [CLEANUP] Reconciling       
+                             cluster state to baseline...                       
+                    INFO     all.infra.cluster_state - Reconciling cluster to   
+                             baseline state...                                  
+                    INFO     all.infra.cluster_state - Deleting unexpected      
+                             namespace: observe                                 
+           Waiting for namespace deletion...                      kubectl.py:341
+[18:14:49] Namespace 'observe' has been deleted.                  kubectl.py:349
+[10/03/26 18:14:49] INFO     all.infra.kubectl - Namespace 'observe' deleted    
+                             successfully.                                      
+                    INFO     all.infra.cluster_state - Deleting unexpected      
+                             ClusterRole: promtail                              
+                    INFO     all.infra.cluster_state - Deleting unexpected      
+                             ClusterRole: loki-clusterrole                      
+                    INFO     all.infra.cluster_state - Deleting unexpected      
+                             ClusterRole: prometheus-server                     
+[10/03/26 18:14:50] INFO     all.infra.cluster_state - Deleting unexpected      
+                             ClusterRole: mcp-server                            
+                    INFO     all.infra.cluster_state - Deleting unexpected      
+                             ClusterRole: prometheus-kube-state-metrics         
+                    INFO     all.infra.cluster_state - Deleting unexpected      
+                             ClusterRoleBinding: promtail                       
+                    INFO     all.infra.cluster_state - Deleting unexpected      
+                             ClusterRoleBinding: prometheus-server              
+                    INFO     all.infra.cluster_state - Deleting unexpected      
+                             ClusterRoleBinding: mcp-server                     
+                    INFO     all.infra.cluster_state - Deleting unexpected      
+                             ClusterRoleBinding: prometheus-kube-state-metrics  
+                    INFO     all.infra.cluster_state - Deleting unexpected      
+                             ClusterRoleBinding: loki-clusterrolebinding        
+                    INFO     all.infra.kubectl - [gc_localpv] Sweeping          
+                             /var/openebs/local on 4 node(s) (preserving 0 live 
+                             PV dir(s))                                         
+[10/03/26 18:15:06] INFO     all.infra.cluster_state - Reconciliation complete: 
+                             {'namespaces_deleted': ['observe'],                
+                             'cluster_roles_deleted': ['promtail',              
+                             'loki-clusterrole', 'prometheus-server',           
+                             'mcp-server', 'prometheus-kube-state-metrics'],    
+                             'cluster_role_bindings_deleted': ['promtail',      
+                             'prometheus-server', 'mcp-server',                 
+                             'prometheus-kube-state-metrics',                   
+                             'loki-clusterrolebinding'],                        
+                             'persistent_volumes_deleted': [],                  
+                             'storage_classes_deleted': [], 'crds_deleted': [], 
+                             'validating_webhook_configs_deleted': [],          
+                             'mutating_webhook_configs_deleted': [],            
+                             'nodes_labels_reset': [], 'nodes_taints_reset': [],
+                             'coredns_reset': False}                            
+                    INFO     all.sregym.conductor - Cluster state reconciliation
+                             changes: {'namespaces_deleted': ['observe'],       
+                             'cluster_roles_deleted': ['promtail',              
+                             'loki-clusterrole', 'prometheus-server',           
+                             'mcp-server', 'prometheus-kube-state-metrics'],    
+                             'cluster_role_bindings_deleted': ['promtail',      
+                             'prometheus-server', 'mcp-server',                 
+                             'prometheus-kube-state-metrics',                   
+                             'loki-clusterrolebinding'],                        
+                             'persistent_volumes_deleted': [],                  
+                             'storage_classes_deleted': [], 'crds_deleted': [], 
+                             'validating_webhook_configs_deleted': [],          
+                             'mutating_webhook_configs_deleted': [],            
+                             'nodes_labels_reset': [], 'nodes_taints_reset': [],
+                             'coredns_reset': False}                            
+                    INFO     all.sregym.conductor - [CLEANUP] Cluster state     
+                             reconciled                                         
+                    INFO     all.sregym.conductor - [CLEANUP] Cleanup complete, 
+                             stage set to 'done'                                
+                    INFO     all.sregym.conductor - [STAGE] Teardown complete   
+[18:15:06] ✅ Complete kafka_poison_pill_hol_block:                  main.py:655
+           results={'Diagnosis': {'judgment': 'False', 'reasoning':             
+           'Verdict: False (composite=0.11). D1 Fault Localization:             
+           0.00 | D2 Fault Characterization: 0.00 | D3 Scope                    
+           Precision: 0.33. Weakest dimension: Fault Localization               
+           (0.00). Checklist details: [{"id": "D1-Q1", "answer":                
+           "No", "evidence": "Agent diagnosis states \'Faultline                
+           reached no verdict\' \\u2014 no component is named.",                
+           "confidence": "High"}, {"id": "D1-Q2", "answer": "No",               
+           "evidence": "No verdict means no distinction between                 
+           fault origin and secondary failures was made.",                      
+           "confidence": "High"}, {"id": "D1-Q3", "answer": "No",               
+           "evidence": "With no verdict, the agent neither correctly            
+           nor incorrectly identifies a component; it fails to                  
+           identify any component at all.", "confidence": "High"},              
+           {"id": "D2-Q1", "answer": "No", "evidence": "Agent                   
+           diagnosis provides no fault mechanism; \'no verdict\'                
+           means nothing about a poison-pill record or                          
+           deserialization failure is stated.", "confidence":                   
+           "High"}, {"id": "D2-Q2", "answer": "No", "evidence": "No             
+           concrete details (topic name, consumer group, offset,                
+           record type) are mentioned in the diagnosis.",                       
+           "confidence": "High"}, {"id": "D2-Q3", "answer": "No",               
+           "evidence": "The agent attributes nothing, so it cannot              
+           avoid an incorrect fault type \\u2014 it simply provides             
+           no characterization at all.", "confidence": "High"},                 
+           {"id": "D3-Q1", "answer": "Yes", "evidence": "The agent              
+           names no components whatsoever, so it does not blame any             
+           uninvolved components.", "confidence": "Medium"}, {"id":             
+           "D3-Q2", "answer": "No", "evidence": "No components                  
+           (kafka topic, orders-validator, astronomy-shop namespace)            
+           are mentioned in the diagnosis.", "confidence": "High"},             
+           {"id": "D3-Q3", "answer": "No", "evidence": "No impact or            
+           symptom (offset freeze, partition lag, head-of-line                  
+           blocking) is described in the diagnosis.", "confidence":             
+           "High"}]', 'success': False, 'accuracy': 11.0,                       
+           'composite_score': 0.11, 'dimensions': {'D1': {'name':               
+           'Fault Localization', 'score': 0.0}, 'D2': {'name':                  
+           'Fault Characterization', 'score': 0.0}, 'D3': {'name':              
+           'Scope Precision', 'score': 0.33}}, 'checklist': [{'id':             
+           'D1-Q1', 'answer': 'No', 'evidence': "Agent diagnosis                
+           states 'Faultline reached no verdict' — no component is              
+           named.", 'confidence': 'High'}, {'id': 'D1-Q2', 'answer':            
+           'No', 'evidence': 'No verdict means no distinction                   
+           between fault origin and secondary failures was made.',              
+           'confidence': 'High'}, {'id': 'D1-Q3', 'answer': 'No',               
+           'evidence': 'With no verdict, the agent neither correctly            
+           nor incorrectly identifies a component; it fails to                  
+           identify any component at all.', 'confidence': 'High'},              
+           {'id': 'D2-Q1', 'answer': 'No', 'evidence': "Agent                   
+           diagnosis provides no fault mechanism; 'no verdict' means            
+           nothing about a poison-pill record or deserialization                
+           failure is stated.", 'confidence': 'High'}, {'id':                   
+           'D2-Q2', 'answer': 'No', 'evidence': 'No concrete details            
+           (topic name, consumer group, offset, record type) are                
+           mentioned in the diagnosis.', 'confidence': 'High'},                 
+           {'id': 'D2-Q3', 'answer': 'No', 'evidence': 'The agent               
+           attributes nothing, so it cannot avoid an incorrect fault            
+           type — it simply provides no characterization at all.',              
+           'confidence': 'High'}, {'id': 'D3-Q1', 'answer': 'Yes',              
+           'evidence': 'The agent names no components whatsoever, so            
+           it does not blame any uninvolved components.',                       
+           'confidence': 'Medium'}, {'id': 'D3-Q2', 'answer': 'No',             
+           'evidence': 'No components (kafka topic,                             
+           orders-validator, astronomy-shop namespace) are mentioned            
+           in the diagnosis.', 'confidence': 'High'}, {'id':                    
+           'D3-Q3', 'answer': 'No', 'evidence': 'No impact or                   
+           symptom (offset freeze, partition lag, head-of-line                  
+           blocking) is described in the diagnosis.', 'confidence':             
+           'High'}], 'submission': 'Faultline reached no verdict.'},            
+           'TTL': 138.27260541915894,                                           
+           'phase.fix_kubernetes.duration_s': 3.075,                            
+           'phase.undeploy_leftovers.duration_s': 6.106,                        
+           'phase.deploy.duration_s': 165.94,                                   
+           'phase.inject_fault.duration_s': 26.29,                              
+           'phase.stage:diagnosis.duration_s': 129.143,                         
+           'phase.stage:diagnosis.outcome': 'submitted',                        
+           'phase.evaluate:diagnosis.duration_s': 9.125,                        
+           'phase.cleanup.duration_s': 111.993, 'run_status':                   
+           'complete'}                                                          
+           ⏳ Waiting for agent process to complete...               main.py:661
+           ✅ Agent process completed with return code 1             main.py:667
+           🧹 Cleaned up agent process for faultline                 main.py:677
+[10/03/26 18:15:06] INFO     __main__ - ⏳ Attempt 1 of 1 for problem           
+                             kafka_poison_pill_hol_block complete - Intermediate
+                             results written to                                 
+                             _running_kafka_poison_pill_hol_block_faultline_resu
+                             lts.csv; artifacts published to                    
+                             results/1003_1807/faultline/kafka_poison_pill_hol_b
+                             lock/run_1                                         
+                    WARNING  sregym.traces.postprocess - No convertible session 
+                             in                                                 
+                             results/1003_1807/faultline/kafka_poison_pill_hol_b
+                             lock/run_1                                         
+                    WARNING  __main__ - ⚠️ ATIF trajectory conversion skipped for
+                             results/1003_1807/faultline/kafka_poison_pill_hol_b
+                             lock/run_1                                         
+                    INFO     __main__ - ✅ Problem kafka_poison_pill_hol_block  
+                             for agent faultline complete! Results written to   
+                             results/1003_1807/faultline/kafka_poison_pill_hol_b
+                             lock/kafka_poison_pill_hol_block_faultline_results.
+                             csv                                                
+  Benchmarking faultline — kafka_poison_pill_hol_block (attempt 1/1) ━━ 1… … 0:…
+           🔓 Stopping Kubernetes API proxy...                       main.py:787
+                    INFO     all.sregym.conductor - Stopping Kubernetes API     
+                             filtering proxy...                                 
+[10/03/26 18:15:07] INFO     all.infra.k8s_proxy - Kubernetes API filtering     
+                             proxy stopped                                      
+                    WARNING  all.sregym.conductor_api - Shutting down API       
+                             server...                                          
+[10/03/26 18:15:07] INFO     uvicorn.error - Shutting down                      
+                    INFO     uvicorn.error - Finished server process [422449]   
+                    INFO     __main__ - ✅ Benchmark complete! Results for      
+                             faultline written to                               
+                             results/1003_1807/faultline_ALL_results.csv        

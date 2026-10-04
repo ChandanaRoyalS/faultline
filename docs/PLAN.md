@@ -4617,6 +4617,35 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-10-04: T7.2 scored run - 66 of 66 attempts; Faultline 2 of 33, the baseline 30 of 33;
+triage's gate is the largest single cause.***
+
+- **The scores** ([RESULT](../evals/attempts/T7.2-run/RESULT.md)). They are a pass rate under
+  SREGym's LLM judge at 0.70, diagnosis only, per application:
+
+  | application | Faultline | Claude Code (Sonnet 4.6) |
+  |---|---|---|
+  | Astronomy Shop | 1 / 11 | 9 / 11 |
+  | Hotel Reservation | 1 / 11 | 10 / 11 |
+  | Social Network | 0 / 11 | 11 / 11 |
+
+  - **The paired difference over 33 is −84.8 points** (95 % −97.0 to −69.7), against an MDE of 24.
+  - Predictions: 2 and 5 held; 1, 4 and 6 wrong; 3 not testable at this n. Prediction 7 held on
+    cost and was wrong, faster, on time.
+- **The error taxonomy**: 24 of Faultline's 31 failures submitted no diagnosis.
+  - **Triage gated 20 incidents as noise.** On 14 of those 20, an alarm named the ground-truth
+    component, and the baseline passed 19 of the 20.
+  - Four verdicts established no cause. In two of them the CoreDNS fault broke the MCP servers' DNS.
+  - Seven verdicts were wrong. Three are pods that never ran, read from logs without object state.
+- **Architecture implications**, recorded and not acted on:
+  - the gate declines unrecoverably;
+  - there is no object-state reader;
+  - the topology holds only traced services;
+  - a failing tool is not evidence.
+- **Spend**: a tally of $47.04 of the $50 cap. The owner's console reading is the authority, and is
+  not yet recorded. No incident, no world restart, no key in any archive.
+- **Next**: T7.1's headline, registered at the owner's scale before it runs.
+
 ***2026-10-03: T7.2 run, Addendum 2 - how the scored run is operated.***
 
 - **66 slots in a fixed, seeded order**: the 33 problems shuffled, both arms back to back, the

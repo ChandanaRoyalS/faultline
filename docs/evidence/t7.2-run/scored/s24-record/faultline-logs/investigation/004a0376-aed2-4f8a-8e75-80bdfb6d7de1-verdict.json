@@ -1,0 +1,159 @@
+{
+  "incident_id": "004a0376-aed2-4f8a-8e75-80bdfb6d7de1",
+  "trajectory_id": "abb59156-6bc6-466b-a022-bfd794f83dd8",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "mongodb-rate"
+  ],
+  "unmeasured_edges": 0,
+  "exclude_origins": [],
+  "verdict": {
+    "root_cause": "mongodb-rate's pod was created fresh at ~15:01 by platform-automation and then terminated externally by SIGTERM (kill(2) from pid 0/uid 0) within seconds, twice: two clean WiredTiger startup cycles at 15:01:02 and 15:01:04 each ended in signal-handler-driven orderly shutdown, the last at 15:01:10 [tr_9948fd3a2026][tr_fcd9d6881852]. The service itself logged no errors and its storage engine opened, recovered and checkpointed cleanly, so neither corruption, disk, nor storage misconfiguration is the mechanism [tr_fcd9d6881852][tr_4d3c551d555b]. The change set is a first-time workload creation accompanied by a ConfigMap whose name indicates fault-injection/failure-administration intent, landing seconds before the container came up [tr_616998c15f26]. The best-supported reading is an injected/administered kill of the mongodb-rate process: the datastore is absent from the topology while its socket/endpoint churns, leaving callers in the hotel-reservation namespace without a rate datastore. With no metrics available for this service at all [tr_596c016954c3], the mechanism is the process being stopped/killed rather than any value being wrong.",
+    "service": "mongodb-rate",
+    "fault_class": "process_freeze",
+    "remediation_class": "restart",
+    "confidence": "low",
+    "evidence": [
+      "tr_9948fd3a2026",
+      "tr_fcd9d6881852",
+      "tr_616998c15f26",
+      "tr_4d3c551d555b",
+      "tr_596c016954c3"
+    ],
+    "reasoning": "Three independent log cuts agree the process was healthy at the storage layer and died to an external signal with no self-reported error, which excludes OOM/segfault (handled SIGTERM path), disk_fill and datastore_corruption (clean recovery, checkpoint, no space or parse errors), and bad_deploy (engine config byte-identical across both starts, first creation rather than a rolling update). The change log places an automation-authored fault-injection-named ConfigMap seconds before the container started, which is evidence for a deliberately induced stop of the process rather than a wrong configuration value doing work in the request path. Remediation is to bring the process back and keep it running (remove the injected kill and restart the workload).",
+    "open_questions": [
+      "Whether the SIGTERM came from the fault-injection ConfigMap, normal Kubernetes pod lifecycle/rescheduling during first creation, or a liveness-probe failure - no kubelet or pod-event evidence was gathered.",
+      "Whether mongodb-rate stayed down after 15:01:10 or recovered; the log window ends at 15:02:30 and no post-onset startup was observed.",
+      "Which callers (e.g. rate service) actually degraded, and whether they hung to deadline or failed fast - no upstream metrics or logs were dispatched.",
+      "What alert fired at 15:02:21 and on what signal, given Prometheus holds no series for this service [tr_596c016954c3]."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "The PVC rate-pvc was created and updated twice within seconds, and the resulting volume rebind forced the pod to be torn down and rescheduled repeatedly.",
+        "service": "mongodb-rate",
+        "fault_class": "bad_config",
+        "remediation_class": "config_revert",
+        "why_not": "Both engine opens succeeded against a mounted, readable data path with clean journal recovery, so no storage configuration value was actually wrong at the point of failure [tr_fcd9d6881852]."
+      },
+      {
+        "root_cause": "A lowered memory limit on the newly created workload caused the container runtime to terminate mongodb repeatedly.",
+        "service": "mongodb-rate",
+        "fault_class": "resource_exhaustion",
+        "remediation_class": "scale",
+        "why_not": "The teardown follows the handled SIGTERM path with a full ordered shutdown and only 3 in-flight operations interrupted; an OOM kill would be SIGKILL with no such sequence [tr_9948fd3a2026]."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "runbook:class-bad-config / What the change record holds: The variable and a timestamp, and **the new value only** - no change record in this world carries\na prior value, which `world-change-records-have-no-prior-value` sets out.\n\n**What the logs hold is not uniform, and this document had it wrong.** An earlier version said a\nservice po",
+    "cart-bad-image-tag / What was checked: **Error rate by service.** frontend, loadgenerator and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero. Read, wrongly, as evidence cart was\nhealthy.\n\n**loadgenerator.** Set aside. It is the synthetic client; its error rate restates what\nthe storefron",
+    "runbook:world-change-records-have-no-prior-value / What \"the declared definition\" means: The three hashed compose files with no generated override, rendered by compose itself, compared\nagainst one inspection of the running container. The fields compared differ by action: the image\nalone for `rollback_image`; environment, memory and CPU quota for `revert_config`; noth"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 20884,
+    "pulled_tokens": 5168,
+    "pull_rate": 0.1984,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 360,
+        "content_tokens": 362,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1419,
+        "content_tokens": 1422,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 6173,
+        "content_tokens": 6149,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 5884,
+        "content_tokens": 5886,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 7048,
+        "content_tokens": 7025,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_9948fd3a2026",
+      "tr_fcd9d6881852",
+      "tr_596c016954c3"
+    ],
+    "expected_effect": "No action taken, so nothing changes. A restart would only be verifiable if a post-restart mongod startup in Loki were NOT followed within ~10s by a SignalHandler shutdown - but we never saw whether mongodb-rate recovered after 15:01:10 (log window ends 15:02:30), and no metrics exist for this service, so the effect is currently unobservable.",
+    "confirm_within_seconds": 0,
+    "if_wrong": "If a Loki query past 15:02:30 shows mongodb-rate still absent or looping startup/SIGTERM, and a kubelet/pod-event check shows no external killer still active, then restart_service becomes justified and this abstention was too cautious. Conversely, if pod events name the fault-injection ConfigMap as the killer, a restart would be re-killed and the fix lies outside this system.",
+    "risk": "Abstaining leaves the rate datastore down if it never came back, so hotel-reservation callers keep failing. Restarting instead would risk recreating a container that the still-active external killer terminates again, masking the real cause and burning the one-shot (irreversible) restart while confidence is low.",
+    "blast_radius": "No one sees a change now. Any later restart touches mongodb-rate only, with callers in the hotel-reservation namespace (the rate service) seeing connection resets during recreate."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "low",
+    "reasoning": "A single warning on a datastore's rate metric is not clearly a benign latency blip, and a database-level anomaly can precede broader failure, so it is not safe to dismiss. No open incident matches and nothing in the signal points to a specific fault class yet."
+  }
+}

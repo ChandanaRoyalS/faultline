@@ -31,3 +31,10 @@ write LF. Re-run with the changed script, the output was byte-identical to the c
 |---|---|
 | `scored_queue.py.txt` | the attempt order: the 33 problems shuffled by `random.Random(20261004)`, two slots each, the first arm alternating by position |
 | `scored-queue.tsv` | its output: 66 slots, copied to the VM as `/tmp/scored-queue.tsv`. `pilot_vm.sh`'s `scored`, `batch`, `tally` and `status` stages run it |
+
+**The scored run, 2026-10-03.** Its records, results and analysis:
+
+| file | what it is |
+|---|---|
+| `analysis.py.txt` | the report's analysis: pass rates and bootstrap intervals, the paired difference, the predictions, the five categories, triage, the tools, cost and time. Standard library, fixed seed |
+| `scored/` | the run's evidence and the analysis' output, with its own [README](scored/README.md) |
