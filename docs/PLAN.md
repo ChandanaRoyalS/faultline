@@ -4617,6 +4617,22 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-10-04: T7.1's storm label - the last thing T7.1 owed, on 7 scenarios.***
+
+- **The rule** (ADR-0008's T7.1 addendum, `SPLIT-V2.md`): a scenario whose rehearsal pages ten or
+  more alerts is labelled `storm` on its record. It was written and never applied: no scenario
+  carried it, and the schema had no field for it.
+- **Built**: `Scenario.storm` (outside `scenario_fingerprint`, so no bundle moves) and
+  `STORM_ALERTS = 10`, counted as the distinct alerts in each bundle's `alerts_over_window` that
+  began before the revert. `tests/test_storm_label.py` recomputes the label from all 39 bundles.
+- **The 7**: `v2-product-catalog-partition` 17, `v2-product-catalog-freeze` 16, `v2-cart-freeze`
+  14, `v2-postgresql-catalog-corruption` 13, `v2-checkout-currency-misconfig` 12 (the one holdout),
+  `v2-frontend-cart-misconfig` 12, `v2-cart-bad-image-tag` 11. Counting the whole window instead
+  gives the same 7. The next largest are 9.
+- **T7.1 is now complete.** Its two standing deviations (five slots empty; `datastore_corruption`
+  and `disk_fill` without holdout) stay in `docs/DEVIATIONS.md`. Both stamps unchanged. $0.
+- **Next**: the trial's registration (about $13). Nothing is spent until the owner says so.
+
 ***2026-10-04: T7.3's build, part D2 - the corpus of record, pinned.***
 
 - **The owner's decision, 2026-10-04: the corpus as registered** (*"the repository's corpus, every
