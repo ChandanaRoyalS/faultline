@@ -151,10 +151,21 @@ def test_every_performable_remediation_class_is_banned() -> None:
     scenarios, so a named remediation is the fault class in another spelling and a transfer
     measurement over it would be measuring a lookup table."""
     from evalharness.baselines import CLASS_TO_REMEDIATION
+    from faultline.context.allowlist import ActionStatus, load_allowlist
 
     vocabulary = remediation_vocabulary()
+    # **Performable classes only, as the test's name says.** B0.4's table (2026-10-04) added the
+    # T7.0 classes' labels, and `restore_data`'s only action is unperformable, which the module's
+    # own rule leaves out of the ban (`remediation_vocabulary`: classes for performable entries).
+    performable = {
+        action.remediation_class
+        for action in load_allowlist().actions
+        if action.status is ActionStatus.AVAILABLE
+    }
 
     for fault_class, remediation in CLASS_TO_REMEDIATION.items():
+        if remediation not in performable:
+            continue
         assert remediation in vocabulary, (
             f"{remediation!r} names {fault_class!r} through a one-to-one mapping"
         )

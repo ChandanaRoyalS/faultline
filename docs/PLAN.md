@@ -4617,6 +4617,41 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-10-04: T7.3's build, part B - B0, B1 and B2 know the nine classes and name a culprit.***
+
+- **B1 and B2** (headline Addendum 1, item 6):
+  - their prompts carry the synthesizer's nine class definitions, and their schemas list nine;
+  - their verdicts now carry the `service` and `alternatives` they were always asked for and that
+    the artifact dropped. So the culprit axis gets a baseline column, and top-3 is no longer
+    B1's top-1 alone.
+  - New digests: B1 `aa84c9051695` (was `d26c8ccd8f57`), B2 `904de7de5fc5` (was
+    `6bafed783d03`).
+- **B0.4**:
+  - the fix table covers the nine, each row the label every v2 scenario of that class carries;
+  - the verdict carries B0's culprit;
+  - **the class rule is the plan's, unchanged**: on the five T7.0 classes, which write no change
+    record, it answers `dependency_latency`.
+- **Faultline's stamps unchanged**: `cap:91279a09`, `prompts:9ce16b66bbcc`.
+- **Next**: part C, T7.3's switches.
+
+***2026-10-04: T7.3's build, part A - the harness can run v2: the world check, the catalog, the
+freeze, the world's digests, and a gated run scored as a miss.***
+
+- **Built as registered** (headline Addendum 1, items 1-5):
+  - `scripts/world_check.py` is the Downloads check, plus Alertmanager (Q124) and quote's clock
+    (Q121), and it exits non-zero on a failure;
+  - `faultline-sweep --world v2` lists 29 dev and 39 with `--holdout`, and v1 is unchanged;
+  - the freeze reads v2 from `cart`;
+  - `compare` counts the catalog with its holdout, so v2's 39 switches the headline to holdout-only;
+  - `generations` pins `WORLD_V2` and its observability digest;
+  - every manifest records `world` (Q86);
+  - a `GATED` investigation is scored `gated` on every axis, never a discard.
+- **One defect found on the way**: `compare` had counted the catalog without its holdout since dev
+  sweep 12. That was harmless on v1, but on v2 it would have printed 29 and kept the holdout
+  headline off.
+- **Both stamps unchanged**: `cap:91279a09`, `prompts:9ce16b66bbcc`. Tests: `tests/test_headline_build.py`.
+- **Next**: part B, the baselines at nine classes with `service`.
+
 ***2026-10-04: T7.3's build registered - four world decisions, the shared v2 build, eight
 switches, and a decision point after the headline run.***
 

@@ -97,6 +97,16 @@ not which act caused it.
   wrong version, a build that cannot start.
 - `bad_config`: a configuration value is itself wrong - it names the wrong address, port,
   credential, limit or flag - and the wrongness of that value is the failure.
+- `feature_flag`: a runtime flag was flipped in the flag store and the flagged code path is what
+  fails - no artifact and no configuration file changed, so the change log is empty.
+- `process_freeze`: the service's process is stopped while its socket still accepts - callers
+  hang to their deadlines rather than fail, and the service writes nothing at all.
+- `network_partition`: the service is cut off from the network - callers hang exactly as for a
+  freeze, but the service is running and its own log complains that it cannot reach anything.
+- `datastore_corruption`: the service's store is reachable and healthy and its contents cannot be
+  read - parse or decode failures on read, with the connection itself fine.
+- `disk_fill`: the service's storage is full - writes fail with no space left, and a service that
+  cannot write its data halts or refuses rather than running slow.
 
 The service that alerts first is often the one that noticed rather than the one that broke.
 Errors propagate toward the caller.
@@ -114,7 +124,8 @@ guess presented as a guess.
 
 Reply with JSON only, matching this schema:
 {"root_cause": "<one sentence>", "service": "<the service you blame>", "fault_class":
- "resource_exhaustion|dependency_latency|bad_deploy|bad_config",
+ "resource_exhaustion|dependency_latency|bad_deploy|bad_config|feature_flag|process_freeze|
+  network_partition|datastore_corruption|disk_fill",
  "remediation_class": "<remediation class>", "confidence": "high|medium|low",
  "evidence": [], "reasoning": "<why>", "open_questions": ["<what you would need to look at>"],
  "alternatives": [{"root_cause": "<one sentence>", "service": "<service>",
@@ -308,6 +319,13 @@ def artifact(
         "verdict": {
             "fault_class": getattr(verdict, "fault_class", None),
             "remediation_class": getattr(verdict, "remediation_class", None),
+            # Carried, as B1's are: asked for and dropped until 2026-10-04 (the headline run's
+            # Addendum 1, item 6).
+            "service": getattr(verdict, "service", None),
+            "alternatives": [
+                a.model_dump() if hasattr(a, "model_dump") else a
+                for a in (getattr(verdict, "alternatives", None) or [])
+            ],
             "summary": getattr(verdict, "root_cause", "") or "",
             "confidence": getattr(verdict, "confidence", None),
             "evidence": [],

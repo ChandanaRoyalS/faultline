@@ -180,7 +180,26 @@ def tool_layer() -> dict[str, Any]:
     return {"git_sha": git("rev-parse", "HEAD"), "git_dirty": bool(git("status", "--porcelain"))}
 
 
-def world_state(reference_container: str = "cart-service") -> dict[str, Any]:
+REFERENCE_CONTAINER_BY_WORLD: dict[str, str] = {"v1": "cart-service", "v2": "cart"}
+"""The container whose image names the demo release a run or bundle was taken against. v2's names
+are the service names; asking v2's docker for `cart-service` returns nothing and records `None`.
+
+**Moved here from `rehearse` (the headline run's Addendum 1, item 3)**, because the freeze asked for
+`cart-service` on every world: on v2 that recorded `otel_demo_image_digest: None`, which
+`run.py` refuses, so every v2 run would have been refused before injecting. `rehearse` imports it
+from here, so the recorder and the freeze cannot name different containers."""
+
+
+def reference_container_for(world: str | None = None) -> str:
+    """The reference container for `world`, or for `FAULTLINE_TOOLS_WORLD` when not given."""
+    if world is None:
+        from faultline.tools.settings import ToolSettings
+
+        world = ToolSettings().world
+    return REFERENCE_CONTAINER_BY_WORLD[world]
+
+
+def world_state(reference_container: str | None = None) -> dict[str, Any]:
     """The world the experiment runs **in**, and the capability surface it runs **with** (T7.54).
 
     Two guards, kept separate on purpose. `capability.py` says so itself: `CAPABILITY_VERSION`
@@ -236,7 +255,9 @@ def world_state(reference_container: str = "cart-service") -> dict[str, Any]:
         "compose_digest": compose_digest(),
         "observability_digest": observability_digest(),
         "ffs_stub_source_digest": ffs_stub_source_digest(),
-        "otel_demo_image_digest": image_content_digest(reference_container),
+        "otel_demo_image_digest": image_content_digest(
+            reference_container or reference_container_for()
+        ),
         "capability_version": capability_version(),
         "host_platform": host_platform(),
         "host_overrides": host_overrides(),

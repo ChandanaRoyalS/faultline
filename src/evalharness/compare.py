@@ -199,6 +199,16 @@ CATALOG_HOLDOUT_THRESHOLD = 30
 """T1.6's switch: full-set with labeled split and explicit n below this, holdout-only above."""
 
 
+def catalog_size(world: str = "v1") -> int:
+    """**Every runnable scenario of the world's catalog, holdout included.** T1.6's threshold is
+    about the catalog, *"until the catalog reaches 30+"*, and the holdout is part of it. This
+    counted `len(runnable())`, which has excluded holdout since dev sweep 12, so it printed the dev
+    count as the catalog's size. On v1 that kept the policy where it was (13 against 30). On v2 it
+    would have printed 29 for a 39-scenario catalog, and so kept the holdout headline switched off
+    (the headline run's Addendum 1, item 4)."""
+    return len(runnable(holdout=True, world=world))
+
+
 def report(
     a: Arm,
     b: Arm,
@@ -284,7 +294,8 @@ def report(
             "figure here is a headline number.",
             "",
         ]
-    else:  # pragma: no cover - the catalog has never been this size
+    else:
+        # Reached by the v2 catalog (39 scenarios, 10 holdout): the headline run's Addendum 1.
         lines += [
             f"**Split policy (T1.6).** The catalog is {catalog_size} scenarios, at or above the "
             "threshold, so the holdout figures are the headline and the dev figures are "
@@ -447,6 +458,12 @@ def main(argv: list[str] | None = None) -> int:  # pragma: no cover - console en
     # headline policy has switched to holdout-only, so a stale constant here is a stale policy
     # claim in the report - `sweep.runnable()` is the same list a sweep would actually run.
     parser.add_argument("--catalog-size", type=int, default=None)
+    parser.add_argument(
+        "--world",
+        choices=("v1", "v2"),
+        default="v1",
+        help="which catalog's size decides T1.6's split policy (default: %(default)s)",
+    )
     parser.add_argument("--out", type=Path, default=Path("evals/reports"))
     parser.add_argument("--postgres-dsn", default=None)
     args = parser.parse_args(argv)
@@ -515,7 +532,7 @@ def main(argv: list[str] | None = None) -> int:  # pragma: no cover - console en
             report(
                 left,
                 right,
-                catalog_size=args.catalog_size or len(runnable()),
+                catalog_size=args.catalog_size or catalog_size(args.world),
                 baselines=loaded_baselines,
                 baseline_reasons=BASELINE_REASONS,
             )
