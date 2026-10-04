@@ -58,6 +58,23 @@ representation comes from those rows and is recorded on each scenario as a measu
 its page (`storm: true` where the rehearsal's alert count is ten or more), not allocated as a kind
 of its own. A row for storms would double-count the hang classes.
 
+**Labelled 2026-10-04: 7 of the 39 valid scenarios**, counted off each bundle as the alerts that
+began before the revert (`tests/test_storm_label.py` recomputes every one):
+
+| scenario | split | alerts before the revert |
+|---|---|---|
+| `v2-product-catalog-partition` | dev | 17 |
+| `v2-product-catalog-freeze` | dev | 16 |
+| `v2-cart-freeze` | dev | 14 |
+| `v2-postgresql-catalog-corruption` | dev | 13 |
+| `v2-checkout-currency-misconfig` | holdout | 12 |
+| `v2-frontend-cart-misconfig` | dev | 12 |
+| `v2-cart-bad-image-tag` | dev | 11 |
+
+The next largest pages are 9 (`v2-currency-freeze`, `v2-shipping-quote-misconfig`). The disk fill
+pages 5 on its recording, so the "six" above was the rehearsal's count across producer and
+consumers, not the bundle's; it is not a storm by the rule.
+
 ### Per-row holdout, stated
 
 `round(0.3 × 6) = 2`; `round(0.3 × 4) = 1`. Twelve holdout of forty-four is 27 %, under the

@@ -12,6 +12,11 @@ from pathlib import Path
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+STORM_ALERTS = 10
+"""ADR-0008's T7.1 addendum: *"A scenario whose rehearsal pages ten or more alerts is labeled
+`storm` on its record."* Counted as the distinct (alert, service) pairs in the bundle's
+`alerts_over_window` that began before the revert; the ones that began after it are recovery."""
+
 
 class FaultClass(StrEnum):
     """Fault classes the injector supports: T1.4's four, and the five T7.0 measured.
@@ -266,6 +271,14 @@ class Scenario(BaseModel):
 
     payload: Payload | None = None
     """`kind: injection` only. See `Payload`."""
+
+    storm: bool = False
+    """**A measured label, not a kind** (ADR-0008's T7.1 addendum; `SPLIT-V2.md`, *Storm cases are
+    not a row*): true where the recorded rehearsal paged `STORM_ALERTS` or more alerts before the
+    revert, counted off the bundle's `alerts_over_window`. Set on the YAML so the record carries
+    it, and recomputed from every bundle by `tests/test_storm_label.py`, so it cannot drift from
+    the measurement. **Outside `scenario_fingerprint`**, like `slot` and `world`: it describes
+    what a recording showed, and moves no bundle."""
 
     @model_validator(mode="after")
     def _injection_kind_carries_its_payload(self) -> Scenario:
