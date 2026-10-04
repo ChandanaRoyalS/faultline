@@ -135,3 +135,23 @@ does not run in T7.3 until the fix is shown on one more trial slot.
   [`QUEUE-trial-headline-v2.tsv`](QUEUE-trial-headline-v2.tsv) (seed 20261004) and
   [`QUEUE-trial-t73-v2.tsv`](QUEUE-trial-t73-v2.tsv) (seed 20261007, E7's commit in its header).
   `tests/test_batch.py` holds each equal to what its seed prints.
+
+## Addendum 2 - the first attempt ran nothing, and what it found (2026-10-04)
+
+**No slot reached injection and no model call was billed**: every pre-flight failed on a missing
+key, so the runner's $0.01 is its estimate for probes that never billed. Log:
+[`docs/evidence/t7.3/trial/2026-10-04-attempt-1.log`](../../docs/evidence/t7.3/trial/2026-10-04-attempt-1.log).
+
+| what refused | why | fixed by |
+|---|---|---|
+| the pre-flight, 62 times | `faultline-eval` reads `ANTHROPIC_API_KEY` only; the owner's key is in `~/.faultline-anthropic-key`, which only `make demo` read | the runner passes the file's key to every slot, never printing it, and refuses to start with no key |
+| the runner, for 90 minutes | it retried each slot six times and went on to the next, through all twelve | a slot refused on every attempt stops the batch, as the sweep's `standing_refusal` does |
+| the world lock, once | `make check` run beside the batch: `tests/test_rehearse.py` took the real lock | `tests/conftest.py` gives every test its own lock; a held lock is retried, not discarded |
+| the gate, 24 times | **kafka serving no traffic**, then latency alerts on load-generator, frontend-proxy and checkout | **a world fault, not the harness's**: diagnosed read-only before anything is changed |
+
+- **The dry run is now read-only**: it reports the world check and does not restart quote. The
+  first dry run had restarted it.
+- **Nothing in the frozen setup moved**: no stamp, digest, corpus, queue or stop. The queues run
+  from slot 1 again under the same labels. Each refused attempt left a run directory recording its
+  refusal; none carries the batch's label (a refusal comes before the label is written), so no
+  tally or analysis reads them.
