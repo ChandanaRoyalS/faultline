@@ -1,0 +1,57 @@
+"""Read-only: why does the gate see kafka serving no traffic? (stdlib only; changes nothing)"""
+
+import json
+import subprocess
+import time
+import urllib.parse
+import urllib.request
+
+PROM = "http://localhost:9090"
+
+
+def prom_range(query, hours=12, step=1800):
+    now = time.time()
+    params = {"query": query, "start": str(int(now - hours * 3600)), "end": str(int(now)),
+              "step": str(step)}
+    url = PROM + "/api/v1/query_range?" + urllib.parse.urlencode(params)
+    with urllib.request.urlopen(url, timeout=30) as r:
+        return json.load(r)["data"]["result"]
+
+
+def prom(query):
+    url = PROM + "/api/v1/query?" + urllib.parse.urlencode({"query": query})
+    with urllib.request.urlopen(url, timeout=30) as r:
+        return json.load(r)["data"]["result"]
+
+
+def sh(*cmd):
+    done = subprocess.run(cmd, capture_output=True, text=True)
+    return (done.stdout + done.stderr).strip()
+
+
+print("--- containers")
+for name in ("kafka", "checkout", "accounting", "fraud-detection", "quote", "frontend-proxy"):
+    print(name, sh("docker", "inspect", "-f",
+                   "{{.State.Status}} restarts={{.RestartCount}} started={{.State.StartedAt}}",
+                   name))
+
+print("\n--- span calls per second, last 12 h at 30-min steps")
+for service in ("kafka", "checkout", "accounting", "fraud-detection"):
+    rows = prom_range(f'sum(rate(traces_span_metrics_calls_total{{service_name="{service}"}}[5m]))')
+    values = rows[0]["values"] if rows else []
+    line = " ".join(f"{time.strftime('%H:%M', time.localtime(float(t)))}={float(v):.2f}"
+                    for t, v in values)
+    print(f"{service:16s} {line or 'no series'}")
+
+print("\n--- firing now")
+for a in prom('ALERTS{alertstate="firing"}'):
+    m = a["metric"]
+    print(m.get("alertname"), m.get("service_name", m.get("service")))
+
+print("\n--- kafka's log, last 25 lines")
+print(sh("docker", "logs", "--tail", "25", "kafka"))
+print("\n--- checkout's log, last 15 lines")
+print(sh("docker", "logs", "--tail", "15", "checkout"))
+print("\n--- kafka consumer groups")
+print(sh("docker", "exec", "kafka", "/opt/kafka/bin/kafka-consumer-groups.sh",
+         "--bootstrap-server", "localhost:9092", "--describe", "--all-groups"))

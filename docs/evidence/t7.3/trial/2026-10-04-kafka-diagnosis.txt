@@ -1,0 +1,94 @@
+--- containers
+kafka running restarts=0 started=2026-09-29T03:57:22.310992764Z
+checkout running restarts=2 started=2026-09-29T03:57:37.334377965Z
+accounting running restarts=0 started=2026-09-29T03:57:22.474710222Z
+fraud-detection running restarts=14 started=2026-09-30T03:18:59.466111221Z
+quote running restarts=0 started=2026-10-04T05:25:34.812608721Z
+frontend-proxy running restarts=0 started=2026-09-28T22:20:23.132526709Z
+
+--- span calls per second, last 12 h at 30-min steps
+kafka            17:21=0.00 17:51=0.00 18:21=0.00 18:51=0.00 19:21=0.00 19:51=0.00 20:21=0.00 20:51=0.00 21:21=0.00 21:51=0.00 22:21=0.00 22:51=0.00 23:21=0.00 23:51=0.00 00:21=0.00 00:51=0.00 01:21=0.00 01:51=0.00 02:21=0.00 02:51=0.00 03:21=0.00
+checkout         17:21=1.70 17:51=1.57 18:21=1.81 18:51=2.14 19:21=1.74 19:51=1.85 20:21=1.43 20:51=1.01 21:21=2.08 21:51=2.15 22:21=2.47 22:51=1.68 23:21=1.95 23:51=1.98 00:21=2.46 00:51=1.75 01:21=1.45 01:51=1.85 02:21=1.97 02:51=2.04 03:21=2.14
+accounting       17:21=0.38 17:51=0.34 18:21=0.39 18:51=0.46 19:21=0.38 19:51=0.40 20:21=0.32 20:51=0.23 21:21=0.44 21:51=0.49 22:21=0.52 22:51=0.38 23:21=0.40 23:51=0.44 00:21=0.52 00:51=0.38 01:21=0.31 01:51=0.42 02:21=0.43 02:51=0.44 03:21=0.49
+fraud-detection  17:21=0.25 17:51=0.23 18:21=0.26 18:51=0.31 19:21=0.25 19:51=0.26 20:21=0.21 20:51=0.15 21:21=0.29 21:51=0.32 22:21=0.35 22:51=0.25 23:21=0.27 23:51=0.29 00:21=0.34 00:51=0.25 01:21=0.21 01:51=0.28 02:21=0.28 02:51=0.29 03:21=0.32
+
+--- firing now
+
+--- kafka's log, last 25 lines
+[2026-10-04 08:20:33,018] INFO Deleted snapshot files for snapshot OffsetAndEpoch(offset=376332, epoch=1). (org.apache.kafka.snapshot.Snapshots)
+[2026-10-04 08:20:33,019] INFO [LocalLog partition=__cluster_metadata-0, dir=/tmp/kafka-logs] Deleting segment files LogSegment(baseOffset=376354, size=2160, lastModifiedTime=1791101896375, largestRecordTimestamp=1791101896350) (kafka.log.LocalLog$)
+[2026-10-04 08:20:33,019] INFO Deleted log /tmp/kafka-logs/__cluster_metadata-0/00000000000000376354.log.deleted. (org.apache.kafka.storage.internals.log.LogSegment)
+[2026-10-04 08:20:33,019] INFO Deleted offset index /tmp/kafka-logs/__cluster_metadata-0/00000000000000376354.index.deleted. (org.apache.kafka.storage.internals.log.LogSegment)
+[2026-10-04 08:20:33,019] INFO Deleted time index /tmp/kafka-logs/__cluster_metadata-0/00000000000000376354.timeindex.deleted. (org.apache.kafka.storage.internals.log.LogSegment)
+[2026-10-04 08:20:33,019] INFO Deleted producer state snapshot /tmp/kafka-logs/__cluster_metadata-0/00000000000000376354.snapshot.deleted (org.apache.kafka.storage.internals.log.SnapshotFile)
+[2026-10-04 08:20:33,019] INFO Deleted snapshot files for snapshot OffsetAndEpoch(offset=376371, epoch=1). (org.apache.kafka.snapshot.Snapshots)
+[2026-10-04 08:20:33,021] INFO [LocalLog partition=__cluster_metadata-0, dir=/tmp/kafka-logs] Deleting segment files LogSegment(baseOffset=376384, size=2160, lastModifiedTime=1791101911387, largestRecordTimestamp=1791101911362),LogSegment(baseOffset=376414, size=2160, lastModifiedTime=1791101926389, largestRecordTimestamp=1791101926365) (kafka.log.LocalLog$)
+[2026-10-04 08:20:33,021] INFO Deleted log /tmp/kafka-logs/__cluster_metadata-0/00000000000000376384.log.deleted. (org.apache.kafka.storage.internals.log.LogSegment)
+[2026-10-04 08:20:33,021] INFO Deleted offset index /tmp/kafka-logs/__cluster_metadata-0/00000000000000376384.index.deleted. (org.apache.kafka.storage.internals.log.LogSegment)
+[2026-10-04 08:20:33,021] INFO Deleted time index /tmp/kafka-logs/__cluster_metadata-0/00000000000000376384.timeindex.deleted. (org.apache.kafka.storage.internals.log.LogSegment)
+[2026-10-04 08:20:33,022] INFO Deleted log /tmp/kafka-logs/__cluster_metadata-0/00000000000000376414.log.deleted. (org.apache.kafka.storage.internals.log.LogSegment)
+[2026-10-04 08:20:33,022] INFO Deleted offset index /tmp/kafka-logs/__cluster_metadata-0/00000000000000376414.index.deleted. (org.apache.kafka.storage.internals.log.LogSegment)
+[2026-10-04 08:20:33,022] INFO Deleted time index /tmp/kafka-logs/__cluster_metadata-0/00000000000000376414.timeindex.deleted. (org.apache.kafka.storage.internals.log.LogSegment)
+[2026-10-04 08:20:33,024] INFO Deleted producer state snapshot /tmp/kafka-logs/__cluster_metadata-0/00000000000000376384.snapshot.deleted (org.apache.kafka.storage.internals.log.SnapshotFile)
+[2026-10-04 08:20:33,024] INFO Deleted producer state snapshot /tmp/kafka-logs/__cluster_metadata-0/00000000000000376414.snapshot.deleted (org.apache.kafka.storage.internals.log.SnapshotFile)
+[2026-10-04 08:20:33,024] INFO Deleted snapshot files for snapshot OffsetAndEpoch(offset=376410, epoch=1). (org.apache.kafka.snapshot.Snapshots)
+[2026-10-04 08:20:46,011] INFO [SnapshotGenerator id=1] Creating new KRaft snapshot file snapshot 00000000000000376683-0000000001 because we have replayed at least 2800 bytes. (org.apache.kafka.image.publisher.SnapshotGenerator)
+[2026-10-04 08:20:46,017] INFO [SnapshotEmitter id=1] Successfully wrote snapshot 00000000000000376683-0000000001 (org.apache.kafka.image.publisher.SnapshotEmitter)
+[2026-10-04 08:20:47,010] INFO [LocalLog partition=__cluster_metadata-0, dir=/tmp/kafka-logs] Rolled new log segment at offset 376684 in 1 ms. (kafka.log.LocalLog)
+[2026-10-04 08:20:47,010] INFO [ProducerStateManager partition=__cluster_metadata-0] Wrote producer snapshot at offset 376684 with 0 producer ids in 0 ms. (org.apache.kafka.storage.internals.log.ProducerStateManager)
+[2026-10-04 08:21:02,021] INFO [LocalLog partition=__cluster_metadata-0, dir=/tmp/kafka-logs] Rolled new log segment at offset 376714 in 2 ms. (kafka.log.LocalLog)
+[2026-10-04 08:21:02,022] INFO [ProducerStateManager partition=__cluster_metadata-0] Wrote producer snapshot at offset 376714 with 0 producer ids in 1 ms. (org.apache.kafka.storage.internals.log.ProducerStateManager)
+[2026-10-04 08:21:05,520] INFO [SnapshotGenerator id=1] Creating new KRaft snapshot file snapshot 00000000000000376722-0000000001 because we have replayed at least 2800 bytes. (org.apache.kafka.image.publisher.SnapshotGenerator)
+[2026-10-04 08:21:05,521] INFO [SnapshotEmitter id=1] Successfully wrote snapshot 00000000000000376722-0000000001 (org.apache.kafka.image.publisher.SnapshotEmitter)
+
+--- checkout's log, last 15 lines
+/usr/local/go/src/runtime/panic.go:792 +0x124
+main.(*checkout).sendToPostProcessor(0x40003d47e0, {0xc66918, 0x4000506e70}, 0x0?)
+	/usr/src/app/main.go:630 +0x14c
+main.(*checkout).PlaceOrder(0x40003d47e0, {0xc66918, 0x4000506e70}, 0x400044c620)
+	/usr/src/app/main.go:388 +0x1760
+github.com/open-telemetry/opentelemetry-demo/src/checkout/genproto/oteldemo._CheckoutService_PlaceOrder_Handler({0xab7760, 0x40003d47e0}, {0xc66918, 0x4000506e70}, 0x4000190600, 0x0)
+	/usr/src/app/genproto/oteldemo/demo_grpc.pb.go:1229 +0x1c0
+google.golang.org/grpc.(*Server).processUnaryRPC(0x4000122b48, {0xc66918, 0x4000506c60}, 0x400016fa00, 0x4000271aa0, 0x1350600, 0x0)
+	/go/pkg/mod/google.golang.org/grpc@v1.78.0/server.go:1428 +0xd90
+google.golang.org/grpc.(*Server).handleStream(0x4000122b48, {0xc67478, 0x400016f860}, 0x400016fa00)
+	/go/pkg/mod/google.golang.org/grpc@v1.78.0/server.go:1832 +0xaa8
+google.golang.org/grpc.(*Server).serveStreams.func2.1()
+	/go/pkg/mod/google.golang.org/grpc@v1.78.0/server.go:1063 +0x84
+created by google.golang.org/grpc.(*Server).serveStreams.func2 in goroutine 105
+	/go/pkg/mod/google.golang.org/grpc@v1.78.0/server.go:1074 +0x138
+
+--- kafka consumer groups
+Error: Executing consumer group command failed due to java.util.concurrent.ExecutionException: org.apache.kafka.common.KafkaException: Failed to find brokers to send ListGroups
+OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+[otel.javaagent 2026-10-04 08:21:16:014 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 2.23.0
+[2026-10-04 08:21:24,599] WARN [AdminClient clientId=adminclient-1] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available. (org.apache.kafka.clients.NetworkClient)
+[2026-10-04 08:21:24,716] WARN [AdminClient clientId=adminclient-1] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available. (org.apache.kafka.clients.NetworkClient)
+[2026-10-04 08:21:24,818] WARN [AdminClient clientId=adminclient-1] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available. (org.apache.kafka.clients.NetworkClient)
+[2026-10-04 08:21:25,021] WARN [AdminClient clientId=adminclient-1] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available. (org.apache.kafka.clients.NetworkClient)
+[2026-10-04 08:21:25,424] WARN [AdminClient clientId=adminclient-1] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available. (org.apache.kafka.clients.NetworkClient)
+[2026-10-04 08:21:26,229] WARN [AdminClient clientId=adminclient-1] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available. (org.apache.kafka.clients.NetworkClient)
+[2026-10-04 08:21:27,235] WARN [AdminClient clientId=adminclient-1] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available. (org.apache.kafka.clients.NetworkClient)
+[2026-10-04 08:21:28,241] WARN [AdminClient clientId=adminclient-1] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available. (org.apache.kafka.clients.NetworkClient)
+[2026-10-04 08:21:29,249] WARN [AdminClient clientId=adminclient-1] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available. (org.apache.kafka.clients.NetworkClient)
+java.lang.RuntimeException: java.util.concurrent.ExecutionException: org.apache.kafka.common.KafkaException: Failed to find brokers to send ListGroups
+	at org.apache.kafka.tools.consumer.group.ConsumerGroupCommand$ConsumerGroupService.listConsumerGroups(ConsumerGroupCommand.java:269)
+	at org.apache.kafka.tools.consumer.group.ConsumerGroupCommand$ConsumerGroupService.describeGroups(ConsumerGroupCommand.java:444)
+	at org.apache.kafka.tools.consumer.group.ConsumerGroupCommand.run(ConsumerGroupCommand.java:114)
+	at org.apache.kafka.tools.consumer.group.ConsumerGroupCommand.main(ConsumerGroupCommand.java:103)
+Caused by: java.util.concurrent.ExecutionException: org.apache.kafka.common.KafkaException: Failed to find brokers to send ListGroups
+	at java.base/java.util.concurrent.CompletableFuture.reportGet(Unknown Source)
+	at java.base/java.util.concurrent.CompletableFuture.get(Unknown Source)
+	at org.apache.kafka.common.internals.KafkaFutureImpl.get(KafkaFutureImpl.java:165)
+	at org.apache.kafka.tools.consumer.group.ConsumerGroupCommand$ConsumerGroupService.listConsumerGroups(ConsumerGroupCommand.java:266)
+	... 3 more
+Caused by: org.apache.kafka.common.KafkaException: Failed to find brokers to send ListGroups
+	at org.apache.kafka.clients.admin.KafkaAdminClient$23.handleFailure(KafkaAdminClient.java:3644)
+	at org.apache.kafka.clients.admin.KafkaAdminClient$Call.handleTimeoutFailure(KafkaAdminClient.java:969)
+	at org.apache.kafka.clients.admin.KafkaAdminClient$Call.fail(KafkaAdminClient.java:935)
+	at org.apache.kafka.clients.admin.KafkaAdminClient$TimeoutProcessor.handleTimeouts(KafkaAdminClient.java:1065)
+	at org.apache.kafka.clients.admin.KafkaAdminClient$AdminClientRunnable.timeoutPendingCalls(KafkaAdminClient.java:1144)
+	at org.apache.kafka.clients.admin.KafkaAdminClient$AdminClientRunnable.processRequests(KafkaAdminClient.java:1509)
+	at org.apache.kafka.clients.admin.KafkaAdminClient$AdminClientRunnable.run(KafkaAdminClient.java:1473)
+	at java.base/java.lang.Thread.run(Unknown Source)
+Caused by: org.apache.kafka.common.errors.TimeoutException: Timed out waiting for a node assignment. Call: findAllBrokers

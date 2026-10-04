@@ -155,3 +155,35 @@ key, so the runner's $0.01 is its estimate for probes that never billed. Log:
   from slot 1 again under the same labels. Each refused attempt left a run directory recording its
   refusal; none carries the batch's label (a refusal comes before the label is written), so no
   tally or analysis reads them.
+
+## Addendum 3 - kafka's silence was the gate's, not the world's (2026-10-04)
+
+The read-only diagnosis
+([output](../../docs/evidence/t7.3/trial/2026-10-04-kafka-diagnosis.txt)) found **the world
+healthy**:
+
+- **kafka's own span rate was 0.00 at every 30-minute point for twelve hours**, while checkout
+  wrote orders at 1.0-2.5 a second and kafka's consumers read them, accounting at 0.2-0.5 and
+  fraud-detection at 0.15-0.35. Nothing was firing at the reading.
+- **Q118 had already measured why**: v2's broker emits no spans at rest. Its spans come only from a
+  Kafka command-line tool run inside its container. A9 created a `kafka` series on 2026-09-30, and
+  from then the gate read that series at zero as *"serving no traffic: kafka"*: every v2 run
+  since would have been refused.
+
+**Fixed as a harness defect, by addendum** (the same class as Addendum 1's growth rate):
+`gate.EXPECTED_SILENT_BY_WORLD` excuses kafka on v2 only. v1 is unchanged, and a silent kafka
+*consumer* still refuses on v2. kafka's health on v2 is read by the world check and by its
+consumers' spans. In `docs/DEVIATIONS.md`.
+
+**Two things the diagnosis did that it should not have**, both recorded:
+
+- **its last step ran `kafka-consumer-groups.sh` inside kafka's container**: the thing Q118 says
+  pages on itself. It failed to connect (the broker does not listen on `localhost` there) and
+  read nothing. Any `kafka` alert it left is waited out by the world check's *nothing firing*
+  before slot 1;
+- checkout's last log lines are a panic stack in `sendToPostProcessor`, undated. With checkout's
+  traffic normal for twelve hours and its consumers reading, it is history (two restarts, the last
+  on 2026-09-29), not a live fault, and is noted rather than acted on.
+
+The latency alerts that stopped the first attempt (load-generator, frontend-proxy, checkout) had
+cleared by the diagnosis, and the world check before every slot still requires nothing firing.
