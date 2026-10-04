@@ -1,0 +1,14 @@
+incident 6b64ec41-9e9a-456c-b377-6b4b39c2acf0  state triaging  anchor 23:20:18
+triage: 2 services, severity warning, start from recommendation, 1 unmeasured edge(s) crossed
+
+states: triaging -> resolved
+trajectory: none persisted
+triage judged: noise (medium confidence, suspects unknown)
+  A lone warning-severity alert on a single service with no error-rate alerts anywhere and no downstream service actually alerting; this reads as a benign blip rather than a live failure.
+
+GATED BEFORE FAN-OUT: no specialist ran and nothing was spent on this incident
+
+--- stderr ---
+{"ts": "2026-10-03T23:20:23.467+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-03T23:20:23.515+00:00", "level": "INFO", "logger": "faultline.notify", "msg": "no report-ready notification was sent: no notifier was configured", "component": "investigator"}
+{"ts": "2026-10-03T23:20:23.515+00:00", "level": "INFO", "logger": "faultline.notify", "msg": "no awaiting-approval notification was sent: no notifier was configured", "component": "investigator"}

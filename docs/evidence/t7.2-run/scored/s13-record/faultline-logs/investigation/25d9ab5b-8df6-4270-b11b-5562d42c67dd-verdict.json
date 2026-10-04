@@ -1,0 +1,161 @@
+{
+  "incident_id": "25d9ab5b-8df6-4270-b11b-5562d42c67dd",
+  "trajectory_id": "8b3b4dd4-e9d5-4c1e-a417-b639b736f920",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "accounting"
+  ],
+  "unmeasured_edges": 0,
+  "exclude_origins": [],
+  "verdict": {
+    "root_cause": "Accounting's order consumer is failing to persist orders because the inserts it attempts duplicate rows that already exist: PostgreSQL rejects them with SQLSTATE 23505 on order_pkey. The database is reachable and healthy, the broker receive hop succeeds in milliseconds, and the errored span is a leaf inside accounting's own EF Core/Npgsql write path [tr_d652adf5048e, tr_2b3aecdb27d3, tr_3a2a5fdbff47]. The dense burst of ~20 identical violations in ~3 seconds followed by trailing events, each as a separate trace rather than an in-trace retry, is the signature of the same order messages being re-delivered and re-inserted against a store whose contents already hold those primary keys [tr_3a2a5fdbff47, tr_2b3aecdb27d3]. The only change in 24 hours is a first-time container creation ~3 minutes before onset by platform-automation, with no deploy, image bump, or config edit [tr_079b4ae39041] \u2014 consistent with a freshly created consumer replaying from an existing offset onto an already-populated order table. The mechanism is the state of accounting's store versus the messages being replayed, not an exhausted resource, a slow dependency, or a wrong configuration value.",
+    "service": "accounting",
+    "fault_class": "datastore_corruption",
+    "remediation_class": "restore_data",
+    "confidence": "low",
+    "evidence": [
+      "tr_d652adf5048e",
+      "tr_2b3aecdb27d3",
+      "tr_3a2a5fdbff47",
+      "tr_079b4ae39041",
+      "tr_87ce6ad1d4f7"
+    ],
+    "reasoning": "Three independent dispatches converge on one failing hop: the persist step in accounting's own code. Logs give the exact server-side rejection code and constraint name [tr_d652adf5048e, tr_3a2a5fdbff47]; traces show the errored span is a leaf with no cross-service hop and a healthy receive child, which rules out an upstream or downstream culprit and rules out latency as the mechanism [tr_2b3aecdb27d3]. Connectivity and pool exhaustion are excluded because the server actively answered with a constraint error over a live connection [tr_d652adf5048e]. Crash/restart and leak-style ramps are excluded by continued normal order logging seconds after the exception and by flat, identical error-ratio samples [tr_d652adf5048e, tr_87ce6ad1d4f7]. The change log offers no deploy, image, or config edit to blame [tr_079b4ae39041], which removes bad_deploy and bad_config as mechanisms. What remains is a mismatch between what accounting's order table already contains and what it is being asked to write \u2014 a store-contents problem whose fix is reconciling that state (clearing/repairing the duplicated rows or advancing the consumer past already-persisted offsets), not restarting or rolling back. Confidence is low: the conflicting key values and consumer offsets were redacted or absent, so the duplicate-replay story is inferred from timing and burst shape rather than observed directly.",
+    "open_questions": [
+      "The conflicting primary-key values and Kafka consumer offsets are unrecoverable from the logs [tr_3a2a5fdbff47, tr_d652adf5048e], so whether the same orders are being re-delivered was never directly confirmed.",
+      "Whether the order table was pre-populated (e.g. seeded or surviving from a prior workload) before the new container was created [tr_079b4ae39041] is unestablished.",
+      "Metrics are too sparse to characterise onset: no baseline samples and gaps with zero traffic [tr_87ce6ad1d4f7], so the true start time and whether errors persist now are unknown.",
+      "No dispatch examined the Postgres instance or the broker directly; both log results were truncated."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "The newly created accounting workload replays an existing consumer offset against orders already persisted, producing idempotency failures on insert.",
+        "service": "accounting",
+        "fault_class": "bad_deploy",
+        "remediation_class": "restart",
+        "why_not": "The change log records a first-time container creation, not a wrong or mismatched artifact [tr_079b4ae39041]; nothing suggests the running image is other than intended, and the failing mechanism is the duplicate rows in the store, not the artifact identity."
+      },
+      {
+        "root_cause": "Duplicate order messages from the broker are being delivered to a correctly functioning consumer, and the 23505 rejections are the application's expected response to at-least-once delivery.",
+        "service": "accounting",
+        "fault_class": "unknown",
+        "remediation_class": "none",
+        "why_not": "The receive hop is healthy and error-free in every trace [tr_2b3aecdb27d3] and no broker-side dispatch was run, so upstream duplication is unverified; it also would not explain a burst starting minutes after the workload was first created."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "runbook:class-bad-config / What the change record holds: The variable and a timestamp, and **the new value only** - no change record in this world carries\na prior value, which `world-change-records-have-no-prior-value` sets out.\n\n**What the logs hold is not uniform, and this document had it wrong.** An earlier version said a\nservice po",
+    "cart-bad-image-tag / What was checked: **Error rate by service.** frontend, loadgenerator and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero. Read, wrongly, as evidence cart was\nhealthy.\n\n**loadgenerator.** Set aside. It is the synthetic client; its error rate restates what\nthe storefron",
+    "cart-bad-image-tag / What was never measured: No pod or container lifecycle evidence was collected for cartservice after the reference change, so whether the new artifact failed to pull, came up and looped, or came up writing under a different log label was never observed. cartservice has no calls_total series in either wind"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 22913,
+    "pulled_tokens": 5256,
+    "pull_rate": 0.1866,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 377,
+        "content_tokens": 379,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1393,
+        "content_tokens": 1397,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 6868,
+        "content_tokens": 6845,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 6512,
+        "content_tokens": 6514,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 7763,
+        "content_tokens": 7740,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_079b4ae39041",
+      "tr_3a2a5fdbff47",
+      "tr_2b3aecdb27d3",
+      "tr_d652adf5048e",
+      "tr_87ce6ad1d4f7"
+    ],
+    "expected_effect": "No action is proposed, so no change in any observable series is expected. The duplicate-key signature should continue to be observable while the condition persists: SQLSTATE 23505 lines on order_pkey in accounting's logs and errored accounting/otel leaf spans under accounting/order-consumed in Tempo. The correct next step is investigative, not remediative \u2014 a direct read of the accounting Postgres order table and of the consumer group's committed offsets, neither of which this system is permitted to perform.",
+    "confirm_within_seconds": 900,
+    "if_wrong": "This abstention is wrong if a dispatch against Postgres or the broker shows the order table was populated by a prior workload and the new consumer is replaying from a stale offset \u2014 in which case the correct fix is restore_data (clear/reconcile the order table or advance the offset), which this executor cannot perform (restore_store is UNAVAILABLE, T6.2). It is also wrong if fresh metrics show the 23505 rate is already zero and the burst at 09:43:11\u201309:44:06 was self-limiting, in which case there is nothing to remediate at all. Note that the metrics here cannot settle this: the baseline window returned zero samples and three intervals had no traffic [tr_87ce6ad1d4f7], so neither onset nor current state is measurable, and an effect from any action would be largely unobservable.",
+    "risk": "The risk being avoided is the risk of acting. restart_service is the only action whose preconditions are even arguably touched, and it is not met: the evidence points at the contents of accounting's datastore, not at process state \u2014 the consumer is alive and processing orders one second after each exception [tr_d652adf5048e], so there is no wedged process to recreate. Recreating the container would discard nothing that matters, would not change the rows already in the order table, and the same messages would be re-consumed and re-rejected with 23505 the moment the consumer rejoins \u2014 a change that looks like action, costs an availability gap, and fixes nothing. rollback_image and revert_config both fail their preconditions outright: the change log for the full 24 hours contains exactly one event, a first-time container creation, with no deploy, image bump, or config edit recorded [tr_079b4ae39041], so there is no prior image tag or prior configuration to return to. Proposing either would be an action against a change that did not happen. The named fix class, restore_data, is unavailable to this executor.",
+    "blast_radius": "None from this proposal, since nothing is executed. For reference, had restart_service been proposed the blast radius would be accounting alone for the duration of the recreate, plus the orders its consumer would not drain during that window; the blast radius given names only accounting (seed, alerted) and no inbound callers, so no other service is recorded as observing it. The cost of abstaining is that duplicate-key rejections continue and some orders go unpersisted until someone with datastore access intervenes."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "low",
+    "reasoning": "Single critical alert on accounting with no open incidents to attribute it to; critical severity is not dismissible as noise. No pattern in the alert set suggests a specific fault class yet."
+  }
+}

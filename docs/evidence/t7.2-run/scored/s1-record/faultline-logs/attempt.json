@@ -1,0 +1,34 @@
+{
+  "started_at": "2026-10-03T08:00:37.085902+00:00",
+  "app_name": "Social Network",
+  "namespace": "social-network",
+  "application": "sregym-social-network",
+  "evaluations": 1,
+  "fallback": false,
+  "episodes": [
+    {
+      "alertname": "KubeDeploymentReplicasMismatch",
+      "service": "media-service",
+      "severity": "warning"
+    },
+    {
+      "alertname": "KubePodNotReady",
+      "service": "media-service",
+      "severity": "warning"
+    }
+  ],
+  "opening_errors": [],
+  "incident_id": "aa34d8cd-15b8-4127-a663-54f1a118dee6",
+  "investigate_exit": 5,
+  "trajectory_id": "",
+  "verdict": false,
+  "evidence_cited": 0,
+  "submission": "Faultline reached no verdict.",
+  "submitted": {
+    "status": "200",
+    "message": "Submission received",
+    "stage": "diagnosis"
+  },
+  "error": "",
+  "ended_at": "2026-10-03T08:00:44.317494+00:00"
+}

@@ -1,0 +1,961 @@
+[10/03/26 22:31:20] INFO     all.sregym.profile - Deployment profile: full      
+[10/03/26 22:31:20] INFO     __main__ - 🔧 Config — agent: faultline,           
+                             agent_model: anthropic/claude-opus-5,              
+                             judge_backend: api, judge_model:                   
+                             anthropic/claude-sonnet-4-6, reasoning_effort:     
+                             agent default, jev_model: disabled,                
+                             deployment_profile: full, internet_access:         
+                             filtered, container_hardening: on, agent_api_base: 
+                             unset, judge_api_base: unset                       
+                    INFO     __main__ - 🔍 Running pre-flight check for judge   
+                             model...                                           
+🔧 Initializing LLM backend — model: anthropic/claude-sonnet-4-6, api_base: unset
+[10/03/26 22:31:21] INFO     __main__ - ✅ Judge pre-flight check passed        
+[10/03/26 22:31:21] INFO     all.sregym.container_runner - 🐳 Building container
+                             image 'sregym-agent-base:latest'...                
+==> Building sregym-agent-base:latest with kubectl v1.32.1
+#0 building with "default" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile
+#1 transferring dockerfile: 4.62kB done
+#1 DONE 0.0s
+
+#2 [internal] load metadata for docker.io/library/ubuntu:22.04
+#2 DONE 0.3s
+
+#3 [ 1/18] FROM docker.io/library/ubuntu:22.04@sha256:b1066385161d28ddf6bc7e7b28a9170eec11484c821d1a5150d176cbde41d7f7
+#3 resolve docker.io/library/ubuntu:22.04@sha256:b1066385161d28ddf6bc7e7b28a9170eec11484c821d1a5150d176cbde41d7f7 0.0s done
+#3 DONE 0.0s
+
+#4 [internal] load build context
+#4 transferring context: 7.17kB 0.0s done
+#4 DONE 0.0s
+
+#5 [14/18] COPY sregym/service/apps/base.py sregym/service/apps/helpers.py /opt/sregym/sregym/service/apps/
+#5 CACHED
+
+#6 [15/18] COPY docker/agents/install-scripts/ /opt/sregym/install-scripts/
+#6 CACHED
+
+#7 [ 8/18] RUN python3 -m pip install --break-system-packages -r /tmp/requirements-container.txt
+#7 CACHED
+
+#8 [ 9/18] COPY clients/        /opt/sregym/clients/
+#8 CACHED
+
+#9 [10/18] COPY logger/         /opt/sregym/logger/
+#9 CACHED
+
+#10 [ 2/18] RUN apt-get update     && apt-get install -y --no-install-recommends         ca-certificates curl gnupg software-properties-common     && rm -rf /var/lib/apt/lists/*
+#10 CACHED
+
+#11 [12/18] COPY sregym/__init__.py sregym/paths.py /opt/sregym/sregym/
+#11 CACHED
+
+#12 [ 6/18] RUN KUBECTL_ARCH="amd64"     && case "${KUBECTL_ARCH}" in amd64|arm64) ;; *) echo "Unsupported kubectl architecture: ${KUBECTL_ARCH}" >&2; exit 1 ;; esac     && if [ "v1.32.1" = stable ]; then KUBECTL_VERSION="$(curl -fsSL https://dl.k8s.io/release/stable.txt)"; fi     && curl -fsSLo kubectl "https://dl.k8s.io/release/v1.32.1/bin/linux/${KUBECTL_ARCH}/kubectl"     && chmod +x kubectl && mv kubectl /usr/local/bin/
+#12 CACHED
+
+#13 [ 7/18] COPY docker/agents/requirements-container.txt /tmp/requirements-container.txt
+#13 CACHED
+
+#14 [ 5/18] RUN python3 -m ensurepip --upgrade     && python3 -m pip install --upgrade pip     && ln -sf /usr/bin/python3 /usr/bin/python
+#14 CACHED
+
+#15 [17/18] RUN mkdir -p /logs
+#15 CACHED
+
+#16 [16/18] RUN chmod +x /opt/sregym/install-scripts/*.sh
+#16 CACHED
+
+#17 [ 3/18] RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash -     && add-apt-repository ppa:deadsnakes/ppa
+#17 CACHED
+
+#18 [ 4/18] RUN apt-get update     && apt-get install -y --no-install-recommends         git wget jq         nodejs         python3.12 python3.12-venv python3.12-dev     && update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.12 1     && rm -rf /var/lib/apt/lists/*
+#18 CACHED
+
+#19 [13/18] COPY sregym/service/__init__.py sregym/service/kubectl.py sregym/service/helm.py /opt/sregym/sregym/service/
+#19 CACHED
+
+#20 [11/18] COPY llm_backend/    /opt/sregym/llm_backend/
+#20 CACHED
+
+#21 [18/18] WORKDIR /logs
+#21 CACHED
+
+#22 exporting to image
+#22 exporting layers done
+#22 exporting manifest sha256:1b74a7bb405d43412a3e637b37638417323d4f1fc4a6a2d6aa94b992abf54a9c done
+#22 exporting config sha256:5d9ad739d727a05d459f4a31004b6c88d90d21f830069c2e903de96901537afc done
+#22 exporting attestation manifest sha256:63a3c9a491c3f48c43a2544b42b21b176c9b84c82176872cc30ab5588b285360 done
+#22 exporting manifest list sha256:ac1d519f580feae09d63a6302a78590a46f82c760a87db8c37e67962ab5651a0 done
+#22 naming to docker.io/library/sregym-agent-base:latest done
+#22 unpacking to docker.io/library/sregym-agent-base:latest 0.0s done
+#22 DONE 0.1s
+                    INFO     all.sregym.container_runner - ✅ Container image   
+                             'sregym-agent-base:latest' built successfully.     
+╭───────────────────────────── SREGym API Server ──────────────────────────────╮
+│  ____  ____  _____ ____                                                      │
+│ / ___||  _ \| ____/ ___|_   _ _ __ ___                                       │
+│ \___ \| |_) |  _|| |  _| | | | '_ ` _ \                                      │
+│  ___) |  _ <| |__| |_| | |_| | | | | | |                                     │
+│ |____/|_| \_\_____\____|\__, |_| |_| |_|                                     │
+│                         |___/                                                │
+│                                                                              │
+╰──────────────────────────── http://0.0.0.0:8000 ─────────────────────────────╯
+Available Endpoints                                                             
+
+ • POST /submit: { "stage": "diagnosis", "solution": "<your-solution>" } →      
+   grades the named stage                                                       
+ • GET /status: returns { "stage": "setup" | "diagnosis" | "mitigation" |       
+   "tearing_down" | "done" }                                                    
+/home/deploy/t7.2-1c/SREGym/.venv/lib/python3.12/site-packages/websockets/legacy/__init__.py:6: DeprecationWarning: websockets.legacy is deprecated; see https://websockets.readthedocs.io/en/stable/howto/upgrade.html for upgrade instructions
+  warnings.warn(  # deprecated in 14.0 - 2024-11-09
+/home/deploy/t7.2-1c/SREGym/.venv/lib/python3.12/site-packages/uvicorn/protocols/websockets/websockets_impl.py:17: DeprecationWarning: websockets.server.WebSocketServerProtocol is deprecated
+  from websockets.server import WebSocketServerProtocol
+[10/03/26 22:31:22] INFO     uvicorn.error - Started server process [1631951]   
+                    INFO     uvicorn.error - Waiting for application startup.   
+                    INFO     uvicorn.error - Application startup complete.      
+                    INFO     uvicorn.error - Uvicorn running on                 
+                             http://0.0.0.0:8000 (Press CTRL+C to quit)         
+[22:31:23] Starting agent now: faultline                             main.py:255
+           🔒 Starting Kubernetes API proxy to hide chaos            main.py:259
+           namespaces...                                                        
+[10/03/26 22:31:23] INFO     all.sregym.conductor - Starting Kubernetes API     
+                             filtering proxy...                                 
+                    INFO     all.infra.k8s_proxy - Kubernetes API filtering     
+                             proxy started on 172.17.0.1:16443                  
+                    INFO     all.infra.k8s_proxy - Hidden namespaces:           
+                             {'chaos-mesh', 'khaos'}                            
+                    INFO     all.infra.k8s_proxy - Hidden labels: {'app':       
+                             {'locust-fetcher', 'load-generator'}, 'job':       
+                             {'workload'}, 'opentelemetry.io/name':             
+                             {'load-generator'}}                                
+                    INFO     all.infra.k8s_proxy - Generated agent kubeconfig at
+                             /tmp/sregym-agent-kubeconfig-9l03wjpg.yaml         
+                    INFO     all.sregym.conductor - Agent kubeconfig generated  
+                             at: /tmp/sregym-agent-kubeconfig-9l03wjpg.yaml     
+           🎯 Running single problem:                                main.py:300
+           stale_coredns_config_astronomy_shop                                  
+                                                                     main.py:378
+           🔍 Starting problem: stale_coredns_config_astronomy_shop             
+           (Attempt 1 of 1)                                                     
+                    INFO     all.application - Namespace astronomy-shop not     
+                             found. Creating namespace.                         
+                    INFO     all.application - Namespace astronomy-shop created 
+                             successfully: namespace/astronomy-shop created     
+                                                                                
+                    INFO     all.sregym.conductor - [Session Start] Problem ID: 
+                             stale_coredns_config_astronomy_shop                
+                    INFO     all.sregym.conductor - [STAGE] Start testing on    
+                             problem: stale_coredns_config_astronomy_shop       
+                    INFO     all.sregym.conductor - Fixing Kubernetes... to     
+                             normal state.                                      
+                    INFO     all.sregym.conductor - [FIX] Imbalance leftover if 
+                             any                                                
+                    INFO     all.sregym.conductor - [FIX] KubeletCrash leftover 
+                             if any                                             
+Starting kubelet in kind-worker...
+Kubelet started in kind-worker
+Starting kubelet in kind-worker2...
+Kubelet started in kind-worker2
+Starting kubelet in kind-worker3...
+Kubelet started in kind-worker3
+Waiting for worker nodes {'kind-worker', 'kind-worker3', 'kind-worker2'} to become Ready...
+All worker nodes are Ready.
+                    INFO     all.sregym.conductor - [FIX]                       
+                             KubeletEvictionThresholdMisconfig leftover if any  
+Recovering disk pressure in kind-worker...
+Waiting for node kind-worker to become Ready...
+Node kind-worker is Ready.
+Recovering disk pressure in kind-worker2...
+Waiting for node kind-worker2 to become Ready...
+Node kind-worker2 is Ready.
+Recovering disk pressure in kind-worker3...
+Waiting for node kind-worker3 to become Ready...
+Node kind-worker3 is Ready.
+[10/03/26 22:31:25] INFO     all.sregym.conductor - [FIX] Calico                
+                             IPPool/strictAffinity leftover if any              
+                    INFO     all.sregym.conductor - [FIX] Calico route-reflector
+                             label drift leftovers if any                       
+                    INFO     all.sregym.conductor - [FIX] Stale CoreDNS NXDOMAIN
+                             templates if any                                   
+No NXDOMAIN templates found in CoreDNS config; nothing to do
+                    INFO     all.sregym.conductor - [FIX] Leftover dm-flakey    
+                             infrastructure if any                              
+[dm-flakey] ⚠️ Could not remove dm-flakey on kind-control-plane (may not exist): No running Khaos pod found on node kind-control-plane
+[dm-flakey] ⚠️ Could not remove dm-flakey on kind-worker (may not exist): No running Khaos pod found on node kind-worker
+[dm-flakey] ⚠️ Could not remove dm-flakey on kind-worker2 (may not exist): No running Khaos pod found on node kind-worker2
+[dm-flakey] ⚠️ Could not remove dm-flakey on kind-worker3 (may not exist): No running Khaos pod found on node kind-worker3
+[10/03/26 22:31:26] INFO     all.sregym.conductor - [FIX] NightlyRebalanceOOM   
+                             kube-system actor leftover if any                  
+                    INFO     all.sregym.conductor - [FIX] Clock drift leftover  
+                             if any                                             
+No leftover node-probe pods found; nothing to do
+                    INFO     all.sregym.conductor - Fix Kubernetes completed.   
+                    INFO     all.sregym.conductor - Stages requested for this   
+                             run: ['diagnosis']                                 
+                    INFO     all.sregym.conductor - Undeploying app leftovers...
+                    INFO     all.infra.helm - Helm Uninstall: astronomy-shop in 
+                             namespace astronomy-shop                           
+[22:31:26] Waiting for namespace deletion...                      kubectl.py:341
+[22:31:32] Namespace 'astronomy-shop' has been deleted.           kubectl.py:349
+[10/03/26 22:31:32] INFO     all.infra.kubectl - Namespace 'astronomy-shop'     
+                             deleted successfully.                              
+                    INFO     all.sregym.conductor - App leftovers undeployed.   
+                    INFO     all.sregym.conductor - Deploying app...            
+                    INFO     all.infra.cluster_state - Baseline state loaded    
+                             from                                               
+                             /home/deploy/cache_dir/cluster_baseline_state.json 
+                    INFO     all.sregym.conductor - [DEPLOY] Loaded persisted   
+                             cluster baseline state                             
+                    INFO     all.sregym.conductor - [DEPLOY] Setting up         
+                             metrics-server…                                    
+                    INFO     all.sregym.conductor - [DEPLOY] metrics-server     
+                             already present and patched; skipping re-apply     
+           Waiting for all pods in namespace 'kube-system' to be  kubectl.py:204
+           ready...                                                             
+           All pods in namespace 'kube-system' are ready.         kubectl.py:245
+[10/03/26 22:31:33] INFO     all.sregym.conductor - [DEPLOY] Setting up OpenEBS…
+                    INFO     all.sregym.conductor - [DEPLOY] OpenEBS already    
+                             deployed; skipping operator re-apply               
+[22:31:33] Waiting for all pods in namespace 'openebs' to be      kubectl.py:204
+           ready...                                                             
+           All pods in namespace 'openebs' are ready.             kubectl.py:245
+                    INFO     all.sregym.conductor - [DEPLOY] Ensuring OpenEBS   
+                             LocalPV-Device StorageClass…                       
+                    INFO     all.sregym.conductor - [DEPLOY]                    
+                             StorageClass/openebs-device already exists; leaving
+                             it unchanged                                       
+                    INFO     all.sregym.conductor - [DEPLOY] Deploying          
+                             Prometheus…                                        
+                    INFO     all.infra.helm - Helm Uninstall: prometheus in     
+                             namespace observe                                  
+                    INFO     all.infra.helm - Helm Install: prometheus in       
+                             namespace observe                                  
+[22:31:34] Waiting for all pods in namespace 'observe' to be      kubectl.py:204
+           ready...                                                             
+[22:32:11] All pods in namespace 'observe' are ready.             kubectl.py:245
+[10/03/26 22:32:11] INFO     all.sregym.conductor - [DEPLOY] Deploying Jaeger…  
+[10/03/26 22:32:12] INFO     all.sregym.jaeger - Jaeger deployed successfully.  
+                    INFO     all.sregym.conductor - [DEPLOY] Deploying OTel     
+                             Collector…                                         
+[10/03/26 22:32:15] INFO     all.sregym.otel_collector - OTel Collector deployed
+                             successfully.                                      
+                    INFO     all.sregym.conductor - [DEPLOY] Deploying Loki…    
+                    INFO     all.infra.helm - Helm Uninstall: loki in namespace 
+                             observe                                            
+[10/03/26 22:32:16] INFO     all.infra.loki - Adding Grafana Helm repository... 
+                    INFO     all.infra.helm - Helm Install: loki in namespace   
+                             observe                                            
+[22:32:18] Waiting for all pods in namespace 'observe' to be      kubectl.py:204
+           ready...                                                             
+[22:33:08] All pods in namespace 'observe' are ready.             kubectl.py:245
+[10/03/26 22:33:08] INFO     all.infra.loki - Deploying Promtail for Loki log   
+                             collection...                                      
+                    INFO     all.infra.helm - Helm Install: promtail in         
+                             namespace observe                                  
+[10/03/26 22:33:09] WARNING  all.infra.helm - Helm install stderr output:       
+                             level=WARN msg="this chart is deprecated"          
+[22:33:09] Waiting for all pods in namespace 'observe' to be      kubectl.py:204
+           ready...                                                             
+[22:33:24] All pods in namespace 'observe' are ready.             kubectl.py:245
+[10/03/26 22:33:24] INFO     all.sregym.conductor - [DEPLOY] Deploying MCP      
+                             server…                                            
+[10/03/26 22:33:25] INFO     all.sregym.mcp_server - MCP server RBAC resources  
+                             ensured.                                           
+                    INFO     all.sregym.mcp_server - MCP server already running,
+                             skipping redeploy.                                 
+                    INFO     all.sregym.mcp_server - Port-forward is absent or  
+                             stale, restarting.                                 
+[10/03/26 22:33:28] INFO     all.sregym.mcp_server - Port forwarding established
+                             at 9954. MCP_SERVER_PORT set.                      
+                    INFO     all.sregym.conductor - [ENV] Set up necessary      
+                             components: metrics-server, Khaos, OpenEBS,        
+                             Prometheus, Jaeger, Loki                           
+                    INFO     all.sregym.conductor - [DEPLOY] Deploying and      
+                             starting workload                                  
+                    INFO     all.infra.kubectl - Namespace 'astronomy-shop' not 
+                             found. Creating namespace.                         
+                    INFO     all.infra.kubectl - Namespace 'astronomy-shop'     
+                             created successfully.                              
+                    INFO     all.infra.helm - Helm Repo Add: open-telemetry with
+                             url                                                
+                             https://open-telemetry.github.io/opentelemetry-helm
+                             -charts                                            
+                    INFO     all.infra.helm - Helm repo open-telemetry added    
+                             successfully: "open-telemetry" already exists with 
+                             the same configuration, skipping                   
+                    INFO     all.infra.helm - Helm Repo Add: jaegertracing with 
+                             url https://jaegertracing.github.io/helm-charts    
+                    INFO     all.infra.helm - Helm repo jaegertracing added     
+                             successfully: "jaegertracing" already exists with  
+                             the same configuration, skipping                   
+                    INFO     all.infra.helm - Helm Repo Add:                    
+                             prometheus-community with url                      
+                             https://prometheus-community.github.io/helm-charts 
+                    INFO     all.infra.helm - Helm repo prometheus-community    
+                             added successfully: "prometheus-community" already 
+                             exists with the same configuration, skipping       
+                    INFO     all.infra.helm - Helm Repo Add: grafana with url   
+                             https://grafana.github.io/helm-charts              
+                    INFO     all.infra.helm - Helm repo grafana added           
+                             successfully: "grafana" already exists with the    
+                             same configuration, skipping                       
+                    INFO     all.infra.helm - Helm Repo Add: opensearch with url
+                             https://opensearch-project.github.io/helm-charts/  
+                    INFO     all.infra.helm - Helm repo opensearch added        
+                             successfully: "opensearch" already exists with the 
+                             same configuration, skipping                       
+                    INFO     all.infra.helm - Helm Install: astronomy-shop in   
+                             namespace astronomy-shop                           
+[22:33:30] Waiting for all pods in namespace 'astronomy-shop' to  kubectl.py:204
+           be ready...                                                          
+[22:34:11] All pods in namespace 'astronomy-shop' are ready.      kubectl.py:245
+[10/03/26 22:34:11] INFO     all.sregym.conductor - [ENV] Deploy application:   
+                             OpenTelemetry Demo Astronomy Shop                  
+                    INFO     all.sregym.jaeger - Created ExternalName service   
+                             'jaeger' in namespace 'astronomy-shop' ->          
+                             otel-collector.observe.svc.cluster.local           
+[10/03/26 22:34:12] INFO     all.sregym.jaeger - Created ExternalName service   
+                             'jaeger-agent' in namespace 'astronomy-shop' ->    
+                             otel-collector.observe.svc.cluster.local           
+                    INFO     all.sregym.jaeger - Created ExternalName service   
+                             'jaeger-collector' in namespace 'astronomy-shop' ->
+                             otel-collector.observe.svc.cluster.local           
+                    INFO     all.sregym.jaeger - Created ExternalName service   
+                             'jaeger-query' in namespace 'astronomy-shop' ->    
+                             otel-collector.observe.svc.cluster.local           
+                    INFO     all.sregym.jaeger - Restarted otel-collector-agent 
+                             DaemonSet in namespace 'astronomy-shop'            
+                    INFO     all.infra.workload - Start Workload with Locust    
+                    INFO     all.infra.workload - AstronomyShop has a built-in  
+                             load generator.                                    
+                    INFO     all.infra.workload - Creating locust-fetcher pod...
+Waiting for locust-fetcher pod to be created...
+Pod locust-fetcher created.
+[10/03/26 22:34:17] INFO     all.sregym.conductor - [ENV] Start workload        
+                    INFO     all.sregym.conductor - App deployed.               
+== Fault Injection ==
+Injected stale CoreDNS config for all .svc.cluster.local domains
+Injected stale CoreDNS config | Namespace: astronomy-shop
+
+[10/03/26 22:34:26] INFO     all.sregym.conductor - [ENV] Injected fault        
+                    INFO     all.sregym.conductor - [STAGE] Go to stage         
+                             diagnosis                                          
+                    INFO     all.sregym.conductor - ✅ Deployment complete.     
+                             Ready for submission. Current stage is: diagnosis  
+[10/03/26 22:34:28] INFO     all.sregym.container_runner - Starting             
+                             containerized agent [faultline-run]:               
+                             /opt/sregym/install-scripts/install-faultline.sh   
+                             2>&1 | tee /logs/install.log; I...                 
+[2026-10-03T22:34:29+00:00] Installing Faultline from http://host.docker.internal:55480/faultline-src.tar.gz
+9141dfe48a1a044e2bc84f6a39efd1d67d796838d83afa5c6432197e1bf8c674  /tmp/faultline-src.tar.gz
+WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.
+[2026-10-03T22:35:28+00:00] Faultline installed: /opt/faultline/src/faultline/__init__.py
+[10/03/26 22:35:29] INFO     uvicorn.access - 172.17.0.3:55194 - "GET /status   
+                             HTTP/1.1" 200                                      
+                    INFO     uvicorn.access - 172.17.0.3:55204 - "GET /get_app  
+                             HTTP/1.1" 200                                      
+[10/03/26 22:45:28] INFO     uvicorn.access - 172.17.0.3:52214 - "POST /submit  
+                             HTTP/1.1" 200                                      
+[10/03/26 22:45:28] INFO     all.sregym.conductor - Evaluating stage 'diagnosis'
+                    INFO     all.sregym.conductor - Start Eval for Diagnosis    
+== LLM-as-a-Judge Evaluation ==
+🔧 Initializing LLM backend — model: anthropic/claude-sonnet-4-6, api_base: unset
+{"started_at": "2026-10-03T22:35:29.483310+00:00", "app_name": "OpenTelemetry Demo Astronomy Shop", "namespace": "astronomy-shop", "application": "sregym-astronomy-shop", "evaluations": 6, "fallback": true, "episodes": [{"alertname": "SREGymProblemReported", "service": "frontend", "severity": "critical"}], "opening_errors": ["KubePodCrashLooping: [prom_mcp] Error querying get_metrics: HTTPConnectionPool(host='prometheus-server.observe.svc.cluster.local', port=80): Max retries exceeded with url: /api/v1/query?query=max+by+%28pod%29+%28max_over_time%28kube_pod_container_status_waiting_reason%7Bnamespace%3D%22astronomy-shop%22%2Creason%3D%22CrashLoopBackOff%22%7D%5B5m%5D%29%29+%3E%3D+1 (Caused by NameResolutionError(\"HTTPConnection(host='prometheus-server.observe.svc.cluster.local', port=80): Failed to resolve 'prometheus-server.observe.svc.cluster.local' ([Errno -2] Name or service not known)\"))", "KubePodNotReady: [prom_mcp] Error querying get_metrics: HTTPConnectionPool(host='prometheus-server.observe.svc.cluster.local', port=80): Max retries exceeded with url: /api/v1/query?query=max+by+%28pod%29+%28kube_pod_status_phase%7Bnamespace%3D%22astronomy-shop%22%2Cphase%3D~%22Pending%7CUnknown%7CFailed%22%7D%29+%3E+0 (Caused by NameResolutionError(\"HTTPConnection(host='prometheus-server.observe.svc.cluster.local', port=80): Failed to resolve 'prometheus-server.observe.svc.cluster.local' ([Errno -2] Name or service not known)\"))", "KubeContainerWaiting: [prom_mcp] Error querying get_metrics: HTTPConnectionPool(host='prometheus-server.observe.svc.cluster.local', port=80): Max retries exceeded with url: /api/v1/query?query=max+by+%28pod%29+%28kube_pod_container_status_waiting_reason%7Bnamespace%3D%22astronomy-shop%22%2Creason%21%3D%22CrashLoopBackOff%22%7D%29+%3E+0 (Caused by NameResolutionError(\"HTTPConnection(host='prometheus-server.observe.svc.cluster.local', port=80): Failed to resolve 'prometheus-server.observe.svc.cluster.local' ([Errno -2] Name or service not known)\"))", "KubeDeploymentReplicasMismatch: [prom_mcp] Error querying get_metrics: HTTPConnectionPool(host='prometheus-server.observe.svc.cluster.local', port=80): Max retries exceeded with url: /api/v1/query?query=kube_deployment_spec_replicas%7Bnamespace%3D%22astronomy-shop%22%7D+%21%3D+kube_deployment_status_replicas_available%7Bnamespace%3D%22astronomy-shop%22%7D (Caused by NameResolutionError(\"HTTPConnection(host='prometheus-server.observe.svc.cluster.local', port=80): Failed to resolve 'prometheus-server.observe.svc.cluster.local' ([Errno -2] Name or service not known)\"))", "KubeStatefulSetReplicasMismatch: [prom_mcp] Error querying get_metrics: HTTPConnectionPool(host='prometheus-server.observe.svc.cluster.local', port=80): Max retries exceeded with url: /api/v1/query?query=kube_statefulset_status_replicas_ready%7Bnamespace%3D%22astronomy-shop%22%7D+%21%3D+kube_statefulset_replicas%7Bnamespace%3D%22astronomy-shop%22%7D (Caused by NameResolutionError(\"HTTPConnection(host='prometheus-server.observe.svc.cluster.local', port=80): Failed to resolve 'prometheus-server.observe.svc.cluster.local' ([Errno -2] Name or service not known)\"))", "ServiceHighErrorRate: [prom_mcp] Error querying get_metrics: HTTPConnectionPool(host='prometheus-server.observe.svc.cluster.local', port=80): Max retries exceeded with url: /api/v1/query?query=sum+by+%28service_name%29+%28rate%28traces_span_metrics_calls_total%7Bstatus_code%3D%22STATUS_CODE_ERROR%22%7D%5B5m%5D%29%29+%2F+sum+by+%28service_name%29+%28rate%28traces_span_metrics_calls_total%5B5m%5D%29%29+%3E+0.05 (Caused by NameResolutionError(\"HTTPConnection(host='prometheus-server.observe.svc.cluster.local', port=80): Failed to resolve 'prometheus-server.observe.svc.cluster.local' ([Errno -2] Name or service not known)\"))", "ServiceHighLatency: [prom_mcp] Error querying get_metrics: HTTPConnectionPool(host='prometheus-server.observe.svc.cluster.local', port=80): Max retries exceeded with url: /api/v1/query?query=histogram_quantile%280.95%2C+sum+by+%28service_name%2C+le%29+%28rate%28traces_span_metrics_duration_milliseconds_bucket%7Bspan_kind%21%3D%22SPAN_KIND_INTERNAL%22%7D%5B5m%5D%29%29%29+%3E+250 (Caused by NameResolutionError(\"HTTPConnection(host='prometheus-server.observe.svc.cluster.local', port=80): Failed to resolve 'prometheus-server.observe.svc.cluster.local' ([Errno -2] Name or service not known)\"))", "ServiceNoTraffic: [prom_mcp] Error querying get_metrics: HTTPConnectionPool(host='prometheus-server.observe.svc.cluster.local', port=80): Max retries exceeded with url: /api/v1/query?query=sum+by+%28service_name%29+%28rate%28traces_span_metrics_calls_total%7Bservice_name%21%3D%22frontend-proxy%22%7D%5B5m%5D%29%29+%3D%3D+0+and+sum+by+%28service_name%29+%28rate%28traces_span_metrics_calls_total%7Bservice_name%21%3D%22frontend-proxy%22%7D%5B30m%5D+offset+10m%29%29+%3E+0 (Caused by NameResolutionError(\"HTTPConnection(host='prometheus-server.observe.svc.cluster.local', port=80): Failed to resolve 'prometheus-server.observe.svc.cluster.local' ([Errno -2] Name or service not known)\"))", "KubePodCrashLooping: [prom_mcp] Error querying get_metrics: HTTPConnectionPool(host='prometheus-server.observe.svc.cluster.local', port=80): Max retries exceeded with url: /api/v1/query?query=max+by+%28pod%29+%28max_over_time%28kube_pod_container_status_waiting_reason%7Bnamespace%3D%22astronomy-shop%22%2Creason%3D%22CrashLoopBackOff%22%7D%5B5m%5D%29%29+%3E%3D+1 (Caused by NameResolutionError(\"HTTPConnection(host='prometheus-server.observe.svc.cluster.local', port=80): Failed to resolve 'prometheus-server.observe.svc.cluster.local' ([Errno -2] Name or service not known)\"))", "KubePodNotReady: [prom_mcp] Error querying get_metrics: HTTPConnectionPool(host='prometheus-server.observe.svc.cluster.local', port=80): Max retries exceeded with url: /api/v1/query?query=max+by+%28pod%29+%28kube_pod_status_phase%7Bnamespace%3D%22astronomy-shop%22%2Cphase%3D~%22Pending%7CUnknown%7CFailed%22%7D%29+%3E+0 (Caused by NameResolutionError(\"HTTPConnection(host='prometheus-server.observe.svc.cluster.local', port=80): Failed to resolve 'prometheus-server.observe.svc.cluster.local' ([Errno -2] Name or service not known)\"))", "KubeContainerWaiting: [prom_mcp] Error querying get_metrics: HTTPConnectionPool(host='prometheus-server.observe.svc.cluster.local', port=80): Max retries exceeded with url: /api/v1/query?query=max+by+%28pod%29+%28kube_pod_container_status_waiting_reason%7Bnamespace%3D%22astronomy-shop%22%2Creason%21%3D%22CrashLoopBackOff%22%7D%29+%3E+0 (Caused by NameResolutionError(\"HTTPConnection(host='prometheus-server.observe.svc.cluster.local', port=80): Failed to resolve 'prometheus-server.observe.svc.cluster.local' ([Errno -2] Name or service not known)\"))", "KubeDeploymentReplicasMismatch: [prom_mcp] Error querying get_metrics: HTTPConnectionPool(host='prometheus-server.observe.svc.cluster.local', port=80): Max retries exceeded with url: /api/v1/query?query=kube_deployment_spec_replicas%7Bnamespace%3D%22astronomy-shop%22%7D+%21%3D+kube_deployment_status_replicas_available%7Bnamespace%3D%22astronomy-shop%22%7D (Caused by NameResolutionError(\"HTTPConnection(host='prometheus-server.observe.svc.cluster.local', port=80): Failed to resolve 'prometheus-server.observe.svc.cluster.local' ([Errno -2] Name or service not known)\"))", "KubeStatefulSetReplicasMismatch: [prom_mcp] Error querying get_metrics: HTTPConnectionPool(host='prometheus-server.observe.svc.cluster.local', port=80): Max retries exceeded with url: /api/v1/query?query=kube_statefulset_status_replicas_ready%7Bnamespace%3D%22astronomy-shop%22%7D+%21%3D+kube_statefulset_replicas%7Bnamespace%3D%22astronomy-shop%22%7D (Caused by NameResolutionError(\"HTTPConnection(host='prometheus-server.observe.svc.cluster.local', port=80): Failed to resolve 'prometheus-server.observe.svc.cluster.local' ([Errno -2] Name or service not known)\"))", "ServiceHighErrorRate: [prom_mcp] Error querying get_metrics: HTTPConnectionPool(host='prometheus-server.observe.svc.cluster.local', port=80): Max retries exceeded with url: /api/v1/query?query=sum+by+%28service_name%29+%28rate%28traces_span_metrics_calls_total%7Bstatus_code%3D%22STATUS_CODE_ERROR%22%7D%5B5m%5D%29%29+%2F+sum+by+%28service_name%29+%28rate%28traces_span_metrics_calls_total%5B5m%5D%29%29+%3E+0.05 (Caused by NameResolutionError(\"HTTPConnection(host='prometheus-server.observe.svc.cluster.local', port=80): Failed to resolve 'prometheus-server.observe.svc.cluster.local' ([Errno -2] Name or service not known)\"))", "ServiceHighLatency: [prom_mcp] Error querying get_metrics: HTTPConnectionPool(host='prometheus-server.observe.svc.cluster.local', port=80): Max retries exceeded with url: /api/v1/query?query=histogram_quantile%280.95%2C+sum+by+%28service_name%2C+le%29+%28rate%28traces_span_metrics_duration_milliseconds_bucket%7Bspan_kind%21%3D%22SPAN_KIND_INTERNAL%22%7D%5B5m%5D%29%29%29+%3E+250 (Caused by NameResolutionError(\"HTTPConnection(host='prometheus-server.observe.svc.cluster.local', port=80): Failed to resolve 'prometheus-server.observe.svc.cluster.local' ([Errno -2] Name or service not known)\"))", "ServiceNoTraffic: [prom_mcp] Error querying get_metrics: HTTPConnectionPool(host='prometheus-server.observe.svc.cluster.local', port=80): Max retries exceeded with url: /api/v1/query?query=sum+by+%28service_name%29+%28rate%28traces_span_metrics_calls_total%7Bservice_name%21%3D%22frontend-proxy%22%7D%5B5m%5D%29%29+%3D%3D+0+and+sum+by+%28service_name%29+%28rate%28traces_span_metrics_calls_total%7Bservice_name%21%3D%22frontend-proxy%22%7D%5B30m%5D+offset+10m%29%29+%3E+0 (Caused by NameResolutionError(\"HTTPConnection(host='prometheus-server.observe.svc.cluster.local', port=80): Failed to resolve 'prometheus-server.observe.svc.cluster.local' ([Errno -2] Name or service not known)\"))", "KubePodCrashLooping: [prom_mcp] Error querying get_metrics: HTTPConnectionPool(host='prometheus-server.observe.svc.cluster.local', port=80): Max retries exceeded with url: /api/v1/query?query=max+by+%28pod%29+%28max_over_time%28kube_pod_container_status_waiting_reason%7Bnamespace%3D%22astronomy-shop%22%2Creason%3D%22CrashLoopBackOff%22%7D%5B5m%5D%29%29+%3E%3D+1 (Caused by NameResolutionError(\"HTTPConnection(host='prometheus-server.observe.svc.cluster.local', port=80): Failed to resolve 'prometheus-server.observe.svc.cluster.local' ([Errno -2] Name or service not known)\"))", "KubePodNotReady: [prom_mcp] Error querying get_metrics: HTTPConnectionPool(host='prometheus-server.observe.svc.cluster.local', port=80): Max retries exceeded with url: /api/v1/query?query=max+by+%28pod%29+%28kube_pod_status_phase%7Bnamespace%3D%22astronomy-shop%22%2Cphase%3D~%22Pending%7CUnknown%7CFailed%22%7D%29+%3E+0 (Caused by NameResolutionError(\"HTTPConnection(host='prometheus-server.observe.svc.cluster.local', port=80): Failed to resolve 'prometheus-server.observe.svc.cluster.local' ([Errno -2] Name or service not known)\"))", "KubeContainerWaiting: [prom_mcp] Error querying get_metrics: HTTPConnectionPool(host='prometheus-server.observe.svc.cluster.local', port=80): Max retries exceeded with url: /api/v1/query?query=max+by+%28pod%29+%28kube_pod_container_status_waiting_reason%7Bnamespace%3D%22astronomy-shop%22%2Creason%21%3D%22CrashLoopBackOff%22%7D%29+%3E+0 (Caused by NameResolutionError(\"HTTPConnection(host='prometheus-server.observe.svc.cluster.local', port=80): Failed to resolve 'prometheus-server.observe.svc.cluster.local' ([Errno -2] Name or service not known)\"))", "KubeDeploymentReplicasMismatch: [prom_mcp] Error querying get_metrics: HTTPConnectionPool(host='prometheus-server.observe.svc.cluster.local', port=80): Max retries exceeded with url: /api/v1/query?query=kube_deployment_spec_replicas%7Bnamespace%3D%22astronomy-shop%22%7D+%21%3D+kube_deployment_status_replicas_available%7Bnamespace%3D%22astronomy-shop%22%7D (Caused by NameResolutionError(\"HTTPConnection(host='prometheus-server.observe.svc.cluster.local', port=80): Failed to resolve 'prometheus-server.observe.svc.cluster.local' ([Errno -2] Name or service not known)\"))", "KubeStatefulSetReplicasMismatch: [prom_mcp] Error querying get_metrics: HTTPConnectionPool(host='prometheus-server.observe.svc.cluster.local', port=80): Max retries exceeded with url: /api/v1/query?query=kube_statefulset_status_replicas_ready%7Bnamespace%3D%22astronomy-shop%22%7D+%21%3D+kube_statefulset_replicas%7Bnamespace%3D%22astronomy-shop%22%7D (Caused by NameResolutionError(\"HTTPConnection(host='prometheus-server.observe.svc.cluster.local', port=80): Failed to resolve 'prometheus-server.observe.svc.cluster.local' ([Errno -2] Name or service not known)\"))", "ServiceHighErrorRate: [prom_mcp] Error querying get_metrics: HTTPConnectionPool(host='prometheus-server.observe.svc.cluster.local', port=80): Max retries exceeded with url: /api/v1/query?query=sum+by+%28service_name%29+%28rate%28traces_span_metrics_calls_total%7Bstatus_code%3D%22STATUS_CODE_ERROR%22%7D%5B5m%5D%29%29+%2F+sum+by+%28service_name%29+%28rate%28traces_span_metrics_calls_total%5B5m%5D%29%29+%3E+0.05 (Caused by NameResolutionError(\"HTTPConnection(host='prometheus-server.observe.svc.cluster.local', port=80): Failed to resolve 'prometheus-server.observe.svc.cluster.local' ([Errno -2] Name or service not known)\"))", "ServiceHighLatency: [prom_mcp] Error querying get_metrics: HTTPConnectionPool(host='prometheus-server.observe.svc.cluster.local', port=80): Max retries exceeded with url: /api/v1/query?query=histogram_quantile%280.95%2C+sum+by+%28service_name%2C+le%29+%28rate%28traces_span_metrics_duration_milliseconds_bucket%7Bspan_kind%21%3D%22SPAN_KIND_INTERNAL%22%7D%5B5m%5D%29%29%29+%3E+250 (Caused by NameResolutionError(\"HTTPConnection(host='prometheus-server.observe.svc.cluster.local', port=80): Failed to resolve 'prometheus-server.observe.svc.cluster.local' ([Errno -2] Name or service not known)\"))", "ServiceNoTraffic: [prom_mcp] Error querying get_metrics: HTTPConnectionPool(host='prometheus-server.observe.svc.cluster.local', port=80): Max retries exceeded with url: /api/v1/query?query=sum+by+%28service_name%29+%28rate%28traces_span_metrics_calls_total%7Bservice_name%21%3D%22frontend-proxy%22%7D%5B5m%5D%29%29+%3D%3D+0+and+sum+by+%28service_name%29+%28rate%28traces_span_metrics_calls_total%7Bservice_name%21%3D%22frontend-proxy%22%7D%5B30m%5D+offset+10m%29%29+%3E+0 (Caused by NameResolutionError(\"HTTPConnection(host='prometheus-server.observe.svc.cluster.local', port=80): Failed to resolve 'prometheus-server.observe.svc.cluster.local' ([Errno -2] Name or service not known)\"))", "KubePodCrashLooping: [prom_mcp] Error querying get_metrics: HTTPConnectionPool(host='prometheus-server.observe.svc.cluster.local', port=80): Max retries exceeded with url: /api/v1/query?query=max+by+%28pod%29+%28max_over_time%28kube_pod_container_status_waiting_reason%7Bnamespace%3D%22astronomy-shop%22%2Creason%3D%22CrashLoopBackOff%22%7D%5B5m%5D%29%29+%3E%3D+1 (Caused by NameResolutionError(\"HTTPConnection(host='prometheus-server.observe.svc.cluster.local', port=80): Failed to resolve 'prometheus-server.observe.svc.cluster.local' ([Errno -2] Name or service not known)\"))", "KubePodNotReady: [prom_mcp] Error querying get_metrics: HTTPConnectionPool(host='prometheus-server.observe.svc.cluster.local', port=80): Max retries exceeded with url: /api/v1/query?query=max+by+%28pod%29+%28kube_pod_status_phase%7Bnamespace%3D%22astronomy-shop%22%2Cphase%3D~%22Pending%7CUnknown%7CFailed%22%7D%29+%3E+0 (Caused by NameResolutionError(\"HTTPConnection(host='prometheus-server.observe.svc.cluster.local', port=80): Failed to resolve 'prometheus-server.observe.svc.cluster.local' ([Errno -2] Name or service not known)\"))", "KubeContainerWaiting: [prom_mcp] Error querying get_metrics: HTTPConnectionPool(host='prometheus-server.observe.svc.cluster.local', port=80): Max retries exceeded with url: /api/v1/query?query=max+by+%28pod%29+%28kube_pod_container_status_waiting_reason%7Bnamespace%3D%22astronomy-shop%22%2Creason%21%3D%22CrashLoopBackOff%22%7D%29+%3E+0 (Caused by NameResolutionError(\"HTTPConnection(host='prometheus-server.observe.svc.cluster.local', port=80): Failed to resolve 'prometheus-server.observe.svc.cluster.local' ([Errno -2] Name or service not known)\"))", "KubeDeploymentReplicasMismatch: [prom_mcp] Error querying get_metrics: HTTPConnectionPool(host='prometheus-server.observe.svc.cluster.local', port=80): Max retries exceeded with url: /api/v1/query?query=kube_deployment_spec_replicas%7Bnamespace%3D%22astronomy-shop%22%7D+%21%3D+kube_deployment_status_replicas_available%7Bnamespace%3D%22astronomy-shop%22%7D (Caused by NameResolutionError(\"HTTPConnection(host='prometheus-server.observe.svc.cluster.local', port=80): Failed to resolve 'prometheus-server.observe.svc.cluster.local' ([Errno -2] Name or service not known)\"))", "KubeStatefulSetReplicasMismatch: [prom_mcp] Error querying get_metrics: HTTPConnectionPool(host='prometheus-server.observe.svc.cluster.local', port=80): Max retries exceeded with url: /api/v1/query?query=kube_statefulset_status_replicas_ready%7Bnamespace%3D%22astronomy-shop%22%7D+%21%3D+kube_statefulset_replicas%7Bnamespace%3D%22astronomy-shop%22%7D (Caused by NameResolutionError(\"HTTPConnection(host='prometheus-server.observe.svc.cluster.local', port=80): Failed to resolve 'prometheus-server.observe.svc.cluster.local' ([Errno -2] Name or service not known)\"))", "ServiceHighErrorRate: [prom_mcp] Error querying get_metrics: HTTPConnectionPool(host='prometheus-server.observe.svc.cluster.local', port=80): Max retries exceeded with url: /api/v1/query?query=sum+by+%28service_name%29+%28rate%28traces_span_metrics_calls_total%7Bstatus_code%3D%22STATUS_CODE_ERROR%22%7D%5B5m%5D%29%29+%2F+sum+by+%28service_name%29+%28rate%28traces_span_metrics_calls_total%5B5m%5D%29%29+%3E+0.05 (Caused by NameResolutionError(\"HTTPConnection(host='prometheus-server.observe.svc.cluster.local', port=80): Failed to resolve 'prometheus-server.observe.svc.cluster.local' ([Errno -2] Name or service not known)\"))", "ServiceHighLatency: [prom_mcp] Error querying get_metrics: HTTPConnectionPool(host='prometheus-server.observe.svc.cluster.local', port=80): Max retries exceeded with url: /api/v1/query?query=histogram_quantile%280.95%2C+sum+by+%28service_name%2C+le%29+%28rate%28traces_span_metrics_duration_milliseconds_bucket%7Bspan_kind%21%3D%22SPAN_KIND_INTERNAL%22%7D%5B5m%5D%29%29%29+%3E+250 (Caused by NameResolutionError(\"HTTPConnection(host='prometheus-server.observe.svc.cluster.local', port=80): Failed to resolve 'prometheus-server.observe.svc.cluster.local' ([Errno -2] Name or service not known)\"))", "ServiceNoTraffic: [prom_mcp] Error querying get_metrics: HTTPConnectionPool(host='prometheus-server.observe.svc.cluster.local', port=80): Max retries exceeded with url: /api/v1/query?query=sum+by+%28service_name%29+%28rate%28traces_span_metrics_calls_total%7Bservice_name%21%3D%22frontend-proxy%22%7D%5B5m%5D%29%29+%3D%3D+0+and+sum+by+%28service_name%29+%28rate%28traces_span_metrics_calls_total%7Bservice_name%21%3D%22frontend-proxy%22%7D%5B30m%5D+offset+10m%29%29+%3E+0 (Caused by NameResolutionError(\"HTTPConnection(host='prometheus-server.observe.svc.cluster.local', port=80): Failed to resolve 'prometheus-server.observe.svc.cluster.local' ([Errno -2] Name or service not known)\"))", "KubePodCrashLooping: [prom_mcp] Error querying get_metrics: HTTPConnectionPool(host='prometheus-server.observe.svc.cluster.local', port=80): Max retries exceeded with url: /api/v1/query?query=max+by+%28pod%29+%28max_over_time%28kube_pod_container_status_waiting_reason%7Bnamespace%3D%22astronomy-shop%22%2Creason%3D%22CrashLoopBackOff%22%7D%5B5m%5D%29%29+%3E%3D+1 (Caused by NameResolutionError(\"HTTPConnection(host='prometheus-server.observe.svc.cluster.local', port=80): Failed to resolve 'prometheus-server.observe.svc.cluster.local' ([Errno -2] Name or service not known)\"))", "KubePodNotReady: [prom_mcp] Error querying get_metrics: HTTPConnectionPool(host='prometheus-server.observe.svc.cluster.local', port=80): Max retries exceeded with url: /api/v1/query?query=max+by+%28pod%29+%28kube_pod_status_phase%7Bnamespace%3D%22astronomy-shop%22%2Cphase%3D~%22Pending%7CUnknown%7CFailed%22%7D%29+%3E+0 (Caused by NameResolutionError(\"HTTPConnection(host='prometheus-server.observe.svc.cluster.local', port=80): Failed to resolve 'prometheus-server.observe.svc.cluster.local' ([Errno -2] Name or service not known)\"))", "KubeContainerWaiting: [prom_mcp] Error querying get_metrics: HTTPConnectionPool(host='prometheus-server.observe.svc.cluster.local', port=80): Max retries exceeded with url: /api/v1/query?query=max+by+%28pod%29+%28kube_pod_container_status_waiting_reason%7Bnamespace%3D%22astronomy-shop%22%2Creason%21%3D%22CrashLoopBackOff%22%7D%29+%3E+0 (Caused by NameResolutionError(\"HTTPConnection(host='prometheus-server.observe.svc.cluster.local', port=80): Failed to resolve 'prometheus-server.observe.svc.cluster.local' ([Errno -2] Name or service not known)\"))", "KubeDeploymentReplicasMismatch: [prom_mcp] Error querying get_metrics: HTTPConnectionPool(host='prometheus-server.observe.svc.cluster.local', port=80): Max retries exceeded with url: /api/v1/query?query=kube_deployment_spec_replicas%7Bnamespace%3D%22astronomy-shop%22%7D+%21%3D+kube_deployment_status_replicas_available%7Bnamespace%3D%22astronomy-shop%22%7D (Caused by NameResolutionError(\"HTTPConnection(host='prometheus-server.observe.svc.cluster.local', port=80): Failed to resolve 'prometheus-server.observe.svc.cluster.local' ([Errno -2] Name or service not known)\"))", "KubeStatefulSetReplicasMismatch: [prom_mcp] Error querying get_metrics: HTTPConnectionPool(host='prometheus-server.observe.svc.cluster.local', port=80): Max retries exceeded with url: /api/v1/query?query=kube_statefulset_status_replicas_ready%7Bnamespace%3D%22astronomy-shop%22%7D+%21%3D+kube_statefulset_replicas%7Bnamespace%3D%22astronomy-shop%22%7D (Caused by NameResolutionError(\"HTTPConnection(host='prometheus-server.observe.svc.cluster.local', port=80): Failed to resolve 'prometheus-server.observe.svc.cluster.local' ([Errno -2] Name or service not known)\"))", "ServiceHighErrorRate: [prom_mcp] Error querying get_metrics: HTTPConnectionPool(host='prometheus-server.observe.svc.cluster.local', port=80): Max retries exceeded with url: /api/v1/query?query=sum+by+%28service_name%29+%28rate%28traces_span_metrics_calls_total%7Bstatus_code%3D%22STATUS_CODE_ERROR%22%7D%5B5m%5D%29%29+%2F+sum+by+%28service_name%29+%28rate%28traces_span_metrics_calls_total%5B5m%5D%29%29+%3E+0.05 (Caused by NameResolutionError(\"HTTPConnection(host='prometheus-server.observe.svc.cluster.local', port=80): Failed to resolve 'prometheus-server.observe.svc.cluster.local' ([Errno -2] Name or service not known)\"))", "ServiceHighLatency: [prom_mcp] Error querying get_metrics: HTTPConnectionPool(host='prometheus-server.observe.svc.cluster.local', port=80): Max retries exceeded with url: /api/v1/query?query=histogram_quantile%280.95%2C+sum+by+%28service_name%2C+le%29+%28rate%28traces_span_metrics_duration_milliseconds_bucket%7Bspan_kind%21%3D%22SPAN_KIND_INTERNAL%22%7D%5B5m%5D%29%29%29+%3E+250 (Caused by NameResolutionError(\"HTTPConnection(host='prometheus-server.observe.svc.cluster.local', port=80): Failed to resolve 'prometheus-server.observe.svc.cluster.local' ([Errno -2] Name or service not known)\"))", "ServiceNoTraffic: [prom_mcp] Error querying get_metrics: HTTPConnectionPool(host='prometheus-server.observe.svc.cluster.local', port=80): Max retries exceeded with url: /api/v1/query?query=sum+by+%28service_name%29+%28rate%28traces_span_metrics_calls_total%7Bservice_name%21%3D%22frontend-proxy%22%7D%5B5m%5D%29%29+%3D%3D+0+and+sum+by+%28service_name%29+%28rate%28traces_span_metrics_calls_total%7Bservice_name%21%3D%22frontend-proxy%22%7D%5B30m%5D+offset+10m%29%29+%3E+0 (Caused by NameResolutionError(\"HTTPConnection(host='prometheus-server.observe.svc.cluster.local', port=80): Failed to resolve 'prometheus-server.observe.svc.cluster.local' ([Errno -2] Name or service not known)\"))", "KubePodCrashLooping: [prom_mcp] Error querying get_metrics: HTTPConnectionPool(host='prometheus-server.observe.svc.cluster.local', port=80): Max retries exceeded with url: /api/v1/query?query=max+by+%28pod%29+%28max_over_time%28kube_pod_container_status_waiting_reason%7Bnamespace%3D%22astronomy-shop%22%2Creason%3D%22CrashLoopBackOff%22%7D%5B5m%5D%29%29+%3E%3D+1 (Caused by NameResolutionError(\"HTTPConnection(host='prometheus-server.observe.svc.cluster.local', port=80): Failed to resolve 'prometheus-server.observe.svc.cluster.local' ([Errno -2] Name or service not known)\"))", "KubePodNotReady: [prom_mcp] Error querying get_metrics: HTTPConnectionPool(host='prometheus-server.observe.svc.cluster.local', port=80): Max retries exceeded with url: /api/v1/query?query=max+by+%28pod%29+%28kube_pod_status_phase%7Bnamespace%3D%22astronomy-shop%22%2Cphase%3D~%22Pending%7CUnknown%7CFailed%22%7D%29+%3E+0 (Caused by NameResolutionError(\"HTTPConnection(host='prometheus-server.observe.svc.cluster.local', port=80): Failed to resolve 'prometheus-server.observe.svc.cluster.local' ([Errno -2] Name or service not known)\"))", "KubeContainerWaiting: [prom_mcp] Error querying get_metrics: HTTPConnectionPool(host='prometheus-server.observe.svc.cluster.local', port=80): Max retries exceeded with url: /api/v1/query?query=max+by+%28pod%29+%28kube_pod_container_status_waiting_reason%7Bnamespace%3D%22astronomy-shop%22%2Creason%21%3D%22CrashLoopBackOff%22%7D%29+%3E+0 (Caused by NameResolutionError(\"HTTPConnection(host='prometheus-server.observe.svc.cluster.local', port=80): Failed to resolve 'prometheus-server.observe.svc.cluster.local' ([Errno -2] Name or service not known)\"))", "KubeDeploymentReplicasMismatch: [prom_mcp] Error querying get_metrics: HTTPConnectionPool(host='prometheus-server.observe.svc.cluster.local', port=80): Max retries exceeded with url: /api/v1/query?query=kube_deployment_spec_replicas%7Bnamespace%3D%22astronomy-shop%22%7D+%21%3D+kube_deployment_status_replicas_available%7Bnamespace%3D%22astronomy-shop%22%7D (Caused by NameResolutionError(\"HTTPConnection(host='prometheus-server.observe.svc.cluster.local', port=80): Failed to resolve 'prometheus-server.observe.svc.cluster.local' ([Errno -2] Name or service not known)\"))", "KubeStatefulSetReplicasMismatch: [prom_mcp] Error querying get_metrics: HTTPConnectionPool(host='prometheus-server.observe.svc.cluster.local', port=80): Max retries exceeded with url: /api/v1/query?query=kube_statefulset_status_replicas_ready%7Bnamespace%3D%22astronomy-shop%22%7D+%21%3D+kube_statefulset_replicas%7Bnamespace%3D%22astronomy-shop%22%7D (Caused by NameResolutionError(\"HTTPConnection(host='prometheus-server.observe.svc.cluster.local', port=80): Failed to resolve 'prometheus-server.observe.svc.cluster.local' ([Errno -2] Name or service not known)\"))", "ServiceHighErrorRate: [prom_mcp] Error querying get_metrics: HTTPConnectionPool(host='prometheus-server.observe.svc.cluster.local', port=80): Max retries exceeded with url: /api/v1/query?query=sum+by+%28service_name%29+%28rate%28traces_span_metrics_calls_total%7Bstatus_code%3D%22STATUS_CODE_ERROR%22%7D%5B5m%5D%29%29+%2F+sum+by+%28service_name%29+%28rate%28traces_span_metrics_calls_total%5B5m%5D%29%29+%3E+0.05 (Caused by NameResolutionError(\"HTTPConnection(host='prometheus-server.observe.svc.cluster.local', port=80): Failed to resolve 'prometheus-server.observe.svc.cluster.local' ([Errno -2] Name or service not known)\"))", "ServiceHighLatency: [prom_mcp] Error querying get_metrics: HTTPConnectionPool(host='prometheus-server.observe.svc.cluster.local', port=80): Max retries exceeded with url: /api/v1/query?query=histogram_quantile%280.95%2C+sum+by+%28service_name%2C+le%29+%28rate%28traces_span_metrics_duration_milliseconds_bucket%7Bspan_kind%21%3D%22SPAN_KIND_INTERNAL%22%7D%5B5m%5D%29%29%29+%3E+250 (Caused by NameResolutionError(\"HTTPConnection(host='prometheus-server.observe.svc.cluster.local', port=80): Failed to resolve 'prometheus-server.observe.svc.cluster.local' ([Errno -2] Name or service not known)\"))", "ServiceNoTraffic: [prom_mcp] Error querying get_metrics: HTTPConnectionPool(host='prometheus-server.observe.svc.cluster.local', port=80): Max retries exceeded with url: /api/v1/query?query=sum+by+%28service_name%29+%28rate%28traces_span_metrics_calls_total%7Bservice_name%21%3D%22frontend-proxy%22%7D%5B5m%5D%29%29+%3D%3D+0+and+sum+by+%28service_name%29+%28rate%28traces_span_metrics_calls_total%7Bservice_name%21%3D%22frontend-proxy%22%7D%5B30m%5D+offset+10m%29%29+%3E+0 (Caused by NameResolutionError(\"HTTPConnection(host='prometheus-server.observe.svc.cluster.local', port=80): Failed to resolve 'prometheus-server.observe.svc.cluster.local' ([Errno -2] Name or service not known)\"))"], "incident_id": "58839055-d5dc-4eb9-b9fa-329a0720ba9d", "investigate_exit": 2, "trajectory_id": "75a042b5-d735-4a7c-a708-3bf046273e31", "verdict": true, "evidence_cited": 6, "submitted": {"status": "200", "message": "Submission received", "stage": "diagnosis"}, "error": "", "ended_at": "2026-10-03T22:45:28.479734+00:00"}
+[22:45:31] ⚠️  Agent process exited with return code 0                main.py:582
+           ⏳ Waiting for conductor evaluation to complete...        main.py:586
+❌ Incorrect diagnosis: False (score: 0.0/100)
+   Expected: [fault_spec] component=configmap/coredns; namespace=kube-system || CoreDNS has a stale NXDOMAIN rewr...
+   Got: Root cause: Not established. The three dispatches that could have observed the failing behaviour — m...
+[10/03/26 22:45:39] INFO     all.sregym.conductor - [EVAL] Diagnosis Failed     
+                              TTL: 672.6470696926117                            
+                    INFO     all.sregym.conductor - [STAGE] Done, starting      
+                             teardown                                           
+                    INFO     all.sregym.conductor - [CLEANUP] Starting cleanup  
+                             (fault recovery, undeploy, reconcile)              
+                    INFO     all.sregym.conductor - [CLEANUP] Recovering        
+                             fault...                                           
+== Fault Recovery ==
+[22:45:39] 🧹 Running conductor cleanup after agent exit...          main.py:615
+Recovered from stale CoreDNS config for all .svc.cluster.local domains
+Recovered from stale CoreDNS config | Namespace: astronomy-shop
+
+[10/03/26 22:45:41] INFO     all.sregym.conductor - [CLEANUP] Fault recovered   
+                    INFO     all.sregym.conductor - [CLEANUP] Undeploying app...
+                    INFO     all.infra.helm - Helm Uninstall: astronomy-shop in 
+                             namespace astronomy-shop                           
+[10/03/26 22:45:42] WARNING  all.infra.helm - Helm uninstall stderr output:     
+                             level=WARN msg="skipping delete of resource not    
+                             owned by this release" kind=Service name=jaeger    
+                             namespace=astronomy-shop release=astronomy-shop    
+[22:45:42] Waiting for namespace deletion...                      kubectl.py:341
+[22:46:22] Namespace 'astronomy-shop' has been deleted.           kubectl.py:349
+[10/03/26 22:46:22] INFO     all.infra.kubectl - Namespace 'astronomy-shop'     
+                             deleted successfully.                              
+                    INFO     all.sregym.conductor - [CLEANUP] App undeployed    
+                    INFO     all.sregym.conductor - [CLEANUP] Reconciling       
+                             cluster state to baseline...                       
+                    INFO     all.infra.cluster_state - Reconciling cluster to   
+                             baseline state...                                  
+                    INFO     all.infra.cluster_state - Deleting unexpected      
+                             namespace: observe                                 
+           Waiting for namespace deletion...                      kubectl.py:341
+[22:47:03] Namespace 'observe' has been deleted.                  kubectl.py:349
+[10/03/26 22:47:03] INFO     all.infra.kubectl - Namespace 'observe' deleted    
+                             successfully.                                      
+                    INFO     all.infra.cluster_state - Deleting unexpected      
+                             ClusterRole: promtail                              
+                    INFO     all.infra.cluster_state - Deleting unexpected      
+                             ClusterRole: prometheus-kube-state-metrics         
+                    INFO     all.infra.cluster_state - Deleting unexpected      
+                             ClusterRole: prometheus-server                     
+                    INFO     all.infra.cluster_state - Deleting unexpected      
+                             ClusterRole: mcp-server                            
+                    INFO     all.infra.cluster_state - Deleting unexpected      
+                             ClusterRole: loki-clusterrole                      
+                    INFO     all.infra.cluster_state - Deleting unexpected      
+                             ClusterRoleBinding: promtail                       
+                    INFO     all.infra.cluster_state - Deleting unexpected      
+                             ClusterRoleBinding: prometheus-kube-state-metrics  
+                    INFO     all.infra.cluster_state - Deleting unexpected      
+                             ClusterRoleBinding: loki-clusterrolebinding        
+                    INFO     all.infra.cluster_state - Deleting unexpected      
+                             ClusterRoleBinding: prometheus-server              
+                    INFO     all.infra.cluster_state - Deleting unexpected      
+                             ClusterRoleBinding: mcp-server                     
+                    INFO     all.infra.kubectl - [gc_localpv] Sweeping          
+                             /var/openebs/local on 4 node(s) (preserving 0 live 
+                             PV dir(s))                                         
+[10/03/26 22:47:19] INFO     all.infra.cluster_state - Reconciliation complete: 
+                             {'namespaces_deleted': ['observe'],                
+                             'cluster_roles_deleted': ['promtail',              
+                             'prometheus-kube-state-metrics',                   
+                             'prometheus-server', 'mcp-server',                 
+                             'loki-clusterrole'],                               
+                             'cluster_role_bindings_deleted': ['promtail',      
+                             'prometheus-kube-state-metrics',                   
+                             'loki-clusterrolebinding', 'prometheus-server',    
+                             'mcp-server'], 'persistent_volumes_deleted': [],   
+                             'storage_classes_deleted': [], 'crds_deleted': [], 
+                             'validating_webhook_configs_deleted': [],          
+                             'mutating_webhook_configs_deleted': [],            
+                             'nodes_labels_reset': [], 'nodes_taints_reset': [],
+                             'coredns_reset': False}                            
+                    INFO     all.sregym.conductor - Cluster state reconciliation
+                             changes: {'namespaces_deleted': ['observe'],       
+                             'cluster_roles_deleted': ['promtail',              
+                             'prometheus-kube-state-metrics',                   
+                             'prometheus-server', 'mcp-server',                 
+                             'loki-clusterrole'],                               
+                             'cluster_role_bindings_deleted': ['promtail',      
+                             'prometheus-kube-state-metrics',                   
+                             'loki-clusterrolebinding', 'prometheus-server',    
+                             'mcp-server'], 'persistent_volumes_deleted': [],   
+                             'storage_classes_deleted': [], 'crds_deleted': [], 
+                             'validating_webhook_configs_deleted': [],          
+                             'mutating_webhook_configs_deleted': [],            
+                             'nodes_labels_reset': [], 'nodes_taints_reset': [],
+                             'coredns_reset': False}                            
+                    INFO     all.sregym.conductor - [CLEANUP] Cluster state     
+                             reconciled                                         
+                    INFO     all.sregym.conductor - [CLEANUP] Cleanup complete, 
+                             stage set to 'done'                                
+                    INFO     all.sregym.conductor - [STAGE] Teardown complete   
+[22:47:19] ✅ Complete stale_coredns_config_astronomy_shop:          main.py:655
+           results={'Diagnosis': {'judgment': 'False', 'reasoning':             
+           'Verdict: False (composite=0.00). D1 Fault Localization:             
+           0.00 | D2 Fault Characterization: 0.00 | D3 Scope                    
+           Precision: 0.00. Weakest dimension: Fault Localization               
+           (0.00). Checklist details: [{"id": "D1-Q1", "answer":                
+           "No", "evidence": "Agent names \'frontend\' as faulty                
+           component; ground truth identifies configmap/coredns in              
+           kube-system as the fault origin.", "confidence": "High"},            
+           {"id": "D1-Q2", "answer": "No", "evidence": "Agent treats            
+           frontend as the root cause component, not as a secondary             
+           victim of CoreDNS misconfiguration. CoreDNS is never                 
+           identified as the origin.", "confidence": "High"}, {"id":            
+           "D1-Q3", "answer": "No", "evidence": "Agent blames                   
+           \'frontend\' as the faulty component, but frontend is a              
+           healthy victim; the actual fault is in                               
+           configmap/coredns.", "confidence": "High"}, {"id":                   
+           "D2-Q1", "answer": "No", "evidence": "Agent does not                 
+           identify a stale NXDOMAIN rewrite/template in CoreDNS. It            
+           notes DNS resolution failures but attributes them to                 
+           observability path issues, not a CoreDNS                             
+           misconfiguration.", "confidence": "High"}, {"id":                    
+           "D2-Q2", "answer": "No", "evidence": "No mention of                  
+           CoreDNS configmap, NXDOMAIN rewrite, template rule, or               
+           .svc.cluster.local pattern anywhere in the diagnosis.",              
+           "confidence": "High"}, {"id": "D2-Q3", "answer": "No",               
+           "evidence": "Agent lists fault type as \'unknown\' and               
+           considers bootstrap/dependency_latency/network_partition             
+           \\u2014 none matching the CoreDNS misconfiguration ground            
+           truth.", "confidence": "High"}, {"id": "D3-Q1", "answer":            
+           "No", "evidence": "Agent blames frontend as the faulty               
+           component, which is not a contributing fault origin per              
+           ground truth; it over-attributes to frontend.",                      
+           "confidence": "High"}, {"id": "D3-Q2", "answer": "No",               
+           "evidence": "Ground truth identifies configmap/coredns in            
+           kube-system as the affected component; agent never                   
+           mentions CoreDNS or kube-system as part of the fault.",              
+           "confidence": "High"}, {"id": "D3-Q3", "answer": "No",               
+           "evidence": "Agent describes observability path failures             
+           and bootstrap timing issues; ground truth states                     
+           cluster-wide service discovery failures from CoreDNS                 
+           NXDOMAIN rewrite \\u2014 not matched.", "confidence":                
+           "High"}]', 'success': False, 'accuracy': 0.0,                        
+           'composite_score': 0.0, 'dimensions': {'D1': {'name':                
+           'Fault Localization', 'score': 0.0}, 'D2': {'name':                  
+           'Fault Characterization', 'score': 0.0}, 'D3': {'name':              
+           'Scope Precision', 'score': 0.0}}, 'checklist': [{'id':              
+           'D1-Q1', 'answer': 'No', 'evidence': "Agent names                    
+           'frontend' as faulty component; ground truth identifies              
+           configmap/coredns in kube-system as the fault origin.",              
+           'confidence': 'High'}, {'id': 'D1-Q2', 'answer': 'No',               
+           'evidence': 'Agent treats frontend as the root cause                 
+           component, not as a secondary victim of CoreDNS                      
+           misconfiguration. CoreDNS is never identified as the                 
+           origin.', 'confidence': 'High'}, {'id': 'D1-Q3',                     
+           'answer': 'No', 'evidence': "Agent blames 'frontend' as              
+           the faulty component, but frontend is a healthy victim;              
+           the actual fault is in configmap/coredns.", 'confidence':            
+           'High'}, {'id': 'D2-Q1', 'answer': 'No', 'evidence':                 
+           'Agent does not identify a stale NXDOMAIN                            
+           rewrite/template in CoreDNS. It notes DNS resolution                 
+           failures but attributes them to observability path                   
+           issues, not a CoreDNS misconfiguration.', 'confidence':              
+           'High'}, {'id': 'D2-Q2', 'answer': 'No', 'evidence': 'No             
+           mention of CoreDNS configmap, NXDOMAIN rewrite, template             
+           rule, or .svc.cluster.local pattern anywhere in the                  
+           diagnosis.', 'confidence': 'High'}, {'id': 'D2-Q3',                  
+           'answer': 'No', 'evidence': "Agent lists fault type as               
+           'unknown' and considers                                              
+           bootstrap/dependency_latency/network_partition — none                
+           matching the CoreDNS misconfiguration ground truth.",                
+           'confidence': 'High'}, {'id': 'D3-Q1', 'answer': 'No',               
+           'evidence': 'Agent blames frontend as the faulty                     
+           component, which is not a contributing fault origin per              
+           ground truth; it over-attributes to frontend.',                      
+           'confidence': 'High'}, {'id': 'D3-Q2', 'answer': 'No',               
+           'evidence': 'Ground truth identifies configmap/coredns in            
+           kube-system as the affected component; agent never                   
+           mentions CoreDNS or kube-system as part of the fault.',              
+           'confidence': 'High'}, {'id': 'D3-Q3', 'answer': 'No',               
+           'evidence': 'Agent describes observability path failures             
+           and bootstrap timing issues; ground truth states                     
+           cluster-wide service discovery failures from CoreDNS                 
+           NXDOMAIN rewrite — not matched.', 'confidence': 'High'}],            
+           'submission': 'Root cause: Not established. The three                
+           dispatches that could have observed the failing behaviour            
+           — metrics, logs and traces on frontend — all failed at               
+           the transport layer with DNS name-resolution failures                
+           against observe-namespace endpoints                                  
+           [tr_d5f3b92daf38][tr_d2c58a0eb4fe][tr_3c06a8fe0871], so              
+           no error rate, log line or span exists for any service in            
+           this incident. The only substantive evidence returned is             
+           change history, and it says the same thing for frontend,             
+           product-catalog and cart: exactly two records each in the            
+           full 24h window, a service-config creation followed one              
+           second later by a first-ever workload container creation,            
+           all by platform-automation at 22:33:29-30, roughly eight             
+           minutes before the 22:41:59 alert                                    
+           [tr_e6c32894b1ee][tr_d3ea444602d8][tr_d9359c8237e6]. That            
+           is a scripted stand-up of the whole environment, not a               
+           deploy, config edit or flag flip on anything already                 
+           running. What remains is an alert on a freshly                       
+           bootstrapped frontend with zero telemetry behind it;                 
+           naming a mechanism would be inventing one. The one                   
+           mechanism the evidence does establish is that                        
+           cluster-internal name resolution for                                 
+           observe.svc.cluster.local is broken from the probing                 
+           environment, confirmed against three distinct hostnames              
+           and ports — that must be fixed before any further                    
+           dispatch returns anything.\nFaulty component:                        
+           frontend\nFault type: unknown\nConfidence:                           
+           low\n\nEvidence:\n- The error-ratio query for frontend               
+           over the two-hour window returned no data: the query                 
+           failed at the transport layer, with DNS resolution of the            
+           Prometheus server hostname failing (name not resolvable)             
+           rather than returning an empty series. (found, from                  
+           metric_baseline on frontend; query: sum by(service_name)             
+           (rate(traces_span_metrics_calls_total{service_name="front            
+           end",status_code="STATUS_CODE_ERROR"}[5m])) / sum                    
+           by(service_name)                                                     
+           (rate(traces_span_metrics_calls_total{service_name="front            
+           end"}[5m])))\n- No error rate, latency percentile, or                
+           per-downstream-dependency failure rate figures are                   
+           available for frontend around 22:41:59 from this source;             
+           the question is unanswered by this evidence. (found, from            
+           metric_baseline on frontend; query: sum by(service_name)             
+           (rate(traces_span_metrics_calls_total{service_name="front            
+           end",status_code="STATUS_CODE_ERROR"}[5m])) / sum                    
+           by(service_name)                                                     
+           (rate(traces_span_metrics_calls_total{service_name="front            
+           end"}[5m])))\n- The metrics query path itself is impaired            
+           from the querying environment — the configured Prometheus            
+           endpoint in the observe namespace does not resolve, which            
+           is itself a condition worth investigating (DNS,                      
+           namespace, or endpoint configuration change). (found,                
+           from metric_baseline on frontend; query: sum                         
+           by(service_name)                                                     
+           (rate(traces_span_metrics_calls_total{service_name="front            
+           end",status_code="STATUS_CODE_ERROR"}[5m])) / sum                    
+           by(service_name)                                                     
+           (rate(traces_span_metrics_calls_total{service_name="front            
+           end"}[5m])))\n- Frontend metrics are present but show                
+           flat/healthy signals, so the incident is not visible in              
+           metrics. (ruled_out, from metric_baseline on frontend;               
+           why: No data was returned at all. The absence is a                   
+           tool/transport failure, not an observed healthy baseline,            
+           so no inference about frontend health can be drawn either            
+           way.; query: sum by(service_name)                                    
+           (rate(traces_span_metrics_calls_total{service_name="front            
+           end",status_code="STATUS_CODE_ERROR"}[5m])) / sum                    
+           by(service_name)                                                     
+           (rate(traces_span_metrics_calls_total{service_name="front            
+           end"}[5m])))\n- Span metrics for frontend were never                 
+           emitted or the service_name label is wrong, which is why             
+           metrics are missing. (ruled_out, from metric_baseline on             
+           frontend; why: The failure occurred before any query                 
+           reached Prometheus — hostname resolution failed — so                 
+           nothing can be concluded about whether the series or                 
+           labels exist.; query: sum by(service_name)                           
+           (rate(traces_span_metrics_calls_total{service_name="front            
+           end",status_code="STATUS_CODE_ERROR"}[5m])) / sum                    
+           by(service_name)                                                     
+           (rate(traces_span_metrics_calls_total{service_name="front            
+           end"}[5m])))\n- A specific downstream dependency can be              
+           named as the correlated degradation based on metrics.                
+           (ruled_out, from metric_baseline on frontend; why: No                
+           per-dependency call data was retrieved, so this evidence             
+           supports naming no downstream; any such attribution must             
+           come from traces or logs.; query: sum by(service_name)               
+           (rate(traces_span_metrics_calls_total{service_name="front            
+           end",status_code="STATUS_CODE_ERROR"}[5m])) / sum                    
+           by(service_name)                                                     
+           (rate(traces_span_metrics_calls_total{service_name="front            
+           end"}[5m])))\n- The metric backend is reachable and the              
+           gap is a retention or time-range issue (window outside               
+           retention). (ruled_out, from metric_baseline on frontend;            
+           why: The error is a DNS name-resolution failure on the               
+           Prometheus host, which precludes a retention or                      
+           time-range explanation.; query: sum by(service_name)                 
+           (rate(traces_span_metrics_calls_total{service_name="front            
+           end",status_code="STATUS_CODE_ERROR"}[5m])) / sum                    
+           by(service_name)                                                     
+           (rate(traces_span_metrics_calls_total{service_name="front            
+           end"}[5m])))\n- The log query returned no data at all; it            
+           failed before reaching the log store, with a DNS                     
+           name-resolution failure for the Loki host endpoint, so               
+           the query never executed against any backend. (found,                
+           from logql_query on frontend; query:                                 
+           {namespace="astronomy-shop",pod=~"frontend-([a-z0-9]+-[a-            
+           z0-9]+|[0-9]+)"})\n- The attempted query targeted the                
+           frontend pods in the astronomy-shop namespace over the               
+           requested ~30 minute window, so the query shape and                  
+           window were correct — the failure is in connectivity to              
+           the logging backend, not in the query construction.                  
+           (found, from logql_query on frontend; query:                         
+           {namespace="astronomy-shop",pod=~"frontend-([a-z0-9]+-[a-            
+           z0-9]+|[0-9]+)"})\n- No determination can be made about              
+           what error or exception text frontend emitted around                 
+           22:41:59, nor which downstream call it names; that                   
+           question remains entirely open. (found, from logql_query             
+           on frontend; query:                                                  
+           {namespace="astronomy-shop",pod=~"frontend-([a-z0-9]+-[a-            
+           z0-9]+|[0-9]+)"})\n- frontend emitted no errors in this              
+           window, so the fault lies elsewhere (absence of logs as              
+           exculpatory evidence) (ruled_out, from logql_query on                
+           frontend; why: The empty result is a transport failure,              
+           not a successful query returning zero rows. It carries no            
+           information about whether frontend logged errors, so it              
+           cannot be used to clear frontend.; query:                            
+           {namespace="astronomy-shop",pod=~"frontend-([a-z0-9]+-[a-            
+           z0-9]+|[0-9]+)"})\n- The named downstream dependency can             
+           be identified from frontend logs on this attempt                     
+           (ruled_out, from logql_query on frontend; why: No log                
+           lines were retrieved, so no downstream call name is                  
+           available from this evidence.; query:                                
+           {namespace="astronomy-shop",pod=~"frontend-([a-z0-9]+-[a-            
+           z0-9]+|[0-9]+)"})\n- The log-query tooling path is                   
+           healthy and further identical queries will succeed                   
+           (ruled_out, from logql_query on frontend; why: The Loki              
+           service hostname failed to resolve, indicating a broken              
+           or misconfigured query path; retrying the same call                  
+           without fixing resolution or endpoint will fail the same             
+           way.; query:                                                         
+           {namespace="astronomy-shop",pod=~"frontend-([a-z0-9]+-[a-            
+           z0-9]+|[0-9]+)"})\n- Loki is up but rate-limiting, timing            
+           out, or returning partial results due to the window or               
+           limit (ruled_out, from logql_query on frontend; why: The             
+           failure occurred at DNS resolution, before any connection            
+           or server-side processing; query limits, window size, and            
+           backend load are not implicated.; query:                             
+           {namespace="astronomy-shop",pod=~"frontend-([a-z0-9]+-[a-            
+           z0-9]+|[0-9]+)"})\n- The trace query for service frontend            
+           over the requested hour returned no data at all; it                  
+           failed before reaching the backend because the configured            
+           tracing host name could not be resolved by DNS from the              
+           query environment. (found, from trace_query on                       
+           frontend)\n- The failure is an                                       
+           infrastructure/name-resolution error in the trace                    
+           retrieval path, not an empty-but-successful result set,              
+           so no statement can be made about ad, cart, checkout,                
+           product-catalog, or recommendation span errors or                    
+           latency, nor about whether failing spans cluster at                  
+           frontend\'s startup/first-run path. (found, from                     
+           trace_query on frontend)\n- The absence of returned                  
+           traces means frontend served no requests (or no                      
+           downstream calls) in the window — i.e. a traffic outage.             
+           (ruled_out, from trace_query on frontend; why: The result            
+           is a transport-level query failure, not a successful                 
+           empty query. No request ever reached the trace store, so             
+           emptiness carries zero information about frontend                    
+           traffic.)\n- Trace evidence already identifies a specific            
+           guilty downstream dependency for this window. (ruled_out,            
+           from trace_query on frontend; why: No spans were                     
+           retrieved, so the trace tier contributes no                          
+           discriminating evidence among the five candidate                     
+           downstreams; any current attribution rests on other                  
+           signals.)\n- The trace query tool is healthy and a retry             
+           with different parameters (narrower window, different                
+           limit, specific operation) will return data. (ruled_out,             
+           from trace_query on frontend; why: The error is DNS name             
+           resolution for the tracing endpoint host, which is                   
+           parameter-independent; retries with altered query                    
+           arguments will fail identically until the endpoint                   
+           address or networking is fixed.)\n- Only two change                  
+           records exist for frontend in the 24h window, both from              
+           platform-automation and both ~8 minutes before onset: a              
+           workload/container first-creation and a service config               
+           creation, two seconds apart. (found, from change_history             
+           on frontend)\n- The pairing and wording of the two                   
+           entries indicate an initial bootstrap of the frontend                
+           workload (first-ever creation of the object), not a                  
+           redeploy of an existing service or a runtime parameter               
+           change. (found, from change_history on frontend)\n- The              
+           timing places a cold-start/bootstrap of frontend                     
+           immediately upstream of onset, making startup-time                   
+           behaviour (first-run initialization, cold caches,                    
+           dependency discovery at boot) the leading change-related             
+           explanation rather than a behavioural change to running              
+           code. (found, from change_history on frontend)\n- The                
+           query was scoped to frontend at zero hops, so the record             
+           contains no coverage of ad, cart, checkout,                          
+           product-catalog, or recommendation; their change state is            
+           unexamined, not clean. (found, from change_history on                
+           frontend)\n- A frontend code deploy or image rollout in              
+           the hours before onset introduced the regression.                    
+           (ruled_out, from change_history on frontend; why: The                
+           only frontend changes in the full 24h window are a                   
+           first-time workload creation and its service config                  
+           creation; no deploy, rollout, or image update event                  
+           appears.)\n- A feature flag flip or runtime config edit              
+           on an already-running frontend triggered the incident.               
+           (ruled_out, from change_history on frontend; why: No flag            
+           or config-mutation entries are present; the single config            
+           record is a creation of the service object itself, not a             
+           modification of existing settings.)\n- A slow-burn change            
+           landed hours earlier and surfaced later, so the                      
+           correlation window needs widening. (ruled_out, from                  
+           change_history on frontend; why: The window covers a full            
+           24h and contains nothing earlier than the two records 8              
+           minutes before onset, leaving no earlier candidate on                
+           frontend.)\n- Multiple overlapping frontend changes make             
+           attribution ambiguous. (ruled_out, from change_history on            
+           frontend; why: Only two records exist, two seconds apart             
+           and clearly part of one bootstrap action, so there is a              
+           single change event to attribute.)\n- Exactly two change             
+           records exist for product-catalog across the full 24h                
+           window, both recorded by the automated platform actor                
+           within one second of each other, roughly eight minutes               
+           before the stated onset. (found, from change_history on              
+           product-catalog)\n- Both records are creation events                 
+           rather than modifications: the service definition was                
+           created, followed immediately by first creation of the               
+           workload container. This is a first-time stand-up of                 
+           product-catalog, not a change to a pre-existing running              
+           service. (found, from change_history on                              
+           product-catalog)\n- The timing is consistent with the                
+           change preceding the incident by minutes, which supports             
+           product-catalog\'s cold start as a candidate cause for a             
+           frontend bootstrap occurring in the same minutes-scale               
+           neighbourhood. (found, from change_history on                        
+           product-catalog)\n- A bad deploy, image bump, or rollout             
+           of a new version to an already-running product-catalog               
+           triggered the incident. (ruled_out, from change_history              
+           on product-catalog; why: The only two records are                    
+           creation events for the service and its first container;             
+           there is no prior deployment or update record in the 24h             
+           window, so there was no running prior version to regress             
+           from.)\n- A config edit, flag flip, or scaling change to             
+           product-catalog drifted the system some hours earlier and            
+           surfaced later. (ruled_out, from change_history on                   
+           product-catalog; why: The 24h window contains no changes             
+           other than the two creation records eight minutes before             
+           onset; any earlier drift would have to be unrecorded or              
+           originate outside this service.)\n- A human operator made            
+           a manual or emergency change to product-catalog.                     
+           (ruled_out, from change_history on product-catalog; why:             
+           Both records are attributed to the platform automation               
+           actor, with no human-initiated entries in the window.)\n-            
+           product-catalog change activity is temporally unrelated              
+           to the incident and can be dismissed as background noise.            
+           (ruled_out, from change_history on product-catalog; why:             
+           Both records land eight minutes before onset, which is               
+           squarely within a causal window rather than                          
+           background.)\n- The cart service has exactly two change              
+           records in the 24h window before onset, both at                      
+           2026-10-03T22:33:29-30Z, roughly 8 minutes before onset.             
+           (found, from change_history on cart)\n- Both change                  
+           records are attributed to the same actor,                            
+           platform-automation; no human or other automated actor               
+           appears in cart\'s change history for this window.                   
+           (found, from change_history on cart)\n- Both records are             
+           creation events rather than modifications: the service               
+           config was created, then the workload container was                  
+           created one second later. This is the signature of cart              
+           being stood up for the first time, not reconfigured.                 
+           (found, from change_history on cart)\n- The one-second               
+           ordering (config first, then workload) and the                       
+           single-actor attribution are consistent with cart being              
+           part of a scripted environment bootstrap rather than an              
+           independent deploy. (found, from change_history on                   
+           cart)\n- Cart\'s change timestamps fall within the same              
+           minute-scale timeframe and share the same actor as a                 
+           frontend bootstrap would, so cart cannot be distinguished            
+           from the frontend on actor or timing grounds; the two are            
+           consistent with a single bootstrap event. (found, from               
+           change_history on cart)\n- A configuration change or                 
+           redeploy to an already-running cart service destabilised             
+           it and caused the incident. (ruled_out, from                         
+           change_history on cart; why: Both records are first-time             
+           creations of the config and the workload, not updates to             
+           existing objects. There is no prior cart state in the                
+           window for a change to have perturbed.)\n- A human                   
+           operator made a manual or out-of-band change to cart                 
+           shortly before onset. (ruled_out, from change_history on             
+           cart; why: Every change record in the window is                      
+           attributed to platform-automation. No human actor                    
+           appears.)\n- Cart drifted gradually over the preceding               
+           day, with an early change whose effects surfaced later.              
+           (ruled_out, from change_history on cart; why: The 24h                
+           window contains only two records and both sit about 8                
+           minutes before onset. The rest of the window is empty of             
+           cart changes, leaving no earlier change to have                      
+           drifted.)\n- Cart changed independently of the frontend,             
+           on a separate actor or schedule, making it a distinct                
+           causal thread. (ruled_out, from change_history on cart;              
+           why: Cart\'s changes share the platform-automation actor             
+           and a tight timeframe, so cart cannot be separated from a            
+           concurrent bootstrap on those grounds.)\n- Many changes              
+           landed on cart in a noisy release train, requiring                   
+           bisection to find the culprit. (ruled_out, from                      
+           change_history on cart; why: Only two records exist, one             
+           second apart, and they describe a single creation                    
+           sequence. There is nothing to                                        
+           bisect.)\n\nReasoning:\nEach fault class in this taxonomy            
+           is identified by a signal from the culprit\'s own                    
+           metrics, logs or traces, and none of those were                      
+           retrieved. The specialists were explicit that the empty              
+           results are transport failures, not successful empty                 
+           queries, and correctly refused to read them as                       
+           exculpatory for frontend or as evidence of a traffic                 
+           outage                                                               
+           [tr_d5f3b92daf38][tr_d2c58a0eb4fe][tr_3c06a8fe0871]. The             
+           change dispatches are high-confidence but only eliminate:            
+           no frontend code deploy or image rollout, no flag flip or            
+           runtime config edit on a running service, no earlier                 
+           slow-burn change, no human actor                                     
+           [tr_e6c32894b1ee][tr_d3ea444602d8][tr_d9359c8237e6].                 
+           Every record is a first creation, so there is no prior               
+           running state for a change to have regressed from — which            
+           is why bad_deploy, bad_config and feature_flag all sit               
+           poorly. I name frontend only because it is where the                 
+           alert fired and where blast radius starts, not because               
+           evidence places fault there; seven edges were crossed                
+           unmeasured and five downstreams were never examined                  
+           [tr_e6c32894b1ee]. Remediation is \'none\' because                   
+           prescribing a fix for an unidentified mechanism is                   
+           guessing; the real next action is repairing the                      
+           observability query path and re-running metrics, logs and            
+           traces.\n\nAlternatives considered:\n1. frontend: Cluster            
+           DNS or network connectivity is broken for the environment            
+           stood up at 22:33, so frontend cannot reach its                      
+           downstreams for the same reason the probes cannot reach              
+           Prometheus, Loki and Jaeger. (network_partition). Ranked             
+           lower because: All three confirmed resolution failures               
+           are against observe-namespace hosts from the probing                 
+           environment; a partition is diagnosed from the culprit\'s            
+           own log complaining it cannot reach anything, and no                 
+           frontend log was retrieved [tr_d2c58a0eb4fe].\n2.                    
+           frontend: The 22:33:29 bootstrap created frontend before             
+           its downstreams were ready, and frontend failed on                   
+           first-run dependency discovery against cold or absent                
+           backends. (dependency_latency). Ranked lower because:                
+           This rests solely on the eight-minute gap between                    
+           creation records and onset                                           
+           [tr_e6c32894b1ee][tr_d3ea444602d8]; no trace or metric               
+           shows any downstream being slow, and the trace specialist            
+           explicitly declined to name a guilty downstream                      
+           [tr_3c06a8fe0871].\n\nOpen questions:\n- What did                    
+           frontend actually emit around 22:41:59 — error text, a               
+           named downstream, a timeout, or silence? This alone                  
+           separates freeze, partition, exhaustion and dependency               
+           latency, and no log line was retrieved.\n- Is the                    
+           observe-namespace DNS failure confined to the probing                
+           environment, or is cluster DNS broken for astronomy-shop             
+           workloads too — in which case it may be the incident                 
+           rather than an obstruction? Possibly the observe                     
+           namespace was simply never stood up by the same 22:33                
+           bootstrap.\n- What is the state of the five unexamined               
+           services in the blast radius (ad, checkout,                          
+           recommendation and others), and did frontend ever serve a            
+           successful request after its 22:33:31 container                      
+           creation?'}, 'TTL': 672.6503887176514,                               
+           'phase.fix_kubernetes.duration_s': 3.083,                            
+           'phase.undeploy_leftovers.duration_s': 6.117,                        
+           'phase.deploy.duration_s': 164.971,                                  
+           'phase.inject_fault.duration_s': 9.019,                              
+           'phase.stage:diagnosis.duration_s': 661.935,                         
+           'phase.stage:diagnosis.outcome': 'submitted',                        
+           'phase.evaluate:diagnosis.duration_s': 10.713,                       
+           'phase.cleanup.duration_s': 100.539, 'run_status':                   
+           'complete'}                                                          
+           ⏳ Waiting for agent process to complete...               main.py:661
+           ✅ Agent process completed with return code 0             main.py:667
+           🧹 Cleaned up agent process for faultline                 main.py:677
+[10/03/26 22:47:20] INFO     __main__ - ⏳ Attempt 1 of 1 for problem           
+                             stale_coredns_config_astronomy_shop complete -     
+                             Intermediate results written to                    
+                             _running_stale_coredns_config_astronomy_shop_faultl
+                             ine_results.csv; artifacts published to            
+                             results/1003_2231/faultline/stale_coredns_config_as
+                             tronomy_shop/run_1                                 
+                    WARNING  sregym.traces.postprocess - No convertible session 
+                             in                                                 
+                             results/1003_2231/faultline/stale_coredns_config_as
+                             tronomy_shop/run_1                                 
+                    WARNING  __main__ - ⚠️ ATIF trajectory conversion skipped for
+                             results/1003_2231/faultline/stale_coredns_config_as
+                             tronomy_shop/run_1                                 
+                    INFO     __main__ - ✅ Problem                              
+                             stale_coredns_config_astronomy_shop for agent      
+                             faultline complete! Results written to             
+                             results/1003_2231/faultline/stale_coredns_config_as
+                             tronomy_shop/stale_coredns_config_astronomy_shop_fa
+                             ultline_results.csv                                
+ Benchmarking faultline — stale_coredns_config_astronomy_shop (attempt 1/1)    …
+[22:47:20] 🔓 Stopping Kubernetes API proxy...                       main.py:787
+[10/03/26 22:47:20] INFO     all.sregym.conductor - Stopping Kubernetes API     
+                             filtering proxy...                                 
+                    INFO     all.infra.k8s_proxy - Kubernetes API filtering     
+                             proxy stopped                                      
+                    WARNING  all.sregym.conductor_api - Shutting down API       
+                             server...                                          
+                    INFO     uvicorn.error - Shutting down                      
+                    INFO     uvicorn.error - Finished server process [1631951]  
+                    INFO     __main__ - ✅ Benchmark complete! Results for      
+                             faultline written to                               
+                             results/1003_2231/faultline_ALL_results.csv        

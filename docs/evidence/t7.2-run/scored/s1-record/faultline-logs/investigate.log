@@ -1,0 +1,14 @@
+incident aa34d8cd-15b8-4127-a663-54f1a118dee6  state triaging  anchor 08:00:37
+triage: 1 services, severity warning, start from nowhere the graph knows, 0 unmeasured edge(s) crossed
+
+states: triaging -> resolved
+trajectory: none persisted
+triage judged: noise (medium confidence, suspects unknown)
+  A lone warning-severity alert on a single service with no error-rate alerts and no propagation into dependents describes a system still serving traffic. Nothing here justifies a specialist dispatch.
+
+GATED BEFORE FAN-OUT: no specialist ran and nothing was spent on this incident
+
+--- stderr ---
+{"ts": "2026-10-03T08:00:43.970+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-03T08:00:44.021+00:00", "level": "INFO", "logger": "faultline.notify", "msg": "no report-ready notification was sent: no notifier was configured", "component": "investigator"}
+{"ts": "2026-10-03T08:00:44.021+00:00", "level": "INFO", "logger": "faultline.notify", "msg": "no awaiting-approval notification was sent: no notifier was configured", "component": "investigator"}

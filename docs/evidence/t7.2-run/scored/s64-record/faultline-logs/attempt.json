@@ -1,0 +1,34 @@
+{
+  "started_at": "2026-10-03T23:15:07.036961+00:00",
+  "app_name": "OpenTelemetry Demo Astronomy Shop",
+  "namespace": "astronomy-shop",
+  "application": "sregym-astronomy-shop",
+  "evaluations": 1,
+  "fallback": false,
+  "episodes": [
+    {
+      "alertname": "KubeDeploymentReplicasMismatch",
+      "service": "frontend",
+      "severity": "warning"
+    },
+    {
+      "alertname": "KubePodNotReady",
+      "service": "frontend",
+      "severity": "warning"
+    }
+  ],
+  "opening_errors": [],
+  "incident_id": "36483b44-52db-426d-b934-58841b82604e",
+  "investigate_exit": 5,
+  "trajectory_id": "",
+  "verdict": false,
+  "evidence_cited": 0,
+  "submission": "Faultline reached no verdict.",
+  "submitted": {
+    "status": "200",
+    "message": "Submission received",
+    "stage": "diagnosis"
+  },
+  "error": "",
+  "ended_at": "2026-10-03T23:15:13.692135+00:00"
+}

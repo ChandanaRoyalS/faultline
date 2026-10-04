@@ -1,0 +1,162 @@
+{
+  "incident_id": "58839055-d5dc-4eb9-b9fa-329a0720ba9d",
+  "trajectory_id": "75a042b5-d735-4a7c-a708-3bf046273e31",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "ad",
+    "cart",
+    "checkout",
+    "frontend",
+    "frontend-proxy",
+    "product-catalog",
+    "product-reviews",
+    "recommendation"
+  ],
+  "unmeasured_edges": 7,
+  "exclude_origins": [],
+  "verdict": {
+    "root_cause": "Not established. The three dispatches that could have observed the failing behaviour \u2014 metrics, logs and traces on frontend \u2014 all failed at the transport layer with DNS name-resolution failures against observe-namespace endpoints [tr_d5f3b92daf38][tr_d2c58a0eb4fe][tr_3c06a8fe0871], so no error rate, log line or span exists for any service in this incident. The only substantive evidence returned is change history, and it says the same thing for frontend, product-catalog and cart: exactly two records each in the full 24h window, a service-config creation followed one second later by a first-ever workload container creation, all by platform-automation at 22:33:29-30, roughly eight minutes before the 22:41:59 alert [tr_e6c32894b1ee][tr_d3ea444602d8][tr_d9359c8237e6]. That is a scripted stand-up of the whole environment, not a deploy, config edit or flag flip on anything already running. What remains is an alert on a freshly bootstrapped frontend with zero telemetry behind it; naming a mechanism would be inventing one. The one mechanism the evidence does establish is that cluster-internal name resolution for observe.svc.cluster.local is broken from the probing environment, confirmed against three distinct hostnames and ports \u2014 that must be fixed before any further dispatch returns anything.",
+    "service": "frontend",
+    "fault_class": "unknown",
+    "remediation_class": "none",
+    "confidence": "low",
+    "evidence": [
+      "tr_d5f3b92daf38",
+      "tr_d2c58a0eb4fe",
+      "tr_3c06a8fe0871",
+      "tr_e6c32894b1ee",
+      "tr_d3ea444602d8",
+      "tr_d9359c8237e6"
+    ],
+    "reasoning": "Each fault class in this taxonomy is identified by a signal from the culprit's own metrics, logs or traces, and none of those were retrieved. The specialists were explicit that the empty results are transport failures, not successful empty queries, and correctly refused to read them as exculpatory for frontend or as evidence of a traffic outage [tr_d5f3b92daf38][tr_d2c58a0eb4fe][tr_3c06a8fe0871]. The change dispatches are high-confidence but only eliminate: no frontend code deploy or image rollout, no flag flip or runtime config edit on a running service, no earlier slow-burn change, no human actor [tr_e6c32894b1ee][tr_d3ea444602d8][tr_d9359c8237e6]. Every record is a first creation, so there is no prior running state for a change to have regressed from \u2014 which is why bad_deploy, bad_config and feature_flag all sit poorly. I name frontend only because it is where the alert fired and where blast radius starts, not because evidence places fault there; seven edges were crossed unmeasured and five downstreams were never examined [tr_e6c32894b1ee]. Remediation is 'none' because prescribing a fix for an unidentified mechanism is guessing; the real next action is repairing the observability query path and re-running metrics, logs and traces.",
+    "open_questions": [
+      "What did frontend actually emit around 22:41:59 \u2014 error text, a named downstream, a timeout, or silence? This alone separates freeze, partition, exhaustion and dependency latency, and no log line was retrieved.",
+      "Is the observe-namespace DNS failure confined to the probing environment, or is cluster DNS broken for astronomy-shop workloads too \u2014 in which case it may be the incident rather than an obstruction? Possibly the observe namespace was simply never stood up by the same 22:33 bootstrap.",
+      "What is the state of the five unexamined services in the blast radius (ad, checkout, recommendation and others), and did frontend ever serve a successful request after its 22:33:31 container creation?"
+    ],
+    "alternatives": [
+      {
+        "root_cause": "Cluster DNS or network connectivity is broken for the environment stood up at 22:33, so frontend cannot reach its downstreams for the same reason the probes cannot reach Prometheus, Loki and Jaeger.",
+        "service": "frontend",
+        "fault_class": "network_partition",
+        "remediation_class": "reconnect",
+        "why_not": "All three confirmed resolution failures are against observe-namespace hosts from the probing environment; a partition is diagnosed from the culprit's own log complaining it cannot reach anything, and no frontend log was retrieved [tr_d2c58a0eb4fe]."
+      },
+      {
+        "root_cause": "The 22:33:29 bootstrap created frontend before its downstreams were ready, and frontend failed on first-run dependency discovery against cold or absent backends.",
+        "service": "frontend",
+        "fault_class": "dependency_latency",
+        "remediation_class": "restart",
+        "why_not": "This rests solely on the eight-minute gap between creation records and onset [tr_e6c32894b1ee][tr_d3ea444602d8]; no trace or metric shows any downstream being slow, and the trace specialist explicitly declined to name a guilty downstream [tr_3c06a8fe0871]."
+      }
+    ]
+  },
+  "flags": [
+    "scribe produced no valid findings: schema validation failed twice (Expecting ',' delimiter: line 1 column 3400 (char 3399))"
+  ],
+  "retrieved": [
+    "runbook:class-bad-config / What the change record holds: The variable and a timestamp, and **the new value only** - no change record in this world carries\na prior value, which `world-change-records-have-no-prior-value` sets out.\n\n**What the logs hold is not uniform, and this document had it wrong.** An earlier version said a\nservice po",
+    "cart-bad-image-tag / What was checked: **Error rate by service.** frontend, loadgenerator and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero. Read, wrongly, as evidence cart was\nhealthy.\n\n**loadgenerator.** Set aside. It is the synthetic client; its error rate restates what\nthe storefron",
+    "shipping-wrong-image / What the investigation concluded: shippingservice was running an artifact that was not the shipping binary. About two minutes before onset (T-2m), platform-automation moved shippingservice's image reference to a demo artifact whose tag names a different service entirely (adservice). Four earlier change records in"
+  ],
+  "failed_dispatches": [
+    [
+      "scribe",
+      "schema validation failed twice (Expecting ',' delimiter: line 1 column 3400 (char 3399))"
+    ]
+  ],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 21485,
+    "pulled_tokens": 1943,
+    "pull_rate": 0.0829,
+    "dropped_sections": 1,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 438,
+        "content_tokens": 440,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1362,
+        "content_tokens": 1365,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 9365,
+        "content_tokens": 9341,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 10320,
+        "content_tokens": 10324,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_d5f3b92daf38",
+      "tr_d2c58a0eb4fe",
+      "tr_3c06a8fe0871",
+      "tr_e6c32894b1ee",
+      "tr_d3ea444602d8",
+      "tr_d9359c8237e6"
+    ],
+    "expected_effect": "No action is proposed, so no change in system behaviour should be observed. The verdict is 'not established' at low confidence and no permitted action's preconditions are met. rollback_image requires a prior image tag and a deploy or image change inside the window: frontend's only two change records are a first-ever service-config creation and a first-ever container creation by platform-automation at 22:33:29-31 [tr_e6c32894b1ee], with the same bootstrap signature on product-catalog [tr_d3ea444602d8] and cart [tr_d9359c8237e6] - there is no prior image tag to roll back to and no deploy event. revert_config requires a prior configuration and a config or flag change inside the window: the single config record is the creation of the service object itself, not a modification, so there is no prior configuration to restore. restart_service requires evidence pointing at process state: the metrics, logs and traces dispatches all failed at DNS resolution against observe-namespace endpoints before reaching any backend [tr_d5f3b92daf38][tr_d2c58a0eb4fe][tr_3c06a8fe0871], so no error ratio, log line, span or restart count exists for frontend or any other service - there is no evidence about process state at all, only an alert. The correct next step is outside this system's action set: restore name resolution for *.observe.svc.cluster.local from the probing environment, or determine whether the observe namespace was simply never stood up by the same 22:33 bootstrap, then re-dispatch logs on frontend for 22:41:59.",
+    "confirm_within_seconds": 0,
+    "if_wrong": "This abstention is wrong if frontend is in fact in a wedged post-bootstrap process state that a container recreate would clear, and the delay in acting costs availability. That would be shown by evidence this system does not currently hold: a successful Loki query returning frontend error or panic lines around 22:41:59, a non-zero error ratio from Prometheus, or a restart count climbing. Note also that nothing here can currently be confirmed by metrics or logs at all - the observability transport is down, so any action taken now would be unverifiable, which is an independent reason not to act. A second way this is wrong: if cluster DNS is broken for astronomy-shop workloads and not merely for the probe, then the DNS failure is the incident rather than an obstruction, and the fix is cluster-level networking, which no permitted action here reaches.",
+    "risk": "The risk of abstaining is continued unavailability of frontend if it is genuinely broken and a restart would have fixed it; that cost is real and grows with time. The risk of the alternative - restarting or rolling back frontend on this evidence - is worse: a rollback has no prior tag to target and would fail or deploy an unintended image, and a restart of a service whose fault may lie in a downstream (ad, cart, checkout, product-catalog, product-reviews, recommendation, all unexamined for telemetry) discards its caches, adds a second cold start eight minutes after the first, and produces no observable confirmation because metrics and logs are unreachable.",
+    "blast_radius": "No one sees this, because nothing changes. Had an action been proposed against frontend, frontend-proxy and every user-facing path behind it would have seen connection resets during the container recreate, and the five unexamined candidate downstreams would have seen frontend's traffic drop and resume."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Critical alert on the user-facing frontend with no open incident to attribute it to; single-seed critical alerts cannot be dismissed. Cause could lie in any of several unmeasured downstream dependencies, so no fault class is suggested yet."
+  }
+}

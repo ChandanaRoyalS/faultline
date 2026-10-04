@@ -1,0 +1,162 @@
+{
+  "incident_id": "0e3751e5-f1c3-4335-af85-3d84a8598e50",
+  "trajectory_id": "dd9f5e42-0418-4c8d-bc5c-e12ba67383b5",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "frontend",
+    "profile",
+    "recommendation",
+    "reservation",
+    "search",
+    "user"
+  ],
+  "unmeasured_edges": 5,
+  "exclude_origins": [],
+  "verdict": {
+    "root_cause": "The board does not establish a cause for the 17:38:25 onset. The only concrete anomaly is a ~4-second burst of Consul discovery refusals on consul:8500 right after frontend's cold start at 17:31:56 [tr_141f2b9c494c][tr_b46c4a6267a3], a bootstrap race between the frontend and consul workloads both first created at 17:31:55 by platform-automation [tr_57fd4b831076][tr_c4d033b6d797]. That burst ended at 17:32:00 and never recurred, leaving ~6.5 clean minutes before the alert [tr_b46c4a6267a3], so it is not the onset mechanism. Everything that could name the real mechanism was structurally unavailable: no span metrics for frontend or user in either window [tr_9e57cb00ad61][tr_3c200821e5c6], zero frontend traces for the hour [tr_e4ec257e6a74], and a truncated log slice covering only 17:31:56-17:32:00 [tr_141f2b9c494c]. The fault most likely lies on one of the five unmeasured edges below frontend, unidentified.",
+    "service": "frontend",
+    "fault_class": "unknown",
+    "remediation_class": "none",
+    "confidence": "low",
+    "evidence": [
+      "tr_b46c4a6267a3",
+      "tr_141f2b9c494c",
+      "tr_c4d033b6d797"
+    ],
+    "reasoning": "Frontend's own code is cleared: no panic or fatal entry, and the process reached its serving state [tr_141f2b9c494c]. No deploy, flag flip, config edit, restart or human action touched frontend or consul beyond initial creation [tr_57fd4b831076][tr_c4d033b6d797], removing bad_deploy, feature_flag and a regressing config edit. A wrong Consul address is excluded because the same address stopped refusing without any re-read [tr_b46c4a6267a3]. What remains - a quiet, running frontend alerting six minutes after discovery recovered - cannot be resolved because metrics, traces and the onset-minute logs are all missing [tr_9e57cb00ad61][tr_e4ec257e6a74][tr_3c200821e5c6]. Naming a class here would be asserting past the evidence.",
+    "open_questions": [
+      "What did frontend log between 17:32:00 and 17:38:30? The unfiltered query was truncated and never covered the onset minute.",
+      "Which of the five unmeasured downstream edges (user, recommendation, profile, search, reservation) was slow or erroring at onset? No per-service logs or latency data were gathered for any of them.",
+      "Is Consul itself healthy after 17:32:00? Its own logs and health were never queried - only its change history."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "Consul remained unhealthy or degraded after its 17:31:55 stand-up, so frontend's later re-resolutions stalled and callers waited.",
+        "service": "consul",
+        "fault_class": "dependency_latency",
+        "remediation_class": "restart",
+        "why_not": "The 8500-filtered query covered the full window without truncation and shows no refusals after 17:32:00 [tr_b46c4a6267a3]; no Consul-side log or metric was ever gathered to support ongoing degradation."
+      },
+      {
+        "root_cause": "A downstream hotel-reservation service became slow after 17:32, and frontend's requests failed on waiting for it.",
+        "service": "user",
+        "fault_class": "dependency_latency",
+        "remediation_class": "restart",
+        "why_not": "Zero traces and no span metrics exist to attribute latency to any downstream service [tr_e4ec257e6a74][tr_3c200821e5c6]; this is a plausible shape with no evidence naming a culprit."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "runbook:service-frontend / What can page for it: All three rules, evaluated per `service_name`, and frontend has series under both metric\nfamilies. Its SLO row is the world's standard: p95 250ms, error ratio 0.05, sourced from\n`compose/prometheus/alert-rules.yml`. `alert-high-latency` and `alert-no-traffic` carry the\nrules' own",
+    "cart-bad-image-tag / What was checked: **Error rate by service.** frontend, loadgenerator and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero. Read, wrongly, as evidence cart was\nhealthy.\n\n**loadgenerator.** Set aside. It is the synthetic client; its error rate restates what\nthe storefron",
+    "runbook:world-uninstrumented-services / featureflagservice: ADR-0006 replaced it with a stub that reproduces its gRPC contract and none of its\ninstrumentation. Measured against Prometheus: `count by (service_name) (calls_total)` returns\n15 services and it is not among them.\n\n**The consequence is exact.** Neither `calls_total` nor `latency"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 25669,
+    "pulled_tokens": 3279,
+    "pull_rate": 0.1133,
+    "dropped_sections": 1,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 413,
+        "content_tokens": 415,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1656,
+        "content_tokens": 1659,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 7821,
+        "content_tokens": 7797,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 7245,
+        "content_tokens": 7247,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 8534,
+        "content_tokens": 8537,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_57fd4b831076",
+      "tr_c4d033b6d797",
+      "tr_b46c4a6267a3",
+      "tr_9e57cb00ad61",
+      "tr_e4ec257e6a74",
+      "tr_3c200821e5c6"
+    ],
+    "expected_effect": "No action proposed, so no effect is expected. Nothing about the system should change as a result of this proposal. Concretely: none of the three buildable actions has its preconditions met. rollback_image requires a prior image tag and a deploy/image change inside the window \u2014 frontend's change log holds only a service-object creation and a first container creation at 17:31:55, with no predecessor image recorded [tr_57fd4b831076], and the same is true for the only other service with change data, consul [tr_c4d033b6d797]. revert_config requires a prior configuration and a config change inside the window \u2014 again only a creation record exists, and the one configured address under suspicion (consul:8500) was demonstrated to become reachable without any change [tr_b46c4a6267a3]. restart_service requires evidence pointing at process state: the only process-state signal is a cold start at 17:31:56 whose discovery-refusal burst ended at 17:32:00 and never recurred, leaving ~6.5 clean minutes before the 17:38:25 onset [tr_b46c4a6267a3] \u2014 restarting frontend would re-run exactly the bootstrap race that was already ruled out as the onset mechanism. The correct next step is investigative, not remedial: an untruncated frontend log query covering 17:32:00\u201317:38:30, and per-service logs for the five unmeasured downstream edges.",
+    "confirm_within_seconds": 0,
+    "if_wrong": "This abstention is wrong if a subsequent untruncated log slice over 17:32:00\u201317:38:30 shows a mechanism that one of rollback_image, revert_config or restart_service addresses \u2014 for example renewed consul:8500 refusals continuing through onset (would point at consul process state), a frontend OOM/goroutine-leak or connection-pool-exhaustion signature (would point at restart_service on frontend), or a downstream service logging errors from a recorded image or config change inside the window (would point at rollback or revert on that service). It is also wrong if a stakeholder judges that a blind frontend restart is cheap enough to try despite an unknown mechanism; I do not, because the only measured consequence of a frontend cold start in this incident is a 4-second total discovery outage across all five backends [tr_b46c4a6267a3]. Note separately that no action taken here could be confirmed by metrics: frontend and user have no span-derived series in either the incident or baseline window [tr_9e57cb00ad61][tr_3c200821e5c6] and frontend emitted zero traces for the hour [tr_e4ec257e6a74], so the only available confirmation channel is Loki logs. An unobservable fix is a second reason to hold.",
+    "risk": "The risk of abstaining is that the incident continues unmitigated while the alert is live, and the time spent on further investigation is time the alerted frontend stays degraded. If the true mechanism is a frontend process-state fault that a restart would clear, this abstention leaves it running. Against that: acting on a low-confidence 'unknown' verdict risks a restart that recreates the known 17:31:56 bootstrap race, producing a fresh all-backend discovery gap and destroying the in-process state and the very log continuity needed to find the real cause \u2014 converting an unexplained degradation into a second, self-inflicted one with the original still undiagnosed.",
+    "blast_radius": "No service is touched, so no caller sees a change. For contrast, the action not taken: a frontend restart would be seen by every external client of frontend and would momentarily break its outbound edges to user, recommendation, profile, search and reservation during re-resolution; a restart or rollback of any one of those five would be seen by frontend as reset connections on that edge. The investigative follow-ups proposed instead (log and metric queries) are read-only and visible to nobody."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "low",
+    "reasoning": "A critical alert on the user-facing frontend with no open incidents to attribute it to cannot be dismissed. The single seed with five unmeasured downstream edges gives no basis yet for guessing a fault class."
+  }
+}

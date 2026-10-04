@@ -1,0 +1,14 @@
+incident dbd889ec-507d-4714-932c-a52ac18084d2  state triaging  anchor 20:33:00
+triage: 8 services, severity warning, start from frontend, 7 unmeasured edge(s) crossed
+
+states: triaging -> resolved
+trajectory: none persisted
+triage judged: noise (medium confidence, suspects unknown)
+  Single warning-severity alert on frontend alone with no error-rate alert or downstream service alerting. Nothing here to distinguish from normal latency jitter.
+
+GATED BEFORE FAN-OUT: no specialist ran and nothing was spent on this incident
+
+--- stderr ---
+{"ts": "2026-10-03T20:33:06.297+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-03T20:33:06.351+00:00", "level": "INFO", "logger": "faultline.notify", "msg": "no report-ready notification was sent: no notifier was configured", "component": "investigator"}
+{"ts": "2026-10-03T20:33:06.351+00:00", "level": "INFO", "logger": "faultline.notify", "msg": "no awaiting-approval notification was sent: no notifier was configured", "component": "investigator"}

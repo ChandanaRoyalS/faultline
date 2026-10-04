@@ -1,0 +1,34 @@
+{
+  "started_at": "2026-10-03T19:36:33.109505+00:00",
+  "app_name": "Hotel Reservation",
+  "namespace": "hotel-reservation",
+  "application": "sregym-hotel-reservation",
+  "evaluations": 2,
+  "fallback": false,
+  "episodes": [
+    {
+      "alertname": "KubeDeploymentReplicasMismatch",
+      "service": "profile",
+      "severity": "warning"
+    },
+    {
+      "alertname": "KubePodCrashLooping",
+      "service": "profile",
+      "severity": "warning"
+    }
+  ],
+  "opening_errors": [],
+  "incident_id": "8c898f97-289a-45b4-a667-0dad8204aa7a",
+  "investigate_exit": 5,
+  "trajectory_id": "",
+  "verdict": false,
+  "evidence_cited": 0,
+  "submission": "Faultline reached no verdict.",
+  "submitted": {
+    "status": "200",
+    "message": "Submission received",
+    "stage": "diagnosis"
+  },
+  "error": "",
+  "ended_at": "2026-10-03T19:37:40.585670+00:00"
+}

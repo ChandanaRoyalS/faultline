@@ -1,0 +1,14 @@
+incident 313a6917-cf43-4ce3-83aa-621a4630a9bf  state triaging  anchor 15:45:43
+triage: 1 services, severity critical, start from nowhere the graph knows, 0 unmeasured edge(s) crossed
+
+states: triaging -> resolved
+trajectory: none persisted
+triage judged: noise (medium confidence, suspects unknown)
+  The only alert is on the synthetic load generator itself, with no downstream or dependency service alerting. This describes test traffic tooling, not a production failure.
+
+GATED BEFORE FAN-OUT: no specialist ran and nothing was spent on this incident
+
+--- stderr ---
+{"ts": "2026-10-03T15:45:49.937+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-03T15:45:49.989+00:00", "level": "INFO", "logger": "faultline.notify", "msg": "no report-ready notification was sent: no notifier was configured", "component": "investigator"}
+{"ts": "2026-10-03T15:45:49.989+00:00", "level": "INFO", "logger": "faultline.notify", "msg": "no awaiting-approval notification was sent: no notifier was configured", "component": "investigator"}

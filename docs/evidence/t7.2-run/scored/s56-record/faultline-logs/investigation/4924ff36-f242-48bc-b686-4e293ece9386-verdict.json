@@ -1,0 +1,168 @@
+{
+  "incident_id": "4924ff36-f242-48bc-b686-4e293ece9386",
+  "trajectory_id": "6ff4f817-f1dd-494b-a686-80c419102492",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "ad",
+    "checkout",
+    "flagd",
+    "frontend",
+    "frontend-proxy",
+    "product-catalog",
+    "recommendation"
+  ],
+  "unmeasured_edges": 8,
+  "exclude_origins": [],
+  "verdict": {
+    "root_cause": "The ad service stopped serving at 20:59:11 and never came back. Its own logs show a cold start at 20:58:05, four normal ad requests through 20:59:10 with intact trace context and no errors, then a JVM-driven gRPC shutdown at 20:59:11 followed by total silence across the 21:00:16 alert [tr_ce520f9e7393]. Tempo holds no ad spans at all for the window [tr_2178f15d99cb]. Ad's own output never complains about an unreachable peer, a full disk, a wrong address or credential, or memory pressure \u2014 it simply goes quiet after a signalled stop, which is the silent-culprit signature. Ad's only change records are first-creation entries by platform-automation, not a rollout, config edit, or limit change [tr_03b9ea884053], and flagd came up cleanly, parsed its flag file, and logged no reload or evaluation errors [tr_f75ff8f53156, tr_df44850fa5b2]. The mechanism now is a stopped ad process behind a still-advertised service endpoint; the fix is to bring ad back up.",
+    "service": "ad",
+    "fault_class": "process_freeze",
+    "remediation_class": "restart",
+    "confidence": "medium",
+    "evidence": [
+      "tr_ce520f9e7393",
+      "tr_2178f15d99cb",
+      "tr_03b9ea884053",
+      "tr_f75ff8f53156",
+      "tr_df44850fa5b2",
+      "tr_1c44b72de6bd",
+      "tr_f2b13604310b",
+      "tr_181fc5b26702"
+    ],
+    "reasoning": "The only positive, dated signal on the board is ad's log timeline [tr_ce520f9e7393]: serving normally until 20:59:10, shutdown at 20:59:11, then nothing emitted at or near onset. Silence with no self-reported cause separates a stopped process from a network partition (which logs unreachable peers) and from disk_fill or bad_config (which name no-space or a wrong address). The empty Tempo result corroborates rather than adds: nothing served means nothing exported [tr_2178f15d99cb]. No competing act exists in the change log for ad [tr_03b9ea884053], and flagd is cleared as an active actor \u2014 creation-only records with no flag mutation, one clean startup, successful config parse, and fault-injection flags aimed at cart and payment rather than ad [tr_df44850fa5b2, tr_f75ff8f53156]. Both Prometheus queries returned structural unavailability, not observed zeros [tr_1c44b72de6bd, tr_f2b13604310b], and product-catalog's log query was substring-filtered to 'error', so it is neither implicated nor cleared [tr_181fc5b26702]. Ad is named because it is the only service with a demonstrated transition from serving to silent immediately before onset.",
+    "open_questions": [
+      "What signalled the 20:59:11 shutdown, and did the container restart afterwards? No pod state, restart count, or exit code was retrieved, which is why this is medium confidence.",
+      "Do ad's callers hang to a deadline or fail fast with connection-refused? No caller-side traces or socket evidence was collected, and that distinction separates a frozen-but-listening process from a dead one.",
+      "Why did product-catalog alert at the same second? Its unfiltered logs were never queried and its span metrics do not exist, so no causal link from ad has been shown and a shared upstream trigger is untested."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "The ad JVM, capped at a 200m max heap, exhausted memory and was terminated, leaving it unable to serve.",
+        "service": "ad",
+        "fault_class": "resource_exhaustion",
+        "remediation_class": "scale",
+        "why_not": "The 20:59:11 termination is an orderly shutdown hook completing with a clean server-shutdown line, not the abrupt truncation an OOM-kill leaves, and no memory error appears [tr_ce520f9e7393]; no resource-limit change is recorded either [tr_03b9ea884053]."
+      },
+      {
+        "root_cause": "A flagd fault-injection flag enabled at provisioning drove failures in a service downstream of ad's call path.",
+        "service": "flagd",
+        "fault_class": "feature_flag",
+        "remediation_class": "config_revert",
+        "why_not": "No flag-value mutation is recorded and no hot-reload or evaluation error appears in flagd's logs; the enabled fault flags target cart and payment, and ad's failure is its own process being silent rather than a failing flagged path [tr_df44850fa5b2, tr_f75ff8f53156]."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "product-catalog-flag-failure / Root cause: A feature flag was switched on at the flag service, and productcatalogservice honoured\nit by returning errors for one product. The failing service was working correctly; the\nconfiguration that made it fail lived somewhere else entirely, in a component with no\ntelemetry of any kin",
+    "cart-bad-image-tag / What was checked: **Error rate by service.** frontend, loadgenerator and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero. Read, wrongly, as evidence cart was\nhealthy.\n\n**loadgenerator.** Set aside. It is the synthetic client; its error rate restates what\nthe storefron",
+    "product-catalog-flag-failure / What was never measured: Who enabled the failure flag, when, and in which system \u2014 never established; no change record was found. The catalog service's own logs were never actually read: the log selector used a hyphenated label variant and returned zero lines, so the correct label value was never queried"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 31994,
+    "pulled_tokens": 2914,
+    "pull_rate": 0.0835,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 418,
+        "content_tokens": 419,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 2036,
+        "content_tokens": 2038,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 9836,
+        "content_tokens": 9812,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 9118,
+        "content_tokens": 9120,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 10586,
+        "content_tokens": 10563,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "restart",
+    "action_id": "restart_service",
+    "target": "ad",
+    "rests_on": [
+      "tr_ce520f9e7393",
+      "tr_2178f15d99cb",
+      "tr_03b9ea884053",
+      "tr_1c44b72de6bd"
+    ],
+    "expected_effect": "Recreating ad's container should end the log silence that has held since 20:59:11. Within roughly one JVM cold start (the previous one took ~17s from first line to 'listening on gRPC port' [tr_ce520f9e7393]) Loki on {namespace=\"astronomy-shop\",pod=~\"ad-...\"} should show a fresh startup sequence followed by ordinary per-request ad lines carrying populated trace ids, and no further 'gRPC shutdown / JVM shutdown' line. Note the confirmation must be log-based: ad emits no trace-derived span metrics, so error-ratio and latency percentiles do not exist for it in Prometheus [tr_1c44b72de6bd], and Tempo held no ad spans at all [tr_2178f15d99cb] \u2014 if spans do reappear in Tempo after the restart that is a bonus signal, not a required one.",
+    "confirm_within_seconds": 300,
+    "if_wrong": "Three falsifiers. (1) No startup lines appear within five minutes \u2014 the container is not being scheduled, and the mechanism is at the orchestrator, not the process. (2) Startup lines appear and are followed within a minute or two by another JVM-driven graceful shutdown \u2014 something external is signalling ad to stop (the open question of what sent the 20:59:11 signal was never answered; no pod state, restart count, or exit code was retrieved), and repeating the restart will just churn. (3) ad logs resume and serve normally but product-catalog is still alerting \u2014 the causal link from ad to product-catalog was never shown (its unfiltered logs were never queried [tr_181fc5b26702], its span metrics do not exist [tr_f2b13604310b]), so a shared upstream trigger would remain live and this restart would have fixed a symptom.",
+    "risk": "restart_service is not reversible. If the 20:59:11 stop was commanded by something still in force \u2014 an operator-driven teardown, a scheduler eviction, a supervisor \u2014 the recreate either fails or is undone, and we have spent the one irreversible action while learning less than a pod-state/exit-code query would have told us for free. If ad was in fact already restarted by the platform after 20:59:11 (unverified), this recreate interrupts a working process and causes a second, self-inflicted outage window. It also discards in-process state; for ad that is cache only, so the cost is a cold cache and slower first responses, not data. And it closes off post-mortem inspection of the stopped container's exit code.",
+    "blast_radius": "One service for the duration of the recreate. This brief names only ad's outbound edge (ad \u2192 flagd), not its callers, so the inbound set is not fully enumerated here \u2014 operators should assume the services that render ads see connection-refused or reset during the recreate, and should check the frontend path specifically. flagd sees ad's flag-evaluation traffic resume, which it logged no errors handling [tr_f75ff8f53156]. product-catalog, checkout, recommendation and frontend-proxy are untouched by this action; if their alerts clear, that is evidence of a causal link that has not otherwise been established."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "feature_flag",
+    "confidence": "low",
+    "reasoning": "Two independent services alerted simultaneously, which is more than a single quiet latency warning and not dismissible. flagd appears as a shared candidate cause for ad, making a flag change a reasonable cheap prior."
+  }
+}

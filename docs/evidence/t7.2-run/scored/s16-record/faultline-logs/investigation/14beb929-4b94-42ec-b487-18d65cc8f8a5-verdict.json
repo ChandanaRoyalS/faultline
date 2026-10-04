@@ -1,0 +1,163 @@
+{
+  "incident_id": "14beb929-4b94-42ec-b487-18d65cc8f8a5",
+  "trajectory_id": "d0929452-2265-4897-8b3f-29095227d0d9",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "mongodb-geo",
+    "mongodb-profile",
+    "mongodb-rate",
+    "mongodb-recommendation",
+    "mongodb-reservation",
+    "mongodb-user"
+  ],
+  "unmeasured_edges": 0,
+  "exclude_origins": [],
+  "verdict": {
+    "root_cause": "All six mongodb instances in the hotel-reservation namespace were stopped by externally delivered SIGTERMs (kill(2), pid 0/uid 0) at 10:07:17-10:07:18, each completing a clean, fully-sequenced MongoDB shutdown with no errors and no restart afterward [tr_e3f5da9a7ba3][tr_540a1d20a6c7][tr_0cd4e97940fd]. The change log shows platform-automation provisioning these workloads fresh in the ~80 seconds before onset, including an administrative/failure-injection ConfigMap for mongodb-geo [tr_03f6bbb5b918][tr_044c506c1683]. The databases are therefore not failing-but-live: their processes are absent, so callers hit dead endpoints and the alerts at 10:08:17 reflect missing datastores rather than a defect in any one of them. The nearest fit in this taxonomy is a deliberate stop of the running artifacts, remedied by bringing the mongod processes back up.",
+    "service": "mongodb-geo",
+    "fault_class": "process_freeze",
+    "remediation_class": "restart",
+    "confidence": "low",
+    "evidence": [
+      "tr_e3f5da9a7ba3",
+      "tr_540a1d20a6c7",
+      "tr_0cd4e97940fd",
+      "tr_03f6bbb5b918",
+      "tr_044c506c1683"
+    ],
+    "reasoning": "Three independent log dispatches show the same signature on three different mongodb pods within one second of each other: SIGTERM from pid 0/uid 0, orderly teardown, exit 0, silence afterwards [tr_e3f5da9a7ba3][tr_540a1d20a6c7][tr_0cd4e97940fd]. That rules out crash, OOM, saturation, replication churn and storage corruption on each instance. The synchronised timing and the single actor in the change log point to one orchestrated act affecting all six datastores, not six independent faults [tr_03f6bbb5b918][tr_044c506c1683]. Metrics could not corroborate anything: both metric dispatches failed structurally because these services emit no span-derived series, so saturation signals remain untested [tr_f427209b3657][tr_11db3f5b33a4]. The class is uncomfortable - the processes are gone rather than frozen-but-listening - but the operative fact is that the datastore processes are not running while their Services exist, and the fix is to restore the processes.",
+    "open_questions": [
+      "Whether the mongod processes stayed down after 10:08:23 or were restarted just outside the queried window - no startup lines were seen, but the logs were truncated.",
+      "Which actor issued the SIGTERMs; pid 0/uid 0 is consistent with kubelet pod termination but the change log does not record a delete or scale-down event.",
+      "Whether the failure-admin-geo ConfigMap drove the termination or is incidental; its contents were never read.",
+      "Whether the other three alerting datastores (profile, rate, recommendation) share the identical signature - they were never dispatched on."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "The platform-automation provisioning burst installed an administrative/failure-injection ConfigMap whose wrong values caused the new mongodb workloads to stop serving.",
+        "service": "mongodb-geo",
+        "fault_class": "bad_config",
+        "remediation_class": "config_revert",
+        "why_not": "No mongodb log line names a bad address, credential or limit; the shutdowns are attributed to an external signal, and mongodb-reservation died identically with no ConfigMap at all [tr_044c506c1683]."
+      },
+      {
+        "root_cause": "The freshly created mongodb workloads never came up correctly - the deployed artifacts were replaced or torn down by the provisioning sequence.",
+        "service": "mongodb-geo",
+        "fault_class": "bad_deploy",
+        "remediation_class": "rollback",
+        "why_not": "The containers are first creations with no prior version to regress from, and the processes ran normally until an external SIGTERM arrived [tr_03f6bbb5b918][tr_e3f5da9a7ba3]."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "runbook:class-bad-config / What the change record holds: The variable and a timestamp, and **the new value only** - no change record in this world carries\na prior value, which `world-change-records-have-no-prior-value` sets out.\n\n**What the logs hold is not uniform, and this document had it wrong.** An earlier version said a\nservice po",
+    "cart-dependency-latency / What was checked: **Whether the reading was real.** cartservice runs at 2ms. Not approximately 2ms \u2014\nacross forty-five minutes of measured quiet operation its minimum, mean and maximum are\nall 2ms, and it has never been observed above 3ms on an undisturbed system. A reading of\n650ms is not an excu",
+    "runbook:action-revert-config / Before proposing it: The allowlist's preconditions are the operator-facing description of when this action is\nappropriate: *a prior configuration for this service is recorded in change history*, and the\nincident's evidence naming a configuration or flag change inside its window.\n\n**What the executor "
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 27874,
+    "pulled_tokens": 7066,
+    "pull_rate": 0.2022,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 399,
+        "content_tokens": 400,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1915,
+        "content_tokens": 1917,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 8524,
+        "content_tokens": 8500,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 7816,
+        "content_tokens": 7819,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 9220,
+        "content_tokens": 9198,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "restart",
+    "action_id": "restart_service",
+    "target": "mongodb-user",
+    "rests_on": [
+      "tr_540a1d20a6c7",
+      "tr_11db3f5b33a4"
+    ],
+    "expected_effect": "mongod is absent, not sick: SIGTERM at 10:07:18.971, clean teardown, exit 0, no startup line after. Recreating the container should yield fresh mongod startup lines in Loki for the mongodb-user pod ('Waiting for connections' on 27017) and then connection-accepted entries, within ~60s. Caller-side alerts against mongodb-user should clear.",
+    "confirm_within_seconds": 300,
+    "if_wrong": "No startup lines appear, or the pod logs another SIGTERM within minutes \u2014 meaning an external agent (the suspected failure-injection path) is still stopping these processes and the restart will be undone. Note mongodb-user emits no span metrics [tr_11db3f5b33a4], so confirmation must come from logs and caller alerts, not from its own error ratio.",
+    "risk": "If the process is being re-killed by an active injector or a controller, the restart is a no-op that costs a pod recreate and masks the real actor. If the ConfigMap-driven admin/failure config is the cause, restarting re-applies it. Any in-flight writes at recreate are lost; mongod state is on disk but in-memory sessions and caches are discarded, and the recreate is not reversible.",
+    "blast_radius": "One service. Every hotel-reservation caller of mongodb-user (user/auth path) sees connection resets for the recreate duration. Five sibling datastores remain down and unaddressed by this proposal."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "resource_exhaustion",
+    "confidence": "medium",
+    "reasoning": "Six MongoDB instances alerting simultaneously at the same second points to a shared substrate issue (host, storage, or network) rather than an isolated warning. Too broad and synchronized to dismiss."
+  }
+}

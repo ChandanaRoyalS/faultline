@@ -1,0 +1,177 @@
+{
+  "incident_id": "0a5d8a28-39ac-4c5f-9ac1-1ef74c521457",
+  "trajectory_id": "640145e5-de29-4f23-b168-fc708628573a",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "ad",
+    "cart",
+    "checkout",
+    "currency",
+    "email",
+    "frontend",
+    "frontend-proxy",
+    "load-generator",
+    "payment",
+    "product-catalog",
+    "product-reviews",
+    "recommendation",
+    "shipping"
+  ],
+  "unmeasured_edges": 13,
+  "exclude_origins": [],
+  "verdict": {
+    "root_cause": "Payment is rejecting a subset of Charge calls with an application-level 'Invalid token' rejection tagged with a gold loyalty-level attribute, and checkout surfaces that rejection to the frontend and load-generator as 'failed to charge card'. The rejection is raised inside payment's own request-handling code, arrives within 1-4ms (a fast business-logic decline, not a hang or timeout), and the payment span carries a flagd flag evaluation on the charge path. No deploy, image rollout or configuration edit exists for either payment or checkout in the 24-hour change log - the only entries are platform-automation first-creation records for the workload and service objects. A failure mode that (a) begins at a definite time (~15:11), (b) is segmented by a customer attribute rather than affecting all traffic, (c) is produced by the service's own code while the service stays up and keeps accepting traffic, and (d) leaves the change log empty, is a runtime flag flip in the flag store enabling a failing payment code path for gold-tier requests.",
+    "service": "payment",
+    "fault_class": "feature_flag",
+    "remediation_class": "config_revert",
+    "confidence": "medium",
+    "evidence": [
+      "tr_0d3e77248cba",
+      "tr_5d6996bcab13",
+      "tr_407873775724",
+      "tr_1778ce8ce3e6",
+      "tr_463410507be2",
+      "tr_d3518340b0ba",
+      "tr_60cfa54aac6a"
+    ],
+    "reasoning": "Trace evidence [tr_0d3e77248cba] places the originating error at the deepest span - checkout's call to payment's Charge - with every other checkout dependency (cart/valkey, product-catalog/postgresql, shipping, quote, currency) returning clean and fast, and the frontend/load-generator spans erroring only as propagated parents. The same result rules out latency saturation: the erroring Charge spans return in ~1-4ms, far inside any deadline, so this is a decline rather than a wait. Payment's own logs [tr_5d6996bcab13] show the matching rejection, raised with a stack inside payment's code path, starting ~15:11:17 and recurring steadily to the end of the window, with nothing matching in the preceding ~28 minutes - so the condition has a sharp onset and is not background noise. The same result rules out a transport/infrastructure fault between payment and a dependency. [tr_407873775724] shows charge traffic still arriving at a steady cadence through the end of the window, which rules out payment being down, crash-looping, or cut off, and rules out a freeze or partition: payment is up, logging, and answering. Both change histories [tr_1778ce8ce3e6] and [tr_d3518340b0ba] contain only platform-automation creation records and explicitly no deployment, image rollout, config edit, or recorded flag toggle - which eliminates bad_deploy and an artifact/config-file change as the mechanism, and leaves a change that would not appear in a change log. The loyalty-tier attribute present on every rejection [tr_5d6996bcab13] plus the flag evaluation observed on payment's charge path [tr_0d3e77248cba] identify the mechanism as a flagged code path gated on a request attribute. Checkout itself is exonerated as the culprit: its logs [tr_60cfa54aac6a] contain no errors at all, only a bounded startup Kafka wait that resolved at ~15:10:33, well before onset. The sparse metric series on both services [tr_ab5bfd8c7f3b, tr_463410507be2] are too thin to corroborate or contradict anything and are cited only to record that they do not independently support a payment-internal volume-weighted regression.",
+    "open_questions": [
+      "The flag store itself was never queried. No specialist read flagd's configuration or history, so the specific flag name, its value, who or what set it, and the exact flip time remain unconfirmed - the flag evaluation span and the attribute-segmented rejection are circumstantial, not direct.",
+      "Whether the rejection genuinely affects only gold-tier requests, or whether the loyalty attribute simply happens to be present on all sampled failures. Payment's charge-path logs [tr_407873775724] carry no branch-decision or reason line, so the segmentation cannot be confirmed from payment's own logging.",
+      "The earliest sampled trace [tr_0d3e77248cba] shows a connection-refused dial to payment on port 8080 with no payment child span at ~15:10:56. This is unexplained and may be unrelated cold-start churn (payment's workload was created at 15:09:59) or may indicate a second, earlier fault.",
+      "The ~1042ms currency Convert outlier in that same trace is unexplained and was not investigated; no currency specialist was dispatched.",
+      "The error-ratio metrics for both services have empty baseline windows and traffic gaps [tr_ab5bfd8c7f3b, tr_463410507be2], so neither blast-radius magnitude nor onset shape (step vs ramp) is established. The claim that 13 services are affected rests on triage, not on measured evidence here.",
+      "Nothing was gathered on the other nine alerted/affected services, so whether their symptoms all reduce to the checkout-to-payment path is inferred from trace topology rather than verified."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "A payment credential or token-validation setting holds a wrong value, so payment rejects charges it should accept.",
+        "service": "payment",
+        "fault_class": "bad_config",
+        "remediation_class": "config_revert",
+        "why_not": "A statically wrong credential or validation setting would reject uniformly from process start, but the rejections begin at ~15:11 after the pod was already serving [tr_5d6996bcab13] and every observed failure carries the same loyalty-tier attribute, implying an attribute-gated branch rather than a globally wrong value. The change log [tr_1778ce8ce3e6] also records no config edit of any kind beyond the initial service-object creation.",
+        "_comment": "demoted, not eliminated: the flag store was never read, so a config-sourced value remains possible"
+      },
+      {
+        "root_cause": "Payment's first-ever rollout at 15:09:59 brought up an artifact that cannot correctly service charge requests, and the failures are first-rollout breakage rather than a runtime toggle.",
+        "service": "payment",
+        "fault_class": "bad_deploy",
+        "remediation_class": "rollback",
+        "why_not": "The change log shows only workload creation with no image or version record to roll back to [tr_1778ce8ce3e6], and a broken artifact would fail every charge rather than a tier-segmented subset; the trace evidence also shows payment successfully executing the charge path and a flag evaluation before declining [tr_0d3e77248cba], which is working code taking a bad branch, not a broken build."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "shipping-wrong-image / What the investigation concluded: shippingservice was running an artifact that was not the shipping binary. About two minutes before onset (T-2m), platform-automation moved shippingservice's image reference to a demo artifact whose tag names a different service entirely (adservice). Four earlier change records in",
+    "cart-bad-image-tag / What was checked: **Error rate by service.** frontend, loadgenerator and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero. Read, wrongly, as evidence cart was\nhealthy.\n\n**loadgenerator.** Set aside. It is the synthetic client; its error rate restates what\nthe storefron",
+    "runbook:service-frontend / The at-rest latency tail: **Measured over twelve hours at 15s resolution on a world at rest** (ADR-0025): frontend's\nmedian p95 is 42.3ms, and 127 of 2398 samples were above the 250ms threshold, 94 of them above\n1000ms, in excursions sustained past the rule's three-minute `for:` clause. Two episodes in th"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 33679,
+    "pulled_tokens": 7364,
+    "pull_rate": 0.1794,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 490,
+        "content_tokens": 492,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 2227,
+        "content_tokens": 2231,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 10203,
+        "content_tokens": 10179,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 9505,
+        "content_tokens": 9507,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 11254,
+        "content_tokens": 11231,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_1778ce8ce3e6",
+      "tr_d3518340b0ba",
+      "tr_5d6996bcab13",
+      "tr_407873775724"
+    ],
+    "expected_effect": "No action proposed. The verdict's named fix class (config_revert on payment) cannot be executed because its preconditions are not met by the evidence on this board: payment's 24-hour change history [tr_1778ce8ce3e6] contains only two platform-automation first-creation records (workload at 15:09:59, service object at 15:09:56) and no prior configuration state to restore, and no configuration or flag change is recorded for payment inside the incident window. The same holds for checkout [tr_d3518340b0ba]. Reverting payment to the only recorded prior configuration would mean reverting it to its creation-time state, which is the state it is already running \u2014 an action with no predicted observable effect on the 'Invalid token. app.loyalty.level=gold' rejection rate in payment's logs [tr_5d6996bcab13]. Furthermore, the suspected mechanism is a flag value held in the flagd store, which is not part of payment's own environment or configuration; recreating payment with reverted env would leave the flagd value untouched and the gold-tier rejections would resume on the first charge after restart. restart_service is also inappropriate: the evidence shows payment up, accepting traffic, and logging 'Charge request received.' through the end of the window [tr_407873775724], so this is not process state. The correct next step is a read of flagd's configuration and history to name the flag, its value, and its flip time \u2014 a diagnostic step, not a remediation this system is permitted to take.",
+    "confirm_within_seconds": 0,
+    "if_wrong": "This abstention is wrong if a flagd query (or a change-log query scoped to flagd rather than to payment) turns up a recorded prior configuration for payment naming a flag value inside 15:09\u201315:11, which would satisfy revert_config's two preconditions and make a config_revert on payment the right action. It is also wrong if payment's environment \u2014 not flagd's store \u2014 is where the failing-path toggle lives, in which case a revert would clear the rejections. Either finding should reopen this proposal immediately. Note that even a successful revert would be hard to confirm from metrics here: payment's error-ratio series has one defined sample and an empty baseline [tr_463410507be2], so confirmation would have to come from the cessation of the 'Invalid token. app.loyalty.level=gold' lines in payment's logs, which recur every 10\u201330s and so would be visible within about two minutes.",
+    "risk": "The risk of abstaining is continued failure: gold-tier checkouts keep returning 'failed to charge card' to frontend and load-generator for as long as the flag stays flipped, at roughly one rejection every 10\u201330 seconds [tr_5d6996bcab13], with no self-healing observed through the end of the log window. The risk of acting instead would have been worse: revert_config recreates payment's container, so if the diagnosis is wrong the only effect is a connection-refused gap on the charge path \u2014 exactly the failure mode already seen once at ~15:10:56 in [tr_0d3e77248cba] \u2014 converting an attribute-segmented decline into a total payment outage for the recreate duration, while leaving the actual flag value in place.",
+    "blast_radius": "No change is made, so nothing moves. Had the action been taken, it would have hit payment alone directly, with checkout seeing connection resets on Charge during the recreate, and frontend, frontend-proxy and load-generator seeing that propagate upward as the same 'failed to charge card' wrapper they already see. The thirteen services listed for this incident remain in their current state; the nine never directly examined are unaffected either way."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Four services including payment and checkout alert simultaneously at critical severity, which is not dismissible and no open incident covers it. Simultaneity across the checkout path suggests a shared cause but the alerts alone don't distinguish deploy, config, or a common downstream dependency."
+  }
+}

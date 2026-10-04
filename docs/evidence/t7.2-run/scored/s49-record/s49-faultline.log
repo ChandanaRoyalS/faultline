@@ -1,0 +1,551 @@
+[10/03/26 19:57:24] INFO     all.sregym.profile - Deployment profile: full      
+[10/03/26 19:57:24] INFO     __main__ - 🔧 Config — agent: faultline,           
+                             agent_model: anthropic/claude-opus-5,              
+                             judge_backend: api, judge_model:                   
+                             anthropic/claude-sonnet-4-6, reasoning_effort:     
+                             agent default, jev_model: disabled,                
+                             deployment_profile: full, internet_access:         
+                             filtered, container_hardening: on, agent_api_base: 
+                             unset, judge_api_base: unset                       
+                    INFO     __main__ - 🔍 Running pre-flight check for judge   
+                             model...                                           
+🔧 Initializing LLM backend — model: anthropic/claude-sonnet-4-6, api_base: unset
+[10/03/26 19:57:25] INFO     __main__ - ✅ Judge pre-flight check passed        
+[10/03/26 19:57:25] INFO     all.sregym.container_runner - 🐳 Building container
+                             image 'sregym-agent-base:latest'...                
+==> Building sregym-agent-base:latest with kubectl v1.32.1
+#0 building with "default" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile
+#1 transferring dockerfile: 4.62kB done
+#1 DONE 0.0s
+
+#2 [internal] load metadata for docker.io/library/ubuntu:22.04
+#2 DONE 0.3s
+
+#3 [ 1/18] FROM docker.io/library/ubuntu:22.04@sha256:b1066385161d28ddf6bc7e7b28a9170eec11484c821d1a5150d176cbde41d7f7
+#3 resolve docker.io/library/ubuntu:22.04@sha256:b1066385161d28ddf6bc7e7b28a9170eec11484c821d1a5150d176cbde41d7f7 0.0s done
+#3 DONE 0.0s
+
+#4 [internal] load build context
+#4 transferring context: 7.17kB 0.0s done
+#4 DONE 0.0s
+
+#5 [ 5/18] RUN python3 -m ensurepip --upgrade     && python3 -m pip install --upgrade pip     && ln -sf /usr/bin/python3 /usr/bin/python
+#5 CACHED
+
+#6 [ 6/18] RUN KUBECTL_ARCH="amd64"     && case "${KUBECTL_ARCH}" in amd64|arm64) ;; *) echo "Unsupported kubectl architecture: ${KUBECTL_ARCH}" >&2; exit 1 ;; esac     && if [ "v1.32.1" = stable ]; then KUBECTL_VERSION="$(curl -fsSL https://dl.k8s.io/release/stable.txt)"; fi     && curl -fsSLo kubectl "https://dl.k8s.io/release/v1.32.1/bin/linux/${KUBECTL_ARCH}/kubectl"     && chmod +x kubectl && mv kubectl /usr/local/bin/
+#6 CACHED
+
+#7 [17/18] RUN mkdir -p /logs
+#7 CACHED
+
+#8 [ 4/18] RUN apt-get update     && apt-get install -y --no-install-recommends         git wget jq         nodejs         python3.12 python3.12-venv python3.12-dev     && update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.12 1     && rm -rf /var/lib/apt/lists/*
+#8 CACHED
+
+#9 [ 8/18] RUN python3 -m pip install --break-system-packages -r /tmp/requirements-container.txt
+#9 CACHED
+
+#10 [ 9/18] COPY clients/        /opt/sregym/clients/
+#10 CACHED
+
+#11 [12/18] COPY sregym/__init__.py sregym/paths.py /opt/sregym/sregym/
+#11 CACHED
+
+#12 [15/18] COPY docker/agents/install-scripts/ /opt/sregym/install-scripts/
+#12 CACHED
+
+#13 [ 7/18] COPY docker/agents/requirements-container.txt /tmp/requirements-container.txt
+#13 CACHED
+
+#14 [14/18] COPY sregym/service/apps/base.py sregym/service/apps/helpers.py /opt/sregym/sregym/service/apps/
+#14 CACHED
+
+#15 [11/18] COPY llm_backend/    /opt/sregym/llm_backend/
+#15 CACHED
+
+#16 [ 3/18] RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash -     && add-apt-repository ppa:deadsnakes/ppa
+#16 CACHED
+
+#17 [10/18] COPY logger/         /opt/sregym/logger/
+#17 CACHED
+
+#18 [ 2/18] RUN apt-get update     && apt-get install -y --no-install-recommends         ca-certificates curl gnupg software-properties-common     && rm -rf /var/lib/apt/lists/*
+#18 CACHED
+
+#19 [16/18] RUN chmod +x /opt/sregym/install-scripts/*.sh
+#19 CACHED
+
+#20 [13/18] COPY sregym/service/__init__.py sregym/service/kubectl.py sregym/service/helm.py /opt/sregym/sregym/service/
+#20 CACHED
+
+#21 [18/18] WORKDIR /logs
+#21 CACHED
+
+#22 exporting to image
+#22 exporting layers done
+#22 exporting manifest sha256:1b74a7bb405d43412a3e637b37638417323d4f1fc4a6a2d6aa94b992abf54a9c done
+#22 exporting config sha256:5d9ad739d727a05d459f4a31004b6c88d90d21f830069c2e903de96901537afc done
+#22 exporting attestation manifest sha256:84ffa13f0e8d07a838e2d6582636f6c21ea91a78a8ccb4289650c3a8db6539dc done
+#22 exporting manifest list sha256:cbab7feee5908a57b1be694761f178064d811a18116d8047a8790eb5599996c1 done
+#22 naming to docker.io/library/sregym-agent-base:latest done
+#22 unpacking to docker.io/library/sregym-agent-base:latest 0.0s done
+#22 DONE 0.1s
+[10/03/26 19:57:26] INFO     all.sregym.container_runner - ✅ Container image   
+                             'sregym-agent-base:latest' built successfully.     
+╭───────────────────────────── SREGym API Server ──────────────────────────────╮
+│  ____  ____  _____ ____                                                      │
+│ / ___||  _ \| ____/ ___|_   _ _ __ ___                                       │
+│ \___ \| |_) |  _|| |  _| | | | '_ ` _ \                                      │
+│  ___) |  _ <| |__| |_| | |_| | | | | | |                                     │
+│ |____/|_| \_\_____\____|\__, |_| |_| |_|                                     │
+│                         |___/                                                │
+│                                                                              │
+╰──────────────────────────── http://0.0.0.0:8000 ─────────────────────────────╯
+Available Endpoints                                                             
+
+ • POST /submit: { "stage": "diagnosis", "solution": "<your-solution>" } →      
+   grades the named stage                                                       
+ • GET /status: returns { "stage": "setup" | "diagnosis" | "mitigation" |       
+   "tearing_down" | "done" }                                                    
+/home/deploy/t7.2-1c/SREGym/.venv/lib/python3.12/site-packages/websockets/legacy/__init__.py:6: DeprecationWarning: websockets.legacy is deprecated; see https://websockets.readthedocs.io/en/stable/howto/upgrade.html for upgrade instructions
+  warnings.warn(  # deprecated in 14.0 - 2024-11-09
+/home/deploy/t7.2-1c/SREGym/.venv/lib/python3.12/site-packages/uvicorn/protocols/websockets/websockets_impl.py:17: DeprecationWarning: websockets.server.WebSocketServerProtocol is deprecated
+  from websockets.server import WebSocketServerProtocol
+[10/03/26 19:57:26] INFO     uvicorn.error - Started server process [855451]    
+                    INFO     uvicorn.error - Waiting for application startup.   
+                    INFO     uvicorn.error - Application startup complete.      
+                    INFO     uvicorn.error - Uvicorn running on                 
+                             http://0.0.0.0:8000 (Press CTRL+C to quit)         
+[19:57:27] Starting agent now: faultline                             main.py:255
+           🔒 Starting Kubernetes API proxy to hide chaos            main.py:259
+           namespaces...                                                        
+[10/03/26 19:57:27] INFO     all.sregym.conductor - Starting Kubernetes API     
+                             filtering proxy...                                 
+                    INFO     all.infra.k8s_proxy - Kubernetes API filtering     
+                             proxy started on 172.17.0.1:16443                  
+                    INFO     all.infra.k8s_proxy - Hidden namespaces:           
+                             {'chaos-mesh', 'khaos'}                            
+                    INFO     all.infra.k8s_proxy - Hidden labels: {'app':       
+                             {'load-generator', 'locust-fetcher'}, 'job':       
+                             {'workload'}, 'opentelemetry.io/name':             
+                             {'load-generator'}}                                
+                    INFO     all.infra.k8s_proxy - Generated agent kubeconfig at
+                             /tmp/sregym-agent-kubeconfig-ppehdpkk.yaml         
+                    INFO     all.sregym.conductor - Agent kubeconfig generated  
+                             at: /tmp/sregym-agent-kubeconfig-ppehdpkk.yaml     
+           🎯 Running single problem:                                main.py:300
+           duplicate_pvc_mounts_social_network                                  
+                                                                     main.py:378
+           🔍 Starting problem: duplicate_pvc_mounts_social_network             
+           (Attempt 1 of 1)                                                     
+                    INFO     all.sregym.conductor - [Session Start] Problem ID: 
+                             duplicate_pvc_mounts_social_network                
+                    INFO     all.sregym.conductor - [STAGE] Start testing on    
+                             problem: duplicate_pvc_mounts_social_network       
+                    INFO     all.sregym.conductor - Fixing Kubernetes... to     
+                             normal state.                                      
+                    INFO     all.sregym.conductor - [FIX] Imbalance leftover if 
+                             any                                                
+                    INFO     all.sregym.conductor - [FIX] KubeletCrash leftover 
+                             if any                                             
+Starting kubelet in kind-worker...
+Kubelet started in kind-worker
+Starting kubelet in kind-worker2...
+Kubelet started in kind-worker2
+Starting kubelet in kind-worker3...
+Kubelet started in kind-worker3
+Waiting for worker nodes {'kind-worker2', 'kind-worker', 'kind-worker3'} to become Ready...
+All worker nodes are Ready.
+[10/03/26 19:57:28] INFO     all.sregym.conductor - [FIX]                       
+                             KubeletEvictionThresholdMisconfig leftover if any  
+Recovering disk pressure in kind-worker...
+Waiting for node kind-worker to become Ready...
+Node kind-worker is Ready.
+Recovering disk pressure in kind-worker2...
+Waiting for node kind-worker2 to become Ready...
+Node kind-worker2 is Ready.
+Recovering disk pressure in kind-worker3...
+Waiting for node kind-worker3 to become Ready...
+Node kind-worker3 is Ready.
+[10/03/26 19:57:29] INFO     all.sregym.conductor - [FIX] Calico                
+                             IPPool/strictAffinity leftover if any              
+                    INFO     all.sregym.conductor - [FIX] Calico route-reflector
+                             label drift leftovers if any                       
+[10/03/26 19:57:30] INFO     all.sregym.conductor - [FIX] Stale CoreDNS NXDOMAIN
+                             templates if any                                   
+No NXDOMAIN templates found in CoreDNS config; nothing to do
+                    INFO     all.sregym.conductor - [FIX] Leftover dm-flakey    
+                             infrastructure if any                              
+[dm-flakey] ⚠️ Could not remove dm-flakey on kind-control-plane (may not exist): No running Khaos pod found on node kind-control-plane
+[dm-flakey] ⚠️ Could not remove dm-flakey on kind-worker (may not exist): No running Khaos pod found on node kind-worker
+[dm-flakey] ⚠️ Could not remove dm-flakey on kind-worker2 (may not exist): No running Khaos pod found on node kind-worker2
+[dm-flakey] ⚠️ Could not remove dm-flakey on kind-worker3 (may not exist): No running Khaos pod found on node kind-worker3
+                    INFO     all.sregym.conductor - [FIX] NightlyRebalanceOOM   
+                             kube-system actor leftover if any                  
+                    INFO     all.sregym.conductor - [FIX] Clock drift leftover  
+                             if any                                             
+No leftover node-probe pods found; nothing to do
+                    INFO     all.sregym.conductor - Fix Kubernetes completed.   
+                    INFO     all.sregym.conductor - Stages requested for this   
+                             run: ['diagnosis']                                 
+                    INFO     all.sregym.conductor - Undeploying app leftovers...
+                    INFO     all.infra.helm - Helm Uninstall: social-network in 
+                             namespace social-network                           
+                    INFO     all.sregym.conductor - App leftovers undeployed.   
+                    INFO     all.sregym.conductor - Deploying app...            
+                    INFO     all.infra.cluster_state - Baseline state loaded    
+                             from                                               
+                             /home/deploy/cache_dir/cluster_baseline_state.json 
+                    INFO     all.sregym.conductor - [DEPLOY] Loaded persisted   
+                             cluster baseline state                             
+                    INFO     all.sregym.conductor - [DEPLOY] Setting up         
+                             metrics-server…                                    
+[10/03/26 19:57:31] INFO     all.sregym.conductor - [DEPLOY] metrics-server     
+                             already present and patched; skipping re-apply     
+[19:57:31] Waiting for all pods in namespace 'kube-system' to be  kubectl.py:204
+           ready...                                                             
+           All pods in namespace 'kube-system' are ready.         kubectl.py:245
+                    INFO     all.sregym.conductor - [DEPLOY] Setting up OpenEBS…
+                    INFO     all.sregym.conductor - [DEPLOY] OpenEBS already    
+                             deployed; skipping operator re-apply               
+           Waiting for all pods in namespace 'openebs' to be      kubectl.py:204
+           ready...                                                             
+           All pods in namespace 'openebs' are ready.             kubectl.py:245
+                    INFO     all.sregym.conductor - [DEPLOY] Ensuring OpenEBS   
+                             LocalPV-Device StorageClass…                       
+                    INFO     all.sregym.conductor - [DEPLOY]                    
+                             StorageClass/openebs-device already exists; leaving
+                             it unchanged                                       
+                    INFO     all.sregym.conductor - [DEPLOY] Deploying          
+                             Prometheus…                                        
+                    INFO     all.infra.helm - Helm Uninstall: prometheus in     
+                             namespace observe                                  
+                    INFO     all.infra.helm - Helm Install: prometheus in       
+                             namespace observe                                  
+[19:57:32] Waiting for all pods in namespace 'observe' to be      kubectl.py:204
+           ready...                                                             
+[19:58:12] All pods in namespace 'observe' are ready.             kubectl.py:245
+[10/03/26 19:58:12] INFO     all.sregym.conductor - [DEPLOY] Deploying Jaeger…  
+                    INFO     all.sregym.jaeger - Jaeger deployed successfully.  
+                    INFO     all.sregym.conductor - [DEPLOY] Deploying OTel     
+                             Collector…                                         
+[10/03/26 19:58:16] INFO     all.sregym.otel_collector - OTel Collector deployed
+                             successfully.                                      
+                    INFO     all.sregym.conductor - [DEPLOY] Deploying Loki…    
+                    INFO     all.infra.helm - Helm Uninstall: loki in namespace 
+                             observe                                            
+                    INFO     all.infra.loki - Adding Grafana Helm repository... 
+[10/03/26 19:58:17] INFO     all.infra.helm - Helm Install: loki in namespace   
+                             observe                                            
+[19:58:18] Waiting for all pods in namespace 'observe' to be      kubectl.py:204
+           ready...                                                             
+[19:59:07] All pods in namespace 'observe' are ready.             kubectl.py:245
+[10/03/26 19:59:07] INFO     all.infra.loki - Deploying Promtail for Loki log   
+                             collection...                                      
+                    INFO     all.infra.helm - Helm Install: promtail in         
+                             namespace observe                                  
+[10/03/26 19:59:08] WARNING  all.infra.helm - Helm install stderr output:       
+                             level=WARN msg="this chart is deprecated"          
+[19:59:08] Waiting for all pods in namespace 'observe' to be      kubectl.py:204
+           ready...                                                             
+[19:59:21] All pods in namespace 'observe' are ready.             kubectl.py:245
+[10/03/26 19:59:21] INFO     all.sregym.conductor - [DEPLOY] Deploying MCP      
+                             server…                                            
+                    INFO     all.sregym.mcp_server - MCP server RBAC resources  
+                             ensured.                                           
+                    INFO     all.sregym.mcp_server - MCP server already running,
+                             skipping redeploy.                                 
+                    INFO     all.sregym.mcp_server - Port-forward is absent or  
+                             stale, restarting.                                 
+[10/03/26 19:59:24] INFO     all.sregym.mcp_server - Port forwarding established
+                             at 9954. MCP_SERVER_PORT set.                      
+                    INFO     all.sregym.conductor - [ENV] Set up necessary      
+                             components: metrics-server, Khaos, OpenEBS,        
+                             Prometheus, Jaeger, Loki                           
+                    INFO     all.sregym.conductor - [DEPLOY] Deploying and      
+                             starting workload                                  
+                    INFO     all.application - Namespace social-network not     
+                             found. Creating namespace.                         
+                    INFO     all.application - Namespace social-network created 
+                             successfully: namespace/social-network created     
+                                                                                
+                    INFO     all.infra.helm - Helm Install: social-network in   
+                             namespace social-network                           
+[19:59:26] Waiting for all pods in namespace 'social-network' to  kubectl.py:204
+           be ready...                                                          
+[19:59:41] All pods in namespace 'social-network' are ready.      kubectl.py:245
+[10/03/26 19:59:41] INFO     all.sregym.conductor - [ENV] Deploy application:   
+                             Social Network                                     
+[10/03/26 19:59:42] INFO     all.sregym.jaeger - Created ExternalName service   
+                             'jaeger' in namespace 'social-network' ->          
+                             otel-collector.observe.svc.cluster.local           
+                    INFO     all.sregym.jaeger - Created ExternalName service   
+                             'jaeger-agent' in namespace 'social-network' ->    
+                             otel-collector.observe.svc.cluster.local           
+                    INFO     all.sregym.jaeger - Created ExternalName service   
+                             'jaeger-collector' in namespace 'social-network' ->
+                             otel-collector.observe.svc.cluster.local           
+                    INFO     all.sregym.jaeger - Created ExternalName service   
+                             'jaeger-query' in namespace 'social-network' ->    
+                             otel-collector.observe.svc.cluster.local           
+                    INFO     all.infra.workload - Start Workload with Wrk2      
+                    INFO     all.infra.workload - Checking for existing         
+                             ConfigMap 'wrk2-payload-script'...                 
+                    INFO     all.infra.workload - Creating ConfigMap            
+                             'wrk2-payload-script'...                           
+                    INFO     all.infra.workload - ConfigMap                     
+                             'wrk2-payload-script' created successfully.        
+                    INFO     all.infra.workload - Job created: wrk2-job         
+                    INFO     all.sregym.conductor - [ENV] Start workload        
+                    INFO     all.sregym.conductor - App deployed.               
+== Fault Injection ==
+Saved the current Deployment configuration to /tmp/deployment-state-social-network-jaeger.yaml
+Created PVC jaeger-pvc for fault injection
+Delete result for jaeger: deployment.apps "jaeger" deleted
+
+Apply result for jaeger: deployment.apps/jaeger created
+
+Injected Duplicate PVC Mounts fault for jaeger: replicas=2, shared PVC=jaeger-pvc
+Service: jaeger | Namespace: social-network
+
+[10/03/26 19:59:49] INFO     all.sregym.conductor - [ENV] Injected fault        
+                    INFO     all.sregym.conductor - [STAGE] Go to stage         
+                             diagnosis                                          
+                    INFO     all.sregym.conductor - ✅ Deployment complete.     
+                             Ready for submission. Current stage is: diagnosis  
+[10/03/26 19:59:51] INFO     all.sregym.container_runner - Starting             
+                             containerized agent [faultline-run]:               
+                             /opt/sregym/install-scripts/install-faultline.sh   
+                             2>&1 | tee /logs/install.log; I...                 
+[2026-10-03T19:59:51+00:00] Installing Faultline from http://host.docker.internal:55480/faultline-src.tar.gz
+9141dfe48a1a044e2bc84f6a39efd1d67d796838d83afa5c6432197e1bf8c674  /tmp/faultline-src.tar.gz
+WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.
+[2026-10-03T20:00:53+00:00] Faultline installed: /opt/faultline/src/faultline/__init__.py
+[10/03/26 20:00:54] INFO     uvicorn.access - 172.17.0.3:45696 - "GET /status   
+                             HTTP/1.1" 200                                      
+                    INFO     uvicorn.access - 172.17.0.3:45700 - "GET /get_app  
+                             HTTP/1.1" 200                                      
+[10/03/26 20:01:00] INFO     uvicorn.access - 172.17.0.3:37686 - "POST /submit  
+                             HTTP/1.1" 200                                      
+[10/03/26 20:01:00] INFO     all.sregym.conductor - Evaluating stage 'diagnosis'
+                    INFO     all.sregym.conductor - Start Eval for Diagnosis    
+== LLM-as-a-Judge Evaluation ==
+🔧 Initializing LLM backend — model: anthropic/claude-sonnet-4-6, api_base: unset
+{"started_at": "2026-10-03T20:00:54.333852+00:00", "app_name": "Social Network", "namespace": "social-network", "application": "sregym-social-network", "evaluations": 1, "fallback": false, "episodes": [{"alertname": "KubeDeploymentReplicasMismatch", "service": "jaeger", "severity": "warning"}, {"alertname": "KubePodNotReady", "service": "jaeger", "severity": "warning"}], "opening_errors": [], "incident_id": "503bca05-7489-46b3-93e0-b37b6ea98350", "investigate_exit": 5, "trajectory_id": "", "verdict": false, "evidence_cited": 0, "submitted": {"status": "200", "message": "Submission received", "stage": "diagnosis"}, "error": "", "ended_at": "2026-10-03T20:01:00.950951+00:00"}
+[20:01:04] ⚠️  Agent process exited with return code 1                main.py:582
+           ⏳ Waiting for conductor evaluation to complete...        main.py:586
+❌ Incorrect diagnosis: False (score: 33.0/100)
+   Expected: [fault_spec] component=deployment/jaeger; namespace=social-network || The deployment is scaled to mu...
+   Got: Faultline reached no verdict.
+[10/03/26 20:01:09] INFO     all.sregym.conductor - [EVAL] Diagnosis Failed     
+                              TTL: 80.59472465515137                            
+                    INFO     all.sregym.conductor - [STAGE] Done, starting      
+                             teardown                                           
+                    INFO     all.sregym.conductor - [CLEANUP] Starting cleanup  
+                             (fault recovery, undeploy, reconcile)              
+                    INFO     all.sregym.conductor - [CLEANUP] Recovering        
+                             fault...                                           
+== Fault Recovery ==
+[20:01:09] 🧹 Running conductor cleanup after agent exit...          main.py:615
+Restore result for jaeger: deployment.apps/jaeger created
+
+[20:01:12] Waiting for all pods in service 'jaeger' to be         kubectl.py:204
+           ready...                                                             
+           All pods in service 'jaeger' are ready.                kubectl.py:245
+Restored the original Deployment and removed injected storage for jaeger
+Service: jaeger | Namespace: social-network
+
+[10/03/26 20:01:12] INFO     all.sregym.conductor - [CLEANUP] Fault recovered   
+                    INFO     all.sregym.conductor - [CLEANUP] Undeploying app...
+                    INFO     all.infra.helm - Helm Uninstall: social-network in 
+                             namespace social-network                           
+[10/03/26 20:01:13] WARNING  all.infra.helm - Helm uninstall stderr output:     
+                             level=WARN msg="skipping delete of resource not    
+                             owned by this release" kind=Service name=jaeger    
+                             namespace=social-network release=social-network    
+[20:01:13] Job with label 'job=workload' deleted successfully.    kubectl.py:422
+[20:01:14] Waiting for namespace deletion...                      kubectl.py:341
+[20:01:50] Namespace 'social-network' has been deleted.           kubectl.py:349
+[10/03/26 20:01:50] INFO     all.infra.kubectl - Namespace 'social-network'     
+                             deleted successfully.                              
+                    INFO     all.sregym.conductor - [CLEANUP] App undeployed    
+                    INFO     all.sregym.conductor - [CLEANUP] Reconciling       
+                             cluster state to baseline...                       
+                    INFO     all.infra.cluster_state - Reconciling cluster to   
+                             baseline state...                                  
+                    INFO     all.infra.cluster_state - Deleting unexpected      
+                             namespace: observe                                 
+           Waiting for namespace deletion...                      kubectl.py:341
+[20:02:26] Namespace 'observe' has been deleted.                  kubectl.py:349
+[10/03/26 20:02:26] INFO     all.infra.kubectl - Namespace 'observe' deleted    
+                             successfully.                                      
+                    INFO     all.infra.cluster_state - Deleting unexpected      
+                             ClusterRole: prometheus-kube-state-metrics         
+                    INFO     all.infra.cluster_state - Deleting unexpected      
+                             ClusterRole: mcp-server                            
+                    INFO     all.infra.cluster_state - Deleting unexpected      
+                             ClusterRole: promtail                              
+                    INFO     all.infra.cluster_state - Deleting unexpected      
+                             ClusterRole: prometheus-server                     
+                    INFO     all.infra.cluster_state - Deleting unexpected      
+                             ClusterRole: loki-clusterrole                      
+                    INFO     all.infra.cluster_state - Deleting unexpected      
+                             ClusterRoleBinding: loki-clusterrolebinding        
+                    INFO     all.infra.cluster_state - Deleting unexpected      
+                             ClusterRoleBinding: prometheus-kube-state-metrics  
+                    INFO     all.infra.cluster_state - Deleting unexpected      
+                             ClusterRoleBinding: mcp-server                     
+                    INFO     all.infra.cluster_state - Deleting unexpected      
+                             ClusterRoleBinding: prometheus-server              
+                    INFO     all.infra.cluster_state - Deleting unexpected      
+                             ClusterRoleBinding: promtail                       
+                    INFO     all.infra.kubectl - [gc_localpv] Sweeping          
+                             /var/openebs/local on 4 node(s) (preserving 0 live 
+                             PV dir(s))                                         
+[10/03/26 20:02:42] INFO     all.infra.cluster_state - Reconciliation complete: 
+                             {'namespaces_deleted': ['observe'],                
+                             'cluster_roles_deleted':                           
+                             ['prometheus-kube-state-metrics', 'mcp-server',    
+                             'promtail', 'prometheus-server',                   
+                             'loki-clusterrole'],                               
+                             'cluster_role_bindings_deleted':                   
+                             ['loki-clusterrolebinding',                        
+                             'prometheus-kube-state-metrics', 'mcp-server',     
+                             'prometheus-server', 'promtail'],                  
+                             'persistent_volumes_deleted': [],                  
+                             'storage_classes_deleted': [], 'crds_deleted': [], 
+                             'validating_webhook_configs_deleted': [],          
+                             'mutating_webhook_configs_deleted': [],            
+                             'nodes_labels_reset': [], 'nodes_taints_reset': [],
+                             'coredns_reset': False}                            
+                    INFO     all.sregym.conductor - Cluster state reconciliation
+                             changes: {'namespaces_deleted': ['observe'],       
+                             'cluster_roles_deleted':                           
+                             ['prometheus-kube-state-metrics', 'mcp-server',    
+                             'promtail', 'prometheus-server',                   
+                             'loki-clusterrole'],                               
+                             'cluster_role_bindings_deleted':                   
+                             ['loki-clusterrolebinding',                        
+                             'prometheus-kube-state-metrics', 'mcp-server',     
+                             'prometheus-server', 'promtail'],                  
+                             'persistent_volumes_deleted': [],                  
+                             'storage_classes_deleted': [], 'crds_deleted': [], 
+                             'validating_webhook_configs_deleted': [],          
+                             'mutating_webhook_configs_deleted': [],            
+                             'nodes_labels_reset': [], 'nodes_taints_reset': [],
+                             'coredns_reset': False}                            
+                    INFO     all.sregym.conductor - [CLEANUP] Cluster state     
+                             reconciled                                         
+                    INFO     all.sregym.conductor - [CLEANUP] Cleanup complete, 
+                             stage set to 'done'                                
+[10/03/26 20:02:43] INFO     all.sregym.conductor - [STAGE] Teardown complete   
+[20:02:43] ✅ Complete duplicate_pvc_mounts_social_network:          main.py:655
+           results={'Diagnosis': {'judgment': 'False', 'reasoning':             
+           'Verdict: False (composite=0.33). D1 Fault Localization:             
+           0.33 | D2 Fault Characterization: 0.33 | D3 Scope                    
+           Precision: 0.33. Weakest dimension: Fault Localization               
+           (0.33). Checklist details: [{"id": "D1-Q1", "answer":                
+           "No", "evidence": "Agent diagnosis states \'Faultline                
+           reached no verdict\' \\u2014 no component is named.",                
+           "confidence": "High"}, {"id": "D1-Q2", "answer": "No",               
+           "evidence": "No verdict means no distinction between root            
+           cause and secondary failures was made.", "confidence":               
+           "High"}, {"id": "D1-Q3", "answer": "Yes", "evidence":                
+           "Agent named no component at all, so no healthy component            
+           was misidentified as the fault origin.", "confidence":               
+           "High"}, {"id": "D2-Q1", "answer": "No", "evidence":                 
+           "Agent reached no verdict; no fault mechanism (RWO PVC               
+           conflict, anti-affinity) is identified.", "confidence":              
+           "High"}, {"id": "D2-Q2", "answer": "No", "evidence": "No             
+           concrete details such as PVC access mode, replica count,             
+           or anti-affinity rules are mentioned.", "confidence":                
+           "High"}, {"id": "D2-Q3", "answer": "Yes", "evidence":                
+           "Agent made no claims at all, so it did not attribute the            
+           fault to an incorrect type.", "confidence": "High"},                 
+           {"id": "D3-Q1", "answer": "Yes", "evidence": "No                     
+           components were blamed since the agent produced no                   
+           verdict.", "confidence": "High"}, {"id": "D3-Q2",                    
+           "answer": "No", "evidence": "deployment/jaeger in                    
+           social-network namespace is not mentioned; no components             
+           are listed.", "confidence": "High"}, {"id": "D3-Q3",                 
+           "answer": "No", "evidence": "No impact or symptom                    
+           (Pending replica, partial readiness) is described in the             
+           agent\'s output.", "confidence": "High"}]', 'success':               
+           False, 'accuracy': 33.0, 'composite_score': 0.33,                    
+           'dimensions': {'D1': {'name': 'Fault Localization',                  
+           'score': 0.33}, 'D2': {'name': 'Fault Characterization',             
+           'score': 0.33}, 'D3': {'name': 'Scope Precision',                    
+           'score': 0.33}}, 'checklist': [{'id': 'D1-Q1', 'answer':             
+           'No', 'evidence': "Agent diagnosis states 'Faultline                 
+           reached no verdict' — no component is named.",                       
+           'confidence': 'High'}, {'id': 'D1-Q2', 'answer': 'No',               
+           'evidence': 'No verdict means no distinction between root            
+           cause and secondary failures was made.', 'confidence':               
+           'High'}, {'id': 'D1-Q3', 'answer': 'Yes', 'evidence':                
+           'Agent named no component at all, so no healthy component            
+           was misidentified as the fault origin.', 'confidence':               
+           'High'}, {'id': 'D2-Q1', 'answer': 'No', 'evidence':                 
+           'Agent reached no verdict; no fault mechanism (RWO PVC               
+           conflict, anti-affinity) is identified.', 'confidence':              
+           'High'}, {'id': 'D2-Q2', 'answer': 'No', 'evidence': 'No             
+           concrete details such as PVC access mode, replica count,             
+           or anti-affinity rules are mentioned.', 'confidence':                
+           'High'}, {'id': 'D2-Q3', 'answer': 'Yes', 'evidence':                
+           'Agent made no claims at all, so it did not attribute the            
+           fault to an incorrect type.', 'confidence': 'High'},                 
+           {'id': 'D3-Q1', 'answer': 'Yes', 'evidence': 'No                     
+           components were blamed since the agent produced no                   
+           verdict.', 'confidence': 'High'}, {'id': 'D3-Q2',                    
+           'answer': 'No', 'evidence': 'deployment/jaeger in                    
+           social-network namespace is not mentioned; no components             
+           are listed.', 'confidence': 'High'}, {'id': 'D3-Q3',                 
+           'answer': 'No', 'evidence': "No impact or symptom                    
+           (Pending replica, partial readiness) is described in the             
+           agent's output.", 'confidence': 'High'}], 'submission':              
+           'Faultline reached no verdict.'}, 'TTL':                             
+           80.59808564186096, 'phase.fix_kubernetes.duration_s':                
+           3.047, 'phase.undeploy_leftovers.duration_s': 0.093,                 
+           'phase.deploy.duration_s': 131.756,                                  
+           'phase.inject_fault.duration_s': 6.48,                               
+           'phase.stage:diagnosis.duration_s': 71.827,                          
+           'phase.stage:diagnosis.outcome': 'submitted',                        
+           'phase.evaluate:diagnosis.duration_s': 8.766,                        
+           'phase.cleanup.duration_s': 93.278, 'run_status':                    
+           'complete'}                                                          
+           ⏳ Waiting for agent process to complete...               main.py:661
+           ✅ Agent process completed with return code 1             main.py:667
+           🧹 Cleaned up agent process for faultline                 main.py:677
+[10/03/26 20:02:43] INFO     __main__ - ⏳ Attempt 1 of 1 for problem           
+                             duplicate_pvc_mounts_social_network complete -     
+                             Intermediate results written to                    
+                             _running_duplicate_pvc_mounts_social_network_faultl
+                             ine_results.csv; artifacts published to            
+                             results/1003_1957/faultline/duplicate_pvc_mounts_so
+                             cial_network/run_1                                 
+                    WARNING  sregym.traces.postprocess - No convertible session 
+                             in                                                 
+                             results/1003_1957/faultline/duplicate_pvc_mounts_so
+                             cial_network/run_1                                 
+                    WARNING  __main__ - ⚠️ ATIF trajectory conversion skipped for
+                             results/1003_1957/faultline/duplicate_pvc_mounts_so
+                             cial_network/run_1                                 
+                    INFO     __main__ - ✅ Problem                              
+                             duplicate_pvc_mounts_social_network for agent      
+                             faultline complete! Results written to             
+                             results/1003_1957/faultline/duplicate_pvc_mounts_so
+                             cial_network/duplicate_pvc_mounts_social_network_fa
+                             ultline_results.csv                                
+ Benchmarking faultline — duplicate_pvc_mounts_social_network (attempt 1/1)    …
+           🔓 Stopping Kubernetes API proxy...                       main.py:787
+                    INFO     all.sregym.conductor - Stopping Kubernetes API     
+                             filtering proxy...                                 
+                    INFO     all.infra.k8s_proxy - Kubernetes API filtering     
+                             proxy stopped                                      
+                    WARNING  all.sregym.conductor_api - Shutting down API       
+                             server...                                          
+                    INFO     uvicorn.error - Shutting down                      
+[10/03/26 20:02:44] INFO     uvicorn.error - Finished server process [855451]   
+                    INFO     __main__ - ✅ Benchmark complete! Results for      
+                             faultline written to                               
+                             results/1003_1957/faultline_ALL_results.csv        
