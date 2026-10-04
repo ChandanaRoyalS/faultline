@@ -125,3 +125,13 @@ does not run in T7.3 until the fix is shown on one more trial slot.
 - No scored figure: the trial's runs carry their own labels, and no analysis reads them.
 - The owner's go (step 4) comes after the trial, on its measured cost and time, with the operation
   addendum (the headline's queue seed, the nights, the blocks).
+
+## Addendum 1 - E7's revision and the two queues (2026-10-04)
+
+- **E7's commit, resolved on the Mac by the owner**: `233902d25c440f23af6f7d6e94d2946bac0bee0a`
+  for `cross-encoder/ms-marco-MiniLM-L-6-v2`, read by `huggingface_hub`'s `model_info` and
+  downloaded at that commit, so no slot downloads it.
+- **The queues, committed before any slot runs**, printed by `faultline-batch queue`:
+  [`QUEUE-trial-headline-v2.tsv`](QUEUE-trial-headline-v2.tsv) (seed 20261004) and
+  [`QUEUE-trial-t73-v2.tsv`](QUEUE-trial-t73-v2.tsv) (seed 20261007, E7's commit in its header).
+  `tests/test_batch.py` holds each equal to what its seed prints.

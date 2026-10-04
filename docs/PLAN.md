@@ -4617,6 +4617,15 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-10-04: T7.3's trial queues committed, E7's commit pinned.***
+
+- E7's cross-encoder at `233902d25c44`, resolved and downloaded on the Mac by the owner, in the
+  switch trial's queue header (`PREREGISTRATION-trial-v2.md`, Addendum 1).
+- `QUEUE-trial-headline-v2.tsv` (12 slots) and `QUEUE-trial-t73-v2.tsv` (8 slots), each held by a
+  test to what its seed prints. $0.
+- **Next: the trial, about $13**, which starts only on the owner's word, after funds and a console
+  spend limit.
+
 ***2026-10-04: T7.3's trial registered - 20 slots, about $13, stops at $8 and $12; one harness
 defect fixed first.***
 
