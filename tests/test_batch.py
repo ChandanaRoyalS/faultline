@@ -399,3 +399,21 @@ def test_the_headline_trial_judges_its_f_and_the_switch_trial_judges_nothing() -
     assert batch.judged("trial-headline", "F")
     assert not batch.judged("trial-headline", "B1")
     assert not batch.judged("trial-t73", "E3")
+
+
+def test_the_committed_trial_queues_are_what_their_seeds_print() -> None:
+    """Committed before the trial, and nothing in them changes after a result."""
+    from evalharness import sweep
+
+    dev = sweep.runnable(world="v2")
+    headline = Queue("trial-headline", 20261004, batch.trial_headline_queue(dev, 20261004))
+    chosen = batch.switch_scenario(batch.trial_scenarios(dev), batch.t73_scenarios())
+    switches = Queue(
+        "trial-t73",
+        20261007,
+        batch.trial_t73_queue(chosen, 20261007),
+        "233902d25c440f23af6f7d6e94d2946bac0bee0a",
+    )
+    for name, queue in (("trial-headline", headline), ("trial-t73", switches)):
+        committed = (REPO / f"evals/runs/QUEUE-{name}-v2.tsv").read_text()
+        assert committed == batch.render_queue(queue), name
