@@ -1,0 +1,1287 @@
+api key: present (.faultline-anthropic-key)
+--- stamps: faultline/0.0.1+prompts:9ce16b66bbcc cap:91279a09
+--- corpus: 334 rows; at both pins
+--- world: world check passed
+run 20261004T082929Z-v2-cart-bad-image-tag
+pre-flight: model reachable and billable...
+  20 token(s) billed
+baseline gate...
+  clean: 19 services reporting, 0 alerts
+  NEW COMPARABILITY GENERATION: 90e9f29e578e -> 5a2bc6d912f9
+  recorded, not refused - this run is not comparable with earlier ones
+injecting v2-cart-bad-image-tag...
+waiting for the orchestrator to correlate...
+  incident 4d98a115-b027-4169-be46-1289c7c6c1d3 with 2 episode(s)
+  settling 90s so the blast radius fills
+investigating...
+  $ faultline-investigate 4d98a115-b027-4169-be46-1289c7c6c1d3 --exclude-origins scenario:v2-cart-bad-image-tag --out /Users/chandana/dev/faultline/evals/runs/20261004T082929Z-v2-cart-bad-image-tag --max-tool-calls 4 --max-tokens 120000
+incident 4d98a115-b027-4169-be46-1289c7c6c1d3  state triaging  anchor 08:33:01
+triage: 13 services, severity critical, start from frontend, 13 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: ad6d2bb9-1bd0-4679-b5dd-1370daf3d43c
+triage judged: investigate (medium confidence, suspects unknown)
+  Critical multi-service failure spanning the frontend path and checkout, with load-generator also affected, indicating user-visible impact. No open incident covers it and the alerts do not point to a single fault class yet.
+investigation: 2 round(s), 7 dispatch(es), 22 step(s)
+
+=== PROPOSAL ===
+  action      : restart_service (restart)
+  target      : cart
+  expect      : Recreating cart should restore a listener on its gRPC port and its discovery endpoint. Within ~5 minutes: checkout's error ratio (same query as tr_8ec587ee7e45) falls from its post-08:32 level back toward the flat-zero baseline; frontend stops logging '14 UNAVAILABLE ... ECONNREFUSED/EHOSTUNREACH 172.18.0.19:7070'; new checkout traces show GetCart completing OK instead of failing sub-millisecond with a zero-address resolver error.
+  within      : 300s
+  risk        : If the real mechanism is a bad deploy or OOM, the recreate destroys the exited container's exit code and logs — the only remaining evidence of why cart died — and cart comes back only to die again, costing time with no diagnosis. If 172.18.0.19:7070 is not cart, this restarts a healthy service for nothing. The action is not reversible and discards cart's in-process cache, causing a brief cold-cache latency bump.
+  blast radius: cart only, for the duration of the recreate. Its callers checkout and frontend see connection resets during the restart — they are already failing against it, so the marginal harm is small. Downstream of checkout (payment, shipping, currency, product-catalog, email) will begin receiving traffic again if the fix works, which is itself a change in their load.
+  if wrong    : Falsified if after 5 minutes frontend still logs transport errors to 172.18.0.19:7070, checkout traces still abort at GetCart, or checkout's error ratio has not fallen. A container that exits again means a crash-looping image or OOM kill (needs rollback_image plus cart-side logs/metrics never collected); cart up but callers still seeing EHOSTUNREACH means a detached network, fixable only by reconnect_service, which this executor cannot do. Note the peer address was never mapped to cart via DNS/endpoint data, and checkout's log stream is empty, so confirmation must come from frontend logs and traces.
+  rests on    : tr_16de3a6a8892, tr_ebb4459c8a52, tr_8ec587ee7e45
+  execution   : not executed - a proposal is a claim, never the change (ADR-0028 §1)
+
+context: 26714 pushed / 5593 pulled (pull rate 0.1731), 1 section(s) dropped
+
+=== VERDICT ===
+  fault class : unknown
+  fix class   : restart
+  confidence  : medium
+  evidence    : tr_16de3a6a8892, tr_ebb4459c8a52, tr_8ec587ee7e45
+  root cause  : The cart service stopped accepting connections at ~08:31 and its endpoint was withdrawn from service discovery. Checkout's traces show all 10 sampled PlaceOrder flows aborting on the first dependency call, GetCart, with client-side gRPC UNAVAILABLE from a resolver returning zero addresses — the request never reached a cart instance [tr_16de3a6a8892]. frontend's logs show the same transport failure against one fixed peer 172.18.0.19:7070, ECONNREFUSED around 08:29 degrading to EHOSTUNREACH by 08:33 — a host with nothing listening, then an address no longer routable [tr_ebb4459c8a52]. Error ratios at frontend and checkout were flat zero across the 32-minute baseline then stepped up at 08:31/08:32 [tr_e1386aed2206][tr_8ec587ee7e45]. No cart-side telemetry was collected, so the location of the fault is established but the mechanism that killed the cart process is not.
+  OPEN        : No cart-side evidence exists at all — cart logs, memory/restart metrics and change history were never queried; these would distinguish a crash-looping deploy, an OOM kill, and a deliberate stop.
+  OPEN        : Is 172.18.0.19:7070 actually cart? The frontend log names only an address, and no endpoint/DNS mapping was retrieved [tr_ebb4459c8a52].
+  OPEN        : Checkout's log stream returned zero lines for the whole window, which may indicate a broken log pipeline or label mismatch independent of this incident [tr_8c913248cd48]; change queries also covered only post-onset time, so a pre-08:31 change to cart or checkout would not appear [tr_85c449e104e6].
+
+flags: none
+
+retrieval: exclude_origins=['scenario:v2-cart-bad-image-tag'], 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20261004T082929Z-v2-cart-bad-image-tag/4d98a115-b027-4169-be46-1289c7c6c1d3-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20261004T082929Z-v2-cart-bad-image-tag/4d98a115-b027-4169-be46-1289c7c6c1d3-narrative.md
+{"ts": "2026-10-04T08:35:01.053+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T08:35:05.865+00:00", "level": "INFO", "logger": "sentence_transformers.base.model", "msg": "No device provided, using mps", "component": "investigator"}
+{"ts": "2026-10-04T08:35:05.980+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/modules.json \"HTTP/1.1 307 Temporary Redirect\"", "component": "investigator"}
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+{"ts": "2026-10-04T08:35:05.980+00:00", "level": "WARNING", "logger": "huggingface_hub.utils._http", "msg": "Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.", "component": "investigator"}
+{"ts": "2026-10-04T08:35:05.991+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/sentence-transformers/all-MiniLM-L6-v2/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/modules.json \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T08:35:06.045+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/config_sentence_transformers.json \"HTTP/1.1 307 Temporary Redirect\"", "component": "investigator"}
+{"ts": "2026-10-04T08:35:06.057+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/sentence-transformers/all-MiniLM-L6-v2/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/config_sentence_transformers.json \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T08:35:06.060+00:00", "level": "INFO", "logger": "sentence_transformers.base.model", "msg": "Loading SentenceTransformer model from sentence-transformers/all-MiniLM-L6-v2.", "component": "investigator"}
+{"ts": "2026-10-04T08:35:06.113+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/config_sentence_transformers.json \"HTTP/1.1 307 Temporary Redirect\"", "component": "investigator"}
+{"ts": "2026-10-04T08:35:06.127+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/sentence-transformers/all-MiniLM-L6-v2/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/config_sentence_transformers.json \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T08:35:06.184+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/README.md \"HTTP/1.1 307 Temporary Redirect\"", "component": "investigator"}
+{"ts": "2026-10-04T08:35:06.197+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/sentence-transformers/all-MiniLM-L6-v2/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/README.md \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T08:35:06.271+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/modules.json \"HTTP/1.1 307 Temporary Redirect\"", "component": "investigator"}
+{"ts": "2026-10-04T08:35:06.285+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/sentence-transformers/all-MiniLM-L6-v2/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/modules.json \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T08:35:06.337+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/sentence_bert_config.json \"HTTP/1.1 307 Temporary Redirect\"", "component": "investigator"}
+{"ts": "2026-10-04T08:35:06.352+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/sentence-transformers/all-MiniLM-L6-v2/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/sentence_bert_config.json \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T08:35:06.409+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/adapter_config.json \"HTTP/1.1 404 Not Found\"", "component": "investigator"}
+{"ts": "2026-10-04T08:35:06.468+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/config.json \"HTTP/1.1 307 Temporary Redirect\"", "component": "investigator"}
+{"ts": "2026-10-04T08:35:06.481+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/sentence-transformers/all-MiniLM-L6-v2/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/config.json \"HTTP/1.1 200 OK\"", "component": "investigator"}
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 1995.97it/s]
+{"ts": "2026-10-04T08:35:06.688+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/processor_config.json \"HTTP/1.1 404 Not Found\"", "component": "investigator"}
+{"ts": "2026-10-04T08:35:06.740+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/preprocessor_config.json \"HTTP/1.1 404 Not Found\"", "component": "investigator"}
+{"ts": "2026-10-04T08:35:06.803+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/video_preprocessor_config.json \"HTTP/1.1 404 Not Found\"", "component": "investigator"}
+{"ts": "2026-10-04T08:35:06.858+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/preprocessor_config.json \"HTTP/1.1 404 Not Found\"", "component": "investigator"}
+{"ts": "2026-10-04T08:35:06.912+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/tokenizer_config.json \"HTTP/1.1 307 Temporary Redirect\"", "component": "investigator"}
+{"ts": "2026-10-04T08:35:06.929+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/sentence-transformers/all-MiniLM-L6-v2/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/tokenizer_config.json \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T08:35:06.983+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/config.json \"HTTP/1.1 307 Temporary Redirect\"", "component": "investigator"}
+{"ts": "2026-10-04T08:35:06.996+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/sentence-transformers/all-MiniLM-L6-v2/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/config.json \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T08:35:07.051+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/config.json \"HTTP/1.1 307 Temporary Redirect\"", "component": "investigator"}
+{"ts": "2026-10-04T08:35:07.063+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/sentence-transformers/all-MiniLM-L6-v2/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/config.json \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T08:35:07.139+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/tokenizer_config.json \"HTTP/1.1 307 Temporary Redirect\"", "component": "investigator"}
+{"ts": "2026-10-04T08:35:07.153+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/sentence-transformers/all-MiniLM-L6-v2/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/tokenizer_config.json \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T08:35:07.210+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET https://huggingface.co/api/models/sentence-transformers/all-MiniLM-L6-v2/tree/main/additional_chat_templates?recursive=false&expand=false \"HTTP/1.1 404 Not Found\"", "component": "investigator"}
+{"ts": "2026-10-04T08:35:07.267+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET https://huggingface.co/api/models/sentence-transformers/all-MiniLM-L6-v2/tree/main?recursive=true&expand=false \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T08:35:07.360+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/1_Pooling/config.json \"HTTP/1.1 307 Temporary Redirect\"", "component": "investigator"}
+{"ts": "2026-10-04T08:35:07.378+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/sentence-transformers/all-MiniLM-L6-v2/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/1_Pooling%2Fconfig.json \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T08:35:07.433+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/2_Normalize/config.json \"HTTP/1.1 404 Not Found\"", "component": "investigator"}
+{"ts": "2026-10-04T08:35:07.494+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET https://huggingface.co/api/models/sentence-transformers/all-MiniLM-L6-v2 \"HTTP/1.1 200 OK\"", "component": "investigator"}
+
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]
+Batches: 100%|██████████| 1/1 [00:00<00:00,  1.89it/s]
+Batches: 100%|██████████| 1/1 [00:00<00:00,  1.88it/s]
+{"ts": "2026-10-04T08:35:29.170+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T08:35:29.242+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=checkout start=2026-10-03T08:33:01.664000+00:00 end=2026-10-04T08:35:01.069206+00:00 span_s=86519 refused=False", "component": "investigator"}
+{"ts": "2026-10-04T08:35:29.242+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=metric_baseline subject=sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"frontend\",status_code=\"STATUS_CODE_ERROR\"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"frontend\"}[5m])) start=2026-10-04T07:31:02.258794+00:00 end=2026-10-04T08:35:01.069206+00:00 span_s=3838 refused=False", "component": "investigator"}
+{"ts": "2026-10-04T08:35:29.243+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=metric_baseline subject=sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"checkout\",status_code=\"STATUS_CODE_ERROR\"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"checkout\"}[5m])) start=2026-10-04T07:31:02.258794+00:00 end=2026-10-04T08:35:01.069206+00:00 span_s=3838 refused=False", "component": "investigator"}
+{"ts": "2026-10-04T08:35:29.244+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=logql_query subject={service=\"checkout\"} start=2026-10-04T08:03:01.664000+00:00 end=2026-10-04T08:35:01.069206+00:00 span_s=1919 refused=False", "component": "investigator"}
+{"ts": "2026-10-04T08:35:40.144+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T08:35:40.945+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T08:35:42.964+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T08:35:47.522+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T08:36:06.625+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T08:36:06.633+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=checkout start=2026-10-03T08:33:01.664000+00:00 end=2026-10-04T08:35:01.069206+00:00 span_s=86519 refused=False", "component": "investigator"}
+{"ts": "2026-10-04T08:36:06.635+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=logql_query subject={service=\"frontend\"} start=2026-10-04T08:03:01.664000+00:00 end=2026-10-04T08:35:01.069206+00:00 span_s=1919 refused=False", "component": "investigator"}
+{"ts": "2026-10-04T08:36:06.636+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=trace_query subject=checkout start=2026-10-04T08:03:01.664000+00:00 end=2026-10-04T08:35:01.069206+00:00 span_s=1919 refused=False", "component": "investigator"}
+{"ts": "2026-10-04T08:36:17.020+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T08:36:24.519+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T08:36:28.382+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]
+Batches: 100%|██████████| 1/1 [00:00<00:00,  3.51it/s]
+Batches: 100%|██████████| 1/1 [00:00<00:00,  3.51it/s]
+{"ts": "2026-10-04T08:37:09.141+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T08:37:27.339+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T08:38:04.143+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T08:38:30.936+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T08:38:40.769+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T08:38:40.836+00:00", "level": "INFO", "logger": "faultline.notify", "msg": "no report-ready notification was sent: no notifier was configured", "component": "investigator"}
+{"ts": "2026-10-04T08:38:40.836+00:00", "level": "INFO", "logger": "faultline.notify", "msg": "no awaiting-approval notification was sent: no notifier was configured", "component": "investigator"}
+
+reverting...
+confirming recovery...
+
+run 20261004T082929Z-v2-cart-bad-image-tag   scenario v2-cart-bad-image-tag
+trajectory ad6d2bb9-1bd0-4679-b5dd-1370daf3d43c   runtime faultline/0.0.1+prompts:9ce16b66bbcc
+
+TRIAGE (blast radius vs alerts_over_window)
+  recall    0.82  (9/11 alerted services predicted)
+  precision 0.69  (9/13 predicted services alerted)
+  reported as a pair and never combined - ADR-0017's under-reach question rides on recall alone
+  missed (alerted, not predicted): accounting, quote
+  extra  (predicted, not alerted): ad, product-catalog, product-reviews, recommendation
+  unmeasured edges crossed: 13 - membership reached through one is not evidence at the same strength
+  excluded as recovery-phase (began_after_revert): flagd, fraud-detection
+
+VERDICT
+  reachability answerable by: runtime, logs
+  fault class unknown vs bad_deploy - ABSTAINED (excluded from accuracy; counted in coverage)
+  fix class   restart vs rollback - WRONG
+  service     cart vs cart - correct
+  ranked class top1 miss, top3 hit, depth 4  gained by ranking: yes
+    ranked: unknown > bad_deploy > resource_exhaustion > network_partition
+  ranked service top1 hit, top3 hit, depth 1  (the verdict ranked 4, all naming one service)
+  coverage: abstained
+
+REPORTED SEPARATELY (never averaged into the above)
+  flagged verdicts        0
+  specialists failed alone 0
+  contradiction firings   0 (check retired)
+  budget exhausted        no
+  narrative refused       no
+
+COST  in 64030 / out 15434 tokens   $0.7060
+MODELS {'changes': 'claude-opus-5', 'logs': 'claude-opus-5', 'metrics': 'claude-opus-5', 'planner': 'claude-opus-5', 'scribe': 'claude-opus-5', 'synthesizer': 'claude-opus-5', 'traces': 'claude-opus-5'}
+BUDGET {'max_tool_calls_per_specialist': 4, 'max_tokens': 120000, 'wall_clock_seconds': 600, 'max_dispatch_rounds': 2, 'briefing_tokens': 4000, 'max_usd': 2.0, 'usd_per_mtok_in': 5.0, 'usd_per_mtok_out': 25.0, 'per_specialist_tool_calls': {}}
+
+n=1. A single run is an observation, not a rate (CLAUDE.md rule 6).
+
+METRIC PANEL (T4.3) - reported beside accuracy, never averaged into it
+  latency        219.7s (OVER G4's 3-minute per-run comparison) tools 0.5s  models 275.7s (summed, not a critical path)  retrieval 7.9s  steps 22
+  tool calls     7 total, 7 valid, 0 errored, 1 redundant  validity 1.00  redundancy 0.14
+    a query that ran and found nothing is valid - an empty result is evidence (ADR-0019); 3 empty, 1 truncated
+  context budget 5 briefing(s), 3 over budget (0.60), 1 section(s) dropped, largest 8934 est. tokens against a 4000 cap
+  citations      0 violation(s), regenerated false, escalated false
+
+INVALID: the leave-one-out filter was asked for and removed nothing. ADR-0008 axis 2 is the assertion that a scenario's own artifacts are unreachable while it is scored, and a retrieval that excluded an origin the corpus does not hold has asserted nothing. The run is marked invalid rather than annotated, per T4.1b: silent non-enforcement is how this defect returns. Usually the corpus was never seeded, or was seeded without this scenario's narrative - check `faultline-seed` and the corpus row count, then run the scenario again.
+recorded, not deleted: /Users/chandana/dev/faultline/evals/runs/20261004T082929Z-v2-cart-bad-image-tag/INVALID.md
+
+artifacts under /Users/chandana/dev/faultline/evals/runs/20261004T082929Z-v2-cart-bad-image-tag
+
+=== [1] F v2-cart-bad-image-tag   $ faultline-eval v2-cart-bad-image-tag --runs-remaining 12 --sweep trial-headline-v2 --sweep-slot 1 --sweep-of 12 --sweep-pass 1
+=== [1] invalid; tally $0.90 over 1 run dir(s) and 64 probe(s)
+--- settling 300s before slot 2
+--- stamps: faultline/0.0.1+prompts:9ce16b66bbcc cap:91279a09
+--- corpus: 334 rows; at both pins
+--- world: world check passed
+run 20261004T084924Z-v2-cart-bad-image-tag
+pre-flight: model reachable and billable...
+  b0 makes no model call
+baseline gate...
+  clean: 19 services reporting, 0 alerts
+  generation 5a2bc6d912f9
+injecting v2-cart-bad-image-tag...
+waiting for the orchestrator to correlate...
+  incident f8193d7a-5969-4700-9dde-5bf399ed24b7 with 4 episode(s)
+  settling 90s so the blast radius fills
+investigating...
+  $ faultline-investigate f8193d7a-5969-4700-9dde-5bf399ed24b7 --exclude-origins scenario:v2-cart-bad-image-tag --out /Users/chandana/dev/faultline/evals/runs/20261004T084924Z-v2-cart-bad-image-tag --max-tool-calls 4 --max-tokens 120000 --baseline b0
+incident f8193d7a-5969-4700-9dde-5bf399ed24b7  state triaging  anchor 08:53:01
+triage: 13 services, severity critical, start from frontend, 13 unmeasured edge(s) crossed
+B0: dependency_latency / restart
+  suspect: largest error-rate delta among alerting services (+0.689)
+  class: no change on any alerting service before onset
+  remediation: table lookup from dependency_latency
+wrote /Users/chandana/dev/faultline/evals/runs/20261004T084924Z-v2-cart-bad-image-tag/f8193d7a-5969-4700-9dde-5bf399ed24b7-verdict.json
+{"ts": "2026-10-04T08:56:01.364+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=frontend start=2026-10-03T08:53:01.664000+00:00 end=2026-10-04T08:56:01.358939+00:00 span_s=86579 refused=False", "component": "investigator"}
+{"ts": "2026-10-04T08:56:01.366+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=promql_query subject=sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"frontend\",status_code=\"STATUS_CODE_ERROR\"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"frontend\"}[5m])) start=2026-10-04T08:23:01.664000+00:00 end=2026-10-04T08:56:01.358939+00:00 span_s=1979 refused=False", "component": "investigator"}
+{"ts": "2026-10-04T08:56:01.375+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=checkout start=2026-10-03T08:53:01.664000+00:00 end=2026-10-04T08:56:01.358939+00:00 span_s=86579 refused=False", "component": "investigator"}
+{"ts": "2026-10-04T08:56:01.376+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=promql_query subject=sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"checkout\",status_code=\"STATUS_CODE_ERROR\"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"checkout\"}[5m])) start=2026-10-04T08:23:01.664000+00:00 end=2026-10-04T08:56:01.358939+00:00 span_s=1979 refused=False", "component": "investigator"}
+{"ts": "2026-10-04T08:56:01.378+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=frontend-proxy start=2026-10-03T08:53:01.664000+00:00 end=2026-10-04T08:56:01.358939+00:00 span_s=86579 refused=False", "component": "investigator"}
+{"ts": "2026-10-04T08:56:01.379+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=promql_query subject=sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"frontend-proxy\",status_code=\"STATUS_CODE_ERROR\"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"frontend-proxy\"}[5m])) start=2026-10-04T08:23:01.664000+00:00 end=2026-10-04T08:56:01.358939+00:00 span_s=1979 refused=False", "component": "investigator"}
+{"ts": "2026-10-04T08:56:01.381+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=load-generator start=2026-10-03T08:53:01.664000+00:00 end=2026-10-04T08:56:01.358939+00:00 span_s=86579 refused=False", "component": "investigator"}
+{"ts": "2026-10-04T08:56:01.381+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=promql_query subject=sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"load-generator\",status_code=\"STATUS_CODE_ERROR\"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"load-generator\"}[5m])) start=2026-10-04T08:23:01.664000+00:00 end=2026-10-04T08:56:01.358939+00:00 span_s=1979 refused=False", "component": "investigator"}
+
+reverting...
+confirming recovery...
+unexpected fields in the verdict (accepted and recorded): {'verdict': ['summary']}
+
+run 20261004T084924Z-v2-cart-bad-image-tag   scenario v2-cart-bad-image-tag
+trajectory 485c669f-37f4-4b6f-b1f7-26e4f0575441   runtime faultline/0.0.1+baseline:B0.4
+
+TRIAGE (blast radius vs alerts_over_window)
+  recall    0.82  (9/11 alerted services predicted)
+  precision 0.69  (9/13 predicted services alerted)
+  reported as a pair and never combined - ADR-0017's under-reach question rides on recall alone
+  missed (alerted, not predicted): accounting, quote
+  extra  (predicted, not alerted): ad, product-catalog, product-reviews, recommendation
+  unmeasured edges crossed: 13 - membership reached through one is not evidence at the same strength
+  excluded as recovery-phase (began_after_revert): flagd, fraud-detection
+
+VERDICT
+  reachability answerable by: runtime, logs
+  fault class dependency_latency vs bad_deploy - WRONG
+  fix class   restart vs rollback - WRONG
+  service     checkout vs cart - WRONG
+  ranked class top1 miss, top3 miss, depth 1  (top-3 = top-1 by construction: the verdict offered no alternative)
+  ranked service top1 miss, top3 miss, depth 1  (top-3 = top-1 by construction: the verdict offered no alternative)
+  coverage: reached a class
+
+REPORTED SEPARATELY (never averaged into the above)
+  flagged verdicts        0
+  specialists failed alone 0
+  contradiction firings   0 (check retired)
+  budget exhausted        no
+  narrative refused       no
+
+COST  in 0 / out 0 tokens   $0.0000
+MODELS {'changes': 'claude-opus-5', 'logs': 'claude-opus-5', 'metrics': 'claude-opus-5', 'planner': 'claude-opus-5', 'scribe': 'claude-opus-5', 'synthesizer': 'claude-opus-5', 'traces': 'claude-opus-5'}
+BUDGET {'max_tool_calls_per_specialist': 4, 'max_tokens': 120000, 'wall_clock_seconds': 600, 'max_dispatch_rounds': 2, 'briefing_tokens': 4000, 'max_usd': 2.0, 'usd_per_mtok_in': 5.0, 'usd_per_mtok_out': 25.0, 'per_specialist_tool_calls': {}}
+
+n=1. A single run is an observation, not a rate (CLAUDE.md rule 6).
+
+METRIC PANEL (T4.3) - reported beside accuracy, never averaged into it
+  latency        0.0s (within G4's 3-minute per-run comparison) tools 0.0s  models 0.0s (summed, not a critical path)  retrieval 0.0s  steps 8
+  tool calls     8 total, 8 valid, 0 errored, 0 redundant  validity 1.00  redundancy 0.00
+    a query that ran and found nothing is valid - an empty result is evidence (ADR-0019); 4 empty, 0 truncated
+  context budget 0 briefing(s), 0 over budget (n/a), 0 section(s) dropped, largest 0 est. tokens against a 0 cap
+  citations      0 violation(s), regenerated false, escalated false
+
+artifacts under /Users/chandana/dev/faultline/evals/runs/20261004T084924Z-v2-cart-bad-image-tag
+
+=== [2] B0 v2-cart-bad-image-tag   $ faultline-eval v2-cart-bad-image-tag --runs-remaining 11 --baseline b0 --sweep trial-headline-v2 --sweep-slot 2 --sweep-of 12 --sweep-pass 1
+=== [2] scored; tally $0.90 over 2 run dir(s) and 64 probe(s)
+--- settling 300s before slot 3
+--- stamps: faultline/0.0.1+prompts:9ce16b66bbcc cap:91279a09
+--- corpus: 334 rows; at both pins
+--- world: world check passed
+run 20261004T090712Z-v2-cart-bad-image-tag
+pre-flight: model reachable and billable...
+  20 token(s) billed
+baseline gate...
+  clean: 19 services reporting, 0 alerts
+  generation 5a2bc6d912f9
+injecting v2-cart-bad-image-tag...
+waiting for the orchestrator to correlate...
+  incident 1ad6a018-6b9f-41d8-93b0-970c9b961ddd with 4 episode(s)
+  settling 90s so the blast radius fills
+investigating...
+  $ faultline-investigate 1ad6a018-6b9f-41d8-93b0-970c9b961ddd --exclude-origins scenario:v2-cart-bad-image-tag --out /Users/chandana/dev/faultline/evals/runs/20261004T090712Z-v2-cart-bad-image-tag --max-tool-calls 4 --max-tokens 120000 --baseline b1
+incident 1ad6a018-6b9f-41d8-93b0-970c9b961ddd  state triaging  anchor 09:11:01
+triage: 13 services, severity critical, start from checkout, 13 unmeasured edge(s) crossed
+
+B1: bad_deploy / rollback (medium)
+  cart was redeployed onto the hotfix image reference at 09:07 and the resulting pod never came back up, so its gRPC endpoint became unreachable and every checkout that needs the cart failed.
+  6 tool calls over 8 turns
+    metrics:checkout  Confirm checkout's error profile and onset timing versus baseline, since it alerted first.
+    traces:checkout  See which downstream dependency checkout's spans wait on or error against, since its own error ratio barely moved.
+    logs:checkout  See whether checkout logs anything after 09:11 and what it complains about — silence vs dependency errors.
+    logs:frontend  See what frontend reports about its checkout calls after onset — timeouts/hangs vs explicit errors.
+    logs:cart  Determine whether cart is silent (frozen/down) or logging that it cannot reach its dependencies (partition).
+    changes:cart  Find whether a deploy, config, or limit change preceded cart's shutdown at 09:07.
+wrote /Users/chandana/dev/faultline/evals/runs/20261004T090712Z-v2-cart-bad-image-tag/1ad6a018-6b9f-41d8-93b0-970c9b961ddd-verdict.json
+{"ts": "2026-10-04T09:12:51.598+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T09:12:51.627+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=metric_baseline subject=sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"checkout\",status_code=\"STATUS_CODE_ERROR\"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"checkout\"}[5m])) start=2026-10-04T08:09:14.121433+00:00 end=2026-10-04T09:12:49.206567+00:00 span_s=3815 refused=False", "component": "investigator"}
+{"ts": "2026-10-04T09:12:53.994+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T09:12:53.997+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=trace_query subject=checkout start=2026-10-04T08:41:01.664000+00:00 end=2026-10-04T09:12:49.206567+00:00 span_s=1907 refused=False", "component": "investigator"}
+{"ts": "2026-10-04T09:12:58.244+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T09:12:58.253+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=logql_query subject={service=\"checkout\"} start=2026-10-04T08:41:01.664000+00:00 end=2026-10-04T09:12:49.206567+00:00 span_s=1907 refused=False", "component": "investigator"}
+{"ts": "2026-10-04T09:13:02.494+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T09:13:02.496+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=logql_query subject={service=\"frontend\"} start=2026-10-04T08:41:01.664000+00:00 end=2026-10-04T09:12:49.206567+00:00 span_s=1907 refused=False", "component": "investigator"}
+{"ts": "2026-10-04T09:13:07.207+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T09:13:07.212+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=logql_query subject={service=\"cart\"} start=2026-10-04T08:41:01.664000+00:00 end=2026-10-04T09:12:49.206567+00:00 span_s=1907 refused=False", "component": "investigator"}
+{"ts": "2026-10-04T09:13:10.799+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T09:13:10.802+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=cart start=2026-10-03T09:11:01.664000+00:00 end=2026-10-04T09:12:49.206567+00:00 span_s=86507 refused=False", "component": "investigator"}
+{"ts": "2026-10-04T09:13:16.732+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T09:13:32.420+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T09:13:42.364+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+
+reverting...
+confirming recovery...
+unexpected fields in the verdict (accepted and recorded): {'verdict': ['summary']}
+
+run 20261004T090712Z-v2-cart-bad-image-tag   scenario v2-cart-bad-image-tag
+trajectory d52695bb-3cf5-4161-8bdf-b51703300e36   runtime faultline/0.0.1+baseline:B1:aa84c9051695
+
+TRIAGE (blast radius vs alerts_over_window)
+  recall    0.82  (9/11 alerted services predicted)
+  precision 0.69  (9/13 predicted services alerted)
+  reported as a pair and never combined - ADR-0017's under-reach question rides on recall alone
+  missed (alerted, not predicted): accounting, quote
+  extra  (predicted, not alerted): ad, product-catalog, product-reviews, recommendation
+  unmeasured edges crossed: 13 - membership reached through one is not evidence at the same strength
+  excluded as recovery-phase (began_after_revert): flagd, fraud-detection
+
+VERDICT
+  reachability answerable by: runtime, logs
+  fault class bad_deploy vs bad_deploy - correct
+  fix class   rollback vs rollback - correct
+  service     cart vs cart - correct
+  ranked class top1 hit, top3 hit, depth 4  gained by ranking: no
+    ranked: bad_deploy > network_partition > process_freeze > resource_exhaustion
+  ranked service top1 hit, top3 hit, depth 2  gained by ranking: no
+    ranked: cart > checkout
+  coverage: reached a class
+
+REPORTED SEPARATELY (never averaged into the above)
+  flagged verdicts        0
+  specialists failed alone 0
+  contradiction firings   0 (check retired)
+  budget exhausted        no
+  narrative refused       no
+
+COST  in 85804 / out 2617 tokens   $0.4944
+MODELS {'changes': 'claude-opus-5', 'logs': 'claude-opus-5', 'metrics': 'claude-opus-5', 'planner': 'claude-opus-5', 'scribe': 'claude-opus-5', 'synthesizer': 'claude-opus-5', 'traces': 'claude-opus-5'}
+BUDGET {'max_tool_calls_per_specialist': 4, 'max_tokens': 120000, 'wall_clock_seconds': 600, 'max_dispatch_rounds': 2, 'briefing_tokens': 4000, 'max_usd': 2.0, 'usd_per_mtok_in': 5.0, 'usd_per_mtok_out': 25.0, 'per_specialist_tool_calls': {}}
+
+n=1. A single run is an observation, not a rate (CLAUDE.md rule 6).
+
+METRIC PANEL (T4.3) - reported beside accuracy, never averaged into it
+  latency        53.2s (within G4's 3-minute per-run comparison) tools 0.0s  models 52.6s (summed, not a critical path)  retrieval 0.0s  steps 7
+  tool calls     6 total, 6 valid, 0 errored, 0 redundant  validity 1.00  redundancy 0.00
+    a query that ran and found nothing is valid - an empty result is evidence (ADR-0019); 1 empty, 3 truncated
+  context budget 0 briefing(s), 0 over budget (n/a), 0 section(s) dropped, largest 0 est. tokens against a 0 cap
+  citations      0 violation(s), regenerated false, escalated false
+
+artifacts under /Users/chandana/dev/faultline/evals/runs/20261004T090712Z-v2-cart-bad-image-tag
+
+=== [3] B1 v2-cart-bad-image-tag   $ faultline-eval v2-cart-bad-image-tag --runs-remaining 10 --baseline b1 --sweep trial-headline-v2 --sweep-slot 3 --sweep-of 12 --sweep-pass 1
+=== [3] scored; tally $1.52 over 3 run dir(s) and 65 probe(s)
+--- settling 300s before slot 4
+--- stamps: faultline/0.0.1+prompts:9ce16b66bbcc cap:91279a09
+--- corpus: 334 rows; at both pins
+--- world: world check passed
+run 20261004T092422Z-v2-cart-bad-image-tag
+pre-flight: model reachable and billable...
+  20 token(s) billed
+baseline gate...
+  clean: 19 services reporting, 0 alerts
+  generation 5a2bc6d912f9
+injecting v2-cart-bad-image-tag...
+waiting for the orchestrator to correlate...
+  incident 7484597b-e197-431c-96cd-b4236640c18c with 4 episode(s)
+  settling 90s so the blast radius fills
+investigating...
+  $ faultline-investigate 7484597b-e197-431c-96cd-b4236640c18c --exclude-origins scenario:v2-cart-bad-image-tag --out /Users/chandana/dev/faultline/evals/runs/20261004T092422Z-v2-cart-bad-image-tag --max-tool-calls 4 --max-tokens 120000 --baseline b2
+incident 7484597b-e197-431c-96cd-b4236640c18c  state triaging  anchor 09:29:01
+triage: 13 services, severity critical, start from checkout, 13 unmeasured edge(s) crossed
+
+B2: bad_config / config_revert (low)
+  checkout is failing on every request because of a wrong configuration value (most likely a bad endpoint/address or credential for one of its downstream dependencies, e.g. the Kafka broker or a gRPC target), so it returns errors that surface at frontend, frontend-proxy and the load-generator.
+  looked at nothing - this is the model's prior
+wrote /Users/chandana/dev/faultline/evals/runs/20261004T092422Z-v2-cart-bad-image-tag/7484597b-e197-431c-96cd-b4236640c18c-verdict.json
+{"ts": "2026-10-04T09:31:22.299+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T09:31:30.336+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+
+reverting...
+confirming recovery...
+unexpected fields in the verdict (accepted and recorded): {'verdict': ['summary']}
+
+run 20261004T092422Z-v2-cart-bad-image-tag   scenario v2-cart-bad-image-tag
+trajectory 33369b3a-66b5-47ad-9b94-e223fb31fef8   runtime faultline/0.0.1+baseline:B2:904de7de5fc5
+
+TRIAGE (blast radius vs alerts_over_window)
+  recall    0.82  (9/11 alerted services predicted)
+  precision 0.69  (9/13 predicted services alerted)
+  reported as a pair and never combined - ADR-0017's under-reach question rides on recall alone
+  missed (alerted, not predicted): accounting, quote
+  extra  (predicted, not alerted): ad, product-catalog, product-reviews, recommendation
+  unmeasured edges crossed: 13 - membership reached through one is not evidence at the same strength
+  excluded as recovery-phase (began_after_revert): flagd, fraud-detection
+
+VERDICT
+  reachability answerable by: runtime, logs
+  fault class bad_config vs bad_deploy - WRONG
+  fix class   config_revert vs rollback - WRONG
+  service     checkout vs cart - WRONG
+  ranked class top1 miss, top3 hit, depth 3  gained by ranking: yes
+    ranked: bad_config > bad_deploy > dependency_latency
+  ranked service top1 miss, top3 miss, depth 2  gained by ranking: no
+    ranked: checkout > payment
+  coverage: reached a class
+
+REPORTED SEPARATELY (never averaged into the above)
+  flagged verdicts        0
+  specialists failed alone 0
+  contradiction firings   0 (check retired)
+  budget exhausted        no
+  narrative refused       no
+
+COST  in 2803 / out 944 tokens   $0.0376
+MODELS {'changes': 'claude-opus-5', 'logs': 'claude-opus-5', 'metrics': 'claude-opus-5', 'planner': 'claude-opus-5', 'scribe': 'claude-opus-5', 'synthesizer': 'claude-opus-5', 'traces': 'claude-opus-5'}
+BUDGET {'max_tool_calls_per_specialist': 4, 'max_tokens': 120000, 'wall_clock_seconds': 600, 'max_dispatch_rounds': 2, 'briefing_tokens': 4000, 'max_usd': 2.0, 'usd_per_mtok_in': 5.0, 'usd_per_mtok_out': 25.0, 'per_specialist_tool_calls': {}}
+
+n=1. A single run is an observation, not a rate (CLAUDE.md rule 6).
+
+METRIC PANEL (T4.3) - reported beside accuracy, never averaged into it
+  latency        30.5s (within G4's 3-minute per-run comparison) tools 0.0s  models 30.5s (summed, not a critical path)  retrieval 0.0s  steps 1
+  tool calls     0 total, 0 valid, 0 errored, 0 redundant  validity n/a  redundancy n/a
+    a query that ran and found nothing is valid - an empty result is evidence (ADR-0019); 0 empty, 0 truncated
+  context budget 0 briefing(s), 0 over budget (n/a), 0 section(s) dropped, largest 0 est. tokens against a 0 cap
+  citations      0 violation(s), regenerated false, escalated false
+
+artifacts under /Users/chandana/dev/faultline/evals/runs/20261004T092422Z-v2-cart-bad-image-tag
+
+=== [4] B2 v2-cart-bad-image-tag   $ faultline-eval v2-cart-bad-image-tag --runs-remaining 9 --baseline b2 --sweep trial-headline-v2 --sweep-slot 4 --sweep-of 12 --sweep-pass 1
+=== [4] scored; tally $1.57 over 4 run dir(s) and 66 probe(s)
+--- settling 300s before slot 5
+--- stamps: faultline/0.0.1+prompts:9ce16b66bbcc cap:91279a09
+--- corpus: 334 rows; at both pins
+--- world: world check passed
+run 20261004T094210Z-v2-product-catalog-freeze
+pre-flight: model reachable and billable...
+  b0 makes no model call
+baseline gate...
+REFUSED: baseline gate refused; nothing was injected.
+  - incident 7484597b-e197-431c-96cd-b4236640c18c resolved at 2026-10-04T09:37:13.114736+00:00 and is still inside the orchestrator's 300s settle window - a firing episode now would reopen it rather than open a new incident, and this run's alerts would be attributed to the previous one. Wait 2s.
+The world must be quiet before a scored run, or the run measures the world's prior state as well as the fault (ADR-0022 §3.1). Containers settle in 300s.
+run 20261004T094315Z-v2-product-catalog-freeze
+pre-flight: model reachable and billable...
+  b0 makes no model call
+baseline gate...
+  clean: 19 services reporting, 0 alerts
+  NEW COMPARABILITY GENERATION: 90e9f29e578e -> 5a2bc6d912f9
+  recorded, not refused - this run is not comparable with earlier ones
+injecting v2-product-catalog-freeze...
+waiting for the orchestrator to correlate...
+  incident d5f06c84-4e29-4879-955c-d95ba17b7154 with 4 episode(s)
+  settling 90s so the blast radius fills
+investigating...
+  $ faultline-investigate d5f06c84-4e29-4879-955c-d95ba17b7154 --exclude-origins scenario:v2-product-catalog-freeze --out /Users/chandana/dev/faultline/evals/runs/20261004T094315Z-v2-product-catalog-freeze --max-tool-calls 4 --max-tokens 120000 --baseline b0
+incident d5f06c84-4e29-4879-955c-d95ba17b7154  state triaging  anchor 09:48:01
+triage: 9 services, severity critical, start from frontend-proxy, 7 unmeasured edge(s) crossed
+B0: dependency_latency / restart
+  suspect: largest error-rate delta among alerting services (+0.298)
+  class: no change on any alerting service before onset
+  remediation: table lookup from dependency_latency
+wrote /Users/chandana/dev/faultline/evals/runs/20261004T094315Z-v2-product-catalog-freeze/d5f06c84-4e29-4879-955c-d95ba17b7154-verdict.json
+{"ts": "2026-10-04T09:49:51.135+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=frontend-proxy start=2026-10-03T09:48:01.664000+00:00 end=2026-10-04T09:49:51.129646+00:00 span_s=86509 refused=False", "component": "investigator"}
+{"ts": "2026-10-04T09:49:51.136+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=promql_query subject=sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"frontend-proxy\",status_code=\"STATUS_CODE_ERROR\"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"frontend-proxy\"}[5m])) start=2026-10-04T09:18:01.664000+00:00 end=2026-10-04T09:49:51.129646+00:00 span_s=1909 refused=False", "component": "investigator"}
+{"ts": "2026-10-04T09:49:51.144+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=load-generator start=2026-10-03T09:48:01.664000+00:00 end=2026-10-04T09:49:51.129646+00:00 span_s=86509 refused=False", "component": "investigator"}
+{"ts": "2026-10-04T09:49:51.145+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=promql_query subject=sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"load-generator\",status_code=\"STATUS_CODE_ERROR\"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"load-generator\"}[5m])) start=2026-10-04T09:18:01.664000+00:00 end=2026-10-04T09:49:51.129646+00:00 span_s=1909 refused=False", "component": "investigator"}
+{"ts": "2026-10-04T09:49:51.146+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=frontend start=2026-10-03T09:48:01.664000+00:00 end=2026-10-04T09:49:51.129646+00:00 span_s=86509 refused=False", "component": "investigator"}
+{"ts": "2026-10-04T09:49:51.147+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=promql_query subject=sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"frontend\",status_code=\"STATUS_CODE_ERROR\"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"frontend\"}[5m])) start=2026-10-04T09:18:01.664000+00:00 end=2026-10-04T09:49:51.129646+00:00 span_s=1909 refused=False", "component": "investigator"}
+
+reverting...
+confirming recovery...
+unexpected fields in the verdict (accepted and recorded): {'verdict': ['summary']}
+
+run 20261004T094315Z-v2-product-catalog-freeze   scenario v2-product-catalog-freeze
+trajectory 53cb8f3f-e7db-409f-ac6e-0cf08bae69fc   runtime faultline/0.0.1+baseline:B0.4
+
+TRIAGE (blast radius vs alerts_over_window)
+  recall    0.38  (5/13 alerted services predicted)
+  precision 0.56  (5/9 predicted services alerted)
+  reported as a pair and never combined - ADR-0017's under-reach question rides on recall alone
+  missed (alerted, not predicted): accounting, currency, email, flagd, fraud-detection, payment, quote, shipping
+  extra  (predicted, not alerted): ad, cart, checkout, product-reviews
+  unmeasured edges crossed: 7 - membership reached through one is not evidence at the same strength
+  excluded as recovery-phase (began_after_revert): checkout
+
+VERDICT
+  reachability answerable by: runtime
+  fault class dependency_latency vs process_freeze - WRONG
+  fix class   restart vs restart - correct
+  service     frontend vs product-catalog - WRONG
+  ranked class top1 miss, top3 miss, depth 1  (top-3 = top-1 by construction: the verdict offered no alternative)
+  ranked service top1 miss, top3 miss, depth 1  (top-3 = top-1 by construction: the verdict offered no alternative)
+  coverage: reached a class
+
+REPORTED SEPARATELY (never averaged into the above)
+  flagged verdicts        0
+  specialists failed alone 0
+  contradiction firings   0 (check retired)
+  budget exhausted        no
+  narrative refused       no
+
+COST  in 0 / out 0 tokens   $0.0000
+MODELS {'changes': 'claude-opus-5', 'logs': 'claude-opus-5', 'metrics': 'claude-opus-5', 'planner': 'claude-opus-5', 'scribe': 'claude-opus-5', 'synthesizer': 'claude-opus-5', 'traces': 'claude-opus-5'}
+BUDGET {'max_tool_calls_per_specialist': 4, 'max_tokens': 120000, 'wall_clock_seconds': 600, 'max_dispatch_rounds': 2, 'briefing_tokens': 4000, 'max_usd': 2.0, 'usd_per_mtok_in': 5.0, 'usd_per_mtok_out': 25.0, 'per_specialist_tool_calls': {}}
+
+n=1. A single run is an observation, not a rate (CLAUDE.md rule 6).
+
+METRIC PANEL (T4.3) - reported beside accuracy, never averaged into it
+  latency        0.0s (within G4's 3-minute per-run comparison) tools 0.0s  models 0.0s (summed, not a critical path)  retrieval 0.0s  steps 6
+  tool calls     6 total, 6 valid, 0 errored, 0 redundant  validity 1.00  redundancy 0.00
+    a query that ran and found nothing is valid - an empty result is evidence (ADR-0019); 3 empty, 0 truncated
+  context budget 0 briefing(s), 0 over budget (n/a), 0 section(s) dropped, largest 0 est. tokens against a 0 cap
+  citations      0 violation(s), regenerated false, escalated false
+
+artifacts under /Users/chandana/dev/faultline/evals/runs/20261004T094315Z-v2-product-catalog-freeze
+
+=== [5] B0 v2-product-catalog-freeze   $ faultline-eval v2-product-catalog-freeze --runs-remaining 8 --baseline b0 --sweep trial-headline-v2 --sweep-slot 5 --sweep-of 12 --sweep-pass 1
+
+=== [5] B0 v2-product-catalog-freeze   $ faultline-eval v2-product-catalog-freeze --runs-remaining 8 --baseline b0 --sweep trial-headline-v2 --sweep-slot 5 --sweep-of 12 --sweep-pass 1
+=== [5] scored; tally $1.57 over 5 run dir(s) and 66 probe(s)
+--- settling 300s before slot 6
+--- stamps: faultline/0.0.1+prompts:9ce16b66bbcc cap:91279a09
+--- corpus: 334 rows; at both pins
+--- world: world check passed
+run 20261004T100029Z-v2-product-catalog-freeze
+pre-flight: model reachable and billable...
+  20 token(s) billed
+baseline gate...
+  clean: 19 services reporting, 0 alerts
+  generation 5a2bc6d912f9
+injecting v2-product-catalog-freeze...
+waiting for the orchestrator to correlate...
+  incident d175f42e-07b9-4e24-87ca-9d69bdae1fa3 with 4 episode(s)
+  settling 90s so the blast radius fills
+investigating...
+  $ faultline-investigate d175f42e-07b9-4e24-87ca-9d69bdae1fa3 --exclude-origins scenario:v2-product-catalog-freeze --out /Users/chandana/dev/faultline/evals/runs/20261004T100029Z-v2-product-catalog-freeze --max-tool-calls 4 --max-tokens 120000 --baseline b1
+incident d175f42e-07b9-4e24-87ca-9d69bdae1fa3  state triaging  anchor 10:05:01
+triage: 11 services, severity critical, start from frontend-proxy, 10 unmeasured edge(s) crossed
+
+B1: feature_flag / config_revert (medium)
+  A runtime feature flag (recommendationCacheFailure) was flipped in the flag store at 10:05:01, and the flagged cache code path inside recommendation began failing its ListRecommendations calls, which surfaced as errors in frontend, frontend-proxy and the load generator.
+  13 tool calls over 15 turns
+    metrics:frontend-proxy  Establish the shape and timing of the error signal at the edge before tracing inward.
+    metrics:fraud-detection  Check whether fraud-detection shows a real error departure and when it began relative to onset.
+    logs:fraud-detection  See what fraud-detection itself reports at onset - error text distinguishes flag path, dependency wait, or resource failure.
+    metrics:recommendation  Recommendation is the deepest alerting service; check whether its error departure starts at or before onset.
+    logs:recommendation  Read recommendation's own error text at onset to see whether it fails on a flagged path, a slow dependency, or its own resources.
+    logs:product-catalog  Both alerting services went silent around 10:00; check whether their shared dependency product-catalog is silent, complaining, or erroring.
+    traces:product-catalog  Determine whether product-catalog spans are hanging to deadline (freeze/partition) or erroring, given it wrote no logs at all.
+    logs:flagd  flagd is the shared dependency of nearly the whole blast radius; see whether it is silent, complaining of unreachability, or reporting a flag change.
+    traces:recommendation  See whether recommendation's failing spans hang on a downstream call (flagd/product-catalog) or fail internally at onset.
+    changes:recommendation  Check whether any deploy or config change landed on recommendation near onset, or whether the change log is empty (pointing at a flag-store flip).
+    changes:flagd  Check whether the flag store / flagd itself had any recorded change at onset, or whether the change log is empty everywhere.
+    logs:frontend  Frontend calls recommendation; its error text at 10:05 should say whether the call failed fast (flag path error) or timed out/unavailable (crash or hang).
+    changes:fraud-detection  Two unrelated services failed at the same second; check whether any artifact or config change landed on fraud-detection, or whether its change log is also empty.
+wrote /Users/chandana/dev/faultline/evals/runs/20261004T100029Z-v2-product-catalog-freeze/d175f42e-07b9-4e24-87ca-9d69bdae1fa3-verdict.json
+{"ts": "2026-10-04T10:06:47.484+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T10:06:47.513+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=metric_baseline subject=sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"frontend-proxy\",status_code=\"STATUS_CODE_ERROR\"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"frontend-proxy\"}[5m])) start=2026-10-04T09:03:18.270895+00:00 end=2026-10-04T10:06:45.057105+00:00 span_s=3806 refused=False", "component": "investigator"}
+{"ts": "2026-10-04T10:06:50.042+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T10:06:50.047+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=metric_baseline subject=sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"fraud-detection\",status_code=\"STATUS_CODE_ERROR\"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"fraud-detection\"}[5m])) start=2026-10-04T09:03:18.270895+00:00 end=2026-10-04T10:06:45.057105+00:00 span_s=3806 refused=False", "component": "investigator"}
+{"ts": "2026-10-04T10:06:52.250+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T10:06:52.259+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=logql_query subject={service=\"fraud-detection\"} start=2026-10-04T09:35:01.664000+00:00 end=2026-10-04T10:06:45.057105+00:00 span_s=1903 refused=False", "component": "investigator"}
+{"ts": "2026-10-04T10:06:58.610+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T10:06:58.613+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=metric_baseline subject=sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"recommendation\",status_code=\"STATUS_CODE_ERROR\"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"recommendation\"}[5m])) start=2026-10-04T09:03:18.270895+00:00 end=2026-10-04T10:06:45.057105+00:00 span_s=3806 refused=False", "component": "investigator"}
+{"ts": "2026-10-04T10:07:02.133+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T10:07:02.137+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=logql_query subject={service=\"recommendation\"} start=2026-10-04T09:35:01.664000+00:00 end=2026-10-04T10:06:45.057105+00:00 span_s=1903 refused=False", "component": "investigator"}
+{"ts": "2026-10-04T10:07:10.375+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T10:07:10.387+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=logql_query subject={service=\"product-catalog\"} start=2026-10-04T09:35:01.664000+00:00 end=2026-10-04T10:06:45.057105+00:00 span_s=1903 refused=False", "component": "investigator"}
+{"ts": "2026-10-04T10:07:13.668+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T10:07:13.669+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=trace_query subject=product-catalog start=2026-10-04T09:35:01.664000+00:00 end=2026-10-04T10:06:45.057105+00:00 span_s=1903 refused=False", "component": "investigator"}
+{"ts": "2026-10-04T10:07:23.326+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T10:07:23.355+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=logql_query subject={service=\"flagd\"} start=2026-10-04T09:35:01.664000+00:00 end=2026-10-04T10:06:45.057105+00:00 span_s=1903 refused=False", "component": "investigator"}
+{"ts": "2026-10-04T10:07:38.802+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T10:07:38.814+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=trace_query subject=recommendation start=2026-10-04T09:35:01.664000+00:00 end=2026-10-04T10:06:45.057105+00:00 span_s=1903 refused=False", "component": "investigator"}
+{"ts": "2026-10-04T10:07:50.001+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T10:07:50.013+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=recommendation start=2026-10-03T10:05:01.664000+00:00 end=2026-10-04T10:06:45.057105+00:00 span_s=86503 refused=False", "component": "investigator"}
+{"ts": "2026-10-04T10:08:05.724+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T10:08:05.744+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=flagd start=2026-10-03T10:05:01.664000+00:00 end=2026-10-04T10:06:45.057105+00:00 span_s=86503 refused=False", "component": "investigator"}
+{"ts": "2026-10-04T10:08:22.935+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T10:08:22.946+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=logql_query subject={service=\"frontend\"} start=2026-10-04T09:35:01.664000+00:00 end=2026-10-04T10:06:45.057105+00:00 span_s=1903 refused=False", "component": "investigator"}
+{"ts": "2026-10-04T10:08:56.960+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T10:08:56.975+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=fraud-detection start=2026-10-03T10:05:01.664000+00:00 end=2026-10-04T10:06:45.057105+00:00 span_s=86503 refused=False", "component": "investigator"}
+{"ts": "2026-10-04T10:09:13.830+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T10:09:37.308+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T10:09:49.876+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+
+reverting...
+confirming recovery...
+unexpected fields in the verdict (accepted and recorded): {'verdict': ['summary']}
+
+run 20261004T100029Z-v2-product-catalog-freeze   scenario v2-product-catalog-freeze
+trajectory 98b47117-0a74-4a1d-a1e1-b2f697ae8204   runtime faultline/0.0.1+baseline:B1:aa84c9051695
+
+TRIAGE (blast radius vs alerts_over_window)
+  recall    0.54  (7/13 alerted services predicted)
+  precision 0.64  (7/11 predicted services alerted)
+  reported as a pair and never combined - ADR-0017's under-reach question rides on recall alone
+  missed (alerted, not predicted): accounting, currency, email, payment, quote, shipping
+  extra  (predicted, not alerted): ad, cart, checkout, product-reviews
+  unmeasured edges crossed: 10 - membership reached through one is not evidence at the same strength
+  excluded as recovery-phase (began_after_revert): checkout
+
+VERDICT
+  reachability answerable by: runtime
+  fault class feature_flag vs process_freeze - WRONG
+  fix class   config_revert vs restart - WRONG
+  service     recommendation vs product-catalog - WRONG
+  ranked class top1 miss, top3 miss, depth 3  gained by ranking: no
+    ranked: feature_flag > resource_exhaustion > dependency_latency
+  ranked service top1 miss, top3 hit, depth 3  gained by ranking: yes
+    ranked: recommendation > product-catalog > fraud-detection
+  coverage: reached a class
+
+REPORTED SEPARATELY (never averaged into the above)
+  flagged verdicts        0
+  specialists failed alone 0
+  contradiction firings   0 (check retired)
+  budget exhausted        no
+  narrative refused       no
+
+COST  in 320972 / out 11845 tokens   $1.9010
+MODELS {'changes': 'claude-opus-5', 'logs': 'claude-opus-5', 'metrics': 'claude-opus-5', 'planner': 'claude-opus-5', 'scribe': 'claude-opus-5', 'synthesizer': 'claude-opus-5', 'traces': 'claude-opus-5'}
+BUDGET {'max_tool_calls_per_specialist': 4, 'max_tokens': 120000, 'wall_clock_seconds': 600, 'max_dispatch_rounds': 2, 'briefing_tokens': 4000, 'max_usd': 2.0, 'usd_per_mtok_in': 5.0, 'usd_per_mtok_out': 25.0, 'per_specialist_tool_calls': {}}
+
+n=1. A single run is an observation, not a rate (CLAUDE.md rule 6).
+
+METRIC PANEL (T4.3) - reported beside accuracy, never averaged into it
+  latency        184.8s (OVER G4's 3-minute per-run comparison) tools 0.0s  models 184.0s (summed, not a critical path)  retrieval 0.0s  steps 14
+  tool calls     13 total, 13 valid, 0 errored, 0 redundant  validity 1.00  redundancy 0.00
+    a query that ran and found nothing is valid - an empty result is evidence (ADR-0019); 6 empty, 3 truncated
+  context budget 0 briefing(s), 0 over budget (n/a), 0 section(s) dropped, largest 0 est. tokens against a 0 cap
+  citations      0 violation(s), regenerated false, escalated false
+
+artifacts under /Users/chandana/dev/faultline/evals/runs/20261004T100029Z-v2-product-catalog-freeze
+
+=== [6] B1 v2-product-catalog-freeze   $ faultline-eval v2-product-catalog-freeze --runs-remaining 7 --baseline b1 --sweep trial-headline-v2 --sweep-slot 6 --sweep-of 12 --sweep-pass 1
+=== [6] scored; tally $3.96 over 6 run dir(s) and 67 probe(s)
+--- settling 300s before slot 7
+--- stamps: faultline/0.0.1+prompts:9ce16b66bbcc cap:91279a09
+--- corpus: 334 rows; at both pins
+--- world: world check passed
+run 20261004T102027Z-v2-product-catalog-freeze
+pre-flight: model reachable and billable...
+  20 token(s) billed
+baseline gate...
+  clean: 19 services reporting, 0 alerts
+  generation 5a2bc6d912f9
+injecting v2-product-catalog-freeze...
+waiting for the orchestrator to correlate...
+  incident df9851d8-1170-411c-aa40-7d864e9171f0 with 4 episode(s)
+  settling 90s so the blast radius fills
+investigating...
+  $ faultline-investigate df9851d8-1170-411c-aa40-7d864e9171f0 --exclude-origins scenario:v2-product-catalog-freeze --out /Users/chandana/dev/faultline/evals/runs/20261004T102027Z-v2-product-catalog-freeze --max-tool-calls 4 --max-tokens 120000 --baseline b2
+incident df9851d8-1170-411c-aa40-7d864e9171f0  state triaging  anchor 10:25:01
+triage: 5 services, severity critical, start from frontend-proxy, 2 unmeasured edge(s) crossed
+
+B2: feature_flag / config_revert (medium)
+  A feature flag was flipped in flagd, turning on a failing code path that is evaluated by several services at once - fraud-detection errors outright and the checkout/frontend request path degrades, surfacing as errors and latency at frontend-proxy and the load-generator.
+  looked at nothing - this is the model's prior
+wrote /Users/chandana/dev/faultline/evals/runs/20261004T102027Z-v2-product-catalog-freeze/df9851d8-1170-411c-aa40-7d864e9171f0-verdict.json
+{"ts": "2026-10-04T10:27:28.906+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T10:27:36.534+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+
+reverting...
+confirming recovery...
+unexpected fields in the verdict (accepted and recorded): {'verdict': ['summary']}
+
+run 20261004T102027Z-v2-product-catalog-freeze   scenario v2-product-catalog-freeze
+trajectory 4ff54ef7-0d75-4cdb-8aeb-dadfc8172dd8   runtime faultline/0.0.1+baseline:B2:904de7de5fc5
+
+TRIAGE (blast radius vs alerts_over_window)
+  recall    0.38  (5/13 alerted services predicted)
+  precision 1.00  (5/5 predicted services alerted)
+  reported as a pair and never combined - ADR-0017's under-reach question rides on recall alone
+  missed (alerted, not predicted): accounting, currency, email, payment, product-catalog, quote, recommendation, shipping
+  extra  (predicted, not alerted): none
+  unmeasured edges crossed: 2 - membership reached through one is not evidence at the same strength
+  excluded as recovery-phase (began_after_revert): checkout
+
+VERDICT
+  reachability answerable by: runtime
+  fault class feature_flag vs process_freeze - WRONG
+  fix class   config_revert vs restart - WRONG
+  service     flagd vs product-catalog - WRONG
+  ranked class top1 miss, top3 miss, depth 2  gained by ranking: no
+    ranked: feature_flag > dependency_latency
+  ranked service top1 miss, top3 miss, depth 2  gained by ranking: no
+    ranked: flagd > checkout
+  coverage: reached a class
+
+REPORTED SEPARATELY (never averaged into the above)
+  flagged verdicts        0
+  specialists failed alone 0
+  contradiction firings   0 (check retired)
+  budget exhausted        no
+  narrative refused       no
+
+COST  in 2777 / out 881 tokens   $0.0359
+MODELS {'changes': 'claude-opus-5', 'logs': 'claude-opus-5', 'metrics': 'claude-opus-5', 'planner': 'claude-opus-5', 'scribe': 'claude-opus-5', 'synthesizer': 'claude-opus-5', 'traces': 'claude-opus-5'}
+BUDGET {'max_tool_calls_per_specialist': 4, 'max_tokens': 120000, 'wall_clock_seconds': 600, 'max_dispatch_rounds': 2, 'briefing_tokens': 4000, 'max_usd': 2.0, 'usd_per_mtok_in': 5.0, 'usd_per_mtok_out': 25.0, 'per_specialist_tool_calls': {}}
+
+n=1. A single run is an observation, not a rate (CLAUDE.md rule 6).
+
+METRIC PANEL (T4.3) - reported beside accuracy, never averaged into it
+  latency        33.0s (within G4's 3-minute per-run comparison) tools 0.0s  models 33.0s (summed, not a critical path)  retrieval 0.0s  steps 1
+  tool calls     0 total, 0 valid, 0 errored, 0 redundant  validity n/a  redundancy n/a
+    a query that ran and found nothing is valid - an empty result is evidence (ADR-0019); 0 empty, 0 truncated
+  context budget 0 briefing(s), 0 over budget (n/a), 0 section(s) dropped, largest 0 est. tokens against a 0 cap
+  citations      0 violation(s), regenerated false, escalated false
+
+artifacts under /Users/chandana/dev/faultline/evals/runs/20261004T102027Z-v2-product-catalog-freeze
+
+=== [7] B2 v2-product-catalog-freeze   $ faultline-eval v2-product-catalog-freeze --runs-remaining 6 --baseline b2 --sweep trial-headline-v2 --sweep-slot 7 --sweep-of 12 --sweep-pass 1
+=== [7] scored; tally $4.01 over 7 run dir(s) and 68 probe(s)
+--- settling 300s before slot 8
+--- stamps: faultline/0.0.1+prompts:9ce16b66bbcc cap:91279a09
+--- corpus: 334 rows; at both pins
+--- world: world check passed
+run 20261004T103742Z-v2-product-catalog-freeze
+pre-flight: model reachable and billable...
+  20 token(s) billed
+baseline gate...
+  clean: 19 services reporting, 0 alerts
+  generation 5a2bc6d912f9
+injecting v2-product-catalog-freeze...
+waiting for the orchestrator to correlate...
+  incident 72c25083-be40-40c1-b985-a5573c3f23c4 with 2 episode(s)
+  settling 90s so the blast radius fills
+investigating...
+  $ faultline-investigate 72c25083-be40-40c1-b985-a5573c3f23c4 --exclude-origins scenario:v2-product-catalog-freeze --out /Users/chandana/dev/faultline/evals/runs/20261004T103742Z-v2-product-catalog-freeze --max-tool-calls 4 --max-tokens 120000
+incident 72c25083-be40-40c1-b985-a5573c3f23c4  state triaging  anchor 10:42:01
+triage: 3 services, severity critical, start from frontend-proxy, 1 unmeasured edge(s) crossed
+
+states: triaging -> failed
+trajectory: de9876e7-a103-4fcf-9a7b-0c97c4c7a87d
+triage judged: investigate (medium confidence, suspects unknown)
+  Critical alerts on the frontend-proxy plus the load generator indicate user-facing traffic is actually failing, not just synthetic noise. No open incidents to attribute it to, and the proxy's downstream frontend is an unmeasured-edge candidate worth checking.
+
+FAILED MID-INVESTIGATION: SchemaValidationError: schema validation failed twice (dispatch service 'productcatalogservice' is not a service this system knows. Legal values: accounting, ad, cart, checkout, currency, email, flagd, flagd-ui, fraud-detection, frontend, frontend-proxy, image-provider, kafka, llm, load-generator, payment, postgresql, product-catalog, product-reviews, quote, recommendation, shipping, valkey-cart.)
+the trajectory holds everything that ran before the failure
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+{"ts": "2026-10-04T10:44:01.299+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T10:44:04.795+00:00", "level": "INFO", "logger": "sentence_transformers.base.model", "msg": "No device provided, using mps", "component": "investigator"}
+{"ts": "2026-10-04T10:44:04.947+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/modules.json \"HTTP/1.1 307 Temporary Redirect\"", "component": "investigator"}
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+{"ts": "2026-10-04T10:44:04.947+00:00", "level": "WARNING", "logger": "huggingface_hub.utils._http", "msg": "Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.", "component": "investigator"}
+{"ts": "2026-10-04T10:44:04.962+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/sentence-transformers/all-MiniLM-L6-v2/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/modules.json \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T10:44:05.019+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/config_sentence_transformers.json \"HTTP/1.1 307 Temporary Redirect\"", "component": "investigator"}
+{"ts": "2026-10-04T10:44:05.031+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/sentence-transformers/all-MiniLM-L6-v2/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/config_sentence_transformers.json \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T10:44:05.035+00:00", "level": "INFO", "logger": "sentence_transformers.base.model", "msg": "Loading SentenceTransformer model from sentence-transformers/all-MiniLM-L6-v2.", "component": "investigator"}
+{"ts": "2026-10-04T10:44:05.090+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/config_sentence_transformers.json \"HTTP/1.1 307 Temporary Redirect\"", "component": "investigator"}
+{"ts": "2026-10-04T10:44:05.110+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/sentence-transformers/all-MiniLM-L6-v2/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/config_sentence_transformers.json \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T10:44:05.167+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/README.md \"HTTP/1.1 307 Temporary Redirect\"", "component": "investigator"}
+{"ts": "2026-10-04T10:44:05.184+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/sentence-transformers/all-MiniLM-L6-v2/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/README.md \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T10:44:05.241+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/modules.json \"HTTP/1.1 307 Temporary Redirect\"", "component": "investigator"}
+{"ts": "2026-10-04T10:44:05.258+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/sentence-transformers/all-MiniLM-L6-v2/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/modules.json \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T10:44:05.315+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/sentence_bert_config.json \"HTTP/1.1 307 Temporary Redirect\"", "component": "investigator"}
+{"ts": "2026-10-04T10:44:05.328+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/sentence-transformers/all-MiniLM-L6-v2/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/sentence_bert_config.json \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T10:44:05.387+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/adapter_config.json \"HTTP/1.1 404 Not Found\"", "component": "investigator"}
+{"ts": "2026-10-04T10:44:05.463+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/config.json \"HTTP/1.1 307 Temporary Redirect\"", "component": "investigator"}
+{"ts": "2026-10-04T10:44:05.486+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/sentence-transformers/all-MiniLM-L6-v2/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/config.json \"HTTP/1.1 200 OK\"", "component": "investigator"}
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 10387.93it/s]
+{"ts": "2026-10-04T10:44:05.634+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/processor_config.json \"HTTP/1.1 404 Not Found\"", "component": "investigator"}
+{"ts": "2026-10-04T10:44:05.691+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/preprocessor_config.json \"HTTP/1.1 404 Not Found\"", "component": "investigator"}
+{"ts": "2026-10-04T10:44:05.743+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/video_preprocessor_config.json \"HTTP/1.1 404 Not Found\"", "component": "investigator"}
+{"ts": "2026-10-04T10:44:05.809+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/preprocessor_config.json \"HTTP/1.1 404 Not Found\"", "component": "investigator"}
+{"ts": "2026-10-04T10:44:05.861+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/tokenizer_config.json \"HTTP/1.1 307 Temporary Redirect\"", "component": "investigator"}
+{"ts": "2026-10-04T10:44:05.877+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/sentence-transformers/all-MiniLM-L6-v2/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/tokenizer_config.json \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T10:44:05.931+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/config.json \"HTTP/1.1 307 Temporary Redirect\"", "component": "investigator"}
+{"ts": "2026-10-04T10:44:05.947+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/sentence-transformers/all-MiniLM-L6-v2/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/config.json \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T10:44:06.004+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/config.json \"HTTP/1.1 307 Temporary Redirect\"", "component": "investigator"}
+{"ts": "2026-10-04T10:44:06.017+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/sentence-transformers/all-MiniLM-L6-v2/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/config.json \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T10:44:06.075+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/tokenizer_config.json \"HTTP/1.1 307 Temporary Redirect\"", "component": "investigator"}
+{"ts": "2026-10-04T10:44:06.096+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/sentence-transformers/all-MiniLM-L6-v2/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/tokenizer_config.json \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T10:44:06.156+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET https://huggingface.co/api/models/sentence-transformers/all-MiniLM-L6-v2/tree/main/additional_chat_templates?recursive=false&expand=false \"HTTP/1.1 404 Not Found\"", "component": "investigator"}
+{"ts": "2026-10-04T10:44:06.214+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET https://huggingface.co/api/models/sentence-transformers/all-MiniLM-L6-v2/tree/main?recursive=true&expand=false \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T10:44:06.310+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/1_Pooling/config.json \"HTTP/1.1 307 Temporary Redirect\"", "component": "investigator"}
+{"ts": "2026-10-04T10:44:06.324+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/sentence-transformers/all-MiniLM-L6-v2/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/1_Pooling%2Fconfig.json \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T10:44:06.377+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/2_Normalize/config.json \"HTTP/1.1 404 Not Found\"", "component": "investigator"}
+{"ts": "2026-10-04T10:44:06.438+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET https://huggingface.co/api/models/sentence-transformers/all-MiniLM-L6-v2 \"HTTP/1.1 200 OK\"", "component": "investigator"}
+
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]
+Batches: 100%|██████████| 1/1 [00:00<00:00,  6.20it/s]
+Batches: 100%|██████████| 1/1 [00:00<00:00,  6.20it/s]
+{"ts": "2026-10-04T10:44:20.072+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T10:44:20.096+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=metric_baseline subject=sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"frontend-proxy\",status_code=\"STATUS_CODE_ERROR\"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"frontend-proxy\"}[5m])) start=2026-10-04T08:40:02.009855+00:00 end=2026-10-04T10:44:01.318145+00:00 span_s=7439 refused=False", "component": "investigator"}
+{"ts": "2026-10-04T10:44:20.097+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=metric_baseline subject=sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"frontend\",status_code=\"STATUS_CODE_ERROR\"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"frontend\"}[5m])) start=2026-10-04T08:40:02.009855+00:00 end=2026-10-04T10:44:01.318145+00:00 span_s=7439 refused=False", "component": "investigator"}
+{"ts": "2026-10-04T10:44:20.098+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=logql_query subject={service=\"frontend\"} start=2026-10-04T09:42:01.664000+00:00 end=2026-10-04T10:44:01.318145+00:00 span_s=3719 refused=False", "component": "investigator"}
+{"ts": "2026-10-04T10:44:20.099+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=frontend start=2026-10-03T10:42:01.664000+00:00 end=2026-10-04T10:44:01.318145+00:00 span_s=86519 refused=False", "component": "investigator"}
+{"ts": "2026-10-04T10:44:29.344+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T10:44:32.272+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T10:44:35.282+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T10:44:37.299+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T10:44:59.091+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T10:45:06.153+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T10:45:06.201+00:00", "level": "INFO", "logger": "faultline.notify", "msg": "no report-ready notification was sent: no notifier was configured", "component": "investigator"}
+{"ts": "2026-10-04T10:45:06.202+00:00", "level": "INFO", "logger": "faultline.notify", "msg": "no awaiting-approval notification was sent: no notifier was configured", "component": "investigator"}
+
+reverting...
+confirming recovery...
+DISCARDED: the investigation wrote no verdict artifact (exit 4). Its transcript is in /Users/chandana/dev/faultline/evals/runs/20261004T103742Z-v2-product-catalog-freeze/investigate.txt.
+recorded, not deleted: /Users/chandana/dev/faultline/evals/runs/20261004T103742Z-v2-product-catalog-freeze/DISCARDED.md
+
+=== [8] F v2-product-catalog-freeze   $ faultline-eval v2-product-catalog-freeze --runs-remaining 5 --sweep trial-headline-v2 --sweep-slot 8 --sweep-of 12 --sweep-pass 1
+=== [8] discarded; tally $4.21 over 8 run dir(s) and 69 probe(s)
+--- settling 300s before slot 9
+--- stamps: faultline/0.0.1+prompts:9ce16b66bbcc cap:91279a09
+--- corpus: 334 rows; at both pins
+--- world: world check passed
+run 20261004T105510Z-v2-ad-bad-image-tag
+pre-flight: model reachable and billable...
+  20 token(s) billed
+baseline gate...
+REFUSED: baseline gate refused; nothing was injected.
+  - incident 3772bc3f-7532-4dbf-82d6-60eb30c3ac81 resolved at 2026-10-04T10:50:13.104625+00:00 and is still inside the orchestrator's 300s settle window - a firing episode now would reopen it rather than open a new incident, and this run's alerts would be attributed to the previous one. Wait 1s.
+The world must be quiet before a scored run, or the run measures the world's prior state as well as the fault (ADR-0022 §3.1). Containers settle in 300s.
+run 20261004T105617Z-v2-ad-bad-image-tag
+pre-flight: model reachable and billable...
+  20 token(s) billed
+baseline gate...
+  clean: 19 services reporting, 0 alerts
+  NEW COMPARABILITY GENERATION: 90e9f29e578e -> 5a2bc6d912f9
+  recorded, not refused - this run is not comparable with earlier ones
+injecting v2-ad-bad-image-tag...
+waiting for the orchestrator to correlate...
+  incident 8d79f755-cb79-4f6f-9f7e-293eb40a4b9a with 2 episode(s)
+  settling 90s so the blast radius fills
+investigating...
+  $ faultline-investigate 8d79f755-cb79-4f6f-9f7e-293eb40a4b9a --exclude-origins scenario:v2-ad-bad-image-tag --out /Users/chandana/dev/faultline/evals/runs/20261004T105617Z-v2-ad-bad-image-tag --max-tool-calls 4 --max-tokens 120000 --baseline b1
+incident 8d79f755-cb79-4f6f-9f7e-293eb40a4b9a  state triaging  anchor 11:01:01
+triage: 8 services, severity critical, start from frontend, 7 unmeasured edge(s) crossed
+
+B1: bad_deploy / rollback (medium)
+  The ad service was redeployed to a hotfix image reference at 10:56 and the new artifact never came back up, so its gRPC endpoint is unreachable and frontend's GetAds calls fail.
+  7 tool calls over 9 turns
+    metrics:frontend  Establish the shape and timing of the frontend error signal versus baseline before chasing downstreams.
+    traces:frontend  Error ratio is flat, so the symptom may be latency; find which downstream call is slow or erroring in frontend spans.
+    metrics:ad  The only errors in frontend traces are on GetAds calls; check whether ad's error ratio departed from baseline at onset.
+    logs:ad  Check whether ad is logging errors, going silent, or complaining it cannot reach dependencies around onset.
+    changes:ad  Ad's JVM shut down mid-window; find whether a deploy, image change, or memory limit edit preceded it.
+    metrics:frontend-proxy  Get departure timestamps for the alerting edge service to see whether the symptom onset lines up with ad going down at 10:56-11:01.
+    logs:frontend  See how frontend's calls to ad fail after 10:56 — fast connection refusal (artifact never started) versus hangs — and confirm onset at 11:01.
+wrote /Users/chandana/dev/faultline/evals/runs/20261004T105617Z-v2-ad-bad-image-tag/8d79f755-cb79-4f6f-9f7e-293eb40a4b9a-verdict.json
+{"ts": "2026-10-04T11:02:58.205+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T11:02:58.235+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=metric_baseline subject=sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"frontend\",status_code=\"STATUS_CODE_ERROR\"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"frontend\"}[5m])) start=2026-10-04T09:59:07.881343+00:00 end=2026-10-04T11:02:55.446657+00:00 span_s=3827 refused=False", "component": "investigator"}
+{"ts": "2026-10-04T11:03:00.642+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T11:03:00.645+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=trace_query subject=frontend start=2026-10-04T10:31:01.664000+00:00 end=2026-10-04T11:02:55.446657+00:00 span_s=1913 refused=False", "component": "investigator"}
+{"ts": "2026-10-04T11:03:03.577+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T11:03:03.579+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=metric_baseline subject=sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"ad\",status_code=\"STATUS_CODE_ERROR\"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"ad\"}[5m])) start=2026-10-04T09:59:07.881343+00:00 end=2026-10-04T11:02:55.446657+00:00 span_s=3827 refused=False", "component": "investigator"}
+{"ts": "2026-10-04T11:03:21.861+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T11:03:24.085+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T11:03:24.090+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=logql_query subject={service=\"ad\"} start=2026-10-04T10:31:01.664000+00:00 end=2026-10-04T11:02:55.446657+00:00 span_s=1913 refused=False", "component": "investigator"}
+{"ts": "2026-10-04T11:03:28.621+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T11:03:28.624+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=ad start=2026-10-03T11:01:01.664000+00:00 end=2026-10-04T11:02:55.446657+00:00 span_s=86513 refused=False", "component": "investigator"}
+{"ts": "2026-10-04T11:03:38.683+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T11:03:38.698+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=metric_baseline subject=sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"frontend-proxy\",status_code=\"STATUS_CODE_ERROR\"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"frontend-proxy\"}[5m])) start=2026-10-04T09:59:07.881343+00:00 end=2026-10-04T11:02:55.446657+00:00 span_s=3827 refused=False", "component": "investigator"}
+{"ts": "2026-10-04T11:03:50.024+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T11:03:50.028+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=logql_query subject={service=\"frontend\"} start=2026-10-04T10:31:01.664000+00:00 end=2026-10-04T11:02:55.446657+00:00 span_s=1913 refused=False", "component": "investigator"}
+{"ts": "2026-10-04T11:03:56.984+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T11:04:10.509+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T11:04:20.012+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+
+reverting...
+confirming recovery...
+unexpected fields in the verdict (accepted and recorded): {'verdict': ['summary']}
+
+run 20261004T105617Z-v2-ad-bad-image-tag   scenario v2-ad-bad-image-tag
+trajectory 9328f554-f54a-4cb4-b9d0-8d1319a79003   runtime faultline/0.0.1+baseline:B1:aa84c9051695
+
+TRIAGE (blast radius vs alerts_over_window)
+  recall    0.75  (3/4 alerted services predicted)
+  precision 0.38  (3/8 predicted services alerted)
+  reported as a pair and never combined - ADR-0017's under-reach question rides on recall alone
+  missed (alerted, not predicted): load-generator
+  extra  (predicted, not alerted): cart, checkout, product-catalog, product-reviews, recommendation
+  unmeasured edges crossed: 7 - membership reached through one is not evidence at the same strength
+
+VERDICT
+  reachability answerable by: runtime, logs
+  fault class bad_deploy vs bad_deploy - correct
+  fix class   rollback vs rollback - correct
+  service     ad vs ad - correct
+  ranked class top1 hit, top3 hit, depth 3  gained by ranking: no
+    ranked: bad_deploy > resource_exhaustion > network_partition
+  ranked service top1 hit, top3 hit, depth 2  gained by ranking: no
+    ranked: ad > frontend
+  coverage: reached a class
+
+REPORTED SEPARATELY (never averaged into the above)
+  flagged verdicts        0
+  specialists failed alone 0
+  contradiction firings   0 (check retired)
+  budget exhausted        no
+  narrative refused       no
+
+COST  in 103240 / out 3486 tokens   $0.6034
+MODELS {'changes': 'claude-opus-5', 'logs': 'claude-opus-5', 'metrics': 'claude-opus-5', 'planner': 'claude-opus-5', 'scribe': 'claude-opus-5', 'synthesizer': 'claude-opus-5', 'traces': 'claude-opus-5'}
+BUDGET {'max_tool_calls_per_specialist': 4, 'max_tokens': 120000, 'wall_clock_seconds': 600, 'max_dispatch_rounds': 2, 'briefing_tokens': 4000, 'max_usd': 2.0, 'usd_per_mtok_in': 5.0, 'usd_per_mtok_out': 25.0, 'per_specialist_tool_calls': {}}
+
+n=1. A single run is an observation, not a rate (CLAUDE.md rule 6).
+
+METRIC PANEL (T4.3) - reported beside accuracy, never averaged into it
+  latency        84.6s (within G4's 3-minute per-run comparison) tools 0.0s  models 84.3s (summed, not a critical path)  retrieval 0.0s  steps 8
+  tool calls     7 total, 7 valid, 0 errored, 0 redundant  validity 1.00  redundancy 0.00
+    a query that ran and found nothing is valid - an empty result is evidence (ADR-0019); 0 empty, 2 truncated
+  context budget 0 briefing(s), 0 over budget (n/a), 0 section(s) dropped, largest 0 est. tokens against a 0 cap
+  citations      0 violation(s), regenerated false, escalated false
+
+artifacts under /Users/chandana/dev/faultline/evals/runs/20261004T105617Z-v2-ad-bad-image-tag
+
+=== [9] B1 v2-ad-bad-image-tag   $ faultline-eval v2-ad-bad-image-tag --runs-remaining 4 --baseline b1 --sweep trial-headline-v2 --sweep-slot 9 --sweep-of 12 --sweep-pass 1
+
+=== [9] B1 v2-ad-bad-image-tag   $ faultline-eval v2-ad-bad-image-tag --runs-remaining 4 --baseline b1 --sweep trial-headline-v2 --sweep-slot 9 --sweep-of 12 --sweep-pass 1
+=== [9] scored; tally $4.97 over 9 run dir(s) and 71 probe(s)
+--- settling 300s before slot 10
+--- stamps: faultline/0.0.1+prompts:9ce16b66bbcc cap:91279a09
+--- corpus: 334 rows; at both pins
+--- world: world check passed on recheck 3
+run 20261004T111753Z-v2-ad-bad-image-tag
+pre-flight: model reachable and billable...
+  20 token(s) billed
+baseline gate...
+REFUSED: baseline gate refused; nothing was injected.
+  - incident 8d79f755-cb79-4f6f-9f7e-293eb40a4b9a resolved at 2026-10-04T11:15:13.133121+00:00 and is still inside the orchestrator's 300s settle window - a firing episode now would reopen it rather than open a new incident, and this run's alerts would be attributed to the previous one. Wait 138s.
+The world must be quiet before a scored run, or the run measures the world's prior state as well as the fault (ADR-0022 §3.1). Containers settle in 300s.
+run 20261004T111900Z-v2-ad-bad-image-tag
+pre-flight: model reachable and billable...
+  20 token(s) billed
+baseline gate...
+REFUSED: baseline gate refused; nothing was injected.
+  - incident 8d79f755-cb79-4f6f-9f7e-293eb40a4b9a resolved at 2026-10-04T11:15:13.133121+00:00 and is still inside the orchestrator's 300s settle window - a firing episode now would reopen it rather than open a new incident, and this run's alerts would be attributed to the previous one. Wait 67s.
+The world must be quiet before a scored run, or the run measures the world's prior state as well as the fault (ADR-0022 §3.1). Containers settle in 300s.
+run 20261004T112017Z-v2-ad-bad-image-tag
+pre-flight: model reachable and billable...
+  20 token(s) billed
+baseline gate...
+  clean: 19 services reporting, 0 alerts
+  NEW COMPARABILITY GENERATION: 90e9f29e578e -> 5a2bc6d912f9
+  recorded, not refused - this run is not comparable with earlier ones
+injecting v2-ad-bad-image-tag...
+waiting for the orchestrator to correlate...
+  incident 4ed5b09a-1d50-42d4-8a7e-0f61effef4a2 with 3 episode(s)
+  settling 90s so the blast radius fills
+investigating...
+  $ faultline-investigate 4ed5b09a-1d50-42d4-8a7e-0f61effef4a2 --exclude-origins scenario:v2-ad-bad-image-tag --out /Users/chandana/dev/faultline/evals/runs/20261004T112017Z-v2-ad-bad-image-tag --max-tool-calls 4 --max-tokens 120000 --baseline b2
+incident 4ed5b09a-1d50-42d4-8a7e-0f61effef4a2  state triaging  anchor 11:23:01
+triage: 14 services, severity warning, start from email, 14 unmeasured edge(s) crossed
+
+B2: resource_exhaustion / restart (low)
+  The email service itself became slow (request handling backed up on an exhausted thread/connection pool), and its latency propagated back through checkout, frontend and frontend-proxy to the load generator.
+  looked at nothing - this is the model's prior
+wrote /Users/chandana/dev/faultline/evals/runs/20261004T112017Z-v2-ad-bad-image-tag/4ed5b09a-1d50-42d4-8a7e-0f61effef4a2-verdict.json
+{"ts": "2026-10-04T11:26:13.285+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T11:26:21.021+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+
+reverting...
+confirming recovery...
+unexpected fields in the verdict (accepted and recorded): {'verdict': ['summary']}
+
+run 20261004T112017Z-v2-ad-bad-image-tag   scenario v2-ad-bad-image-tag
+trajectory fa913b88-3c9d-4e4e-b3fd-b180b864d557   runtime faultline/0.0.1+baseline:B2:904de7de5fc5
+
+TRIAGE (blast radius vs alerts_over_window)
+  recall    1.00  (4/4 alerted services predicted)
+  precision 0.29  (4/14 predicted services alerted)
+  reported as a pair and never combined - ADR-0017's under-reach question rides on recall alone
+  missed (alerted, not predicted): none
+  extra  (predicted, not alerted): cart, checkout, currency, email, flagd, payment, product-catalog, product-reviews, recommendation, shipping
+  unmeasured edges crossed: 14 - membership reached through one is not evidence at the same strength
+
+VERDICT
+  reachability answerable by: runtime, logs
+  fault class resource_exhaustion vs bad_deploy - WRONG
+  fix class   restart vs rollback - WRONG
+  service     email vs ad - WRONG
+  ranked class top1 miss, top3 miss, depth 3  gained by ranking: no
+    ranked: resource_exhaustion > process_freeze > dependency_latency
+  ranked service top1 miss, top3 miss, depth 2  gained by ranking: no
+    ranked: email > flagd
+  coverage: reached a class
+
+REPORTED SEPARATELY (never averaged into the above)
+  flagged verdicts        0
+  specialists failed alone 0
+  contradiction firings   0 (check retired)
+  budget exhausted        no
+  narrative refused       no
+
+COST  in 2791 / out 869 tokens   $0.0357
+MODELS {'changes': 'claude-opus-5', 'logs': 'claude-opus-5', 'metrics': 'claude-opus-5', 'planner': 'claude-opus-5', 'scribe': 'claude-opus-5', 'synthesizer': 'claude-opus-5', 'traces': 'claude-opus-5'}
+BUDGET {'max_tool_calls_per_specialist': 4, 'max_tokens': 120000, 'wall_clock_seconds': 600, 'max_dispatch_rounds': 2, 'briefing_tokens': 4000, 'max_usd': 2.0, 'usd_per_mtok_in': 5.0, 'usd_per_mtok_out': 25.0, 'per_specialist_tool_calls': {}}
+
+n=1. A single run is an observation, not a rate (CLAUDE.md rule 6).
+
+METRIC PANEL (T4.3) - reported beside accuracy, never averaged into it
+  latency        25.8s (within G4's 3-minute per-run comparison) tools 0.0s  models 25.8s (summed, not a critical path)  retrieval 0.0s  steps 1
+  tool calls     0 total, 0 valid, 0 errored, 0 redundant  validity n/a  redundancy n/a
+    a query that ran and found nothing is valid - an empty result is evidence (ADR-0019); 0 empty, 0 truncated
+  context budget 0 briefing(s), 0 over budget (n/a), 0 section(s) dropped, largest 0 est. tokens against a 0 cap
+  citations      0 violation(s), regenerated false, escalated false
+
+artifacts under /Users/chandana/dev/faultline/evals/runs/20261004T112017Z-v2-ad-bad-image-tag
+
+=== [10] B2 v2-ad-bad-image-tag   $ faultline-eval v2-ad-bad-image-tag --runs-remaining 3 --baseline b2 --sweep trial-headline-v2 --sweep-slot 10 --sweep-of 12 --sweep-pass 1
+
+=== [10] B2 v2-ad-bad-image-tag   $ faultline-eval v2-ad-bad-image-tag --runs-remaining 3 --baseline b2 --sweep trial-headline-v2 --sweep-slot 10 --sweep-of 12 --sweep-pass 1
+
+=== [10] B2 v2-ad-bad-image-tag   $ faultline-eval v2-ad-bad-image-tag --runs-remaining 3 --baseline b2 --sweep trial-headline-v2 --sweep-slot 10 --sweep-of 12 --sweep-pass 1
+=== [10] scored; tally $5.01 over 10 run dir(s) and 74 probe(s)
+--- settling 300s before slot 11
+--- stamps: faultline/0.0.1+prompts:9ce16b66bbcc cap:91279a09
+--- corpus: 334 rows; at both pins
+--- world: world check passed
+run 20261004T113644Z-v2-ad-bad-image-tag
+pre-flight: model reachable and billable...
+  20 token(s) billed
+baseline gate...
+  clean: 19 services reporting, 0 alerts
+  generation 5a2bc6d912f9
+injecting v2-ad-bad-image-tag...
+waiting for the orchestrator to correlate...
+  incident 3f8e7cd2-6589-4b1d-94bd-542596fc957e with 2 episode(s)
+  settling 90s so the blast radius fills
+investigating...
+  $ faultline-investigate 3f8e7cd2-6589-4b1d-94bd-542596fc957e --exclude-origins scenario:v2-ad-bad-image-tag --out /Users/chandana/dev/faultline/evals/runs/20261004T113644Z-v2-ad-bad-image-tag --max-tool-calls 4 --max-tokens 120000
+incident 3f8e7cd2-6589-4b1d-94bd-542596fc957e  state triaging  anchor 11:42:01
+triage: 8 services, severity critical, start from frontend, 7 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 9c875c0e-1b66-4623-9fa7-fdf930102ae3
+triage judged: investigate (medium confidence, suspects unknown)
+  Critical alerts on the frontend and its proxy simultaneously indicate user-facing impact that cannot be dismissed, with no open incident to attribute it to. The simultaneous timing could mean a shared edge failure or a downstream dependency, but nothing in the alerts favors a specific class yet.
+investigation: 2 round(s), 7 dispatch(es), 22 step(s)
+
+=== PROPOSAL ===
+  action      : rollback_image (rollback)
+  target      : ad
+  expect      : Recreating ad at its pre-11:36:50 image should restore the process: ad emits a gRPC-ads-server startup line in Loki within ~60s (it has been silent since 11:36:49), and frontend's repeating 14 UNAVAILABLE / EHOSTUNREACH 172.18.0.28:9555 lines stop within ~2 minutes. Ad's error-ratio series should also stop producing undefined (no-traffic) intervals.
+  within      : 300s
+  risk        : platform-automation applied and reverted this same artifact five times in 45 minutes; this rollback is a fourth transition into that loop and may be undone minutes later. Recreating the container also destroys the evidence needed to tell a failed pull from a pre-logging crash — the verdict rests on absence of logs.
+  blast radius: One service, ad. Its caller frontend already cannot reach it, so the recreate adds no new breakage there; frontend-proxy and load-generator see the same ad-path traces change status.
+  if wrong    : If ad still emits no startup line, the fault is in the pull/schedule path, not the image, and nothing observed ad's orchestration state after 11:36:50. If ad logs normally but frontend's EHOSTUNREACH persists, the 172.18.0.28:9555-to-ad mapping was inferred, not confirmed. Frontend's error ratio is already flat vs baseline, so it is not a usable success signal.
+  rests on    : tr_c52b7cd59488, tr_fb19c68442da, tr_977423efbb09
+  execution   : not executed - a proposal is a claim, never the change (ADR-0028 §1)
+
+context: 28777 pushed / 8434 pulled (pull rate 0.2267), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : bad_deploy
+  fix class   : rollback
+  confidence  : high
+  evidence    : tr_fb19c68442da, tr_c52b7cd59488, tr_977423efbb09, tr_49f6226042e9, tr_0525bcf2e66e, tr_a6a241f1c862, tr_19c620a8156d
+  root cause  : At 11:36:49 the ad service's JVM shut down cleanly and went permanently silent, with no startup banner afterward [tr_fb19c68442da]. One second later platform-automation re-applied the 2.2.0-ad-hotfix.2 image to the ad workload — the third application of the same artifact in 45 minutes after two reverts [tr_c52b7cd59488]. The replacement never produced a log line, so the ad endpoint ceased to exist on the network. Frontend's sole repeating failure is gRPC status 14 UNAVAILABLE / EHOSTUNREACH to 172.18.0.28:9555, sustained for ~22 minutes against a single peer [tr_977423efbb09], and the one errored sampled trace terminates at frontend -> AdService/GetAds and propagates up through frontend-proxy [tr_49f6226042e9]. Ad's metrics show 53 intervals with no traffic at all versus zero in baseline [tr_0525bcf2e66e]. Frontend itself has no changes and no error-ratio departure [tr_a6a241f1c862, tr_19c620a8156d], so it is the reporter, not the culprit.
+  OPEN        : Nothing observed the ad workload's orchestration state after 11:36:50 — whether the hotfix image failed to pull, crashed pre-logging, or was never scheduled is unconfirmed; the verdict rests on absence of logs.
+  OPEN        : The mapping of 172.18.0.28:9555 to ad is inferred from the port and the trace endpoint, not confirmed against service discovery.
+  OPEN        : Frontend's error ratio is flat and only 1 of 10 traces errored, yet severity is critical; the product-reviews and product-catalog latency signals [tr_49f6226042e9] were never dispatched against and may be a separate fault.
+
+flags: none
+
+retrieval: exclude_origins=['scenario:v2-ad-bad-image-tag'], 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20261004T113644Z-v2-ad-bad-image-tag/3f8e7cd2-6589-4b1d-94bd-542596fc957e-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20261004T113644Z-v2-ad-bad-image-tag/3f8e7cd2-6589-4b1d-94bd-542596fc957e-narrative.md
+{"ts": "2026-10-04T11:44:05.055+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T11:44:08.151+00:00", "level": "INFO", "logger": "sentence_transformers.base.model", "msg": "No device provided, using mps", "component": "investigator"}
+{"ts": "2026-10-04T11:44:08.295+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/modules.json \"HTTP/1.1 307 Temporary Redirect\"", "component": "investigator"}
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+{"ts": "2026-10-04T11:44:08.295+00:00", "level": "WARNING", "logger": "huggingface_hub.utils._http", "msg": "Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.", "component": "investigator"}
+{"ts": "2026-10-04T11:44:08.314+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/sentence-transformers/all-MiniLM-L6-v2/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/modules.json \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T11:44:08.404+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/config_sentence_transformers.json \"HTTP/1.1 307 Temporary Redirect\"", "component": "investigator"}
+{"ts": "2026-10-04T11:44:08.422+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/sentence-transformers/all-MiniLM-L6-v2/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/config_sentence_transformers.json \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T11:44:08.426+00:00", "level": "INFO", "logger": "sentence_transformers.base.model", "msg": "Loading SentenceTransformer model from sentence-transformers/all-MiniLM-L6-v2.", "component": "investigator"}
+{"ts": "2026-10-04T11:44:08.483+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/config_sentence_transformers.json \"HTTP/1.1 307 Temporary Redirect\"", "component": "investigator"}
+{"ts": "2026-10-04T11:44:08.516+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/sentence-transformers/all-MiniLM-L6-v2/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/config_sentence_transformers.json \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T11:44:08.567+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/README.md \"HTTP/1.1 307 Temporary Redirect\"", "component": "investigator"}
+{"ts": "2026-10-04T11:44:08.581+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/sentence-transformers/all-MiniLM-L6-v2/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/README.md \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T11:44:08.640+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/modules.json \"HTTP/1.1 307 Temporary Redirect\"", "component": "investigator"}
+{"ts": "2026-10-04T11:44:08.654+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/sentence-transformers/all-MiniLM-L6-v2/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/modules.json \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T11:44:08.714+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/sentence_bert_config.json \"HTTP/1.1 307 Temporary Redirect\"", "component": "investigator"}
+{"ts": "2026-10-04T11:44:08.728+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/sentence-transformers/all-MiniLM-L6-v2/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/sentence_bert_config.json \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T11:44:08.787+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/adapter_config.json \"HTTP/1.1 404 Not Found\"", "component": "investigator"}
+{"ts": "2026-10-04T11:44:08.842+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/config.json \"HTTP/1.1 307 Temporary Redirect\"", "component": "investigator"}
+{"ts": "2026-10-04T11:44:08.858+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/sentence-transformers/all-MiniLM-L6-v2/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/config.json \"HTTP/1.1 200 OK\"", "component": "investigator"}
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 6816.67it/s]
+{"ts": "2026-10-04T11:44:09.031+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/processor_config.json \"HTTP/1.1 404 Not Found\"", "component": "investigator"}
+{"ts": "2026-10-04T11:44:09.084+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/preprocessor_config.json \"HTTP/1.1 404 Not Found\"", "component": "investigator"}
+{"ts": "2026-10-04T11:44:09.136+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/video_preprocessor_config.json \"HTTP/1.1 404 Not Found\"", "component": "investigator"}
+{"ts": "2026-10-04T11:44:09.191+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/preprocessor_config.json \"HTTP/1.1 404 Not Found\"", "component": "investigator"}
+{"ts": "2026-10-04T11:44:09.249+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/tokenizer_config.json \"HTTP/1.1 307 Temporary Redirect\"", "component": "investigator"}
+{"ts": "2026-10-04T11:44:09.263+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/sentence-transformers/all-MiniLM-L6-v2/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/tokenizer_config.json \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T11:44:09.316+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/config.json \"HTTP/1.1 307 Temporary Redirect\"", "component": "investigator"}
+{"ts": "2026-10-04T11:44:09.337+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/sentence-transformers/all-MiniLM-L6-v2/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/config.json \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T11:44:09.394+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/config.json \"HTTP/1.1 307 Temporary Redirect\"", "component": "investigator"}
+{"ts": "2026-10-04T11:44:09.408+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/sentence-transformers/all-MiniLM-L6-v2/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/config.json \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T11:44:09.466+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/tokenizer_config.json \"HTTP/1.1 307 Temporary Redirect\"", "component": "investigator"}
+{"ts": "2026-10-04T11:44:09.480+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/sentence-transformers/all-MiniLM-L6-v2/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/tokenizer_config.json \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T11:44:09.541+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET https://huggingface.co/api/models/sentence-transformers/all-MiniLM-L6-v2/tree/main/additional_chat_templates?recursive=false&expand=false \"HTTP/1.1 404 Not Found\"", "component": "investigator"}
+{"ts": "2026-10-04T11:44:09.601+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET https://huggingface.co/api/models/sentence-transformers/all-MiniLM-L6-v2/tree/main?recursive=true&expand=false \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T11:44:09.704+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/1_Pooling/config.json \"HTTP/1.1 307 Temporary Redirect\"", "component": "investigator"}
+{"ts": "2026-10-04T11:44:09.718+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/sentence-transformers/all-MiniLM-L6-v2/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/1_Pooling%2Fconfig.json \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T11:44:09.777+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/2_Normalize/config.json \"HTTP/1.1 404 Not Found\"", "component": "investigator"}
+{"ts": "2026-10-04T11:44:09.844+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET https://huggingface.co/api/models/sentence-transformers/all-MiniLM-L6-v2 \"HTTP/1.1 200 OK\"", "component": "investigator"}
+
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]
+Batches: 100%|██████████| 1/1 [00:00<00:00,  4.54it/s]
+Batches: 100%|██████████| 1/1 [00:00<00:00,  4.54it/s]
+{"ts": "2026-10-04T11:44:25.059+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T11:44:25.066+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=metric_baseline subject=sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"frontend\",status_code=\"STATUS_CODE_ERROR\"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"frontend\"}[5m])) start=2026-10-04T10:39:58.251588+00:00 end=2026-10-04T11:44:05.076412+00:00 span_s=3846 refused=False", "component": "investigator"}
+{"ts": "2026-10-04T11:44:25.067+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=logql_query subject={service=\"frontend\"} start=2026-10-04T11:12:01.664000+00:00 end=2026-10-04T11:44:05.076412+00:00 span_s=1923 refused=False", "component": "investigator"}
+{"ts": "2026-10-04T11:44:25.068+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=trace_query subject=frontend start=2026-10-04T11:12:01.664000+00:00 end=2026-10-04T11:44:05.076412+00:00 span_s=1923 refused=False", "component": "investigator"}
+{"ts": "2026-10-04T11:44:25.068+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=frontend start=2026-10-03T11:42:01.664000+00:00 end=2026-10-04T11:44:05.076412+00:00 span_s=86523 refused=False", "component": "investigator"}
+{"ts": "2026-10-04T11:44:35.022+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T11:44:36.769+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T11:44:43.844+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T11:44:47.014+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T11:45:04.021+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T11:45:04.024+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=metric_baseline subject=sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"ad\",status_code=\"STATUS_CODE_ERROR\"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"ad\"}[5m])) start=2026-10-04T07:39:58.251588+00:00 end=2026-10-04T11:44:05.076412+00:00 span_s=14646 refused=False", "component": "investigator"}
+{"ts": "2026-10-04T11:45:04.025+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=ad start=2026-10-03T11:42:01.664000+00:00 end=2026-10-04T11:44:05.076412+00:00 span_s=86523 refused=False", "component": "investigator"}
+{"ts": "2026-10-04T11:45:04.027+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=logql_query subject={service=\"ad\"} start=2026-10-04T09:42:01.664000+00:00 end=2026-10-04T11:44:05.076412+00:00 span_s=7323 refused=False", "component": "investigator"}
+{"ts": "2026-10-04T11:45:18.758+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T11:45:18.847+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T11:45:23.296+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]
+Batches: 100%|██████████| 1/1 [00:00<00:00,  3.44it/s]
+Batches: 100%|██████████| 1/1 [00:00<00:00,  3.44it/s]
+{"ts": "2026-10-04T11:46:01.770+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T11:46:16.832+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T11:46:57.488+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T11:47:20.410+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T11:47:46.560+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T11:47:53.486+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T11:47:53.539+00:00", "level": "INFO", "logger": "faultline.notify", "msg": "no report-ready notification was sent: no notifier was configured", "component": "investigator"}
+{"ts": "2026-10-04T11:47:53.539+00:00", "level": "INFO", "logger": "faultline.notify", "msg": "no awaiting-approval notification was sent: no notifier was configured", "component": "investigator"}
+
+reverting...
+confirming recovery...
+
+run 20261004T113644Z-v2-ad-bad-image-tag   scenario v2-ad-bad-image-tag
+trajectory 9c875c0e-1b66-4623-9fa7-fdf930102ae3   runtime faultline/0.0.1+prompts:9ce16b66bbcc
+
+TRIAGE (blast radius vs alerts_over_window)
+  recall    0.75  (3/4 alerted services predicted)
+  precision 0.38  (3/8 predicted services alerted)
+  reported as a pair and never combined - ADR-0017's under-reach question rides on recall alone
+  missed (alerted, not predicted): load-generator
+  extra  (predicted, not alerted): cart, checkout, product-catalog, product-reviews, recommendation
+  unmeasured edges crossed: 7 - membership reached through one is not evidence at the same strength
+
+VERDICT
+  reachability answerable by: runtime, logs
+  fault class bad_deploy vs bad_deploy - correct
+  fix class   rollback vs rollback - correct
+  service     ad vs ad - correct
+  ranked class top1 hit, top3 hit, depth 3  gained by ranking: no
+    ranked: bad_deploy > network_partition > resource_exhaustion
+  ranked service top1 hit, top3 hit, depth 1  (the verdict ranked 3, all naming one service)
+  coverage: reached a class
+
+REPORTED SEPARATELY (never averaged into the above)
+  flagged verdicts        0
+  specialists failed alone 0
+  contradiction firings   0 (check retired)
+  budget exhausted        no
+  narrative refused       no
+
+COST  in 77747 / out 15010 tokens   $0.7640
+MODELS {'changes': 'claude-opus-5', 'logs': 'claude-opus-5', 'metrics': 'claude-opus-5', 'planner': 'claude-opus-5', 'scribe': 'claude-opus-5', 'synthesizer': 'claude-opus-5', 'traces': 'claude-opus-5'}
+BUDGET {'max_tool_calls_per_specialist': 4, 'max_tokens': 120000, 'wall_clock_seconds': 600, 'max_dispatch_rounds': 2, 'briefing_tokens': 4000, 'max_usd': 2.0, 'usd_per_mtok_in': 5.0, 'usd_per_mtok_out': 25.0, 'per_specialist_tool_calls': {}}
+
+n=1. A single run is an observation, not a rate (CLAUDE.md rule 6).
+
+METRIC PANEL (T4.3) - reported beside accuracy, never averaged into it
+  latency        228.4s (OVER G4's 3-minute per-run comparison) tools 0.4s  models 292.1s (summed, not a critical path)  retrieval 5.8s  steps 22
+  tool calls     7 total, 7 valid, 0 errored, 0 redundant  validity 1.00  redundancy 0.00
+    a query that ran and found nothing is valid - an empty result is evidence (ADR-0019); 1 empty, 2 truncated
+  context budget 5 briefing(s), 3 over budget (0.60), 2 section(s) dropped, largest 9606 est. tokens against a 4000 cap
+  citations      0 violation(s), regenerated false, escalated false
+
+INVALID: the leave-one-out filter was asked for and removed nothing. ADR-0008 axis 2 is the assertion that a scenario's own artifacts are unreachable while it is scored, and a retrieval that excluded an origin the corpus does not hold has asserted nothing. The run is marked invalid rather than annotated, per T4.1b: silent non-enforcement is how this defect returns. Usually the corpus was never seeded, or was seeded without this scenario's narrative - check `faultline-seed` and the corpus row count, then run the scenario again.
+recorded, not deleted: /Users/chandana/dev/faultline/evals/runs/20261004T113644Z-v2-ad-bad-image-tag/INVALID.md
+
+artifacts under /Users/chandana/dev/faultline/evals/runs/20261004T113644Z-v2-ad-bad-image-tag
+
+=== [11] F v2-ad-bad-image-tag   $ faultline-eval v2-ad-bad-image-tag --runs-remaining 2 --sweep trial-headline-v2 --sweep-slot 11 --sweep-of 12 --sweep-pass 1
+=== [11] invalid; tally $5.97 over 11 run dir(s) and 75 probe(s)
+--- settling 300s before slot 12
+--- stamps: faultline/0.0.1+prompts:9ce16b66bbcc cap:91279a09
+--- corpus: 334 rows; at both pins
+--- world: world check passed
+run 20261004T115829Z-v2-ad-bad-image-tag
+pre-flight: model reachable and billable...
+  b0 makes no model call
+baseline gate...
+  clean: 19 services reporting, 0 alerts
+  generation 5a2bc6d912f9
+injecting v2-ad-bad-image-tag...
+waiting for the orchestrator to correlate...
+  incident 3bec5386-30f9-4602-abbe-56111632b570 with 2 episode(s)
+  settling 90s so the blast radius fills
+investigating...
+  $ faultline-investigate 3bec5386-30f9-4602-abbe-56111632b570 --exclude-origins scenario:v2-ad-bad-image-tag --out /Users/chandana/dev/faultline/evals/runs/20261004T115829Z-v2-ad-bad-image-tag --max-tool-calls 4 --max-tokens 120000 --baseline b0
+incident 3bec5386-30f9-4602-abbe-56111632b570  state triaging  anchor 12:04:01
+triage: 8 services, severity critical, start from frontend, 7 unmeasured edge(s) crossed
+B0: dependency_latency / restart
+  suspect: largest error-rate delta among alerting services (+0.098)
+  class: no change on any alerting service before onset
+  remediation: table lookup from dependency_latency
+wrote /Users/chandana/dev/faultline/evals/runs/20261004T115829Z-v2-ad-bad-image-tag/3bec5386-30f9-4602-abbe-56111632b570-verdict.json
+{"ts": "2026-10-04T12:05:45.184+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=frontend start=2026-10-03T12:04:01.664000+00:00 end=2026-10-04T12:05:45.179009+00:00 span_s=86503 refused=False", "component": "investigator"}
+{"ts": "2026-10-04T12:05:45.185+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=promql_query subject=sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"frontend\",status_code=\"STATUS_CODE_ERROR\"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"frontend\"}[5m])) start=2026-10-04T11:34:01.664000+00:00 end=2026-10-04T12:05:45.179009+00:00 span_s=1903 refused=False", "component": "investigator"}
+{"ts": "2026-10-04T12:05:45.195+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=frontend-proxy start=2026-10-03T12:04:01.664000+00:00 end=2026-10-04T12:05:45.179009+00:00 span_s=86503 refused=False", "component": "investigator"}
+{"ts": "2026-10-04T12:05:45.195+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=promql_query subject=sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"frontend-proxy\",status_code=\"STATUS_CODE_ERROR\"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"frontend-proxy\"}[5m])) start=2026-10-04T11:34:01.664000+00:00 end=2026-10-04T12:05:45.179009+00:00 span_s=1903 refused=False", "component": "investigator"}
+
+reverting...
+confirming recovery...
+unexpected fields in the verdict (accepted and recorded): {'verdict': ['summary']}
+
+run 20261004T115829Z-v2-ad-bad-image-tag   scenario v2-ad-bad-image-tag
+trajectory bd3fb0b8-5366-43d0-9cdf-24e27b85ff92   runtime faultline/0.0.1+baseline:B0.4
+
+TRIAGE (blast radius vs alerts_over_window)
+  recall    0.75  (3/4 alerted services predicted)
+  precision 0.38  (3/8 predicted services alerted)
+  reported as a pair and never combined - ADR-0017's under-reach question rides on recall alone
+  missed (alerted, not predicted): load-generator
+  extra  (predicted, not alerted): cart, checkout, product-catalog, product-reviews, recommendation
+  unmeasured edges crossed: 7 - membership reached through one is not evidence at the same strength
+
+VERDICT
+  reachability answerable by: runtime, logs
+  fault class dependency_latency vs bad_deploy - WRONG
+  fix class   restart vs rollback - WRONG
+  service     frontend vs ad - WRONG
+  ranked class top1 miss, top3 miss, depth 1  (top-3 = top-1 by construction: the verdict offered no alternative)
+  ranked service top1 miss, top3 miss, depth 1  (top-3 = top-1 by construction: the verdict offered no alternative)
+  coverage: reached a class
+
+REPORTED SEPARATELY (never averaged into the above)
+  flagged verdicts        0
+  specialists failed alone 0
+  contradiction firings   0 (check retired)
+  budget exhausted        no
+  narrative refused       no
+
+COST  in 0 / out 0 tokens   $0.0000
+MODELS {'changes': 'claude-opus-5', 'logs': 'claude-opus-5', 'metrics': 'claude-opus-5', 'planner': 'claude-opus-5', 'scribe': 'claude-opus-5', 'synthesizer': 'claude-opus-5', 'traces': 'claude-opus-5'}
+BUDGET {'max_tool_calls_per_specialist': 4, 'max_tokens': 120000, 'wall_clock_seconds': 600, 'max_dispatch_rounds': 2, 'briefing_tokens': 4000, 'max_usd': 2.0, 'usd_per_mtok_in': 5.0, 'usd_per_mtok_out': 25.0, 'per_specialist_tool_calls': {}}
+
+n=1. A single run is an observation, not a rate (CLAUDE.md rule 6).
+
+METRIC PANEL (T4.3) - reported beside accuracy, never averaged into it
+  latency        0.0s (within G4's 3-minute per-run comparison) tools 0.0s  models 0.0s (summed, not a critical path)  retrieval 0.0s  steps 4
+  tool calls     4 total, 4 valid, 0 errored, 0 redundant  validity 1.00  redundancy 0.00
+    a query that ran and found nothing is valid - an empty result is evidence (ADR-0019); 2 empty, 0 truncated
+  context budget 0 briefing(s), 0 over budget (n/a), 0 section(s) dropped, largest 0 est. tokens against a 0 cap
+  citations      0 violation(s), regenerated false, escalated false
+
+artifacts under /Users/chandana/dev/faultline/evals/runs/20261004T115829Z-v2-ad-bad-image-tag
+
+=== [12] B0 v2-ad-bad-image-tag   $ faultline-eval v2-ad-bad-image-tag --runs-remaining 1 --baseline b0 --sweep trial-headline-v2 --sweep-slot 12 --sweep-of 12 --sweep-pass 1
+=== [12] scored; tally $5.97 over 12 run dir(s) and 75 probe(s)
+--- re-running discarded slot 1 once (end of pass)
+--- settling 300s before slot 1
+--- stamps: faultline/0.0.1+prompts:9ce16b66bbcc cap:91279a09
+--- corpus: 334 rows; at both pins
+--- world: FAIL  no container but grafana >= 85 % memory      ad 90.3%
+
+*** STOP: the world check failed before slot 1: FAIL  no container but grafana >= 85 % memory      ad 90.3%
+
+tally: $5.97 over 12 run dir(s) and 75 probe(s)
+outcomes: discarded 1, invalid 2, scored 9
+STOPPED: the world check failed before slot 1: FAIL  no container but grafana >= 85 % memory      ad 90.3%
+unfinished: 3 slot(s)
+  1 dev v2-cart-bad-image-tag F
+  8 dev v2-product-catalog-freeze F
+  11 dev v2-ad-bad-image-tag F

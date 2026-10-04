@@ -4617,6 +4617,22 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-10-04: T7.3's trial, second attempt - 12 slots, $5.97; F works on v2, met a v1 corpus.***
+
+- **Ran** (`PREREGISTRATION-trial-v2.md`, Addendum 4): nine baseline runs scored; F's three did not
+  count. Two F runs reached cited verdicts (one right on class, culprit and fix; one right on the
+  culprit and abstaining on class) and were **invalidated by the leave-one-out rule**; the third
+  **failed when its planner dispatched `productcatalogservice`**, v1's name, twice.
+- **The cause**: a corpus of v1 documents alone on the v2 world, and a leave-one-out rule that voids
+  any run whose own narrative the corpus does not hold, which is every holdout run.
+- **Fixed** (the owner's decision: a v2 corpus): `faultline-seed --world v2 --replace` (v2's 29 dev
+  narratives, 14 world-neutral runbooks; v1 unchanged); `generations.CORPUS_PINS_BY_WORLD`;
+  `faultline-batch corpus --world`; `run.absence_assertion`. In `docs/DEVIATIONS.md`.
+- **The money**: F $0.89-0.96, B1 $0.62-2.40, B2 $0.05 a run; the 156 project to about $87 against
+  the $60 cap, the owner's decision at the go. F's three trial slots run again (about $2.80); the
+  baselines' nine stand.
+- Both stamps unchanged. **Next**: the v2 ingest on the Mac and its pins, then F's three slots.
+
 ***2026-10-04: kafka's "no traffic" was the gate's defect - kafka at zero excused on v2.***
 
 - **The read-only diagnosis**: kafka's own span rate 0.00 for twelve hours, while its consumers read

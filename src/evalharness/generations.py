@@ -204,6 +204,23 @@ corpus of record. The retrieval gate was re-founded in the same commit, as its r
 (`tests/test_integration_retrieval_gate.py`).
 """
 
+CORPUS_PINS_BY_WORLD: dict[str, tuple[str | None, str | None]] = {
+    "v1": (CURRENT_CORPUS_SHAPE, CURRENT_CORPUS_BODY),
+    "v2": (None, None),
+}
+"""**Each world's corpus of record, as `(shape, body)`** (T7.3's trial, Addendum 4). v1's is the two
+pins above, unchanged. **v2's is unset until the v2 corpus is ingested on the Mac and read back**,
+and the batch runner refuses a v2 slot while it is: an unpinned corpus is not frozen. Set in the
+commit that records that ingest, as `CURRENT_CORPUS_SHAPE` was (Q92)."""
+
+
+def corpus_pins(world: str) -> tuple[str | None, str | None]:
+    """The world's corpus pins. An unknown world is refused, not given v1's."""
+    if world not in CORPUS_PINS_BY_WORLD:
+        raise ValueError(f"no corpus pins for world {world!r}")
+    return CORPUS_PINS_BY_WORLD[world]
+
+
 WORLD_ERAS = (
     (T7_1_FIRST_CAPTURE, WORLD_4A),
     (T7_28_FIRST_CAPTURE, WORLD_299),

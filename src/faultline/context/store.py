@@ -186,6 +186,13 @@ class InMemoryPastIncidentStore:
             del self.chunks[key]
         return len(stale)
 
+    def prune_except(self, document_ids: set[str]) -> int:
+        """Remove every chunk of a document not in `document_ids` (`faultline-seed --replace`)."""
+        stale = [k for k, c in self.chunks.items() if c.document_id not in document_ids]
+        for key in stale:
+            del self.chunks[key]
+        return len(stale)
+
     def excluded_count(self, origins: frozenset[str]) -> int:
         return sum(1 for chunk in self.chunks.values() if chunk.origin in origins)
 
@@ -365,6 +372,22 @@ class PgVectorPastIncidentStore:
                 (document_id, list(keep)),
             )
             return int(cur.rowcount)
+
+    def prune_except(self, document_ids: set[str]) -> int:
+        """Remove every chunk of a document not in `document_ids`, so the store holds exactly one
+        world's corpus (`faultline-seed --replace`, T7.3's v2 corpus). Refuses an empty set, which
+        would delete the whole corpus on a seed that wrote nothing."""
+        if not document_ids:
+            raise ValueError("refusing to prune to an empty corpus")
+        with self._conn.cursor() as cur:
+            cur.execute(
+                "DELETE FROM incident_chunks WHERE NOT (document_id = ANY(%s))",
+                (sorted(document_ids),),
+            )
+            removed = int(cur.rowcount)
+        # Committed here: this runs after the seed's last write, so no later `add` commits it.
+        self._conn.commit()
+        return removed
 
     def excluded_count(self, origins: frozenset[str]) -> int:
         if not origins:

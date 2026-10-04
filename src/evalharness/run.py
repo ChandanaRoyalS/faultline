@@ -997,6 +997,65 @@ def classify_retrievals(
     }
 
 
+def absence_by_design(scenario_id: str, world: str) -> str | None:
+    """Why a scenario's own narrative is **not supposed to be** in `world`'s corpus, or `None`.
+
+    Two cases, both decided before any run: a **holdout** scenario, whose artifacts never enter any
+    corpus (ADR-0008 axis 1, and the freeze refuses a holdout chunk); and a dev scenario the seeder
+    itself skips for this world's corpus (`seed.dev_bundles`' reason: another world, no narrative,
+    marked invalid). A dev scenario the seeder would have seeded returns `None`: its narrative is
+    expected, and a filter that removed nothing still means what T4.1b says it means.
+    """
+    from faultline.context.seed import dev_bundles
+
+    if bundle_for(scenario_id).get("split") == "holdout":
+        return "a holdout scenario's artifacts never enter any corpus (ADR-0008 axis 1)"
+    root = REPO_ROOT / "evals/scenarios/artifacts/dev"
+    for bundle, skip in dev_bundles(root, world):
+        if bundle.name == scenario_id:
+            return skip
+    return None
+
+
+def own_origin_chunks(dsn: str, own_origin: str) -> int:  # pragma: no cover - needs the store
+    """How many corpus chunks carry the scenario's own origin, counted directly at run time."""
+    import psycopg
+
+    with psycopg.connect(dsn) as conn, conn.cursor() as cur:
+        cur.execute("SELECT count(*) FROM incident_chunks WHERE origin = %s", (own_origin,))
+        row = cur.fetchone()
+        return int(row[0]) if row else 0
+
+
+def absence_assertion(
+    enforcement: dict[str, Any], own_origin: str, reason: str | None, chunks: int
+) -> dict[str, Any] | None:
+    """**ADR-0008 axis 2, made by a count when the filter has nothing to remove** (T7.3's trial,
+    Addendum 4).
+
+    The leave-one-out filter's zero (`silent`) invalidated every run whose own narrative the
+    corpus does not hold, and that is **every holdout run** and, on v2's first corpus, every v2 run:
+    their own artifacts are unreachable not because a filter removed them but because they were
+    never there. This accepts the zero only when all of it holds:
+
+    - every silent retrieval excluded exactly the scenario's own origin, and none excluded the
+      wrong thing (`missing_own` is empty);
+    - the narrative's absence was decided before the run (`absence_by_design`);
+    - **and the corpus, counted directly at run time, holds no chunk of that origin.**
+
+    A dev narrative the seeder should have written and did not still invalidates the run, which
+    is the defect T4.1b exists to catch.
+    """
+    silent = enforcement.get("silent") or []
+    if not silent or enforcement.get("missing_own"):
+        return None
+    if any(row.get("exclude_origins") != [own_origin] for row in silent):
+        return None
+    if reason is None or chunks != 0:
+        return None
+    return {"own_origin": own_origin, "absent_by_design": reason, "chunks_of_own_origin": 0}
+
+
 MISSING_OWN_INVALID = (
     "retrieval excluded something, but not the scenario under test. ADR-0008 axis 2 is the "
     "assertion that a scenario's own artifacts are unreachable while it is scored, and a run "
@@ -1915,9 +1974,16 @@ def main(argv: list[str] | None = None) -> int:
         # this run rather than a property of the code. Checked after scoring so the score is
         # written either way - an invalid run keeps its artifacts and its numbers, and is
         # refused as a *result*, which is the distinction ADR-0022 §3.3 draws for discards.
-        enforcement = retrieval_enforcement(
-            dsn, trajectory_id, own_origin=f"scenario:{args.scenario_id}"
-        )
+        own_origin = f"scenario:{args.scenario_id}"
+        enforcement = retrieval_enforcement(dsn, trajectory_id, own_origin=own_origin)
+        absent = None
+        if enforcement["silent"] and not enforcement["missing_own"]:
+            reason = absence_by_design(args.scenario_id, tools_world())
+            chunks = own_origin_chunks(dsn, own_origin) if reason is not None else -1
+            absent = absence_assertion(enforcement, own_origin, reason, chunks)
+        if absent is not None:
+            enforcement["asserted_by_absence"] = absent
+            enforcement["enforced"] = True
         run.manifest["leave_one_out"] = enforcement
         # T4.3's panel, computed from the same stored run and printed beside the accuracy block
         # rather than inside it - these are the numbers that explain *why* accuracy moved, and
@@ -1928,7 +1994,7 @@ def main(argv: list[str] | None = None) -> int:
         report = scored.report() + "\n\n" + "\n".join(panel.render())
         run.write("report.txt", report + "\n")
         print("\n" + report)
-        if enforcement["silent"] or enforcement["missing_own"]:
+        if (enforcement["silent"] and absent is None) or enforcement["missing_own"]:
             # **Two different failures, two different messages.** *Removed nothing* usually means
             # the corpus was never seeded; *excluded the wrong things* means the run was pointed
             # at a scenario it did not hold out, which is a harness mistake and not a data one.

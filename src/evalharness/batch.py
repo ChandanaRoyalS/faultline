@@ -130,7 +130,7 @@ def judged(queue_kind: str, arm: str) -> bool:
     """Only the headline's F is judged: *`faultline-judge` on the agent arm's narratives*. T7.3's
     registration names no judge. The headline's trial judges its F too, to measure the judge's
     cost before the run (`PREREGISTRATION-trial-v2.md`)."""
-    return queue_kind in ("headline", "trial-headline") and arm == "F"
+    return queue_kind in ("headline", "trial-headline", "trial-headline-f") and arm == "F"
 
 
 def arms(rerank_revision: str | None = None) -> dict[str, Arm]:
@@ -225,6 +225,14 @@ def trial_scenarios(dev: Iterable[str], seed: int = TRIAL_SEED) -> list[str]:
 def trial_headline_queue(dev: Iterable[str], seed: int = TRIAL_SEED) -> list[Slot]:
     """The three, all four arms, ordered as the headline's own queue orders a dev pass."""
     return headline_queue(trial_scenarios(dev, seed), [], seed)
+
+
+def trial_f_queue(dev: Iterable[str], seed: int = TRIAL_SEED) -> list[Slot]:
+    """The headline trial's F slots alone, in the trial's order (`PREREGISTRATION-trial-v2.md`,
+    Addendum 4): the corpus changed and the baselines retrieve nothing, so their nine trial runs
+    stand and only F is run again."""
+    f_slots = [s for s in trial_headline_queue(dev, seed) if s.arm == "F"]
+    return [Slot(i, s.pass_name, s.scenario, s.arm) for i, s in enumerate(f_slots, start=1)]
 
 
 def switch_scenario(trial: Iterable[str], twelve: Iterable[str]) -> str:
@@ -400,15 +408,18 @@ def stamps() -> tuple[bool, str]:
     return ok, f"{runtime} {capability}"
 
 
-def corpus_frozen(state: Mapping[str, Any]) -> tuple[bool, str]:
-    """The corpus of record, unchanged: both pins, and no holdout chunk (item 8)."""
-    from evalharness.generations import CURRENT_CORPUS_BODY, CURRENT_CORPUS_SHAPE
+def corpus_frozen(state: Mapping[str, Any], world: str = "v1") -> tuple[bool, str]:
+    """The world's corpus of record, unchanged: both pins, and no holdout chunk (item 8)."""
+    from evalharness.generations import corpus_pins
 
+    shape, body = corpus_pins(world)
     problems = []
-    if state.get("sha256") != CURRENT_CORPUS_SHAPE:
-        problems.append(f"shape {str(state.get('sha256'))[:12]} is not the pin")
-    if state.get("body_sha256") != CURRENT_CORPUS_BODY:
-        problems.append(f"body {str(state.get('body_sha256'))[:12]} is not the pin")
+    if shape is None or body is None:
+        problems.append(f"world {world}'s corpus has no pins yet")
+    if state.get("sha256") != shape:
+        problems.append(f"shape {str(state.get('sha256'))[:12]} is not world {world}'s pin")
+    if state.get("body_sha256") != body:
+        problems.append(f"body {str(state.get('body_sha256'))[:12]} is not world {world}'s pin")
     if state.get("holdout_chunks"):
         problems.append(f"{state.get('holdout_chunks')} holdout chunk(s)")
     detail = f"{state.get('rows')} rows; " + ("; ".join(problems) or "at both pins")
@@ -704,8 +715,11 @@ def find_run(label: str, slot: int, root: Path = RUN_ROOT) -> str | None:
 # --- the corpus of record (item 8) ----------------------------------------------------------
 
 
-def corpus_record(state: Mapping[str, Any], agrees: bool, drift: str) -> dict[str, Any]:
+def corpus_record(
+    state: Mapping[str, Any], agrees: bool, drift: str, world: str = "v1"
+) -> dict[str, Any]:
     return {
+        "world": world,
         "rows": state.get("rows"),
         "documents": state.get("documents"),
         "sha256": state.get("sha256"),
@@ -727,7 +741,9 @@ def parser() -> argparse.ArgumentParser:
     sub = p.add_subparsers(dest="command", required=True)
 
     q = sub.add_parser("queue", help="print a queue from its seed; commit it before the batch")
-    q.add_argument("kind", choices=("headline", "t73", "trial-headline", "trial-t73"))
+    q.add_argument(
+        "kind", choices=("headline", "t73", "trial-headline", "trial-headline-f", "trial-t73")
+    )
     q.add_argument("--seed", type=int, required=True)
     q.add_argument("--rerank-revision", default=None, help="E7's pinned cross-encoder commit")
     q.add_argument("--out", type=Path, required=True)
@@ -756,6 +772,7 @@ def parser() -> argparse.ArgumentParser:
 
     c = sub.add_parser("corpus", help="read the ingested corpus and write its record (item 8)")
     c.add_argument("--postgres-dsn", default=None)
+    c.add_argument("--world", choices=("v1", "v2"), default="v1")
     c.add_argument("--out", type=Path, required=True)
     return p
 
@@ -779,6 +796,8 @@ def main(argv: list[str] | None = None) -> int:  # pragma: no cover - the live p
             slots = t73_queue(t73_scenarios(), args.seed)
         elif args.kind == "trial-headline":
             slots = trial_headline_queue(dev, args.seed)
+        elif args.kind == "trial-headline-f":
+            slots = trial_f_queue(dev, args.seed)
         else:
             chosen = switch_scenario(trial_scenarios(dev), t73_scenarios())
             slots = trial_t73_queue(chosen, args.seed)
@@ -794,8 +813,8 @@ def main(argv: list[str] | None = None) -> int:  # pragma: no cover - the live p
         from evalharness.freeze import corpus_state
 
         state = corpus_state(dsn)
-        drift = compare(seeded_rows(dsn), working_tree_rows(None))
-        record = corpus_record(state, drift.agrees, drift.render())
+        drift = compare(seeded_rows(dsn), working_tree_rows(None, args.world))
+        record = corpus_record(state, drift.agrees, drift.render(), args.world)
         args.out.write_text(json.dumps(record, indent=2) + "\n")
         print(json.dumps({k: v for k, v in record.items() if k != "drift"}, indent=2))
         ok = drift.agrees and not state.get("holdout_chunks")
@@ -812,7 +831,7 @@ def main(argv: list[str] | None = None) -> int:  # pragma: no cover - the live p
     default_model = AgentSettings().model
 
     def corpus() -> tuple[bool, str]:
-        return corpus_frozen(corpus_state(dsn))
+        return corpus_frozen(corpus_state(dsn), "v2")
 
     def world() -> tuple[bool, str]:
         return world_ready(run_world_check, restart_quote, time.sleep)
