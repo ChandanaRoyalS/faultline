@@ -453,3 +453,11 @@ Each item states its design, what stays exactly as it is, and the test that hold
 - It changes nothing in Faultline's roles, prompts or tools.
 - It runs nothing scored. The build's own checks are `make check` and one injection-free dry run
   of the batch runner.
+
+## Addendum 2 - the trial, registered (2026-10-04)
+
+The build's result, the trial's scenarios, queues, stops and checks are registered in
+[`PREREGISTRATION-trial-v2.md`](PREREGISTRATION-trial-v2.md), before any trial slot runs. It
+records one harness defect fixed by addendum (the kafka projection's growth rate, now per world),
+one correction to T7.3's Addendum 1 (E9's check: the pull rate is below F's, not zero) and E7's
+revision pinned in the switch trial's queue.

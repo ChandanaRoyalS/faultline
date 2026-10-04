@@ -338,3 +338,39 @@ def test_b0_carries_its_culprit_and_cannot_name_the_five_classes_with_no_change_
 
     assert row["service"] == "cart"
     assert row["fault_class"] == "dependency_latency"
+
+
+# --- the trial's addendum: kafka's growth rate per world ------------------------------------
+
+
+def test_v1_keeps_its_rate_and_v2_has_its_own() -> None:
+    from evalharness import gate
+
+    assert gate.growth_rate("v1") == gate.HEADROOM_GROWTH_MB_PER_HOUR == 151.0
+    assert gate.growth_rate("v2") == 1.3
+    with pytest.raises(ValueError, match="no measured kafka growth rate"):
+        gate.growth_rate("v3")
+
+
+def test_the_trial_s_twelve_slots_fit_on_v2_and_would_not_have_on_v1_s_rate() -> None:
+    """The reading of 2026-10-04: kafka at 38.64 % of 1 GiB. The v1 rate refused the trial."""
+    from evalharness import gate
+
+    usage = [("kafka", 38.64, "395.6MiB / 1GiB")]
+    v2 = gate.headroom_for(usage=usage, runs_remaining=12, world="v2")
+    v1 = gate.headroom_for(usage=usage, runs_remaining=12, world="v1")
+    whole = gate.headroom_for(usage=usage, runs_remaining=156, world="v2")
+
+    assert v2 is not None and v1 is not None and whole is not None
+    assert v2.fits and whole.fits
+    assert not v1.fits
+    assert v2.as_dict()["growth_mb_per_hour"] == 1.3
+    assert v1.as_dict()["growth_mb_per_hour"] == 151.0
+
+
+def test_the_gate_passes_its_own_world_to_the_projection() -> None:
+    import inspect
+
+    from evalharness import gate
+
+    assert "runs_remaining=runs_remaining, world=world)" in inspect.getsource(gate.read)

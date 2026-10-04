@@ -1,0 +1,37 @@
+"""Read-only: kafka's memory on the v2 world, now and over the last 24 hours (stdlib only)."""
+
+import json
+import subprocess
+import time
+import urllib.parse
+import urllib.request
+
+PROM = "http://localhost:9090"
+
+
+def get(path, **params):
+    url = PROM + path + "?" + urllib.parse.urlencode(params)
+    with urllib.request.urlopen(url, timeout=30) as r:
+        return json.load(r)["data"]
+
+
+print("--- docker stats (now)")
+print(subprocess.run(["docker", "stats", "--no-stream", "--format",
+                      "{{.Name}} {{.MemUsage}} {{.MemPerc}}", "kafka"],
+                     capture_output=True, text=True).stdout.strip())
+print(subprocess.run(["docker", "inspect", "-f",
+                      "started={{.State.StartedAt}} restarts={{.RestartCount}}", "kafka"],
+                     capture_output=True, text=True).stdout.strip())
+
+series = get("/api/v1/series", **{"match[]": "container_memory_usage_total_bytes"})
+kafka = [s for s in series if "kafka" in s.values() or any(v == "kafka" for v in s.values())]
+print(f"--- {len(series)} series of container_memory_usage_total_bytes, kafka's: {kafka[:1]}")
+if kafka:
+    labels = ",".join(f'{k}="{v}"' for k, v in kafka[0].items() if k != "__name__")
+    now = time.time()
+    data = get("/api/v1/query_range", query=f"container_memory_usage_total_bytes{{{labels}}}",
+               start=str(int(now - 24 * 3600)), end=str(int(now)), step="1800")
+    for result in data["result"]:
+        for ts, value in result["values"]:
+            print(time.strftime("%m-%d %H:%M", time.localtime(float(ts))),
+                  f"{float(value) / 1048576:7.1f} MiB")

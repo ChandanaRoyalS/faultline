@@ -128,8 +128,9 @@ class Arm:
 
 def judged(queue_kind: str, arm: str) -> bool:
     """Only the headline's F is judged: *`faultline-judge` on the agent arm's narratives*. T7.3's
-    registration names no judge."""
-    return queue_kind == "headline" and arm == "F"
+    registration names no judge. The headline's trial judges its F too, to measure the judge's
+    cost before the run (`PREREGISTRATION-trial-v2.md`)."""
+    return queue_kind in ("headline", "trial-headline") and arm == "F"
 
 
 def arms(rerank_revision: str | None = None) -> dict[str, Arm]:
@@ -209,6 +210,37 @@ def t73_queue(scenarios: Iterable[str], seed: int) -> list[Slot]:
     pairs = [(s, c) for s in sorted(scenarios) for c in T73_CONFIGS]
     random.Random(seed).shuffle(pairs)
     return [Slot(i, "t73", s, c) for i, (s, c) in enumerate(pairs, start=1)]
+
+
+TRIAL_SEED = 20261004
+SWITCH_ARMS = ("E2", "E3", "E4", "E5", "E6", "E7", "E8", "E9")
+
+
+def trial_scenarios(dev: Iterable[str], seed: int = TRIAL_SEED) -> list[str]:
+    """The headline registration's step 3: *three dev scenarios by
+    `random.Random(20261004).sample` over the sorted dev ids*, in draw order."""
+    return random.Random(seed).sample(sorted(dev), 3)
+
+
+def trial_headline_queue(dev: Iterable[str], seed: int = TRIAL_SEED) -> list[Slot]:
+    """The three, all four arms, ordered as the headline's own queue orders a dev pass."""
+    return headline_queue(trial_scenarios(dev, seed), [], seed)
+
+
+def switch_scenario(trial: Iterable[str], twelve: Iterable[str]) -> str:
+    """T7.3's step 3 asks for *one dev scenario outside the 12*. The first of the headline trial's
+    three that is outside them, so the headline trial's F on it is each switch's comparison."""
+    outside = [s for s in trial if s not in set(twelve)]
+    if not outside:
+        raise ValueError("every trial scenario is one of T7.3's 12; register another rule")
+    return outside[0]
+
+
+def trial_t73_queue(scenario: str, seed: int) -> list[Slot]:
+    """E2 to E9 on the one scenario, in an order shuffled by T7.3's seed."""
+    arms_order = list(SWITCH_ARMS)
+    random.Random(seed).shuffle(arms_order)
+    return [Slot(i, "t73", scenario, arm) for i, arm in enumerate(arms_order, start=1)]
 
 
 def t73_scenarios(path: Path = T73_SCENARIOS) -> list[str]:
@@ -656,7 +688,7 @@ def parser() -> argparse.ArgumentParser:
     sub = p.add_subparsers(dest="command", required=True)
 
     q = sub.add_parser("queue", help="print a queue from its seed; commit it before the batch")
-    q.add_argument("kind", choices=("headline", "t73"))
+    q.add_argument("kind", choices=("headline", "t73", "trial-headline", "trial-t73"))
     q.add_argument("--seed", type=int, required=True)
     q.add_argument("--rerank-revision", default=None, help="E7's pinned cross-encoder commit")
     q.add_argument("--out", type=Path, required=True)
@@ -700,12 +732,17 @@ def main(argv: list[str] | None = None) -> int:  # pragma: no cover - the live p
     if args.command == "queue":
         from evalharness import sweep
 
+        dev = sweep.runnable(world="v2")
         if args.kind == "headline":
-            dev = sweep.runnable(world="v2")
             both = sweep.runnable(world="v2", holdout=True)
             slots = headline_queue(dev, sorted(set(both) - set(dev)), args.seed)
-        else:
+        elif args.kind == "t73":
             slots = t73_queue(t73_scenarios(), args.seed)
+        elif args.kind == "trial-headline":
+            slots = trial_headline_queue(dev, args.seed)
+        else:
+            chosen = switch_scenario(trial_scenarios(dev), t73_scenarios())
+            slots = trial_t73_queue(chosen, args.seed)
         queue = Queue(args.kind, args.seed, slots, args.rerank_revision)
         read_queue(render_queue(queue))
         args.out.write_text(render_queue(queue))

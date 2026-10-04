@@ -89,6 +89,7 @@ before anything ran, at $0.
 | T7.2 | the re-check's 5 s condition per tool | corrected to per request after the result, recorded as a correction | owner, 2026-10-03 | yes |
 | T7.3 | every experiment over the **full catalog at R = 5**, order randomized | **12 dev scenarios, R = 1**, order randomized, the control and B1 re-run inside the batch | owner, 2026-10-03 and 2026-10-04 | yes |
 | T7.3 | progressive disclosure vs push-everything briefings | push reaches the five roles that are briefed; **the specialists are not briefed** (each gets a dispatch question), so push leaves them unchanged | build part C, 2026-10-04 (PLAN entry) | yes |
+| T7.3 | nothing in the harness changes between the registrations and the run, except its own defects by addendum | **the kafka headroom projection's growth rate made per world** before the trial: v2 had v1's 151 MB/h and refused the trial at its first slot; v2's measured rate is 1.3 MB/h, v1 unchanged | owner, 2026-10-04 (`PREREGISTRATION-trial-v2.md`) | yes |
 | T7.3 | single-agent-all-tools vs parallel specialists | B1, which also has no retrieval, proposer or scribe; the confound is stated with every result | the B1 design (`baseline_agent.py`) | yes |
 | T7.4 | the eval dashboard | not built; $0 at the owner's scale | owner, 2026-10-03 | pending |
 | T7.5 | launch pack | not built; writeup $0, demo about $3 | owner, 2026-10-03 | pending |

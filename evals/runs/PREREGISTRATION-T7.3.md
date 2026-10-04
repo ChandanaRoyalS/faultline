@@ -284,3 +284,11 @@ fingerprint. A run with any switch off its default is never counted as the stand
 The 120 runs, 10 configurations × 12 scenarios, are put in one order by `random.Random(seed)`,
 with the seed fixed in the operation addendum before the queue is printed. The queue is committed
 before the batch, and nothing in it changes after a result.
+
+## Addendum 2 - the trial, registered (2026-10-04)
+
+The build's result, the trial's scenarios, queues, stops and checks are registered in
+[`PREREGISTRATION-trial-v2.md`](PREREGISTRATION-trial-v2.md), before any trial slot runs. It
+records one harness defect fixed by addendum (the kafka projection's growth rate, now per world),
+one correction to T7.3's Addendum 1 (E9's check: the pull rate is below F's, not zero) and E7's
+revision pinned in the switch trial's queue.

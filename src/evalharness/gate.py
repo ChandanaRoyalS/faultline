@@ -263,6 +263,31 @@ below exists.
 At rest the rate is **6.2 MB/h** (T7.30), so this check is near-inert on an idle world and bites
 exactly when work is happening - which is when a run is about to happen."""
 
+HEADROOM_GROWTH_MB_PER_HOUR_BY_WORLD: dict[str, float] = {
+    "v1": HEADROOM_GROWTH_MB_PER_HOUR,
+    "v2": 1.3,
+}
+"""**Each world's own rate** (the trial's registration, `PREREGISTRATION-trial-v2.md`, the owner's
+decision of 2026-10-04). v1's is above, unchanged. **v2's was v1's until this**, so on v2 the
+projection grew 151 MB/h against a 1024 MB limit and refused any horizon over about ten runs with
+kafka at 38.6 %: the 12-run trial at its first slot, the 156-run headline at every slot.
+
+**v2: 1.3 MB/h, measured** off the world's own `container_memory_usage_total_bytes{container_name=
+"kafka"}` over 24 h at 30-minute steps (2026-10-03 to 04, kafka up five days, no restart): 376-401
+MiB, the steepest rise 25 MiB over 19.5 h. **Why v2's rate is that low**: v2 commits kafka's heap at
+start (`-Xms400m` = `-Xmx400m`, `recycle_effect`), so the heap cannot grow, and what can - the log
+directory's tmpfs pages - is capped at 256 MiB (`compose/world-v2.override.yml`), which bounds
+kafka near 64 % whatever the rate. The trial reads kafka before every slot, and a faster rate under
+runs goes back to the owner's go."""
+
+
+def growth_rate(world: str) -> float:
+    """The world's kafka growth rate. A world without one is refused, not given v1's."""
+    if world not in HEADROOM_GROWTH_MB_PER_HOUR_BY_WORLD:
+        raise ValueError(f"no measured kafka growth rate for world {world!r}")
+    return HEADROOM_GROWTH_MB_PER_HOUR_BY_WORLD[world]
+
+
 SWEEP_RUN_HOURS = 2.78 / 8
 """Wall clock for one run *inside a sweep*, measured: T7.29 ran 8 scenarios in 2h47m.
 
@@ -320,6 +345,8 @@ class Headroom:
     growth_percent: float
     threshold_percent: float
     runs_remaining: int | None = None
+    growth_mb_per_hour: float = HEADROOM_GROWTH_MB_PER_HOUR
+    """The rate this projection used: its world's (`HEADROOM_GROWTH_MB_PER_HOUR_BY_WORLD`)."""
     uptime_seconds: int | None = None
     """How long `HEADROOM_CONTAINER` has been up. **A fact, not an inference (T7.33).**
 
@@ -347,7 +374,7 @@ class Headroom:
             # reader can tell kafka was not constant across the sweep (T7.32).
             "runs_remaining": self.runs_remaining,
             "uptime_seconds": self.uptime_seconds,
-            "growth_mb_per_hour": HEADROOM_GROWTH_MB_PER_HOUR,
+            "growth_mb_per_hour": self.growth_mb_per_hour,
             "growth_mb": round(self.growth_mb, 1),
             "projected_percent": round(self.projected_percent, 2),
             "threshold_percent": round(self.threshold_percent, 2),
@@ -360,6 +387,7 @@ def headroom_for(
     expected_run_hours: float | None = None,
     usage: list[tuple[str, float, str]] | None = None,
     runs_remaining: int | None = None,
+    world: str = "v1",
 ) -> Headroom | None:
     """Project `HEADROOM_CONTAINER` forward to the end of the run. None if it is not running.
 
@@ -394,7 +422,8 @@ def headroom_for(
         limit_mb = _parse_docker_size(human.split("/")[-1]) if "/" in human else None
         if limit_mb is None or limit_mb <= 0:
             return None
-        growth_mb = HEADROOM_GROWTH_MB_PER_HOUR * hours
+        rate = growth_rate(world)
+        growth_mb = rate * hours
         growth_percent = growth_mb / limit_mb * 100.0
         return Headroom(
             percent_now=percent,
@@ -404,6 +433,7 @@ def headroom_for(
             growth_percent=growth_percent,
             threshold_percent=MEMORY_HEADROOM_PERCENT - growth_percent,
             runs_remaining=runs_remaining,
+            growth_mb_per_hour=rate,
         )
     return None
 
@@ -778,7 +808,7 @@ def read(
     # "will kafka be past 90% when this run *finishes*", which is a question the static check
     # cannot answer and which T7.29 walked straight into: it started at 69.95%, passed every check
     # there was - scored runs have never had a memory check at all - and ended at 90.69%.
-    reading.headroom = headroom_for(expected_run_hours, runs_remaining=runs_remaining)
+    reading.headroom = headroom_for(expected_run_hours, runs_remaining=runs_remaining, world=world)
     if reading.headroom is not None:
         for name, seconds in uptimes:
             if name == HEADROOM_CONTAINER:
@@ -797,8 +827,8 @@ def read(
             f"({h.expected_run_hours:.2f}h), past the {MEMORY_HEADROOM_PERCENT:.0f}% guard the "
             f"recorder refuses at.\n"
             f"    threshold {h.threshold_percent:.1f}% = {MEMORY_HEADROOM_PERCENT:.0f}% - "
-            f"({HEADROOM_GROWTH_MB_PER_HOUR:.0f}MB/h x {h.expected_run_hours:.2f}h / "
-            f"{h.limit_mb:.0f}MB), growth measured under load at T7.29.\n"
+            f"({h.growth_mb_per_hour:g}MB/h x {h.expected_run_hours:.2f}h / "
+            f"{h.limit_mb:.0f}MB), world {world}'s measured growth rate.\n"
             f"    Recycle it first, and its consumers with it or they never reconnect (T7.27):\n"
             f"      docker restart {HEADROOM_CONTAINER} && docker restart "
             f"{' '.join(kafka_consumers(world))}\n"

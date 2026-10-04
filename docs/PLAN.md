@@ -4617,6 +4617,33 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-10-04: T7.3's trial registered - 20 slots, about $13, stops at $8 and $12; one harness
+defect fixed first.***
+
+- **Registered** ([`PREREGISTRATION-trial-v2.md`](../evals/runs/PREREGISTRATION-trial-v2.md),
+  Addendum 2 of both registrations):
+  - the build's result: parts A-D and the storm label, both stamps and both world digests
+    unchanged, the corpus frozen at its pins;
+  - **the headline's trial**: the registered draw, `v2-cart-bad-image-tag`, `v2-ad-bad-image-tag`
+    and `v2-product-catalog-freeze`, four arms each, 12 slots, stop $8, its F judged;
+  - **T7.3's switch trial**: E2-E9 on `v2-ad-bad-image-tag`, the one trial scenario outside T7.3's
+    12, so the headline trial's F there is each switch's comparison; 8 slots, stop $12;
+  - a check per switch, read off its run's record against that F.
+- **Fixed before anything ran, by addendum (the owner's decision)**: the gate's kafka projection
+  used v1's 151 MB/h on v2 and would have refused the trial at its first slot (kafka at 38.6 % of
+  1 GiB; any horizon over about ten runs refused). v2's own reading, 24 hours at 30-minute steps, is
+  1.3 MB/h, because v2 commits kafka's heap at start and its log tmpfs is capped at 256 MiB.
+  `gate.HEADROOM_GROWTH_MB_PER_HOUR_BY_WORLD`; v1 unchanged; evidence
+  `docs/evidence/t7.3/kafka/`; in `docs/DEVIATIONS.md`.
+- **Corrected**: T7.3's E9 check said a pull rate of zero, which the pull rate's definition rules
+  out (it counts every tool envelope, and push leaves the specialists as they are). Now: below F's,
+  with the push sections present.
+- **Also found**: `faultline-ingest` and `faultline-orchestrate` need `FAULTLINE_TOOLS_WORLD=v2`, or
+  the orchestrator correlates on v1's graph.
+- `faultline-batch queue trial-headline|trial-t73`. Both stamps unchanged. $0.
+- **Next**: the owner resolves E7's commit on the Mac, the two queues are committed, then the
+  trial, **the first API spend of T7.3, about $13**, on the owner's word only.
+
 ***2026-10-04: T7.1's storm label - the last thing T7.1 owed, on 7 scenarios.***
 
 - **The rule** (ADR-0008's T7.1 addendum, `SPLIT-V2.md`): a scenario whose rehearsal pages ten or
