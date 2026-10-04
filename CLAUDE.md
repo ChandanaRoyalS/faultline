@@ -69,6 +69,26 @@ applies here too. This file covers what is specific to an agent working in this 
    left as "pending". Those two are human measurements by construction: a model doing them would
    be measuring itself.
 
+9. **Check the plan and the repository before any task, and register every deviation.** Before
+   any work on a task:
+   - read that task's row in `docs/spec/execution-plan-rev9.pdf`: what, why, how and the
+     deliverable;
+   - check the repository (`docs/PLAN.md`, the code, `evals/`, `docs/evidence/`) for what is
+     already delivered;
+   - report three lists, *the deliverable*, *what is delivered* and *what is left*, before
+     proposing work.
+
+   **Use the plan PDF's task IDs.** The repository's own headings reuse some of them
+   (`docs/DEVIATIONS.md`).
+
+   **Every departure from the plan goes into `docs/DEVIATIONS.md`** in the same commit that makes
+   it, with who decided and when: scaled, substituted, deferred, refused, renamed, or a plan rule
+   not followed. **A task is finished only when every clause of its row is delivered or
+   registered there.**
+
+   **Added 2026-10-04, on the owner's instruction**, after a cost row named "T7.1 headline" was
+   taken for the plan's T7.1, whose deliverable, the catalog, was already delivered.
+
 ## Do NOT build
 
 No Kubernetes for Faultline itself. No Kafka (Redis Streams). No multi-tenancy, RBAC, SSO.

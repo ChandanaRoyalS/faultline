@@ -4617,6 +4617,44 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-10-04: T7.3 started - the plan checked first, the headline run as its first step, the
+nine ablations registered; `docs/DEVIATIONS.md` and CLAUDE.md rule 9.***
+
+- **The check against the plan** (the owner's instruction, now rule 9):
+  - **T7.0 and T7.1 are delivered**: nine classes, and the 39-scenario catalog. T7.1 still owes
+    the storm label on 7 scenarios ($0);
+  - **T7.2 is delivered**;
+  - **T7.3 is not started on v2.**
+
+  A cost row of 2026-10-03 called the headline run "T7.1 headline". The plan's T7.1 is the
+  catalog, so the name is corrected before anything ran.
+- **The headline run** ([registration](../evals/runs/PREREGISTRATION-headline-v2.md)):
+  - Faultline, B0, B1 and B2 on the 39 v2 scenarios at R = 1, 156 runs, $60;
+  - the holdout is the headline, and the 29 dev are diagnostic (ADR-0008 addendum);
+  - baselines at nine classes with `service` (Q92);
+  - a gated run counts as a miss.
+
+  It is **T7.3's first step** by the owner's decision, and serves T1.6, T4.7, T5.3 and T7.5.
+- **T7.3's ablations** ([registration](../evals/runs/PREREGISTRATION-T7.3.md)):
+  - all nine of the plan's experiments on 12 dev scenarios, R = 1;
+  - the control and B1 re-run inside one randomized batch: 120 runs, $120;
+  - reranking built (off by default) so that it can be tested;
+  - the tier experiment puts the specialists on Sonnet 4.6.
+- **What T7.3 must build first**: eight of the nine dimensions have no working switch:
+  - topology off, raw context, dense-only, unbounded windows and push-everything (E2, E3, E6, E8,
+    E9) have no mode, and E9 also needs the briefing budget applied, which is recorded and never
+    used;
+  - per-role models (E4) are recorded and never applied;
+  - `--no-corpus` (E5) exists, but the harness does not pass it;
+  - rerank (E7) does not exist.
+
+  Only the single agent (E1, B1) runs today. The v2 harness build is shared with the headline
+  run.
+- **`docs/DEVIATIONS.md`** is new: every departure from the execution plan, by phase, with who
+  decided. **CLAUDE.md rule 9** makes the check above, and the register, standing.
+- **Next**: the build, registered as an addendum before it is coded, with each world decision asked
+  one at a time.
+
 ***2026-10-04: T7.2's console reading - $50.53 billed on the key, and the cap held.***
 
 - **Billed on Oct 3 (UTC)** ([RESULT](../evals/attempts/T7.2-run/RESULT.md), *The console's
