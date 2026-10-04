@@ -236,3 +236,13 @@ The switch trial follows on the same corpus, its comparison the new F run on `v2
 **Also found**: after slot 12, `ad` sat at 90.3 % of its memory limit and the world check refused
 the end-of-pass re-runs. A restart of `ad` (no digest moves) before the next slot, recorded when it
 is made.
+
+## Addendum 5 - the v2 corpus, pinned (2026-10-04)
+
+Ingested on the Mac by the owner (`faultline-seed --world v2 --replace`: 43 documents, 200 chunks,
+279 chunks of v1 documents removed) and read back
+([record](../../docs/evidence/t7.3/corpus-of-record-v2.json)): shape `738e834925e0`, body
+`8d75e8acc4b1`, `holdout_chunks` 0, agreeing with the tree. `generations.CORPUS_PINS_BY_WORLD["v2"]`
+is set in this commit, and the runner refuses a v2 slot off either pin. **Frozen from here until
+the last v2 scored run.** v1's pins and the retrieval gate founded on them are unchanged. `ad` had
+fallen to 75 % of its limit by itself; no restart was made.

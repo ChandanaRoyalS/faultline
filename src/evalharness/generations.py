@@ -206,12 +206,19 @@ corpus of record. The retrieval gate was re-founded in the same commit, as its r
 
 CORPUS_PINS_BY_WORLD: dict[str, tuple[str | None, str | None]] = {
     "v1": (CURRENT_CORPUS_SHAPE, CURRENT_CORPUS_BODY),
-    "v2": (None, None),
+    "v2": (
+        "738e834925e06e445e0ad1366ca7c20e984d306a10b55fb058df841db81646b0",
+        "8d75e8acc4b10903608970b317369b0982f4df51e641644c45f8cf5cd1c26198",
+    ),
 }
 """**Each world's corpus of record, as `(shape, body)`** (T7.3's trial, Addendum 4). v1's is the two
-pins above, unchanged. **v2's is unset until the v2 corpus is ingested on the Mac and read back**,
-and the batch runner refuses a v2 slot while it is: an unpinned corpus is not frozen. Set in the
-commit that records that ingest, as `CURRENT_CORPUS_SHAPE` was (Q92)."""
+pins above, unchanged.
+
+**v2's, set 2026-10-04 from the owner's ingest** (`faultline-seed --world v2 --replace`, read back
+by `faultline-batch corpus --world v2`, `docs/evidence/t7.3/corpus-of-record-v2.json`): 200 chunks
+over 43 documents, v2's 29 dev narratives and 14 world-neutral runbooks, `holdout_chunks` 0,
+agreeing with the tree. Frozen from this commit until the last v2 scored run; the batch runner
+refuses a v2 slot whose store is off either pin."""
 
 
 def corpus_pins(world: str) -> tuple[str | None, str | None]:
