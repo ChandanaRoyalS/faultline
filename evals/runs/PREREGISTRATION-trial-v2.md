@@ -274,3 +274,39 @@ slots now has a counted run.
 B2 about $0.05; B0 $0 and about 12 minutes (the injection, the settle and the scoring are most of a
 slot). The 156 project to **about $87 against the $60 cap**, which is the owner's decision at the go.
 **Both stamps unchanged**; the v2 corpus at its pins throughout.
+
+## Addendum 7 - the world went down, came back, and the switch trial began (2026-10-05 to 06)
+
+**The world stopped.** On 2026-10-04 at about 22:49 UTC the storefront's proxy exited, the shop's
+traffic fell to nothing and a Faultline incident opened on sixteen alerts; then every v2 container
+exited at once, which is a Docker restart or a Mac reboot. The switch trial's first start (2026-10-05)
+was refused at $0 by the world check (quote with no caller, cart at 0.07 spans/s, twelve no-traffic
+alerts). **Nothing was injected.**
+
+**What it took to come back, each step recorded:**
+
+1. `make world-v2-up` failed on kafka's health check; kafka's JVM died 1.5 s after launch, silently,
+   on every one of 77 restarts. A fresh copy of its image started cleanly with the same settings, so
+   the fault was the container's own state. **kafka was recreated from its compose definition**
+   (`up -d --force-recreate --no-deps kafka`): healthy, 0 restarts. No file changed, so **neither
+   world digest moved**; kafka's orders data is ephemeral by design and was already gone.
+2. The world then came up; Loki, Tempo and `product-reviews` settled on their own in 20 minutes.
+3. **The incident stayed open.** Ten of its sixteen alerts cleared while Alertmanager was down, so
+   their `resolved` webhooks were never sent and the orchestrator held the incident in `triaging`.
+   The gate refused six times, and the runner stopped at slot 1 as it now does. The ten resolves
+   were replayed through Faultline's own ingest
+   ([`docs/evidence/t7.3/trial/replay-resolves.py.txt`](../../docs/evidence/t7.3/trial/replay-resolves.py.txt)),
+   the orchestrator resolved the incident by its own rule, and nothing was edited by hand.
+
+**The switch trial, first four slots** (log: [`attempt-4-t73.log`](../../docs/evidence/t7.3/trial/2026-10-06-attempt-4-t73.log)):
+E3, E6, E9 and E7 scored, **$4.33** by the runner's tally; E7's transcript carries `reranker: ... at
+revision 233902d25c44`. Then the world check stopped the batch before slot 5 on **`ad` at 93.3 % of
+its 300 MB limit**, the second time (90.3 % after Addendum 4's slot 12).
+
+**The memory rule, a runner change by addendum.** The bad-image fault's revert recreates `ad`, and a
+fresh JVM climbs past 85 % while it warms up and settles in about twenty minutes (90.3 % → 75 % on
+the 4th). A batch that runs one such scenario back to back meets this before every slot. The runner
+now treats the memory line, when it is the only failure, as a warm-up: it rechecks every minute for
+up to `MEMORY_RECHECKS` (20), then restarts that container once (the recorder's remedy; no digest
+moves) and rechecks again. Any other failure, or memory beside another, still stops the batch. Tests
+in `tests/test_batch.py`. **The four scored slots stand; the batch resumes at slot 5.**

@@ -1,0 +1,51 @@
+"""Replay the `resolved` webhooks Alertmanager never sent (it was down when the alerts cleared).
+
+Reads the incident's unresolved episodes from Faultline's store and posts, to Faultline's own
+ingest, the same webhook Alertmanager delivers when an alert clears: one alert per episode, with
+its stored fingerprint and startsAt (the two halves of the episode key), status `resolved`, and
+endsAt now. The orchestrator then resolves the incident by its own rule. Nothing is edited by hand.
+
+Usage: python3 t73-replay-resolves.py <incident-id>
+"""
+
+import json
+import subprocess
+import sys
+import urllib.request
+from datetime import UTC, datetime
+
+INCIDENT = sys.argv[1]
+INGEST = "http://localhost:8000/api/v1/alerts"
+
+rows = subprocess.run(
+    ["docker", "exec", "faultline-postgres-1", "psql", "-U", "faultline", "-d", "faultline",
+     "-At", "-F", "\t", "-c",
+     "select fingerprint, alertname, service, severity, starts_at from incident_episodes "
+     f"where incident_id='{INCIDENT}' and resolved_at is null order by starts_at"],
+    capture_output=True, text=True, check=True,
+).stdout.strip().splitlines()
+print(f"{len(rows)} unresolved episode(s) on {INCIDENT}")
+
+now = datetime.now(UTC).isoformat()
+alerts = []
+for row in rows:
+    fingerprint, alertname, service, severity, starts_at = row.split("\t")
+    # Postgres prints `+00`; the parser wants `+00:00`.
+    starts = datetime.fromisoformat(starts_at.replace("+00", "+00:00")).isoformat()
+    alerts.append({
+        "status": "resolved",
+        "labels": {"alertname": alertname, "service_name": service, "severity": severity},
+        "annotations": {"summary": "replayed resolve: cleared while Alertmanager was down"},
+        "startsAt": starts,
+        "endsAt": now,
+        "generatorURL": "",
+        "fingerprint": fingerprint,
+    })
+    print(f"  resolve {alertname}/{service} @ {starts}")
+
+payload = {"version": "4", "status": "resolved", "receiver": "faultline", "alerts": alerts,
+           "groupKey": "replay", "groupLabels": {}, "commonLabels": {}, "externalURL": ""}
+req = urllib.request.Request(INGEST, data=json.dumps(payload).encode(),
+                             headers={"Content-Type": "application/json"}, method="POST")
+with urllib.request.urlopen(req, timeout=10) as r:
+    print("ingest:", r.status, r.read().decode()[:200])

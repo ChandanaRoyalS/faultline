@@ -476,3 +476,67 @@ def test_the_f_only_trial_queue_is_the_trial_s_three_f_slots_in_order() -> None:
     assert batch.judged("trial-headline-f", "F")
     committed = (REPO / "evals/runs/QUEUE-trial-headline-f-v2.tsv").read_text()
     assert committed == batch.render_queue(Queue("trial-headline-f", 20261004, slots))
+
+
+# --- the memory rule (the trial's Addendum 7) ---------------------------------------------------
+
+
+_HOT = WorldCheck(
+    False, "PASS  nothing firing  none\nFAIL  no container but grafana >= 85 % memory      ad 93.3%"
+)
+_TWO_HOT = WorldCheck(
+    False, "FAIL  no container but grafana >= 85 % memory      ad 93.3%, payment 88.0%"
+)
+_HOT_AND_FIRING = WorldCheck(
+    False,
+    "FAIL  no container but grafana >= 85 % memory      ad 93.3%\n"
+    "FAIL  nothing firing                               ServiceHighLatency/cart",
+)
+
+
+def test_the_memory_line_alone_names_the_hot_containers() -> None:
+    assert _HOT.only_memory_failed == ["ad"]
+    assert _TWO_HOT.only_memory_failed == ["ad", "payment"]
+    assert _HOT_AND_FIRING.only_memory_failed == []
+    assert WorldCheck(True, "ALL PASS").only_memory_failed == []
+
+
+def test_a_warm_up_excursion_is_waited_out_without_a_restart() -> None:
+    answers = [_HOT] * 8 + [WorldCheck(True, "ALL PASS")]
+    restarted: list[str] = []
+
+    ok, detail = batch.world_ready(lambda: answers.pop(0), lambda: None, _no, restarted.append)
+
+    assert ok and "recheck 8" in detail and restarted == []
+
+
+def test_a_container_still_hot_after_twenty_minutes_is_restarted_once_then_rechecked() -> None:
+    answers = [_HOT] * (batch.MEMORY_RECHECKS + 2) + [WorldCheck(True, "ALL PASS")]
+    restarted: list[str] = []
+
+    ok, detail = batch.world_ready(lambda: answers.pop(0), lambda: None, _no, restarted.append)
+
+    assert ok and restarted == ["ad"]
+    assert f"recheck {batch.MEMORY_RECHECKS + 2}" in detail
+
+
+def test_a_hot_container_that_never_settles_stops_after_one_restart() -> None:
+    restarted: list[str] = []
+
+    ok, detail = batch.world_ready(lambda: _HOT, lambda: None, _no, restarted.append)
+
+    assert not ok and restarted == ["ad"] and "93.3%" in detail
+
+
+def test_memory_plus_another_failure_is_not_the_memory_rule() -> None:
+    restarted: list[str] = []
+    calls = 0
+
+    def check() -> WorldCheck:
+        nonlocal calls
+        calls += 1
+        return _HOT_AND_FIRING
+
+    ok, _ = batch.world_ready(check, lambda: None, _no, restarted.append)
+
+    assert not ok and restarted == [] and calls == 1 + batch.WORLD_RECHECKS

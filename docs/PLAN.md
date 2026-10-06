@@ -4617,6 +4617,20 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-10-06: the world down and back, the switch trial half run ($4.33), and the runner's memory
+rule.***
+
+- **The v2 world went down on the 4th at 22:49 UTC** (a Docker restart); kafka would not come back
+  until its container was recreated from its compose definition (no digest moved); a Faultline
+  incident the outage opened stayed in `triaging` because ten resolves were never sent, and was
+  resolved by replaying them through the ingest (`PREREGISTRATION-trial-v2.md`, Addendum 7).
+- **The switch trial**: E3, E6, E9, E7 scored ($4.33); E7's reranker loaded at the pinned commit.
+  Stopped before slot 5 on `ad` at 93.3 % of its limit, the second such stop.
+- **The runner's memory rule, by addendum**: when the memory line is the only world-check failure,
+  wait up to 20 minutes for the recreated container to settle, then restart it once; anything else
+  still stops. The four slots stand; the batch resumes at slot 5.
+- **Trial spend so far**: $13.09 by the runner's tally ($5.97 + $2.79 + $4.33); about $4 to go.
+
 ***2026-10-04: T7.3's trial, the headline half complete - F 2 of 3 right on every axis, $2.79.***
 
 - F's three slots on the v2 corpus all scored (`PREREGISTRATION-trial-v2.md`, Addendum 6): the two
