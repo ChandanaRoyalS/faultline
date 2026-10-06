@@ -4617,6 +4617,15 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-10-06: the owner's go - the headline's cap raised to $90, the queue committed, the nights
+registered.***
+
+- **The go** (headline registration, Addendum 3): cap $90, stop $86, nothing trimmed; in
+  `docs/DEVIATIONS.md`. Prediction 8's "$60" is already falsified and the report will say so.
+- `QUEUE-headline-v2.tsv`, seed 20261006, 156 slots, held to its seed by a test. Blocks of about 20
+  slots a night, label `headline-v2`, the two trial labels counted inside the cap.
+- **Next: the headline run's first block, slots 1-20, about $11.** $0 in this commit.
+
 ***2026-10-06: T7.3's trial complete - seven switches proven, E2 cannot show on this world; the go
 is next.***
 

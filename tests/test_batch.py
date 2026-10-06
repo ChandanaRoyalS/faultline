@@ -557,3 +557,16 @@ def test_memory_plus_another_failure_is_not_the_memory_rule() -> None:
     ok, _ = batch.world_ready(check, lambda: None, _no, restarted.append)
 
     assert not ok and restarted == [] and calls == 1 + batch.WORLD_RECHECKS
+
+
+def test_the_committed_headline_queue_is_what_its_seed_prints() -> None:
+    """The operation addendum's queue: committed before the run, and nothing in it changes."""
+    from evalharness import sweep
+
+    dev = sweep.runnable(world="v2")
+    both = sweep.runnable(world="v2", holdout=True)
+    slots = batch.headline_queue(dev, sorted(set(both) - set(dev)), 20261006)
+    committed = (REPO / "evals/runs/QUEUE-headline-v2.tsv").read_text()
+    assert committed == batch.render_queue(Queue("headline", 20261006, slots))
+    assert len(slots) == 156
+    assert [s.pass_name for s in slots][:116] == ["dev"] * 116
