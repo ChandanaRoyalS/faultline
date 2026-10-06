@@ -95,6 +95,15 @@ WORLD_RECHECKS = 5
 one-minute rechecks before the batch stops and names the slot. Not tuned: it mirrors the sweep's
 retry wait, and a world that has not settled in five more minutes is a stop, not a slot."""
 
+MEMORY_RECHECKS = 20
+"""When the memory line is the only one failing: how many one-minute rechecks before the container
+is restarted once (the trial's Addendum 7). **A freshly recreated JVM warms up past 85 % and
+settles**: `ad` (300 MB) read 90.3 % after the trial's slot 12 and 75 % twenty minutes later, 93.3 %
+after the switch trial's fourth run of the same scenario. A bad-image fault's revert recreates its
+target, so a batch that runs one such scenario back to back meets this before every slot. The
+excursion is warm-up, not a fault, and the world is otherwise quiet; a restart after twenty minutes
+is the recorder's own remedy for a container over the guard, and moves no digest."""
+
 SPECIALISTS = ("metrics", "logs", "changes", "traces")
 WEEK_SECONDS = str(7 * 24 * 3600)
 
@@ -432,10 +441,20 @@ class WorldCheck:
     output: str
 
     @property
+    def failures(self) -> list[str]:
+        return [line for line in self.output.splitlines() if line.startswith("FAIL")]
+
+    @property
     def quote_clock_failed(self) -> bool:
-        return any(
-            line.startswith("FAIL") and "quote's clock" in line for line in self.output.splitlines()
-        )
+        return any("quote's clock" in line for line in self.failures)
+
+    @property
+    def only_memory_failed(self) -> list[str]:
+        """The containers over the memory guard, when that is the only failing line; else []."""
+        if len(self.failures) != 1 or "memory" not in self.failures[0]:
+            return []
+        detail = self.failures[0].split("memory", 1)[1]
+        return [part.split()[0] for part in detail.split(",") if part.strip() and "%" in part]
 
 
 def run_world_check() -> WorldCheck:  # pragma: no cover - the live world
@@ -453,15 +472,26 @@ def run_world_check() -> WorldCheck:  # pragma: no cover - the live world
 
 
 def restart_quote() -> None:  # pragma: no cover - the live world
-    subprocess.run(["docker", "restart", "quote"], check=False, timeout=120)
+    restart_container("quote")
+
+
+def restart_container(name: str) -> None:  # pragma: no cover - the live world
+    subprocess.run(["docker", "restart", name], check=False, timeout=120)
 
 
 def world_ready(
     check: Callable[[], WorldCheck],
     restart: Callable[[], None],
     wait: Callable[[float], None],
+    restart_named: Callable[[str], None] | None = None,
 ) -> tuple[bool, str]:
-    """Q121's rule and the generic one: restart quote on a clock failure, then recheck."""
+    """Q121's rule, the memory rule and the generic one.
+
+    - quote's clock failed: restart quote, recheck for fifteen minutes (Q121);
+    - only the memory line failed: the container is warming up after a recreate; recheck for
+      `MEMORY_RECHECKS` minutes, then restart it once and recheck again (Addendum 7);
+    - anything else: recheck `WORLD_RECHECKS` times, then stop and name it.
+    """
     result = check()
     if result.ok:
         return True, "world check passed"
@@ -469,15 +499,34 @@ def world_ready(
         print("--- quote's clock failed the world check: restarting quote (Q121)", flush=True)
         restart()
         rechecks = QUOTE_RECHECKS
+    elif result.only_memory_failed:
+        print(
+            f"--- {', '.join(result.only_memory_failed)} over the memory guard and nothing else "
+            f"failing: waiting up to {MEMORY_RECHECKS} min for the warm-up to settle",
+            flush=True,
+        )
+        rechecks = MEMORY_RECHECKS
     else:
         rechecks = WORLD_RECHECKS
-    for attempt in range(1, rechecks + 1):
-        wait(RETRY_WAIT_SECONDS)
-        result = check()
-        if result.ok:
-            return True, f"world check passed on recheck {attempt}"
-    failed = [line for line in result.output.splitlines() if line.startswith("FAIL")]
-    return False, "; ".join(failed) or result.output.strip()[-400:]
+    attempts = 0
+    restarted_for_memory = False
+    while True:
+        for _ in range(rechecks):
+            attempts += 1
+            wait(RETRY_WAIT_SECONDS)
+            result = check()
+            if result.ok:
+                return True, f"world check passed on recheck {attempts}"
+        hot = result.only_memory_failed
+        if hot and not restarted_for_memory and restart_named is not None:
+            print(f"--- still over the guard: restarting {', '.join(hot)} once", flush=True)
+            for name in hot:
+                restart_named(name)
+            restarted_for_memory = True
+            rechecks = WORLD_RECHECKS
+            continue
+        break
+    return False, "; ".join(result.failures) or result.output.strip()[-400:]
 
 
 # --- the batch ------------------------------------------------------------------------------
@@ -834,7 +883,7 @@ def main(argv: list[str] | None = None) -> int:  # pragma: no cover - the live p
         return corpus_frozen(corpus_state(dsn), "v2")
 
     def world() -> tuple[bool, str]:
-        return world_ready(run_world_check, restart_quote, time.sleep)
+        return world_ready(run_world_check, restart_quote, time.sleep, restart_container)
 
     base_env, key_state = with_api_key(os.environ)
     needs_model = any(s.arm != "B0" for s in queue.slots)
