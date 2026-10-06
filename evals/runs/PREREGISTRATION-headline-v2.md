@@ -461,3 +461,45 @@ The build's result, the trial's scenarios, queues, stops and checks are register
 records one harness defect fixed by addendum (the kafka projection's growth rate, now per world),
 one correction to T7.3's Addendum 1 (E9's check: the pull rate is below F's, not zero) and E7's
 revision pinned in the switch trial's queue.
+
+## Addendum 3 - the owner's go, and how the batch is operated (2026-10-06)
+
+**The go** (*The order*, step 4), on the trial's measured cost and time
+([`PREREGISTRATION-trial-v2.md`](PREREGISTRATION-trial-v2.md), Addendum 8): F $0.88-0.96 billed
+and 15-18 minutes a run; B1 $0.62-2.40; B2 about $0.05; B0 $0. **The 156 project to about $87.**
+
+**The owner's decision: the cap is raised to $90, the stop to $86.** Nothing is trimmed: Faultline,
+B0, B1 and B2 on all 39 scenarios, as registered. *The budget, as a hard stop* reads with those two
+numbers from here; the rule is unchanged. In `docs/DEVIATIONS.md`.
+
+### The queue
+
+[`QUEUE-headline-v2.tsv`](QUEUE-headline-v2.tsv), seed **20261006**, printed by
+`faultline-batch queue headline` and held to its seed by `tests/test_batch.py`: the dev pass (29
+scenarios shuffled, each scenario's four arms back to back in a rotating order, slots 1-116), then
+the holdout pass (10 scenarios, slots 117-156). **Nothing in it changes after a result.** A discard
+is re-run once at the end of its pass; a second removes the scenario from every arm, named.
+
+### The nights
+
+- **Label `headline-v2`**, stop **$86**, `--also-count trial-headline-v2 trial-headline-f-v2` so
+  the two trial labels are inside the same cap (their $8.76 counts).
+- **Blocks of about 20 slots**, one a night, `--from-slot`/`--to-slot`; about 6 to 7 hours each at
+  15 minutes a slot plus the settle. Eight nights. The kafka projection passes any block on v2
+  (Addendum 1 of the trial), so the block is the Mac's night, not the gate's horizon.
+- **Before every block**: Postgres, Redis and MinIO up; `faultline-ingest` and
+  `faultline-orchestrate` running with `FAULTLINE_TOOLS_WORLD=v2`; no open incident (the gate
+  refuses one, and a stale one is resolved by replaying its webhooks through the ingest, as the
+  trial's Addendum 7 did); `caffeinate -is` around the command. The runner checks the stamps, the
+  corpus and the world before every slot, restarts quote on a clock failure and waits out a
+  recreated container's warm-up.
+- **The Mac stays awake and on power** for the block; if it sleeps, quote's clock drifts and the
+  next slot restarts quote and waits.
+- **After the last block**: `faultline-eval-db load`, the owner's console reading, and the report.
+
+### What does not change
+
+The world's digests, both stamps, the v2 corpus at its pins, the scoring, the analysis and the
+predictions all stand as written. **Prediction 8 is read against the new cap**: *"the whole trial
+and run within $60"* is already falsified by the trial's $16.18 plus this projection, and the
+report says so.

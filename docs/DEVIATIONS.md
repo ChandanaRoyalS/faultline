@@ -94,6 +94,7 @@ before anything ran, at $0.
 | T7.3 | (T4.1b) a run whose leave-one-out exclusion removes nothing is invalid | **accepted when the scenario's own narrative is absent by design** (holdout, or another world's corpus) **and counted absent at run time**; an expected narrative still invalidates | the trial's Addendum 4, 2026-10-04 | yes |
 | T7.3 | the headline's trial: three dev scenarios, all four arms | the baselines' nine trial runs stand; **F's three run again** on the v2 corpus (the corpus does not touch the baselines) | the trial's Addendum 4, 2026-10-04 | yes |
 | T7.3 | topology scoping on vs off, as an experiment run | **E2 is not run.** On the v2 world a radius of 2 already reaches everything the graph reaches from 11 of the 12 scenarios' pages (the radius grows upward, and most pages alert at the top of the call graph); its report is written from the computed radii. The batch is 108 runs | owner, 2026-10-06 (the trial's Addendum 8) | yes |
+| T7.3 | the headline run's cap: $60, stop $57 | **$90, stop $86**, on the trial's measured cost per run; nothing trimmed | owner, 2026-10-06 (the headline registration, Addendum 3) | yes |
 | T7.3 | single-agent-all-tools vs parallel specialists | B1, which also has no retrieval, proposer or scribe; the confound is stated with every result | the B1 design (`baseline_agent.py`) | yes |
 | T7.4 | the eval dashboard | not built; $0 at the owner's scale | owner, 2026-10-03 | pending |
 | T7.5 | launch pack | not built; writeup $0, demo about $3 | owner, 2026-10-03 | pending |
