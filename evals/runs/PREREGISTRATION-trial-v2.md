@@ -310,3 +310,65 @@ now treats the memory line, when it is the only failure, as a warm-up: it rechec
 up to `MEMORY_RECHECKS` (20), then restarts that container once (the recorder's remedy; no digest
 moves) and rechecks again. Any other failure, or memory beside another, still stops the batch. Tests
 in `tests/test_batch.py`. **The four scored slots stand; the batch resumes at slot 5.**
+
+## Addendum 8 - the trial is complete: every switch took effect but one, which cannot (2026-10-06)
+
+The switch trial's last four slots scored (E2, E4, E8, E5; log
+[`attempt-4-t73.log`](../../docs/evidence/t7.3/trial/2026-10-06-attempt-4-t73.log)). The memory
+rule waited out `ad`'s warm-up once before slot 6 and restarted nothing. **The switch half: $7.42**
+by the runner's tally (stop $12). **The whole trial: $16.18** ($5.97 + $2.79 + $7.42), against the
+registered about $13; the excess is Addendum 4's three invalidated F runs. The console is the
+authority.
+
+### Each switch, read against F's run on the same scenario (Addendum 6, slot 3)
+
+| arm | registered sign | read off the record | took effect |
+|---|---|---|---|
+| E3 raw | synthesizer's brief larger than F's | largest brief 15,139 tokens against F's 9,087 at most; 86k input tokens against 63k | **yes** |
+| E4 tier | `role_models` names Sonnet for the four specialists | manifest `models`: the four on `claude-sonnet-4-6`, the rest on `claude-opus-5`; cost $0.71 against F's $0.88 | **yes** |
+| E5 off | no retrieval record | `retrieval: 0 hit(s)`, no `leave_one_out` rows, one section fewer | **yes** |
+| E6 dense | every score at or below one arm's maximum | scores 1/61, 1/62, 1/63 | **yes**, and see below |
+| E7 rerank | the transcript's `reranker: ... at revision <pinned>` line | present, at `233902d25c44` | **yes** |
+| E8 windows | tool windows reach back about 7 days | `logql_query` and `trace_query` spans 604,800 s; `change_history` 604,973 s; F's 1,916-3,716 s and 86,516 s | **yes** |
+| E9 push | push sections present, nothing dropped, pull rate below F's | pushed 67,712 tokens against F's 23,450; dropped 0 against 2; pull rate 0.107 against 0.248; budget 10,000,000 | **yes** |
+| **E2 radius** | triage's radius holds more services than F's | `hop_radius: 99` recorded; **triage still 8 services, as F** | **no, and it cannot on this page** |
+
+Every arm but E4 reached the same verdict as F (`bad_deploy`, `ad`, `rollback`). E4's four Sonnet
+specialists answered `network_partition` on `ad`: culprit right, class and fix wrong. One run.
+
+### E2 cannot show on this world, so it is not run (the owner's decision, 2026-10-06)
+
+The blast radius grows upward, from the alerting service to its callers (ADR-0017). The ad page
+alerts on `frontend` and `frontend-proxy`, the top of the call graph, so no radius reaches more. The
+same is true of almost every page in the catalog: **recomputed over T7.3's 12 scenarios, a radius of
+99 differs from 2 on one, `v2-payment-memory-squeeze`, by one service**
+([`e2-radius-by-scenario.tsv`](../../docs/evidence/t7.3/trial/e2-radius-by-scenario.tsv)). Twelve
+E2 runs (about $11) would be eleven A/A runs and one scenario. **E2 is dropped from the batch and
+its ABLATION report is written from the computed radii**: on a world this shallow, topology scoping
+cannot be told apart from no scoping, which is itself the finding. The switch stays built and
+recorded. The batch is **108 runs**. In `docs/DEVIATIONS.md`.
+
+### A fact about the hybrid, recorded and not acted on
+
+**F's own retrieval scores are single-arm values** (1/61, 1/62, 1/63). Under reciprocal-rank fusion
+a chunk ranked by both arms scores about 0.033; every one of F's three hits was ranked by one arm
+only, on both of its retrievals. So on this scenario the standing hybrid behaved as a single arm
+would, and **E6 may measure nothing against F**. That is a property of the corpus and the queries,
+not of the switch, and it is what E6 exists to measure; the report will read the arm ranks per hit.
+
+### For the owner's go
+
+| measured | F | B0 | B1 | B2 |
+|---|---|---|---|---|
+| billed per run | $0.88-0.96 | $0 | $0.62-2.40 | about $0.05 |
+| minutes per run, start to finish | 15-18 | about 12 | 17-19 | about 15 |
+
+- **The headline's 156 runs project to about $87** (39 × ($0.92 + $1.20 + $0.05) + a judge call per F
+  run) **against the $60 cap and its $57 stop**: the owner raises the cap or trims, and a trim goes in
+  `docs/DEVIATIONS.md`. B1's figure rests on four runs, one of them $2.40.
+- **Time**: about 15 minutes a slot plus the 5-minute settle, so about 52 hours of world time for the
+  156, in blocks (the kafka projection now passes any block).
+- **T7.3's 108 runs project to about $95**, inside its $120 cap and $114 stop, on this trial's E arms
+  ($0.71-1.32) and B1.
+- **Triage gated no run** in the trial, so Addendum 1's gate-rate question for T7.3's second go stays
+  open until the headline run.

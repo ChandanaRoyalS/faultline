@@ -126,7 +126,11 @@ SWITCH_ENV = (
 switch exported in the operator's shell can never leak into F or into another arm."""
 
 HEADLINE_ARMS = ("F", "B0", "B1", "B2")
-T73_CONFIGS = ("F", "E1", "E2", "E3", "E4", "E5", "E6", "E7", "E8", "E9")
+T73_CONFIGS = ("F", "E1", "E3", "E4", "E5", "E6", "E7", "E8", "E9")
+"""T7.3's configurations in the batch. **E2 is not run** (the owner's decision of 2026-10-06, the
+trial's Addendum 8): on the v2 world a radius of 2 already reaches everything the graph can reach
+from 11 of the 12 scenarios' pages, so its 12 runs would measure nothing. Its report is written
+from the computed radii. The switch stays in `arms` for the record of the trial that proved it."""
 
 
 @dataclass(frozen=True)

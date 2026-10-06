@@ -4617,6 +4617,21 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-10-06: T7.3's trial complete - seven switches proven, E2 cannot show on this world; the go
+is next.***
+
+- The last four switch slots scored; the memory rule waited out `ad` once. **The switch half $7.42;
+  the whole trial $16.18** by the runner's tally (`PREREGISTRATION-trial-v2.md`, Addendum 8).
+- **E3-E9 each show their registered sign** on the record (E9 pushed 67,712 tokens against F's
+  23,450 at pull rate 0.107 against 0.248; E6's scores single-arm; E7 at the pinned commit; E8's
+  windows 604,800 s; E4's specialists on Sonnet, one wrong class; E5 no retrieval).
+- **E2 cannot**: the radius grows upward and almost every page alerts at the top of the graph, so 99
+  hops equals 2 on 11 of the 12 scenarios. **Dropped from the batch by the owner's decision**, its
+  report from the computed radii; 108 runs. In `docs/DEVIATIONS.md`.
+- **Recorded**: F's own hybrid scored every hit from one arm, so E6 may be an A/A on this corpus.
+- **For the go**: the 156 project to about $87 against the $60 cap; T7.3's 108 to about $95 inside
+  $120. Both stamps unchanged; the v2 corpus at its pins throughout.
+
 ***2026-10-06: the world down and back, the switch trial half run ($4.33), and the runner's memory
 rule.***
 

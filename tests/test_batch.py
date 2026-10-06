@@ -52,12 +52,29 @@ def test_t73_s_queue_is_every_configuration_on_every_scenario_once() -> None:
     slots = batch.t73_queue(scenarios, seed=11)
 
     assert len(scenarios) == 12
-    assert len(slots) == 120
+    assert len(slots) == 108, "nine configurations: E2 is reported from the computed radii"
+    assert "E2" not in batch.T73_CONFIGS and "E2" in batch.arms()
     assert Counter((s.scenario, s.arm) for s in slots) == Counter(
         {(sc, c): 1 for sc in scenarios for c in batch.T73_CONFIGS}
     )
     assert {s.pass_name for s in slots} == {"t73"}
-    assert [s.arm for s in slots[:10]] != list(batch.T73_CONFIGS)
+    assert [s.arm for s in slots[:9]] != list(batch.T73_CONFIGS)
+
+
+def test_e2_moves_the_radius_on_one_of_the_twelve() -> None:
+    """The trial's Addendum 8: why E2 is not run. Recomputed from the graph and the pages."""
+    import json
+
+    from faultline.context.graph import ServiceGraph
+
+    g = ServiceGraph.from_snapshot(world="v2")
+    moved = []
+    for sid in batch.t73_scenarios():
+        manifest = next(REPO.glob(f"evals/scenarios/artifacts/*/{sid}/manifest.json"))
+        seeds = [a.split("/")[1] for a in json.loads(manifest.read_text())["alerts_at_fire"]]
+        if len(g.blast_radius(seeds, 99).reach) > len(g.blast_radius(seeds, 2).reach):
+            moved.append(sid)
+    assert moved == ["v2-payment-memory-squeeze"]
 
 
 def test_a_queue_round_trips_and_refuses_what_it_cannot_run() -> None:
