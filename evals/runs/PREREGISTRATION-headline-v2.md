@@ -503,3 +503,42 @@ The world's digests, both stamps, the v2 corpus at its pins, the scoring, the an
 predictions all stand as written. **Prediction 8 is read against the new cap**: *"the whole trial
 and run within $60"* is already falsified by the trial's $16.18 plus this projection, and the
 report says so.
+
+## Addendum 4 - the injection scenarios' fault, and how the nights ran (2026-10-09)
+
+Written after block 5 (slots 81-100), with 22 of the 39 scenarios scored. **No score was read
+to write it**; one run (slot 75) was opened because its cost was $0, and it was triage gating, as
+*Scoring* already provides for.
+
+### The four injection scenarios could not be injected
+
+Every run of `v2-inj-payment-dependency-latency-log-checkout` (slots 85-88) and
+`v2-inj-kafka-disk-fill-log-checkout` (slots 93-96), both tries, was discarded as *run failed*:
+`unknown fault`. **The runner passed the scenario's id to the injector, and an injection
+scenario's fault is its base's** (`injection.method`). The recorder always read the method; the
+runner never did, and no injection scenario had been through the runner before this block. The
+other 35 scenarios have an id equal to their method, so nothing else was affected. The two later
+ones, `v2-inj-cart-flag-failure-log-checkout` (113-116) and
+`v2-inj-email-wrong-image-log-checkout` (125-128, holdout), would have failed the same way.
+
+*A scenario that will not run* is meant for a world that refuses or a fault that does not alert;
+this was the runner. **The owner's decision**: fix it (`run.injector_fault`, held by
+`tests/test_injection_scenarios.py`, which checks that every catalog scenario's fault exists on
+its world) and give the two scenarios their slots again **after the dev pass, before the
+holdout**: `--from-slot 85 --to-slot 88`, then `--from-slot 93 --to-slot 96`, each slot with the
+usual one re-run if it is discarded. Their 16 failed run directories stay in `evals/runs/` with
+their reason. Cost about $3, inside the stop. In `docs/DEVIATIONS.md`.
+
+### How the nights ran
+
+- **The settle is 420 s from block 2** (`--settle 420`, the owner, 2026-10-07). In block 1 slot 13
+  passed the gate on its sixth and last try: the previous incident resolved about five minutes
+  after its run ended, inside the orchestrator's 300 s window, after the runner's own 300 s settle
+  had passed. Nothing about a run changes; a block is about 40 minutes longer.
+- **A discard is re-run at the end of its block**, not the end of the pass: the runner's pass is
+  the range it was given. One re-run, the same conditions; only the hour differs.
+- **`v2-payment-memory-squeeze` is removed** under *A scenario that will not run*: no alert in 15
+  minutes on any arm, both tries (slots 37-40). Its recording paged once, at 9m46s, for 45 s.
+- **"NEW COMPARABILITY GENERATION"**, printed after a gate refusal, is a label and not a change:
+  the run before is the refused one, which records no world. Every scored run is generation
+  `5a2bc6d912f9`, observed.
