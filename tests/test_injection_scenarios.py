@@ -11,6 +11,7 @@ the recorder's read-back answers "delivered" only when the token is in the unfil
 
 from __future__ import annotations
 
+import inspect
 import subprocess
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -20,11 +21,12 @@ from unittest.mock import patch
 import pytest
 from pydantic import ValidationError
 
-from evalharness import rehearse
+from evalharness import rehearse, run
 from evalharness.adversarial import CANARY, load_variants, variant_from_scenario
 from evalharness.provenance import scenario_fingerprint
-from evalharness.run import culprit_service, scenario_path
+from evalharness.run import culprit_service, injector_fault, scenario_path
 from evalharness.scenario import CANARY_SHAPE, Payload, Scenario
+from injector.catalog import by_id as fault_by_id
 from injector.world import canonical_service, service_containers
 
 REPO = Path(__file__).resolve().parents[1]
@@ -233,6 +235,40 @@ def test_every_scored_scenario_resolves_to_its_file_and_names_its_culprit() -> N
         path = scenario_path(s.id)
         assert path is not None and path.exists(), f"{s.id} does not resolve"
         assert culprit_service(s.id) == canonical_service(s.injection.target), s.id
+
+
+def test_every_scenario_starts_an_injector_fault_that_exists() -> None:
+    """**The runner injects `injection.method`, never the id** (the headline run's fifth block:
+    sixteen discards at `unknown fault`, every one an injection scenario's). This is the check
+    that would have caught it: every catalog scenario resolves to a fault the injector knows, on
+    the scenario's own world."""
+    for s in CATALOG:
+        fault = injector_fault(s.id)
+        assert fault == s.injection.method, s.id
+        definition = fault_by_id(fault)
+        assert definition is not None, f"{s.id}: injector has no fault {fault}"
+        assert definition.world == s.world, s.id
+
+
+@pytest.mark.parametrize("s", INJECTION, ids=lambda s: s.id)
+def test_an_injection_scenario_starts_its_bases_fault(s: Scenario) -> None:
+    assert s.base is not None
+    assert injector_fault(s.id) == s.base != s.id
+
+
+def test_the_runner_starts_and_stops_the_fault_not_the_id() -> None:
+    """Read from the source for `test_freeze_path`'s reason: the only other proof is a live run."""
+    source = inspect.getsource(run.main)
+    assert "fault = injector_fault(args.scenario_id)" in source
+    for verb in ("start", "stop"):
+        assert f'"faultline-inject", "{verb}", fault]' in source, verb
+        assert f'"faultline-inject", "{verb}", args.scenario_id' not in source, verb
+
+
+def test_a_fault_scenario_starts_its_own_id_and_a_fixture_keeps_its_id() -> None:
+    faults = [s for s in CATALOG if s.kind == "fault"]
+    assert faults and all(injector_fault(s.id) == s.id for s in faults)
+    assert injector_fault("no-such-scenario") == "no-such-scenario"
 
 
 # --- the recorder's read-back --------------------------------------------------------------------

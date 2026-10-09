@@ -751,6 +751,24 @@ def scenario_path(scenario_id: str) -> Path | None:
     return None
 
 
+def injector_fault(scenario_id: str) -> str:
+    """The injector fault a scenario starts and stops: its `injection.method`.
+
+    **Not the scenario's id.** The two are equal for every scenario except a `kind: injection`
+    one, whose fault is its base's (`v2-inj-payment-dependency-latency-log-checkout` injects
+    `v2-payment-dependency-latency` and adds a payload). The recorder always read
+    `injection.method` (`rehearse.py`); this runner passed the id, so every injection scenario's
+    run failed at `unknown fault` - sixteen discards in the headline run's fifth block, the first
+    time one went through the runner (`PREREGISTRATION-headline-v2.md`, Addendum 4). A scenario
+    with no YAML (a fixture) keeps its id."""
+    path = scenario_path(scenario_id)
+    if path is None:
+        return scenario_id
+    from evalharness.scenario import Scenario
+
+    return Scenario.from_yaml(path).injection.method
+
+
 def tools_world() -> str:
     """`FAULTLINE_TOOLS_WORLD`, as `ToolSettings` reads it."""
     from faultline.tools.settings import ToolSettings
@@ -1817,9 +1835,13 @@ def main(argv: list[str] | None = None) -> int:
                 silent=list(reading.silent_services),
             )
 
-            print(f"injecting {args.scenario_id}...")
+            fault = injector_fault(args.scenario_id)
+            shown = (
+                args.scenario_id if fault == args.scenario_id else f"{args.scenario_id} ({fault})"
+            )
+            print(f"injecting {shown}...")
             injected_at = datetime.now(UTC)
-            code, out = _sh(["faultline-inject", "start", args.scenario_id])
+            code, out = _sh(["faultline-inject", "start", fault])
             run.manifest["injected_at"] = injected_at.isoformat()
             emit(ev, "injected", scenario=args.scenario_id)
             run.write("inject.txt", out)
@@ -1867,7 +1889,7 @@ def main(argv: list[str] | None = None) -> int:
                 print(transcript)
             finally:
                 print("reverting...")
-                _, revert = _sh(["faultline-inject", "stop", args.scenario_id])
+                _, revert = _sh(["faultline-inject", "stop", fault])
                 run.manifest["reverted_at"] = datetime.now(UTC).isoformat()
                 emit(ev, "reverted", scenario=args.scenario_id)
                 run.write("revert.txt", revert)
