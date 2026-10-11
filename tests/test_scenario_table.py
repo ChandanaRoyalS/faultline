@@ -48,7 +48,9 @@ def test_the_headline_prose_matches_the_table_it_summarises() -> None:
     for row in rows:
         total = total + row.at_stamp
     text = README.read_text()
-    glance = text[text.index("## Results at a glance") : text.index(st.BEGIN)]
+    # From the v1 subheading: the v2 headline above it has its own test
+    # (`test_headline_v2_readme.py`) and its own figures.
+    glance = text[text.index("### The v1 world, at the shipping stamp") : text.index(st.BEGIN)]
     after = text[text.index(st.END) : text.index("## Prerequisites")]
 
     service = re.search(r"Culprit service (\d+) / (\d+)", glance)

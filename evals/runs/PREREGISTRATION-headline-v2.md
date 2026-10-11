@@ -542,3 +542,46 @@ their reason. Cost about $3, inside the stop. In `docs/DEVIATIONS.md`.
 - **"NEW COMPARABILITY GENERATION"**, printed after a gate refusal, is a label and not a change:
   the run before is the refused one, which records no world. Every scored run is generation
   `5a2bc6d912f9`, observed.
+
+## Addendum 5 - the run complete, and how the last three nights went (2026-10-11)
+
+**156 slots done in eight nights, 2026-10-06 to 2026-10-11; the report is
+[`HEADLINE-2026-10-11-v2.md`](HEADLINE-2026-10-11-v2.md).** The runner's tally at the last slot:
+**$74.13** against the $86 stop ($8.76 the trial's, $65.37 the run's). The owner's console
+reading, the authority, is added here when taken: ______.
+
+### The nights after Addendum 4
+
+- **Block 7 (slots 117-136) was refused at its first slot on all six tries**: the load-generator
+  was over the memory guard when the block started and, while it struggled, raised `ServiceHighLatency`
+  on itself, email and frontend-proxy for 13 minutes; the gate saw firing alerts and an open
+  incident. Nothing was injected. The block ran once the world was quiet, on the same command.
+- **Block 8 (137-156) was refused before its first slot**: `ad` and `load-generator` were over the
+  guard, `ad` still over after the runner's one restart. Both were restarted by hand and settled
+  (`ad` 71.6 %, `load-generator` 54.9 %); quote's clock had drifted and was restarted; `payment`
+  read 86-95 % and fell to 65 % within minutes - a swing, not a leak (`restarts=0`,
+  `oom=false`). The run resumed on the world check's ALL PASS.
+- **Slot 148 (B1, `v2-recommendation-memory-squeeze`, holdout) lost its score.** Another
+  project's compose stack (`llm-platform`) came up on the same machine during the slot and took
+  port 5432; Faultline's own Postgres, Redis and MinIO containers were found gone (the network
+  was recreated on restart, so a `compose down` had run against them). The investigation
+  finished and wrote its verdict; the revert succeeded; the scoring step could not reach the
+  database and the manifest was never written. The orchestrator died with it. Faultline's
+  containers were brought back from their volumes (624 incidents intact), ingest and the
+  orchestrator restarted, the other stack stopped, and **slot 148 was run again and scored**.
+  The first verdict and the scored one name the same class, service and fix. The directory with
+  the verdict and no manifest stays. In `docs/DEVIATIONS.md`.
+- **Two tries before the re-run were refused by the gate**: slot 148's first incident was inside
+  the settle window, and the restarted containers were under 300 s old.
+
+### What the run says against the registration's rules
+
+- *A scenario that will not run*: `v2-payment-memory-squeeze` (no alert, both tries, every arm)
+  and `v2-ad-flag-failure` (no alert on B1, both tries). Named; out of every denominator.
+- The four injection scenarios ran after Addendum 4's fix; the two that had failed took their
+  slots again after the dev pass (85-88, 93-96), scored 8 of 8.
+- **Predictions 8 and 9 are falsified** (B1's cost range; the $60; discards 16 %); 1, 2 and 6 are
+  not testable at this n; the rest held. The report reads each.
+- **Nothing in the frozen setup moved**: one runtime stamp per arm, one world digest, the v2
+  corpus at both pins, `cap:91279a09`, throughout. The harness's git sha moved once, at
+  Addendum 4's fix, between slot 112 and slot 113; it is recorded in every manifest.

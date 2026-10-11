@@ -4617,6 +4617,26 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-10-11: the headline run complete - 37 scenarios on four arms, the report, README moved
+to the holdout headline.***
+
+- **The result** ([`HEADLINE-2026-10-11-v2.md`](../evals/runs/HEADLINE-2026-10-11-v2.md)): on
+  the ten holdout scenarios F names the class on 7 of 10 and the service on 8 of 10, and so does
+  B1; F - B1 is +0 on both axes (MDE 28). On the 27 dev scenarios B1 leads by 26 points on class
+  with an interval that excludes zero, 3 of the 9 by triage's gate. F clears B0 and B2 on every
+  set. 8 of 10 predictions held; 8 (B1's cost, the $60) and 9 (discards 16 %) did not; 1, 2 and 6
+  are not testable at this n.
+- **The record**: 179 run directories under `sweep.id` `headline-v2` (151 scored, 28 discarded),
+  the batch log, `analysis_headline_v2.py` (standard library; every figure, and README's block
+  with `--readme`), Addendum 5 of the registration (the last three nights, the port clash that
+  cost slot 148 its first score, the re-run), three DEVIATIONS rows.
+- **README**: the v2 holdout headline with its three baselines is first under *Results at a
+  glance*, generated and held by `tests/test_headline_v2_readme.py`; the v1 table stays beneath
+  it under its own heading.
+- **Spend**: the runner's tally $74.13 (trial $8.76, run $65.37) against the $86 stop; the owner's
+  console reading goes into Addendum 5 when taken. **Next: the second go on T7.3's batch** (108
+  runs, cap $120, stop $114), with the measured gate rate - 3 of 37 - in hand.
+
 ***2026-10-06: the owner's go - the headline's cap raised to $90, the queue committed, the nights
 registered.***
 
