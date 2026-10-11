@@ -798,6 +798,13 @@ def parser() -> argparse.ArgumentParser:
         "kind", choices=("headline", "t73", "trial-headline", "trial-headline-f", "trial-t73")
     )
     q.add_argument("--seed", type=int, required=True)
+    q.add_argument(
+        "--without",
+        action="append",
+        default=[],
+        metavar="SCENARIO",
+        help="a registered scenario left out (T7.3 Addendum 3: one that will not run)",
+    )
     q.add_argument("--rerank-revision", default=None, help="E7's pinned cross-encoder commit")
     q.add_argument("--out", type=Path, required=True)
 
@@ -846,7 +853,12 @@ def main(argv: list[str] | None = None) -> int:  # pragma: no cover - the live p
             both = sweep.runnable(world="v2", holdout=True)
             slots = headline_queue(dev, sorted(set(both) - set(dev)), args.seed)
         elif args.kind == "t73":
-            slots = t73_queue(t73_scenarios(), args.seed)
+            registered = t73_scenarios()
+            unknown = sorted(set(args.without) - set(registered))
+            if unknown:
+                print(f"REFUSED: --without names no registered T7.3 scenario: {', '.join(unknown)}")
+                return 3
+            slots = t73_queue([s for s in registered if s not in args.without], args.seed)
         elif args.kind == "trial-headline":
             slots = trial_headline_queue(dev, args.seed)
         elif args.kind == "trial-headline-f":

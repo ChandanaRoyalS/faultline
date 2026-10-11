@@ -292,3 +292,50 @@ The build's result, the trial's scenarios, queues, stops and checks are register
 records one harness defect fixed by addendum (the kafka projection's growth rate, now per world),
 one correction to T7.3's Addendum 1 (E9's check: the pull rate is below F's, not zero) and E7's
 revision pinned in the switch trial's queue.
+
+## Addendum 3 - the second go, the queue and the nights (2026-10-11)
+
+**The decision point of Addendum 1, taken on the headline run's measured facts
+([`HEADLINE-2026-10-11-v2.md`](HEADLINE-2026-10-11-v2.md)):**
+
+- **Cost per run, billed**: F median $0.85 (max $1.04), B1 (E1) $0.74 on dev; the console read
+  **$82** for the trial and the run against the runner's $81.55, so the tally is taken as
+  accurate. The projection for this batch, at F's cost for every Faultline arm: **about $85 for
+  99 runs**, inside the $114 stop. The $120 cap and the $114 stop stand.
+- **Triage gated 2 of the 12 on the headline's Faultline runs** (`v2-payment-dependency-latency`,
+  `v2-fraud-detection-flag-queue-lag`), within Addendum 1's three. The scenarios are not redrawn.
+- **`v2-payment-memory-squeeze` will not run.** No alert in 15 minutes on any arm, both tries, in
+  the headline run; it was removed there under the headline registration's rule. **The owner's
+  decision: it is left out of this batch and not replaced**, so the batch is **9 configurations x
+  11 scenarios = 99 runs**. Running it would have been 18 more discards at $0 and about seven
+  hours of nights. In `docs/DEVIATIONS.md`.
+- **E2 is not run** (the trial's Addendum 8); its report is written from the computed radii.
+
+### The queue
+
+[`QUEUE-t73-v2.tsv`](QUEUE-t73-v2.tsv), seed **20261011**, printed by
+`faultline-batch queue t73 --seed 20261011 --without v2-payment-memory-squeeze` with E7's revision
+from the trial (`233902d25c44…`), held to its seed by `tests/test_batch.py`: one pass, the 99
+(scenario, configuration) pairs in one shuffled order. **Nothing in it changes after a result.** A
+discard is re-run once at the end of its night's block (the headline's practice, Addendum 4
+there); a second removes the scenario from every configuration, named.
+
+### The nights
+
+- **Label `t73-v2`**, stop **$114**, `--also-count trial-t73-v2` so the switch trial's $7.42 is
+  inside the same cap.
+- **Blocks of about 20 slots**, one a night, five nights, settle 420 s between slots.
+- **Before every block**, as the headline's Addendum 3: Postgres, Redis and MinIO up;
+  `faultline-ingest` and `faultline-orchestrate` running with `FAULTLINE_TOOLS_WORLD=v2`; no open
+  incident; `caffeinate -is`. **And one more, from the headline's Addendum 5: no other project's
+  containers on ports 5432 or 6379** - the `llm-platform` stack stays down, or moves its
+  database and Redis to other ports, for the batch's nights.
+- **No judge**: T7.3 names none (`batch.judged`).
+- **After the last block**: `faultline-eval-db load`, the console reading, the nine reports.
+
+### What does not change
+
+The build, both stamps, the world's digests, the v2 corpus at its pins, the scoring, the MDE
+table and the predictions all stand as written. **The headline run's finding - F ties B1 on
+holdout and trails it on dev - makes E1 and E3 the experiments to read first**, and nothing about
+their registration moves for that.

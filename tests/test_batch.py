@@ -559,6 +559,20 @@ def test_memory_plus_another_failure_is_not_the_memory_rule() -> None:
     assert not ok and restarted == [] and calls == 1 + batch.WORLD_RECHECKS
 
 
+def test_the_committed_t73_queue_is_what_its_seed_prints() -> None:
+    """T7.3's operation addendum (Addendum 3, 2026-10-11): seed 20261011, the registered twelve
+    less `v2-payment-memory-squeeze` - the one scenario the headline run showed will not run - on
+    the nine configurations, E7 at the trial's pinned revision. Committed before the batch."""
+    scenarios = [s for s in batch.t73_scenarios() if s != "v2-payment-memory-squeeze"]
+    slots = batch.t73_queue(scenarios, 20261011)
+    committed = (REPO / "evals/runs/QUEUE-t73-v2.tsv").read_text()
+    revision = "233902d25c440f23af6f7d6e94d2946bac0bee0a"
+    assert committed == batch.render_queue(Queue("t73", 20261011, slots, revision))
+    assert len(slots) == 99 and len(scenarios) == 11
+    assert {s.arm for s in slots} == set(batch.T73_CONFIGS)
+    assert "v2-payment-memory-squeeze" not in {s.scenario for s in slots}
+
+
 def test_the_committed_headline_queue_is_what_its_seed_prints() -> None:
     """The operation addendum's queue: committed before the run, and nothing in it changes."""
     from evalharness import sweep

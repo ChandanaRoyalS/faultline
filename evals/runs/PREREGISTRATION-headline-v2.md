@@ -548,7 +548,8 @@ their reason. Cost about $3, inside the stop. In `docs/DEVIATIONS.md`.
 **156 slots done in eight nights, 2026-10-06 to 2026-10-11; the report is
 [`HEADLINE-2026-10-11-v2.md`](HEADLINE-2026-10-11-v2.md).** The runner's tally at the last slot:
 **$74.13** against the $86 stop ($8.76 the trial's, $65.37 the run's). The owner's console
-reading, the authority, is added here when taken: ______.
+reading, the authority, taken 2026-10-11: **$82** for 2026-10-04 to 2026-10-11, against the
+runner's $81.55 for the same days (this run and trial $74.13, the switch trial $7.42).
 
 ### The nights after Addendum 4
 
