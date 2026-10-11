@@ -1,0 +1,98 @@
+{
+  "run_id": "20261004T061334Z-v2-cart-bad-image-tag",
+  "scenario_id": "v2-cart-bad-image-tag",
+  "split": "dev",
+  "scenario_fingerprint": "70129d0711a75bdaf97d72db3b535a56786473c7cb70dac41861fa874e951923",
+  "started_at": "2026-10-04T06:13:34.928703+00:00",
+  "demo": false,
+  "recorder": {
+    "tool": "evalharness.run",
+    "git_sha": "8943d4a2067e2959552a0fc0f4b9a14c94b32675",
+    "git_dirty": true
+  },
+  "models": {
+    "changes": "claude-opus-5",
+    "logs": "claude-opus-5",
+    "metrics": "claude-opus-5",
+    "planner": "claude-opus-5",
+    "scribe": "claude-opus-5",
+    "synthesizer": "claude-opus-5",
+    "traces": "claude-opus-5"
+  },
+  "efforts": {
+    "default": "high"
+  },
+  "budget": {
+    "max_tool_calls_per_specialist": 4,
+    "max_tokens": 120000,
+    "wall_clock_seconds": 600,
+    "max_dispatch_rounds": 2,
+    "briefing_tokens": 4000,
+    "max_usd": 2.0,
+    "usd_per_mtok_in": 5.0,
+    "usd_per_mtok_out": 25.0,
+    "per_specialist_tool_calls": {}
+  },
+  "world_lock": {
+    "acquired": true,
+    "pid": 7080,
+    "host": "chandanas-MacBook-Air.local",
+    "since": "2026-10-04T06:13:35.073229+00:00",
+    "reason": "faultline-eval v2-cart-bad-image-tag",
+    "token": "7080-1791094415.073138"
+  },
+  "preflight": {
+    "checked": false,
+    "model": "",
+    "ok": false,
+    "detail": "",
+    "skipped_because": "b0 makes no model call"
+  },
+  "baseline_gate": {
+    "passed": false,
+    "world": "v2",
+    "firing_alerts": [],
+    "p95_over_ceiling_ms": {},
+    "p95_excursions": {},
+    "ingest_accepting": true,
+    "consumer_idle_ms": 1961,
+    "pipeline_down": [],
+    "silent_services": [
+      "kafka"
+    ],
+    "unexpected_silent": [
+      "kafka"
+    ],
+    "latency_invisible": [],
+    "services_reporting": 19,
+    "youngest_container": [
+      "quote",
+      2883
+    ],
+    "active_injections": "no active injections",
+    "open_incidents": [],
+    "settling_incidents": [],
+    "settle_seconds_remaining": 0,
+    "headroom": {
+      "container": "kafka",
+      "percent_now": 39.73,
+      "limit_mb": 1024.0,
+      "expected_run_hours": 3.8225,
+      "runs_remaining": 11,
+      "uptime_seconds": 440175,
+      "growth_mb_per_hour": 1.3,
+      "growth_mb": 5.0,
+      "projected_percent": 40.22,
+      "threshold_percent": 89.51,
+      "guard_percent": 90.0,
+      "fits": true
+    },
+    "refusals": [
+      "serving no traffic: kafka (frontend-proxy at zero is the healthy state and is not counted)"
+    ]
+  },
+  "refused": {
+    "reason": "baseline gate refused",
+    "at": "2026-10-04T06:13:40.244661+00:00"
+  }
+}

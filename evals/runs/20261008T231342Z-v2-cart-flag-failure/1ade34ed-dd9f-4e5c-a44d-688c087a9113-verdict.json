@@ -1,0 +1,87 @@
+{
+  "incident_id": "1ade34ed-dd9f-4e5c-a44d-688c087a9113",
+  "trajectory_id": "46a08fae-4bed-4e16-ba7a-67ba446d8ea5",
+  "states": [
+    "triaging",
+    "investigating"
+  ],
+  "blast_radius": [
+    "checkout",
+    "cart",
+    "currency",
+    "email",
+    "frontend",
+    "payment",
+    "product-catalog",
+    "shipping",
+    "frontend-proxy"
+  ],
+  "unmeasured_edges": 8,
+  "exclude_origins": [
+    "scenario:scenario:v2-cart-flag-failure"
+  ],
+  "verdict": {
+    "fault_class": "feature_flag",
+    "remediation_class": "config_revert",
+    "service": "cart",
+    "alternatives": [
+      {
+        "root_cause": "Cart's cart-store connection string or endpoint is misconfigured, so it cannot reach redis.",
+        "service": "cart",
+        "fault_class": "bad_config",
+        "remediation_class": null,
+        "why_not": "A wrong address would break GetCart and AddItem too, but those succeed in the same traces and logs, and no configuration change was recorded for cart."
+      },
+      {
+        "root_cause": "Cart exhausted its connection pool or threads under load and could not obtain a store connection.",
+        "service": "cart",
+        "fault_class": "resource_exhaustion",
+        "remediation_class": null,
+        "why_not": "Exhaustion would fail indiscriminately across operations and worsen with load; instead failures are confined to one operation while others complete in under a millisecond."
+      },
+      {
+        "root_cause": "Checkout itself regressed and is generating the order-placement failures.",
+        "service": "checkout",
+        "fault_class": "bad_deploy",
+        "remediation_class": null,
+        "why_not": "Checkout's change log is empty and its error spans carry the downstream cart store exception verbatim, marking it as the caller that noticed rather than the origin."
+      }
+    ],
+    "summary": "A runtime feature flag gating cart's EmptyCart path was flipped on, making cart fail its cart-store connection only on that operation and surfacing errors to checkout; no deploy or config change exists on either service.",
+    "confidence": "medium",
+    "evidence": [
+      "tr_d1f488e002ca",
+      "tr_725f91c2a3d8",
+      "tr_5ded59949205",
+      "tr_397ba9b717e3",
+      "tr_e3323e84632b",
+      "tr_36c40a4d4f52"
+    ],
+    "reasoning": "Every failing checkout trace fails at the same hop, checkout -> cart EmptyCart, while GetCart and AddItem on the same cart instance and the same store succeed milliseconds apart in the same traces and in cart's own log; that selectivity rules out a dead store, exhausted connections or a partition, which would break all cart store operations. Cart's traces show a boolean flag resolution against flagd immediately inside the failing EmptyCart span, and the change log for cart is empty over a full day, as is checkout's - a runtime flag flip is exactly the change that leaves no artifact or config record. checkout is the alerting service but is only the caller that propagated the FailedPrecondition upward.",
+    "open_questions": [
+      "The flag store was never queried directly, so the specific flag name, its previous value and who flipped it are unconfirmed.",
+      "Neither checkout nor cart error-ratio metrics showed a sustained departure from baseline, so the failure may be intermittent or low-rate rather than total, and the precise onset time was not corroborated by metrics.",
+      "Whether the cart-store (valkey/redis) host itself was healthy was not independently verified, only inferred from successful concurrent operations."
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B1",
+    "tool_calls": 6,
+    "turns": 8,
+    "looked_at": [
+      "metrics:checkout",
+      "traces:checkout",
+      "changes:cart",
+      "logs:cart",
+      "metrics:cart",
+      "changes:checkout"
+    ]
+  }
+}

@@ -1,0 +1,31 @@
+incident 2dbc14c5-85ad-426b-8798-04539b5e7e43  state triaging  anchor 01:30:16
+triage: 14 services, severity warning, start from cart, 14 unmeasured edge(s) crossed
+
+B1: dependency_latency / config_revert (medium)
+  Cart's Valkey cart-store operations each stall at a uniform ~300ms floor, adding ~600ms to every checkout and pushing latency up through checkout, frontend, frontend-proxy and the load generator.
+  7 tool calls over 9 turns
+    metrics:cart  Confirm cart's error onset timing and shape versus baseline, since cart alerted first.
+    logs:cart  No span metrics at all for cart - check whether cart is writing anything (freeze/partition) or logging errors.
+    traces:checkout  Checkout fans out to many dependencies; its spans should show which downstream call is slow or erroring.
+    changes:cart  Cart's valkey ops are uniformly ~300ms; see whether a deploy/config change on cart introduced it or whether the change log is empty (flag flip).
+    changes:flagd  Check whether a flag/config change on flagd coincides with onset, or whether the change log is empty for the incident window.
+    logs:flagd  See whether flagd recorded a flag configuration change near onset, which would explain injected cart latency with an empty change log.
+    metrics:checkout  Pin the onset time and confirm whether downstream failure is errors or purely latency-driven timeouts.
+wrote /Users/chandana/dev/faultline/evals/runs/20261008T012552Z-v2-valkey-cart-dependency-latency/2dbc14c5-85ad-426b-8798-04539b5e7e43-verdict.json
+{"ts": "2026-10-08T01:33:05.274+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-08T01:33:05.289+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=metric_baseline subject=sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"cart\",status_code=\"STATUS_CODE_ERROR\"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"cart\"}[5m])) start=2026-10-08T00:27:30.323586+00:00 end=2026-10-08T01:33:03.004414+00:00 span_s=3932 refused=False", "component": "investigator"}
+{"ts": "2026-10-08T01:33:08.297+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-08T01:33:08.298+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=logql_query subject={service=\"cart\"} start=2026-10-08T01:00:16.664000+00:00 end=2026-10-08T01:33:03.004414+00:00 span_s=1966 refused=False", "component": "investigator"}
+{"ts": "2026-10-08T01:33:13.019+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-08T01:33:13.020+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=trace_query subject=checkout start=2026-10-08T01:00:16.664000+00:00 end=2026-10-08T01:33:03.004414+00:00 span_s=1966 refused=False", "component": "investigator"}
+{"ts": "2026-10-08T01:33:18.763+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-08T01:33:18.766+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=cart start=2026-10-07T01:30:16.664000+00:00 end=2026-10-08T01:33:03.004414+00:00 span_s=86566 refused=False", "component": "investigator"}
+{"ts": "2026-10-08T01:33:26.583+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-08T01:33:26.591+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=flagd start=2026-10-07T01:30:16.664000+00:00 end=2026-10-08T01:33:03.004414+00:00 span_s=86566 refused=False", "component": "investigator"}
+{"ts": "2026-10-08T01:33:35.261+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-08T01:33:35.264+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=logql_query subject={service=\"flagd\"} start=2026-10-08T01:00:16.664000+00:00 end=2026-10-08T01:33:03.004414+00:00 span_s=1966 refused=False", "component": "investigator"}
+{"ts": "2026-10-08T01:33:51.282+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-08T01:33:51.285+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=metric_baseline subject=sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"checkout\",status_code=\"STATUS_CODE_ERROR\"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"checkout\"}[5m])) start=2026-10-08T00:27:30.323586+00:00 end=2026-10-08T01:33:03.004414+00:00 span_s=3932 refused=False", "component": "investigator"}
+{"ts": "2026-10-08T01:34:10.217+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-08T01:34:29.377+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-08T01:34:43.171+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}

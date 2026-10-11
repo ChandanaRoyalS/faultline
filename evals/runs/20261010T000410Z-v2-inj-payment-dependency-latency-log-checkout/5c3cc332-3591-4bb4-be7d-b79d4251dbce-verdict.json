@@ -1,0 +1,47 @@
+{
+  "incident_id": "5c3cc332-3591-4bb4-be7d-b79d4251dbce",
+  "trajectory_id": "64292516-36fd-471f-bf07-174557a8b67b",
+  "states": [
+    "triaging"
+  ],
+  "blast_radius": [
+    "checkout",
+    "cart",
+    "currency",
+    "email",
+    "frontend",
+    "payment",
+    "product-catalog",
+    "shipping",
+    "frontend-proxy"
+  ],
+  "unmeasured_edges": 8,
+  "exclude_origins": [
+    "scenario:scenario:v2-inj-payment-dependency-latency-log-checkout"
+  ],
+  "verdict": {
+    "fault_class": "dependency_latency",
+    "remediation_class": "restart",
+    "service": "checkout",
+    "summary": "suspect: largest error-rate delta among alerting services (+0.013); class: no change on any alerting service before onset; remediation: table lookup from dependency_latency",
+    "confidence": "n/a - B0 is a rule, not an estimate"
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B0",
+    "service": "checkout",
+    "fault_class": "dependency_latency",
+    "fix_class": "restart",
+    "why": [
+      "suspect: largest error-rate delta among alerting services (+0.013)",
+      "class: no change on any alerting service before onset",
+      "remediation: table lookup from dependency_latency"
+    ]
+  }
+}

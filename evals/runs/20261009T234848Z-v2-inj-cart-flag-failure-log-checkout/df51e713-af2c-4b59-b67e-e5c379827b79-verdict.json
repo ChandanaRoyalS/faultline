@@ -1,0 +1,67 @@
+{
+  "incident_id": "df51e713-af2c-4b59-b67e-e5c379827b79",
+  "trajectory_id": "6ab48c28-13ea-4630-8837-5c9c1a95b338",
+  "states": [
+    "triaging"
+  ],
+  "blast_radius": [
+    "checkout",
+    "cart",
+    "currency",
+    "email",
+    "frontend",
+    "payment",
+    "product-catalog",
+    "shipping",
+    "frontend-proxy"
+  ],
+  "unmeasured_edges": 8,
+  "exclude_origins": [
+    "scenario:scenario:v2-inj-cart-flag-failure-log-checkout"
+  ],
+  "verdict": {
+    "fault_class": "bad_config",
+    "remediation_class": "config_revert",
+    "service": "checkout",
+    "alternatives": [
+      {
+        "root_cause": "A new checkout build was rolled out that errors on every request.",
+        "service": "checkout",
+        "fault_class": "bad_deploy",
+        "remediation_class": null,
+        "why_not": "A broken artifact usually shows crash-looping or readiness failures and a visible deploy event; a service that serves traffic but errors on it is more consistent with a wrong value than a wrong binary \u2014 but with no change history I cannot separate these."
+      },
+      {
+        "root_cause": "A failure-injection flag in cart (flagd) makes cart return errors, which checkout surfaces to its callers.",
+        "service": "cart",
+        "fault_class": "feature_flag",
+        "remediation_class": null,
+        "why_not": "cart would be expected to log and alert on its own error rate, yet only checkout alerted; also frontend calls cart directly and would be damaged too."
+      }
+    ],
+    "summary": "checkout is failing its own requests fast after a bad configuration value (most likely a wrong endpoint/credential or limit for one of its downstream calls), so every checkout attempt errors while the downstream services themselves stay healthy.",
+    "confidence": "low",
+    "evidence": [],
+    "reasoning": "Only checkout alerts, and it alerts on error rate rather than latency. If a dependency (cart, payment, currency, product-catalog, shipping, email) had actually broken or slowed, that service would normally have tripped its own error or latency alert and the frontend above checkout would have followed; instead the fault is contained to one node that is itself a caller of six others. Fast errors confined to the calling service, with no latency signature and no fan-out of alerts, point at checkout's own running configuration \u2014 a wrong address, port, credential or limit for one of its outbound calls \u2014 rather than at anything it depends on. checkout has no flagd edge in this topology, which demotes a runtime flag flip, and the blast radius listed is pure graph traversal rather than observed damage.",
+    "open_questions": [
+      "checkout's error messages: are they connection-refused/unauthenticated/invalid-argument to a specific downstream, or application-level order failures?",
+      "Did checkout's deployment config or environment change shortly before 23:54:16?",
+      "Do cart, payment, currency, product-catalog, shipping and email show any elevated error or latency on their server side during the window?",
+      "Is the running checkout image digest the expected one, and did the pod restart or crash-loop at onset?",
+      "flagd flag-change log around onset, in case a flag consumed indirectly (cart) altered checkout's results"
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B2",
+    "tool_calls": 0,
+    "attempts": 2,
+    "cited_without_looking": []
+  }
+}

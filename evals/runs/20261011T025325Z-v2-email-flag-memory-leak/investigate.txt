@@ -1,0 +1,11 @@
+incident c3c3c2f3-7309-468c-9f4c-56d7c6adaef2  state triaging  anchor 02:58:46
+triage: 9 services, severity critical, start from checkout, 8 unmeasured edge(s) crossed
+B0: bad_deploy / rollback
+  suspect: service of the most recent pre-onset change in the window (10:09:33)
+  class: that change was to image
+  remediation: table lookup from bad_deploy
+wrote /Users/chandana/dev/faultline/evals/runs/20261011T025325Z-v2-email-flag-memory-leak/c3c3c2f3-7309-468c-9f4c-56d7c6adaef2-verdict.json
+{"ts": "2026-10-11T03:02:39.715+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=checkout start=2026-10-10T02:58:46.664000+00:00 end=2026-10-11T03:02:39.710616+00:00 span_s=86633 refused=False", "component": "investigator"}
+{"ts": "2026-10-11T03:02:39.716+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=promql_query subject=sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"checkout\",status_code=\"STATUS_CODE_ERROR\"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"checkout\"}[5m])) start=2026-10-11T02:28:46.664000+00:00 end=2026-10-11T03:02:39.710616+00:00 span_s=2033 refused=False", "component": "investigator"}
+{"ts": "2026-10-11T03:02:39.728+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=email start=2026-10-10T02:58:46.664000+00:00 end=2026-10-11T03:02:39.710616+00:00 span_s=86633 refused=False", "component": "investigator"}
+{"ts": "2026-10-11T03:02:39.729+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=promql_query subject=sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"email\",status_code=\"STATUS_CODE_ERROR\"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"email\"}[5m])) start=2026-10-11T02:28:46.664000+00:00 end=2026-10-11T03:02:39.710616+00:00 span_s=2033 refused=False", "component": "investigator"}

@@ -1,0 +1,152 @@
+{
+  "incident_id": "82e96d47-0173-45b3-a117-9fee302efc8c",
+  "trajectory_id": "7ba477ef-e7c7-4d49-ae74-42fffef0aa1d",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "accounting"
+  ],
+  "unmeasured_edges": 0,
+  "exclude_origins": [
+    "scenario:v2-accounting-bad-credential"
+  ],
+  "verdict": {
+    "root_cause": "Accounting cannot persist consumed order messages: every PostgreSQL connection open is rejected server-side with SqlState 28P01, password authentication failed for role 'otelu', during SASL authentication and before any SQL is issued [tr_179e8d7a7e59]. The database is reachable and answering, so this is not a dependency, network or pool problem [tr_179e8d7a7e59]. The credential comes from DB_CONNECTION_STRING, which platform-automation rewrote five times in an alternating set/revert flap in the ~45 minutes before onset, leaving it in the 'set' state [tr_7b5a7fc3003a]. Failures begin at 02:48:14, aligned with a mid-flap write rather than the final one, and continue past the 03:06:37 write [tr_9888c8415e7f]. The configured credential value is itself wrong, and that wrongness is the failure.",
+    "service": "accounting",
+    "fault_class": "bad_config",
+    "remediation_class": "config_revert",
+    "confidence": "high",
+    "evidence": [
+      "tr_179e8d7a7e59",
+      "tr_9888c8415e7f",
+      "tr_7b5a7fc3003a",
+      "tr_58a9fd14f2f5"
+    ],
+    "reasoning": "The exception is raised at connection open during authentication, excluding query, schema and migration faults, and the pool successfully attempted a new connector, excluding exhaustion [tr_179e8d7a7e59]. A structured server-side FATAL rules out partition, freeze and an unreachable store [tr_179e8d7a7e59]. All failing lines name one role, not a system-wide auth outage [tr_9888c8415e7f]. The only change surface on accounting is DB_CONNECTION_STRING, with no deploy and no flag toggle recorded, excluding bad_deploy and feature_flag [tr_7b5a7fc3003a]. The error ratio shows stepped threshold crossings matching the flap rather than one transition, and accounting kept serving traffic throughout [tr_58a9fd14f2f5].",
+    "open_questions": [
+      "The change record redacts the password, so evidence never shows which flap state holds the credential postgres accepts [tr_7b5a7fc3003a].",
+      "No dispatch touched postgresql's own logs or secret rotation history, so a server-side password rotation at ~02:48 remains unexcluded.",
+      "Both log results were truncated, leaving 02:40:40-03:10:10 unobserved, and request rate, pool utilisation and consumer lag were never returned [tr_179e8d7a7e59, tr_58a9fd14f2f5]."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "PostgreSQL rotated the 'otelu' password around 02:48, making accounting's otherwise-correct connection string stale.",
+        "service": "postgresql",
+        "fault_class": "bad_config",
+        "remediation_class": "config_revert",
+        "why_not": "Unexcluded only because nothing was dispatched against postgresql; accounting's own config was demonstrably rewritten five times spanning onset, which is the nearer observed cause [tr_7b5a7fc3003a]."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "runbook:class-bad-config / What the change record holds: The variable and a timestamp, and **the new value only** - no change record in this world carries\na prior value, which `world-change-records-have-no-prior-value` sets out.\n\n**What the logs hold is not uniform, and this document had it wrong.** An earlier version said a\nservice po",
+    "v2-cart-freeze / What was checked: **The proxy, because it was loudest.** Its error traces - 247 of them across the ten minutes -\nwere all the same kind: a request cut at its fifteen-second route timeout. And they were all the\nsame four requests: `user_add_to_cart` (132), `user_view_cart` (71), `user_checkout_mult",
+    "v2-fraud-detection-flag-queue-lag / Resolution: The flag was turned back off. Checkout stopped duplicating orders, and fraud-detection worked\nthrough its backlog at once: about 6,500 records in the minute after the fix, then back to its\nusual rate of about ten a minute, and its latency fell to about 2ms. Its latency alert clea"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 23114,
+    "pulled_tokens": 4439,
+    "pull_rate": 0.1611,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 361,
+        "content_tokens": 363,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1518,
+        "content_tokens": 1521,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 7016,
+        "content_tokens": 6993,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 6455,
+        "content_tokens": 6456,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 7764,
+        "content_tokens": 7741,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "config_revert",
+    "action_id": "revert_config",
+    "target": "accounting",
+    "rests_on": [
+      "tr_7b5a7fc3003a",
+      "tr_9888c8415e7f",
+      "tr_58a9fd14f2f5"
+    ],
+    "expected_effect": "After restoring accounting's prior environment and recreating it, new 28P01 lines in {service=\"accounting\"} should stop within ~2 minutes (they currently recur every few seconds through 03:12:03), info-level consumer 'Order details' lines should resume, and the span error ratio should fall from ~0.041 mean / 0.33 peak toward the ~0.006 baseline.",
+    "confirm_within_seconds": 300,
+    "if_wrong": "28P01 lines continue at the same cadence after recreate, or stop then resume within minutes. The first points at a server-side password rotation for role 'otelu' at ~02:48, never checked and not excluded by the redacted change record; the second points at platform-automation re-applying the bad value. Note the reverted state is inside the unobserved 02:40:40-03:10:10 log gap, so it is inferred, not seen, to have worked.",
+    "risk": "If the prior value is also wrong or the role's password rotated server-side, accounting stays broken and the recreate has discarded its consumer session for nothing. If the prior value names a different host or database, writes could land somewhere wrong instead of failing loudly. The revert also contends with an active reconciliation loop and may be overwritten, producing flapping rather than a steady state.",
+    "blast_radius": "One service: accounting. Its container is recreated, so its message consumption pauses briefly and any in-flight consumed messages are reprocessed. No other service is in this incident's blast radius; the reverted value is a database credential, not a dependency address, so no traffic moves."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "low",
+    "reasoning": "A single critical alert on accounting with no open incidents to attribute it to; critical severity is not dismissible as noise. No propagation or secondary signals yet to suggest a fault class."
+  }
+}

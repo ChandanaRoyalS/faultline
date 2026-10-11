@@ -1,0 +1,169 @@
+{
+  "incident_id": "3f8e7cd2-6589-4b1d-94bd-542596fc957e",
+  "trajectory_id": "9c875c0e-1b66-4623-9fa7-fdf930102ae3",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "ad",
+    "cart",
+    "checkout",
+    "frontend",
+    "frontend-proxy",
+    "product-catalog",
+    "product-reviews",
+    "recommendation"
+  ],
+  "unmeasured_edges": 7,
+  "exclude_origins": [
+    "scenario:v2-ad-bad-image-tag"
+  ],
+  "verdict": {
+    "root_cause": "At 11:36:49 the ad service's JVM shut down cleanly and went permanently silent, with no startup banner afterward [tr_fb19c68442da]. One second later platform-automation re-applied the 2.2.0-ad-hotfix.2 image to the ad workload \u2014 the third application of the same artifact in 45 minutes after two reverts [tr_c52b7cd59488]. The replacement never produced a log line, so the ad endpoint ceased to exist on the network. Frontend's sole repeating failure is gRPC status 14 UNAVAILABLE / EHOSTUNREACH to 172.18.0.28:9555, sustained for ~22 minutes against a single peer [tr_977423efbb09], and the one errored sampled trace terminates at frontend -> AdService/GetAds and propagates up through frontend-proxy [tr_49f6226042e9]. Ad's metrics show 53 intervals with no traffic at all versus zero in baseline [tr_0525bcf2e66e]. Frontend itself has no changes and no error-ratio departure [tr_a6a241f1c862, tr_19c620a8156d], so it is the reporter, not the culprit.",
+    "service": "ad",
+    "fault_class": "bad_deploy",
+    "remediation_class": "rollback",
+    "confidence": "high",
+    "evidence": [
+      "tr_fb19c68442da",
+      "tr_c52b7cd59488",
+      "tr_977423efbb09",
+      "tr_49f6226042e9",
+      "tr_0525bcf2e66e",
+      "tr_a6a241f1c862",
+      "tr_19c620a8156d"
+    ],
+    "reasoning": "Ad's self-reported graceful shutdown at 11:36:49 and the image re-application at 11:36:50 coincide to the second [tr_fb19c68442da, tr_c52b7cd59488]. No startup line follows, so the newly applied artifact is not running \u2014 the running artifact is not the one that should be running. A crash or OOM would have preempted the shutdown hooks and left a trace; none exists [tr_fb19c68442da]. With no process bound to the ad address, frontend's connect attempts fail at the transport layer against exactly one peer and port, with no recovery [tr_977423efbb09], and the trace pins that hop to AdService/GetAds [tr_49f6226042e9]. Ad's metric traffic gaps are the same absence seen from the metrics side [tr_0525bcf2e66e]. Fixing it means rolling the image reference back to the last version that actually ran and stopping the automation loop that keeps re-applying the hotfix tag.",
+    "open_questions": [
+      "Nothing observed the ad workload's orchestration state after 11:36:50 \u2014 whether the hotfix image failed to pull, crashed pre-logging, or was never scheduled is unconfirmed; the verdict rests on absence of logs.",
+      "The mapping of 172.18.0.28:9555 to ad is inferred from the port and the trace endpoint, not confirmed against service discovery.",
+      "Frontend's error ratio is flat and only 1 of 10 traces errored, yet severity is critical; the product-reviews and product-catalog latency signals [tr_49f6226042e9] were never dispatched against and may be a separate fault."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "The ad pod is running but network-isolated, so frontend cannot reach it.",
+        "service": "ad",
+        "fault_class": "network_partition",
+        "remediation_class": "reconnect",
+        "why_not": "A partitioned-but-running process would still log and complain about unreachable peers; ad logged a clean shutdown and then nothing [tr_fb19c68442da], with an image change landing one second later [tr_c52b7cd59488]."
+      },
+      {
+        "root_cause": "The hotfix ad container started but was killed or starved on startup, leaving the endpoint down.",
+        "service": "ad",
+        "fault_class": "resource_exhaustion",
+        "remediation_class": "rollback",
+        "why_not": "No OOM, fatal-signal, or restart-loop evidence appears, and no subsequent startup attempt was logged at all [tr_fb19c68442da]; the artifact flapping [tr_c52b7cd59488] is the better-supported mechanism."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "runbook:world-log-volume / Several services log only when something is wrong: `frontend` measured **0** lines in this window and 6,355 lines in a thirty-minute window earlier\nthe same hour, when a fault was live. So **log volume is itself a signal**: a service going from\nzero to thousands of lines an hour is evidence in its own right.\n\n**Four are silent ev",
+    "cart-bad-image-tag / What was checked: **Error rate by service.** frontend, loadgenerator and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero. Read, wrongly, as evidence cart was\nhealthy.\n\n**loadgenerator.** Set aside. It is the synthetic client; its error rate restates what\nthe storefron",
+    "runbook:class-bad-config / What the change record holds: The variable and a timestamp, and **the new value only** - no change record in this world carries\na prior value, which `world-change-records-have-no-prior-value` sets out.\n\n**What the logs hold is not uniform, and this document had it wrong.** An earlier version said a\nservice po"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 28777,
+    "pulled_tokens": 8434,
+    "pull_rate": 0.2267,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 422,
+        "content_tokens": 424,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1886,
+        "content_tokens": 1889,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 8807,
+        "content_tokens": 8783,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 8056,
+        "content_tokens": 8058,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 9606,
+        "content_tokens": 9583,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "rollback",
+    "action_id": "rollback_image",
+    "target": "ad",
+    "rests_on": [
+      "tr_c52b7cd59488",
+      "tr_fb19c68442da",
+      "tr_977423efbb09"
+    ],
+    "expected_effect": "Recreating ad at its pre-11:36:50 image should restore the process: ad emits a gRPC-ads-server startup line in Loki within ~60s (it has been silent since 11:36:49), and frontend's repeating 14 UNAVAILABLE / EHOSTUNREACH 172.18.0.28:9555 lines stop within ~2 minutes. Ad's error-ratio series should also stop producing undefined (no-traffic) intervals.",
+    "confirm_within_seconds": 300,
+    "if_wrong": "If ad still emits no startup line, the fault is in the pull/schedule path, not the image, and nothing observed ad's orchestration state after 11:36:50. If ad logs normally but frontend's EHOSTUNREACH persists, the 172.18.0.28:9555-to-ad mapping was inferred, not confirmed. Frontend's error ratio is already flat vs baseline, so it is not a usable success signal.",
+    "risk": "platform-automation applied and reverted this same artifact five times in 45 minutes; this rollback is a fourth transition into that loop and may be undone minutes later. Recreating the container also destroys the evidence needed to tell a failed pull from a pre-logging crash \u2014 the verdict rests on absence of logs.",
+    "blast_radius": "One service, ad. Its caller frontend already cannot reach it, so the recreate adds no new breakage there; frontend-proxy and load-generator see the same ad-path traces change status."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Critical alerts on the frontend and its proxy simultaneously indicate user-facing impact that cannot be dismissed, with no open incident to attribute it to. The simultaneous timing could mean a shared edge failure or a downstream dependency, but nothing in the alerts favors a specific class yet."
+  }
+}

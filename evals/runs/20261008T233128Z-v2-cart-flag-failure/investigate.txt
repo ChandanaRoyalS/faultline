@@ -1,0 +1,9 @@
+incident 2cf98676-42fb-49fa-9f99-96f959794f4f  state triaging  anchor 23:36:46
+triage: 9 services, severity critical, start from checkout, 8 unmeasured edge(s) crossed
+
+B2: bad_config / config_revert (low)
+  checkout is running with a wrong configuration value (most likely a bad endpoint/port or credential for one of its downstream gRPC dependencies), so its order requests fail fast with errors.
+  looked at nothing - this is the model's prior
+wrote /Users/chandana/dev/faultline/evals/runs/20261008T233128Z-v2-cart-flag-failure/2cf98676-42fb-49fa-9f99-96f959794f4f-verdict.json
+{"ts": "2026-10-08T23:39:07.342+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-08T23:39:16.102+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}

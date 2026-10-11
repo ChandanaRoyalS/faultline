@@ -1,0 +1,9 @@
+incident ae0ca8b4-8fb8-46f6-8f7d-2d22a142f0ee  state triaging  anchor 00:51:16
+triage: 10 services, severity critical, start from checkout, 8 unmeasured edge(s) crossed
+
+B2: resource_exhaustion / restart (low)
+  checkout exhausted an internal resource (connection/thread pool backing its many downstream calls), so requests queued until they timed out and order publication to Kafka stopped, starving accounting of traffic.
+  looked at nothing - this is the model's prior
+wrote /Users/chandana/dev/faultline/evals/runs/20261008T004529Z-v2-kafka-disk-fill/ae0ca8b4-8fb8-46f6-8f7d-2d22a142f0ee-verdict.json
+{"ts": "2026-10-08T00:54:31.143+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-08T00:54:40.301+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}

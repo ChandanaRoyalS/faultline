@@ -1,0 +1,175 @@
+{
+  "incident_id": "6e4a0acb-c798-4ab5-af2b-ae92f1c1a43a",
+  "trajectory_id": "c69080f6-583b-498c-bf15-97adf6a82823",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "accounting",
+    "cart",
+    "checkout",
+    "currency",
+    "email",
+    "flagd",
+    "fraud-detection",
+    "frontend",
+    "frontend-proxy",
+    "payment",
+    "product-catalog",
+    "quote",
+    "shipping"
+  ],
+  "unmeasured_edges": 10,
+  "exclude_origins": [
+    "scenario:v2-shipping-wrong-image"
+  ],
+  "verdict": {
+    "root_cause": "The shipping service stopped serving: callers' outbound calls to http://shipping:50050/get-quote first met TCP connection refused against a live shipping IP and later failed DNS resolution for the name 'shipping' entirely [tr_34c97c9955a6]. Checkout's traces show the error originating on its own outbound POST to shipping from prepareOrderItemsAndShippingQuoteFromCart, failing in 2-6ms at name resolution with no shipping server span present, and propagating unchanged up through frontend, frontend-proxy and the load generator [tr_060fe16b324e]. Checkout's other dependencies (cart, product-catalog, currency) are clean [tr_060fe16b324e], no change was recorded for checkout, cart or flagd in the covered window [tr_669e3f3c2d50][tr_f87c07561cc3][tr_17f461169a3f], and checkout's ~22% error ratio reflects only the subset of requests on the shipping quote path [tr_7580feacf3e3]. The shipping process is gone - its socket actively refuses and then its name disappears from service discovery - rather than merely slow, so the fault sits with shipping being down and needing to be brought back.",
+    "service": "shipping",
+    "fault_class": "process_freeze",
+    "remediation_class": "restart",
+    "confidence": "medium",
+    "evidence": [
+      "tr_060fe16b324e",
+      "tr_34c97c9955a6",
+      "tr_669e3f3c2d50",
+      "tr_7580feacf3e3",
+      "tr_f87c07561cc3",
+      "tr_17f461169a3f"
+    ],
+    "reasoning": "Every error-bearing leaf span in checkout's traces is the outbound shipping call, failing at the transport layer in milliseconds; no shipping server span exists, so the request never arrives [tr_060fe16b324e]. Frontend logs independently confirm the same single downstream and the progression from connection-refused to DNS-not-found [tr_34c97c9955a6]. Sibling dependencies and upstream services are exonerated by the trace structure [tr_060fe16b324e], and change history for checkout, cart and flagd is empty over the covered interval, so no artifact or flag edit on the callers explains it [tr_669e3f3c2d50][tr_f87c07561cc3][tr_17f461169a3f]. Checkout's partial (~22%) error rate matches a single failing code path rather than a service-wide outage [tr_7580feacf3e3]. The connection-refused phase means the host was up with nothing listening, and the later DNS disappearance means the container/registration was removed - a stopped process, not a slow or misconfigured one.",
+    "open_questions": [
+      "No dispatch examined shipping directly - its logs, metrics, change history and restart/OOM status are entirely unmeasured, so whether it crashed, was killed for memory, or was deliberately stopped is unsettled.",
+      "Connection-refused is atypical of a classic freeze (a frozen process keeps its socket accepting and hangs callers); shipping may instead have exited and been descheduled, which would reclassify the mechanism.",
+      "The pre-incident window was never queried for any service - all change-log results start at onset and run forward, so an upstream deploy or config push before 13:55:31 remains possible.",
+      "Checkout emitted no log lines at all over the window [tr_61cd4f19d3b4]; whether that is a logging/labelling gap or a second fault is unresolved.",
+      "Errors existed at ~6.4% before 13:55:31 [tr_7580feacf3e3], so true onset and whether shipping was partially degraded earlier is unknown."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "Shipping was terminated after exhausting memory or another resource limit, and the refused connections are the aftermath of repeated kills.",
+        "service": "shipping",
+        "fault_class": "resource_exhaustion",
+        "remediation_class": "scale",
+        "why_not": "Plausible and consistent with a vanished process, but nothing was measured on shipping - no saturation metric, OOM record or restart count - so exhaustion is an unsupported mechanism where 'not running' is directly observed."
+      },
+      {
+        "root_cause": "Shipping is running but cut off from the network/service-discovery fabric, so callers cannot reach or resolve it.",
+        "service": "shipping",
+        "fault_class": "network_partition",
+        "remediation_class": "reconnect",
+        "why_not": "A partition typically hangs callers and leaves the isolated service logging its own reachability failures; here callers got an immediate active refusal on a concrete IP before DNS lapsed, which points to nothing listening rather than a severed path."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "v2-accounting-bad-credential / What was observed: The page was a single alert, `ServiceHighErrorRate` on **accounting**, 3m16s after the trouble\nstarted. Nothing else fired then, and nothing else fired afterwards. Its error ratio had read\nzero before the incident. It rose from about a minute in, climbed, and settled at **exactly",
+    "v2-frontend-cart-misconfig / What was checked: **The error text, because it was the first thing a responder would read.** Checkout's error spans\nand the frontend's log said `shipping quote failure: failed POST to email service: expected 200,\ngot 400`. That names two services, and neither was at fault. It is checkout's own wor",
+    "v2-kafka-disk-fill / What was observed: The page came 6m15s after onset: `ServiceHighLatency` on **checkout**. Thirty seconds later\n`ServiceHighErrorRate` on checkout; at T+2m from the page `ServiceNoTraffic` on **accounting**; at\nT+3m `ServiceHighErrorRate` on **fraud-detection**, and a minute after that its\n`ServiceH"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 24407,
+    "pulled_tokens": 7505,
+    "pull_rate": 0.2352,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 464,
+        "content_tokens": 467,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1477,
+        "content_tokens": 1481,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 7301,
+        "content_tokens": 7277,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 6941,
+        "content_tokens": 6944,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 8224,
+        "content_tokens": 8201,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "restart",
+    "action_id": "restart_service",
+    "target": "shipping",
+    "rests_on": [
+      "tr_34c97c9955a6",
+      "tr_060fe16b324e",
+      "tr_7580feacf3e3"
+    ],
+    "expected_effect": "Recreating shipping restores a listener on 50050 and re-registers the name with the Docker resolver. Within minutes: frontend's Loki stream stops emitting 'failed POST to shipping service' lines in both forms (connection refused, and lookup shipping on 127.0.0.11:53 no such host); checkout traces again contain a non-error shipping server span for /get-quote; checkout's error ratio falls from its ~0.22 mean toward the ~0.064 floor already present pre-onset \u2014 not to zero, since this does not address that floor.",
+    "confirm_within_seconds": 300,
+    "if_wrong": "Falsified if, five minutes after the recreate, frontend still logs 'no such host' or 'connection refused' for shipping:50050, or checkout traces still show no shipping server span. That would indicate a crash loop, OOM kill, or network detachment (which would need reconnect_service, unavailable here) \u2014 escalate rather than restart again. Weakly falsified if the log lines stop but checkout's error ratio stays near 0.22, implying a second failure path.",
+    "risk": "Shipping was never dispatched to directly: its logs, memory, restart count and change history are unmeasured, so 'process gone' is inferred only from callers. If it is being OOM-killed or failing at startup, this gives a brief recovery then the same outage, and destroys the exited container's exit code and OOM flag. If it was stopped deliberately, this reverses a human decision. Irreversible; discards shipping's in-process cache, so first quotes may be slow.",
+    "blast_radius": "shipping only, for the duration of the recreate. Its callers see resets during that moment: checkout (via prepareOrderItemsAndShippingQuoteFromCart) and, transitively, frontend, frontend-proxy and the load generator \u2014 all of which are already failing on this path, so the marginal impact is small."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Checkout alerted first and four minutes later its entire downstream fan-out lit up simultaneously, which is a real critical-severity multi-service failure that cannot be dismissed. No open incidents to attribute it to, and the alerts alone do not distinguish a bad checkout deploy from a shared dependency like flagd or cart."
+  }
+}

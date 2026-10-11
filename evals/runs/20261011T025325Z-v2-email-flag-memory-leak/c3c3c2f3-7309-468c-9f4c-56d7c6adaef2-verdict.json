@@ -1,0 +1,47 @@
+{
+  "incident_id": "c3c3c2f3-7309-468c-9f4c-56d7c6adaef2",
+  "trajectory_id": "748b6148-f0e2-4fe0-9fd1-37080c8ce89a",
+  "states": [
+    "triaging"
+  ],
+  "blast_radius": [
+    "checkout",
+    "email",
+    "cart",
+    "currency",
+    "frontend",
+    "payment",
+    "product-catalog",
+    "shipping",
+    "frontend-proxy"
+  ],
+  "unmeasured_edges": 8,
+  "exclude_origins": [
+    "scenario:scenario:v2-email-flag-memory-leak"
+  ],
+  "verdict": {
+    "fault_class": "bad_deploy",
+    "remediation_class": "rollback",
+    "service": "email",
+    "summary": "suspect: service of the most recent pre-onset change in the window (10:09:33); class: that change was to image; remediation: table lookup from bad_deploy",
+    "confidence": "n/a - B0 is a rule, not an estimate"
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B0",
+    "service": "email",
+    "fault_class": "bad_deploy",
+    "fix_class": "rollback",
+    "why": [
+      "suspect: service of the most recent pre-onset change in the window (10:09:33)",
+      "class: that change was to image",
+      "remediation: table lookup from bad_deploy"
+    ]
+  }
+}

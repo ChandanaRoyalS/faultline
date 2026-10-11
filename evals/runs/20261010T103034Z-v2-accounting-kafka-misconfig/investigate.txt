@@ -1,0 +1,9 @@
+incident 49362ecf-03ce-4d8d-9632-41df84b10b24  state triaging  anchor 10:38:31
+triage: 1 services, severity critical, start from nowhere the graph knows, 0 unmeasured edge(s) crossed
+
+B2: process_freeze / restart (low)
+  The accounting service's process stopped doing work (frozen/suspended) while its container stayed up, so it emitted no spans or consumer activity at all, triggering ServiceNoTraffic with no downstream impact.
+  looked at nothing - this is the model's prior
+wrote /Users/chandana/dev/faultline/evals/runs/20261010T103034Z-v2-accounting-kafka-misconfig/49362ecf-03ce-4d8d-9632-41df84b10b24-verdict.json
+{"ts": "2026-10-10T10:40:58.982+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-10T10:41:07.482+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}

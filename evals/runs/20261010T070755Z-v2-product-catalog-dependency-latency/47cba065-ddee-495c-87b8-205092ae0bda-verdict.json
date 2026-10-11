@@ -1,0 +1,52 @@
+{
+  "incident_id": "47cba065-ddee-495c-87b8-205092ae0bda",
+  "trajectory_id": "e6dae2d3-4f00-4600-ade1-b9681ea2e610",
+  "states": [
+    "triaging"
+  ],
+  "blast_radius": [
+    "recommendation",
+    "checkout",
+    "frontend",
+    "frontend-proxy",
+    "load-generator",
+    "product-catalog",
+    "ad",
+    "cart",
+    "currency",
+    "email",
+    "flagd",
+    "payment",
+    "product-reviews",
+    "shipping"
+  ],
+  "unmeasured_edges": 15,
+  "exclude_origins": [
+    "scenario:scenario:v2-product-catalog-dependency-latency"
+  ],
+  "verdict": {
+    "fault_class": "bad_deploy",
+    "remediation_class": "rollback",
+    "service": "product-catalog",
+    "summary": "suspect: service of the most recent pre-onset change in the window (07:08:03); class: that change was to container; remediation: table lookup from bad_deploy",
+    "confidence": "n/a - B0 is a rule, not an estimate"
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B0",
+    "service": "product-catalog",
+    "fault_class": "bad_deploy",
+    "fix_class": "rollback",
+    "why": [
+      "suspect: service of the most recent pre-onset change in the window (07:08:03)",
+      "class: that change was to container",
+      "remediation: table lookup from bad_deploy"
+    ]
+  }
+}

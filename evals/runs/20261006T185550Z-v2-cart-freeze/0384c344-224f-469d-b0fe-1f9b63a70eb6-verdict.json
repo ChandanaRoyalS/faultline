@@ -1,0 +1,84 @@
+{
+  "incident_id": "0384c344-224f-469d-b0fe-1f9b63a70eb6",
+  "trajectory_id": "942197c7-9a8f-4c6a-baf0-8b6ecf9298c7",
+  "states": [
+    "triaging",
+    "investigating"
+  ],
+  "blast_radius": [
+    "frontend-proxy",
+    "load-generator",
+    "frontend"
+  ],
+  "unmeasured_edges": 1,
+  "exclude_origins": [
+    "scenario:scenario:v2-cart-freeze"
+  ],
+  "verdict": {
+    "fault_class": "process_freeze",
+    "remediation_class": "restart",
+    "service": "cart",
+    "alternatives": [
+      {
+        "root_cause": "Cart was cut off from the network and callers hung waiting on it.",
+        "service": "cart",
+        "fault_class": "network_partition",
+        "remediation_class": null,
+        "why_not": "A partitioned-but-running service complains in its own log that it cannot reach its dependencies; cart simply stops writing anything, and its store operations complete in milliseconds once they finally run."
+      },
+      {
+        "root_cause": "A flag flip enabled a failing cart code path.",
+        "service": "cart",
+        "fault_class": "feature_flag",
+        "remediation_class": null,
+        "why_not": "A flagged failure path produces errors, but the error ratio never departs from baseline anywhere; the symptom is unbounded waiting plus total log silence from cart."
+      },
+      {
+        "root_cause": "Cart's backing store became slow, and cart failed because it waited.",
+        "service": "cart",
+        "fault_class": "dependency_latency",
+        "remediation_class": null,
+        "why_not": "The store spans inside cart are sub-10ms even in the worst traces; the delay sits before cart's server span starts, not inside its dependency call."
+      }
+    ],
+    "summary": "The cart service's process stalled while its socket kept accepting: calls into it sat unserved for minutes, so frontend and frontend-proxy hung to their 15s deadlines on every cart-backed request.",
+    "confidence": "medium",
+    "evidence": [
+      "tr_bf5ebce1de60",
+      "tr_92fa5f20e46f",
+      "tr_b78675bdaca2",
+      "tr_1039eaaf4dc8",
+      "tr_29c4904476d6",
+      "tr_020007df32b2",
+      "tr_0427dcc6e046"
+    ],
+    "reasoning": "Neither frontend-proxy nor frontend shows any error-ratio departure from baseline (tr_bf5ebce1de60, tr_92fa5f20e46f), so this is a hang, not an error storm: the alerting edge only noticed its own deadline. The add-to-cart and view-cart traces hang for exactly ~15s at the proxy while the frontend span that waits is the cart gRPC call, whose own work is pure self-time waiting (tr_b78675bdaca2, tr_0427dcc6e046). In tr_0427dcc6e046 the cart server spans do eventually appear, but only hundreds of seconds after the caller started and long after the proxy gave up, and when they finally run their store operations complete in milliseconds - so the backing store is healthy and the delay is in cart being scheduled at all. Cart's own log stops producing lines well before the end of the observed window (tr_29c4904476d6) and contains no complaint about unreachable peers, which separates a freeze from a partition. No change was recorded on either frontend or cart in the preceding day (tr_1039eaaf4dc8, tr_020007df32b2), ruling out a deploy or config edit as the mechanism. Paths that do not touch cart (product-catalog, ad, recommendation, product-reviews) are all normal in the same traces, which is what makes every other service's symptoms follow from cart alone.",
+    "open_questions": [
+      "Whether the cart process was truly stopped (SIGSTOP/GC pause/thread-pool starvation) versus serialized behind an exhausted connection or thread pool - no process- or runtime-level metric for cart was examined.",
+      "Why cart's log silence begins around 18:56 while the declared onset is 19:00:31, and whether earlier 15s hangs at 18:41 and 18:44 are the same incident recurring.",
+      "Whether the cart host's resources (memory, CPU) were saturated, which would reclassify this as resource_exhaustion."
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B1",
+    "tool_calls": 8,
+    "turns": 10,
+    "looked_at": [
+      "metrics:frontend-proxy",
+      "metrics:frontend",
+      "traces:frontend",
+      "changes:frontend",
+      "logs:frontend",
+      "logs:cart",
+      "changes:cart",
+      "traces:cart"
+    ]
+  }
+}

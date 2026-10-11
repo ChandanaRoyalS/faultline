@@ -1,0 +1,83 @@
+{
+  "incident_id": "0d90a6f0-9d7d-42f7-bd6c-30085dc9aaf5",
+  "trajectory_id": "8998c1c5-ee68-470e-a783-41c1311dabb7",
+  "states": [
+    "triaging",
+    "investigating"
+  ],
+  "blast_radius": [
+    "checkout",
+    "email",
+    "cart",
+    "currency",
+    "frontend",
+    "payment",
+    "product-catalog",
+    "shipping",
+    "frontend-proxy"
+  ],
+  "unmeasured_edges": 8,
+  "exclude_origins": [
+    "scenario:scenario:v2-email-wrong-image"
+  ],
+  "verdict": {
+    "fault_class": "bad_deploy",
+    "remediation_class": "rollback",
+    "service": "email",
+    "alternatives": [
+      {
+        "root_cause": "email's listen address/port configuration value was set empty, making it refuse to bind.",
+        "service": "email",
+        "fault_class": "bad_config",
+        "remediation_class": null,
+        "why_not": "The change log shows only image-reference churn on email and no configuration edit; the empty bind URI arrives together with the wrong artifact, so the artifact is the proximate wrongness."
+      },
+      {
+        "root_cause": "checkout itself is broken and failing to complete orders.",
+        "service": "checkout",
+        "fault_class": "bad_config",
+        "remediation_class": null,
+        "why_not": "checkout has no change record and all other downstreams respond normally in-trace; its only error is the outbound hop to email, which resolves to nothing."
+      },
+      {
+        "root_cause": "email's process is frozen while its socket still accepts, so callers hang.",
+        "service": "email",
+        "fault_class": "process_freeze",
+        "remediation_class": null,
+        "why_not": "email is not silent \u2014 it writes a repeating startup fatal error \u2014 and checkout fails fast on name resolution rather than hanging to a deadline."
+      }
+    ],
+    "summary": "email was redeployed at 04:20 with an image reference pointing at the wrong artifact (a quote-service build), whose process crash-loops on startup, so email never came up and checkout's calls to it failed.",
+    "confidence": "high",
+    "evidence": [
+      "tr_970ec5689002",
+      "tr_afe764214a78",
+      "tr_8dbdf108e728",
+      "tr_983c2bf684fe"
+    ],
+    "reasoning": "checkout alerted first but its own traces (tr_8dbdf108e728) show every failing PlaceOrder succeeding through cart, currency, product-catalog, payment and shipping and erroring only on the outbound call to email, failing at name resolution rather than on a timeout \u2014 a caller-side symptom of a callee that never came up. The change log (tr_970ec5689002) shows email's image reference repeatedly flipped to a build belonging to another component, with the latest flip at 04:20:25, minutes before onset at 04:25:46. email's own logs (tr_afe764214a78) show normal order-confirmation handling early in the window and then a repeating startup fatal error on an invalid listen URI, once per minute \u2014 a crash-loop, i.e. the running artifact cannot start. That artifact mismatch, not a configuration value edited in place or a resource limit, is the failing mechanism, so bad_deploy. checkout logging nothing (tr_983c2bf684fe) is consistent with it being a propagation victim surfacing errors only in spans.",
+    "open_questions": [
+      "Whether the empty bind URI comes from the wrong image expecting different environment variables or from a separate configuration edit not captured in the change log.",
+      "Why platform-automation repeatedly applies and reverts this image reference \u2014 the trigger for the loop is unexplained.",
+      "Whether the earlier revert at 04:07 restored service, which would confirm rollback as the fix."
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B1",
+    "tool_calls": 4,
+    "turns": 6,
+    "looked_at": [
+      "logs:checkout",
+      "traces:checkout",
+      "changes:email",
+      "logs:email"
+    ]
+  }
+}

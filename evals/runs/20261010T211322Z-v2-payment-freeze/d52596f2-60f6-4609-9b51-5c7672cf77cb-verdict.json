@@ -1,0 +1,93 @@
+{
+  "incident_id": "d52596f2-60f6-4609-9b51-5c7672cf77cb",
+  "trajectory_id": "f6845de9-382b-4539-8265-74cfd693c05d",
+  "states": [
+    "triaging",
+    "investigating"
+  ],
+  "blast_radius": [
+    "accounting",
+    "email",
+    "payment",
+    "fraud-detection",
+    "checkout",
+    "flagd",
+    "frontend"
+  ],
+  "unmeasured_edges": 4,
+  "exclude_origins": [
+    "scenario:scenario:v2-payment-freeze"
+  ],
+  "verdict": {
+    "fault_class": "process_freeze",
+    "remediation_class": "restart",
+    "service": "payment",
+    "alternatives": [
+      {
+        "root_cause": "Payment was cut off from the network so callers hung while it kept running.",
+        "service": "payment",
+        "fault_class": "network_partition",
+        "remediation_class": null,
+        "why_not": "A partitioned service still logs its own failures to reach dependencies; payment's log contains nothing after its last successful transaction rather than connectivity errors."
+      },
+      {
+        "root_cause": "The reinstated 300ms traffic-shaping delay on payment's network namespace made the call path slow.",
+        "service": "payment",
+        "fault_class": "dependency_latency",
+        "remediation_class": null,
+        "why_not": "Those changes were all paired attach/detach hours before onset and the observed stall is minutes long, far beyond an injected 300ms delay."
+      },
+      {
+        "root_cause": "Checkout itself stalled and starved its downstreams.",
+        "service": "checkout",
+        "fault_class": "process_freeze",
+        "remediation_class": null,
+        "why_not": "Checkout keeps producing spans and its self-time is spent inside the PaymentService/Charge hop, so it is waiting rather than stopped."
+      }
+    ],
+    "summary": "The payment service's process stopped doing work while its socket still accepted connections, so checkout's Charge calls hung to their deadlines and the whole order path (checkout, email, accounting, fraud-detection) went quiet.",
+    "confidence": "medium",
+    "evidence": [
+      "tr_c8810c101369",
+      "tr_a760d648290e",
+      "tr_32c763b1be80",
+      "tr_120859c18901",
+      "tr_30b66abc3b0c",
+      "tr_46a2e82eb386",
+      "tr_1488222eae2f"
+    ],
+    "reasoning": "The only hanging hop in any trace is checkout waiting on payment's Charge for roughly six minutes, with the caller chain erroring at the ingress deadline while payment's own child spans only appear at the very end (tr_c8810c101369). Payment emits no span-metric samples at all in the incident window (tr_32c763b1be80) and its log simply stops after a normal successful transaction with nothing afterwards (tr_a760d648290e) - silence, not complaints about unreachable peers, which separates a freeze from a partition. Accounting's and checkout's quiet (tr_1488222eae2f, tr_120859c18901, tr_30b66abc3b0c) follow from checkout blocking in PlaceOrder before it publishes orders, so the downstream consumers simply receive nothing; that is why the first alerters are the ones that merely noticed. Payment's change log holds only traffic-shaping attach/detach pairs many hours earlier, all reverted, and nothing near onset (tr_46a2e82eb386), so no artifact, config or flag edit explains it.",
+    "open_questions": [
+      "Whether payment's container was SIGSTOPped, deadlocked, or GC/thread-starved is not settled - no host-level process or memory evidence was gathered.",
+      "Fraud-detection was never inspected directly, so its symptom is inferred from the stalled order publish rather than observed.",
+      "The exact freeze onset is bracketed only by payment's last log line and the alert time, not pinpointed."
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B1",
+    "tool_calls": 13,
+    "turns": 15,
+    "looked_at": [
+      "metrics:accounting",
+      "metrics:checkout",
+      "logs:accounting",
+      "metrics:payment",
+      "logs:payment",
+      "logs:checkout",
+      "changes:checkout",
+      "traces:checkout",
+      "changes:flagd",
+      "logs:flagd",
+      "traces:frontend",
+      "changes:payment",
+      "traces:payment"
+    ]
+  }
+}

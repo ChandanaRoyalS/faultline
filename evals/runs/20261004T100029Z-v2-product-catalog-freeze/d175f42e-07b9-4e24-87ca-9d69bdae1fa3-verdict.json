@@ -1,0 +1,99 @@
+{
+  "incident_id": "d175f42e-07b9-4e24-87ca-9d69bdae1fa3",
+  "trajectory_id": "98b47117-0a74-4a1d-a1e1-b2f697ae8204",
+  "states": [
+    "triaging",
+    "investigating"
+  ],
+  "blast_radius": [
+    "frontend-proxy",
+    "load-generator",
+    "fraud-detection",
+    "frontend",
+    "recommendation",
+    "ad",
+    "cart",
+    "checkout",
+    "flagd",
+    "product-catalog",
+    "product-reviews"
+  ],
+  "unmeasured_edges": 10,
+  "exclude_origins": [
+    "scenario:scenario:v2-product-catalog-freeze"
+  ],
+  "verdict": {
+    "fault_class": "feature_flag",
+    "remediation_class": "config_revert",
+    "service": "recommendation",
+    "alternatives": [
+      {
+        "root_cause": "The flagged cache path consumed memory until the recommendation process was killed for exceeding its limit.",
+        "service": "recommendation",
+        "fault_class": "resource_exhaustion",
+        "remediation_class": null,
+        "why_not": "Plausible given the flag's name, but nothing was observed that shows the process running out of anything - no restart, no memory metric, no kill evidence; the only observed mechanism is the flag flip itself."
+      },
+      {
+        "root_cause": "product-catalog became slow or unreachable and recommendation failed waiting on it.",
+        "service": "product-catalog",
+        "fault_class": "dependency_latency",
+        "remediation_class": null,
+        "why_not": "product-catalog spans resolve in a few milliseconds with no errors in the same traces that carry the failing recommendation calls (tr_09b94df49ae7, tr_ad5d2f8513f7); its silence in logs is not accompanied by any caller hanging to a deadline."
+      },
+      {
+        "root_cause": "fraud-detection broke first and its failures propagated outward through checkout.",
+        "service": "fraud-detection",
+        "fault_class": "feature_flag",
+        "remediation_class": null,
+        "why_not": "Its incident error mean is lower than its baseline (tr_d3eb8c4f5692); its change point at the same second reflects a single saturated interval on sparse traffic, and it sits on the order path, not on the recommendation path that the alerting edge services exercise."
+      }
+    ],
+    "summary": "A runtime feature flag (recommendationCacheFailure) was flipped in the flag store at 10:05:01, and the flagged cache code path inside recommendation began failing its ListRecommendations calls, which surfaced as errors in frontend, frontend-proxy and the load generator.",
+    "confidence": "medium",
+    "evidence": [
+      "tr_0379ee451503",
+      "tr_10c2c9c7f6d093",
+      "tr_aef7d779a83e",
+      "tr_3df27c4531bd",
+      "tr_09b94df49ae7",
+      "tr_ad5d2f8513f7",
+      "tr_3a999e32886f",
+      "tr_d3eb8c4f5692"
+    ],
+    "reasoning": "recommendation is the only service with a genuine departure from its own baseline (tr_0379ee451503: mean x20.7, change point exactly at the onset second, saturating to a full-error interval), while the edge services that alerted first show no sustained departure at all (tr_3a999e32886f) and fraud-detection's incident mean is actually below its baseline (tr_d3eb8c4f5692) - consistent with those being observers of a propagated failure rather than the origin. The shared downstream, product-catalog, is healthy: its spans complete in single-digit milliseconds with no error flags and no sign of hanging to a deadline (tr_09b94df49ae7, tr_ad5d2f8513f7), which rules out a slow or frozen dependency beneath recommendation. The only recorded event at the onset second is a flag-store change scoped to recommendation (tr_10c2c9c7f6d093), and the deploy/config history for recommendation, flagd and fraud-detection is empty over the preceding day (tr_aef7d779a83e, tr_3df27c4531bd, tr_3ac2583fe07b) - no artifact and no configuration file changed, which is exactly the signature of a flag flip rather than a bad deploy or bad config.",
+    "open_questions": [
+      "The change record's own value fields read as unchanged, so the evidence does not settle whether the flag truly toggled state or whether the flagged path was activated by some other mechanism at the same instant.",
+      "No recommendation log lines after 10:00 were retrieved (the result kept only the oldest and newest of a window that ended before the failing interval), so the failure text on the flagged path was never read directly.",
+      "frontend and flagd produced no log lines at all in the window (tr_a30689b3e344, tr_80966a179e18); this was not explained and leaves open whether flagd itself was serving normally.",
+      "Whether the cache path failed outright or by exhausting memory was not observed - no resource metric for recommendation was collected."
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B1",
+    "tool_calls": 13,
+    "turns": 15,
+    "looked_at": [
+      "metrics:frontend-proxy",
+      "metrics:fraud-detection",
+      "logs:fraud-detection",
+      "metrics:recommendation",
+      "logs:recommendation",
+      "logs:product-catalog",
+      "traces:product-catalog",
+      "logs:flagd",
+      "traces:recommendation",
+      "changes:recommendation",
+      "changes:flagd",
+      "logs:frontend",
+      "changes:fraud-detection"
+    ]
+  }
+}

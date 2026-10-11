@@ -1,0 +1,4 @@
+injected v2-product-catalog-dependency-latency (dependency_latency) on product-catalog
+  - pumba gaiaadm/pumba:0.10.1: 300ms (+/-0ms) delay on product-catalog eth0
+  - sidecar faultline-pumba-v2-product-catalog-dependency-latency holds the rule; it self-reverts after 1h
+revert with: faultline-inject stop v2-product-catalog-dependency-latency

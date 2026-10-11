@@ -1,0 +1,88 @@
+{
+  "incident_id": "6876f5ed-93b8-4547-9e33-5e1af501c4ce",
+  "trajectory_id": "77bf5c92-22c8-4eed-8a38-64935cfbdb8d",
+  "states": [
+    "triaging",
+    "investigating"
+  ],
+  "blast_radius": [
+    "shipping",
+    "checkout",
+    "cart",
+    "currency",
+    "email",
+    "frontend",
+    "payment",
+    "product-catalog",
+    "quote",
+    "frontend-proxy"
+  ],
+  "unmeasured_edges": 9,
+  "exclude_origins": [
+    "scenario:scenario:v2-shipping-quote-misconfig"
+  ],
+  "verdict": {
+    "fault_class": "bad_config",
+    "remediation_class": "config_revert",
+    "service": "shipping",
+    "alternatives": [
+      {
+        "root_cause": "Quote service became unreachable or slow on its own",
+        "service": "quote",
+        "fault_class": "dependency_latency",
+        "remediation_class": null,
+        "why_not": "Quote had no changes and answered in well under a millisecond in sampled traces; the breakage tracks shipping's address edits, not quote's health."
+      },
+      {
+        "root_cause": "Checkout broke and its PlaceOrder path began erroring",
+        "service": "checkout",
+        "fault_class": "bad_config",
+        "remediation_class": null,
+        "why_not": "Checkout's error change points trail each shipping QUOTE_ADDR edit, and its other dependencies (cart, payment, currency, product-catalog) stayed fast and clean."
+      },
+      {
+        "root_cause": "A wrong artifact was rolled out to shipping",
+        "service": "shipping",
+        "fault_class": "bad_deploy",
+        "remediation_class": null,
+        "why_not": "The change record is an environment variable update, not an image or version change; the running artifact was never altered."
+      }
+    ],
+    "summary": "Shipping's QUOTE_ADDR environment value was set to a non-existent quote endpoint (quote-gone:8090), so shipping's quote calls fail and checkout's PlaceOrder errors follow.",
+    "confidence": "high",
+    "evidence": [
+      "tr_70bc73ff8a82",
+      "tr_13b32e15839f",
+      "tr_70e3e8221538",
+      "tr_82f9f7338102",
+      "tr_f893ec68e8fb"
+    ],
+    "reasoning": "Shipping went from a zero baseline to a high, bursty error ratio (tr_13b32e15839f) and the change log shows the QUOTE_ADDR variable on shipping pointed at a host that does not exist, applied at 12:17:34, reverted at 12:23:06, and re-applied at 12:35:49 (tr_70bc73ff8a82). Checkout's error ratio has two change points, 12:19:16 and 12:37:16, each trailing one of those edits (tr_70e3e8221538) \u2014 exactly the propagation pattern expected if shipping is the broken hop and checkout is merely the caller that noticed. Quote had no changes of its own (tr_82f9f7338102), and in sampled traces quote responds in sub-millisecond time when it is reached (tr_f893ec68e8fb), so the dependency is healthy and it is the address value itself that is wrong. Failures are fast rather than hanging, which rules out freeze/partition/latency classes.",
+    "open_questions": [
+      "Shipping and checkout logs were empty over the window, so the exact failure text (name resolution vs connection refused) was not confirmed",
+      "The error-ratio series for shipping showed no sustained departure flag, so the precise per-edit onset timestamps on shipping were not pinned",
+      "Whether the second application at 12:35:49 was intentional automation or a faulty rollback loop"
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B1",
+    "tool_calls": 7,
+    "turns": 9,
+    "looked_at": [
+      "metrics:shipping",
+      "logs:shipping",
+      "traces:shipping",
+      "changes:shipping",
+      "logs:checkout",
+      "metrics:checkout",
+      "changes:quote"
+    ]
+  }
+}

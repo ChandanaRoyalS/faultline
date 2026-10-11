@@ -1,0 +1,9 @@
+incident 07994260-a82f-4612-939a-51b084aa9287  state triaging  anchor 09:07:31
+triage: 9 services, severity critical, start from checkout, 8 unmeasured edge(s) crossed
+
+B2: process_freeze / restart (low)
+  The email service's process is stopped/hung — it still accepts connections but never responds or logs, so checkout's calls to it hang until deadline and fail, surfacing as checkout's error-rate alert while email itself appears to receive no traffic.
+  looked at nothing - this is the model's prior
+wrote /Users/chandana/dev/faultline/evals/runs/20261010T090200Z-v2-inj-email-wrong-image-log-checkout/07994260-a82f-4612-939a-51b084aa9287-verdict.json
+{"ts": "2026-10-10T09:11:35.778+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-10T09:11:43.747+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}

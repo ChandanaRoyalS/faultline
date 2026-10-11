@@ -1,0 +1,4 @@
+injected v2-product-catalog-partition (network_partition) on product-catalog
+  - docker network disconnect: product-catalog cut from opentelemetry-demo (aliases captured: product-catalog, product-catalog)
+  - callers will hang, not fail; the target keeps running and logs that it cannot reach anything; expect ~6 min from reconnect to quiet
+revert with: faultline-inject stop v2-product-catalog-partition

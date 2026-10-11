@@ -1,0 +1,85 @@
+{
+  "incident_id": "9e450cbb-09de-4a19-9146-987961ce6911",
+  "trajectory_id": "dc7ee787-a434-4ccf-8310-f63d01f14f1b",
+  "states": [
+    "triaging",
+    "investigating"
+  ],
+  "blast_radius": [
+    "fraud-detection",
+    "flagd"
+  ],
+  "unmeasured_edges": 1,
+  "exclude_origins": [
+    "scenario:scenario:v2-fraud-detection-partition"
+  ],
+  "verdict": {
+    "fault_class": "network_partition",
+    "remediation_class": "reconnect",
+    "service": "fraud-detection",
+    "alternatives": [
+      {
+        "root_cause": "A runtime flag flip in flagd turned on a failing code path inside fraud-detection, explaining errors with no change records.",
+        "service": "fraud-detection",
+        "fault_class": "feature_flag",
+        "remediation_class": null,
+        "why_not": "The empty change logs fit, but there is no application-level exception on a flagged path in the log; the visible failures are connectivity/host-resolution failures, and flagd itself answered other callers normally."
+      },
+      {
+        "root_cause": "flagd became slow, so fraud-detection failed waiting on flag evaluation.",
+        "service": "flagd",
+        "fault_class": "dependency_latency",
+        "remediation_class": null,
+        "why_not": "flagd's error ratio is unchanged from baseline and its spans for cart and load-generator complete in well under 10 ms in the incident window."
+      },
+      {
+        "root_cause": "fraud-detection's process was stopped while its socket still accepted, hanging callers.",
+        "service": "fraud-detection",
+        "fault_class": "process_freeze",
+        "remediation_class": null,
+        "why_not": "A frozen process writes nothing; fraud-detection emitted errors and stack traces during the incident window."
+      }
+    ],
+    "summary": "fraud-detection lost network connectivity (DNS/egress) to its dependencies around 16:51, so its outbound calls \u2014 telemetry export to the collector and its long-lived flagd evaluation stream \u2014 failed or hung to timeout while fraud-detection itself kept running and logging the failures.",
+    "confidence": "medium",
+    "evidence": [
+      "tr_f3ebd780c326",
+      "tr_1d387c8dd1e1",
+      "tr_3752aed0b9e1",
+      "tr_92f097feae75",
+      "tr_e1e52988628b",
+      "tr_a181df7a468e",
+      "tr_7d7ecfad0a59",
+      "tr_a9265f107142"
+    ],
+    "reasoning": "fraud-detection is the only service whose error ratio departed from baseline (tr_f3ebd780c326), with long stretches of no traffic at all rather than a steady error rate. Its own log around onset is dominated by host-resolution failures on an outbound dependency and stack traces, i.e. the process is alive and complaining it cannot reach things (tr_1d387c8dd1e1, tr_0a0a168e6f08) \u2014 that excludes process_freeze, which would be silent. The suspected downstream, flagd, is demonstrably healthy: its error ratio is flat versus baseline (tr_7d7ecfad0a59) and it serves cart and load-generator evaluations in single-digit milliseconds in the same window (tr_a9265f107142), so flagd is not slow or broken; the only pathological flagd interaction is fraud-detection's own long-lived evaluation stream that ended in a server-side timeout (tr_e1e52988628b), exactly what a caller cut off from the network looks like. Change logs for both fraud-detection and flagd are empty over 24 h (tr_3752aed0b9e1, tr_92f097feae75), so no artifact or config edit is in play. flagd's own log window held nothing (tr_a181df7a468e), consistent with it simply not being the failing party rather than with it being frozen, given its healthy traces.",
+    "open_questions": [
+      "Whether the connectivity loss is DNS-specific or full egress isolation \u2014 only one unresolvable hostname is visible in the kept log lines.",
+      "Whether fraud-detection's Kafka consumption stopped at the same moment as the flagd/collector failures; the elided middle of the log window hides when record consumption ceased.",
+      "Whether the long flagd stream timeout began before onset (it started ~16:11) and is therefore a separate, pre-existing condition rather than part of this partition."
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B1",
+    "tool_calls": 9,
+    "turns": 11,
+    "looked_at": [
+      "metrics:fraud-detection",
+      "logs:fraud-detection",
+      "changes:fraud-detection",
+      "changes:flagd",
+      "traces:fraud-detection",
+      "logs:flagd",
+      "metrics:flagd",
+      "traces:flagd",
+      "logs:fraud-detection"
+    ]
+  }
+}

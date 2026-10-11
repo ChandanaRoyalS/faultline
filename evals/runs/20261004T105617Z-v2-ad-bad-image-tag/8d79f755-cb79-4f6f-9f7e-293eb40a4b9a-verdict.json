@@ -1,0 +1,86 @@
+{
+  "incident_id": "8d79f755-cb79-4f6f-9f7e-293eb40a4b9a",
+  "trajectory_id": "9328f554-f54a-4cb4-b9d0-8d1319a79003",
+  "states": [
+    "triaging",
+    "investigating"
+  ],
+  "blast_radius": [
+    "frontend",
+    "frontend-proxy",
+    "ad",
+    "cart",
+    "checkout",
+    "product-catalog",
+    "product-reviews",
+    "recommendation"
+  ],
+  "unmeasured_edges": 7,
+  "exclude_origins": [
+    "scenario:scenario:v2-ad-bad-image-tag"
+  ],
+  "verdict": {
+    "fault_class": "bad_deploy",
+    "remediation_class": "rollback",
+    "service": "ad",
+    "alternatives": [
+      {
+        "root_cause": "The ad JVM was killed for exceeding a lowered memory limit and cannot restart.",
+        "service": "ad",
+        "fault_class": "resource_exhaustion",
+        "remediation_class": null,
+        "why_not": "The only recorded change is an image reference update, not a limit edit, and the shutdown message read as an orderly JVM shutdown rather than an OOM kill."
+      },
+      {
+        "root_cause": "ad is running but cut off from the network, so callers cannot reach it.",
+        "service": "ad",
+        "fault_class": "network_partition",
+        "remediation_class": null,
+        "why_not": "A partitioned-but-running ad would keep writing its own log complaining it cannot reach dependencies; instead ad writes nothing after 10:56 and callers get immediate unreachable errors."
+      },
+      {
+        "root_cause": "frontend itself degraded and is failing its own ad route.",
+        "service": "frontend",
+        "fault_class": "bad_deploy",
+        "remediation_class": null,
+        "why_not": "frontend's error ratio did not depart from baseline and its failures name a remote endpoint it cannot connect to; its other downstream hops (cart, product-catalog) remained healthy and fast."
+      }
+    ],
+    "summary": "The ad service was redeployed to a hotfix image reference at 10:56 and the new artifact never came back up, so its gRPC endpoint is unreachable and frontend's GetAds calls fail.",
+    "confidence": "medium",
+    "evidence": [
+      "tr_4aaa500e5a70",
+      "tr_0ba909c449c1",
+      "tr_5f2efcb7b515",
+      "tr_5ce5d02c9e88",
+      "tr_9c988048660b"
+    ],
+    "reasoning": "frontend and frontend-proxy alerted but neither showed a sustained error-ratio departure (tr_725471f95500, tr_43ae1273c65e); the only errored spans in frontend traces were on the AdService/GetAds hop (tr_5ce5d02c9e88). The ad service's own log ends at 10:56 with a JVM shutdown and nothing after (tr_4aaa500e5a70), and its error-ratio series has intervals with no traffic at all (tr_9c988048660b), consistent with the process being gone rather than slow. A change record at 10:56:23 shows the image reference on ad updated to a hotfix tag from no prior reference (tr_0ba909c449c1), immediately after the shutdown. frontend then logs fast gRPC UNAVAILABLE/host-unreachable failures against the ad port (tr_5f2efcb7b515) rather than hanging to deadline, which rules out a freeze or partition of a running process: callers get refused, not stalled. The running artifact is not one that serves, so this is a bad deploy; frontend and frontend-proxy are only the services that noticed.",
+    "open_questions": [
+      "Whether the new ad container crash-loops on start or was never scheduled at all \u2014 no ad logs exist after 10:56 to distinguish these.",
+      "Why the change log shows no prior image reference for ad, which makes it unclear what the previous good artifact was for rollback.",
+      "Whether cart, checkout, product-catalog, product-reviews and recommendation in the blast radius were affected at all, or only listed by graph adjacency."
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B1",
+    "tool_calls": 7,
+    "turns": 9,
+    "looked_at": [
+      "metrics:frontend",
+      "traces:frontend",
+      "metrics:ad",
+      "logs:ad",
+      "changes:ad",
+      "metrics:frontend-proxy",
+      "logs:frontend"
+    ]
+  }
+}

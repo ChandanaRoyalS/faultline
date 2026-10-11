@@ -1,0 +1,90 @@
+{
+  "incident_id": "56371084-b2b6-4998-9201-3f011ef73a20",
+  "trajectory_id": "700f0e62-2a56-4158-bc46-97210ff3ade4",
+  "states": [
+    "triaging",
+    "investigating"
+  ],
+  "blast_radius": [
+    "payment",
+    "checkout",
+    "frontend"
+  ],
+  "unmeasured_edges": 2,
+  "exclude_origins": [
+    "scenario:scenario:v2-payment-telemetry-blackout"
+  ],
+  "verdict": {
+    "fault_class": "bad_config",
+    "remediation_class": "config_revert",
+    "service": "payment",
+    "alternatives": [
+      {
+        "root_cause": "Payment's process froze while its socket kept accepting, so callers saw no spans from it.",
+        "service": "payment",
+        "fault_class": "process_freeze",
+        "remediation_class": null,
+        "why_not": "A frozen process writes nothing, but payment's log keeps emitting completed-transaction entries through 18:42 (tr_2e9893f112c9), and checkout's Charge spans return in milliseconds rather than hanging to a deadline (tr_82e98fc958fd)."
+      },
+      {
+        "root_cause": "Payment was cut off from the network and could not reach its dependencies or the collector.",
+        "service": "payment",
+        "fault_class": "network_partition",
+        "remediation_class": null,
+        "why_not": "A partitioned service logs that it cannot reach anything; payment's log instead shows successful transactions, and checkout's calls into payment still complete normally (tr_82e98fc958fd)."
+      },
+      {
+        "root_cause": "A bad artifact was rolled out to payment and the running version is wrong.",
+        "service": "payment",
+        "fault_class": "bad_deploy",
+        "remediation_class": null,
+        "why_not": "The only change in the 24h window is an environment variable update, not an image or version change (tr_89dc29f170c1), and the running service still reports its expected version and serves charges."
+      },
+      {
+        "root_cause": "Checkout became slow waiting on payment, degrading the order path.",
+        "service": "checkout",
+        "fault_class": "dependency_latency",
+        "remediation_class": null,
+        "why_not": "Checkout and frontend error ratios are statistically unchanged from baseline (tr_78a31f293de1, tr_84ed1e61272d) and Charge spans are a few milliseconds, so nothing waited."
+      }
+    ],
+    "summary": "A config change set payment's OTLP traces endpoint to a loopback address that has no collector listening, so payment stopped exporting spans and its telemetry vanished while the service itself kept serving charges normally.",
+    "confidence": "medium",
+    "evidence": [
+      "tr_89dc29f170c1",
+      "tr_4124a92d33e8",
+      "tr_2e9893f112c9",
+      "tr_82e98fc958fd",
+      "tr_78a31f293de1",
+      "tr_84ed1e61272d"
+    ],
+    "reasoning": "The payment error-ratio query returned no samples at all for the incident window (tr_4124a92d33e8) - an absence of spans, not a rise in error spans, which is what triggered the alert. Payment's own log is alive and writing normal completed-transaction records right up to the end of the window (tr_2e9893f112c9), so it is neither frozen nor silent nor complaining of unreachability. Checkout traces before 18:34 contain payment child spans under the Charge call, while traces at 18:34:59 and 18:35:29 show the Charge span with no payment child and no error (tr_82e98fc958fd) - the call still succeeds in a few milliseconds, only the callee's span is missing. The change log for payment holds exactly one change, at 18:34:18, pointing the OTLP traces endpoint at a loopback address (tr_89dc29f170c1), which lines up with the moment payment's spans stop appearing. Downstream checkout and frontend error ratios are flat against baseline (tr_78a31f293de1, tr_84ed1e61272d), confirming no user-visible failure propagated. The failing mechanism is a configuration value that names the wrong destination; the wrongness of that address is the fault.",
+    "open_questions": [
+      "Why the declared onset is 18:41:16 when the config change landed at 18:34:18 and spans stopped around then - the gap is unexplained by what I looked at.",
+      "Whether the loopback endpoint is genuinely wrong for this deployment or whether a sidecar collector was expected to be present and is itself absent or dead.",
+      "Whether anything other than telemetry was affected; I did not inspect payment's own non-trace metrics (CPU, memory, charge throughput) to rule out a concurrent real degradation.",
+      "Whether a similar endpoint change was applied to other services by the same automation actor."
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B1",
+    "tool_calls": 7,
+    "turns": 9,
+    "looked_at": [
+      "metrics:payment",
+      "logs:payment",
+      "traces:payment",
+      "changes:payment",
+      "metrics:checkout",
+      "metrics:frontend",
+      "traces:checkout"
+    ]
+  }
+}

@@ -1,0 +1,25 @@
+incident 0bab8621-c27d-466b-b6cc-71087761cc63  state triaging  anchor 23:43:46
+triage: 2 services, severity warning, start from fraud-detection, 1 unmeasured edge(s) crossed
+
+B1: feature_flag / config_revert (high)
+  A runtime feature flag served by flagd was enabled for fraud-detection, and the flagged code path inserts a one-second sleep on every consumed order record, stalling consumption from the onset time onward.
+  5 tool calls over 7 turns
+    metrics:fraud-detection  Confirm the error onset shape and timing for the alerting service against its quiet baseline.
+    logs:fraud-detection  Check whether fraud-detection wrote anything during the no-traffic gaps, and what it complains about.
+    changes:fraud-detection  Test whether any deploy or config change explains this, or whether the change log is empty as a flag flip would imply.
+    changes:flagd  Check whether flagd itself had a deploy/config change, or whether the flag change was runtime-only.
+    traces:fraud-detection  Confirm the symptom is added per-record delay (~1s spans) rather than errors, matching the flagged code path.
+wrote /Users/chandana/dev/faultline/evals/runs/20261006T234003Z-v2-fraud-detection-flag-queue-lag/0bab8621-c27d-466b-b6cc-71087761cc63-verdict.json
+{"ts": "2026-10-06T23:45:41.048+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-06T23:45:41.077+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=metric_baseline subject=sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"fraud-detection\",status_code=\"STATUS_CODE_ERROR\"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"fraud-detection\"}[5m])) start=2026-10-06T22:41:54.899514+00:00 end=2026-10-06T23:45:38.428486+00:00 span_s=3823 refused=False", "component": "investigator"}
+{"ts": "2026-10-06T23:45:43.321+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-06T23:45:43.325+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=logql_query subject={service=\"fraud-detection\"} start=2026-10-06T23:13:46.664000+00:00 end=2026-10-06T23:45:38.428486+00:00 span_s=1911 refused=False", "component": "investigator"}
+{"ts": "2026-10-06T23:45:48.724+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-06T23:45:48.727+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=fraud-detection start=2026-10-05T23:43:46.664000+00:00 end=2026-10-06T23:45:38.428486+00:00 span_s=86511 refused=False", "component": "investigator"}
+{"ts": "2026-10-06T23:45:51.206+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-06T23:45:51.208+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=flagd start=2026-10-05T23:43:46.664000+00:00 end=2026-10-06T23:45:38.428486+00:00 span_s=86511 refused=False", "component": "investigator"}
+{"ts": "2026-10-06T23:45:53.820+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-06T23:45:53.822+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=trace_query subject=fraud-detection start=2026-10-06T23:13:46.664000+00:00 end=2026-10-06T23:45:38.428486+00:00 span_s=1911 refused=False", "component": "investigator"}
+{"ts": "2026-10-06T23:45:59.205+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-06T23:46:12.051+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-06T23:46:20.913+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}

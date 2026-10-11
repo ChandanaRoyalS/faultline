@@ -1,0 +1,167 @@
+{
+  "incident_id": "b2b77293-1686-4876-8e8e-9d368fa01b09",
+  "trajectory_id": "fa6b5ed4-6747-4ef0-a799-00c41e01ba4b",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "ad",
+    "cart",
+    "checkout",
+    "frontend",
+    "frontend-proxy",
+    "product-catalog",
+    "product-reviews",
+    "recommendation"
+  ],
+  "unmeasured_edges": 7,
+  "exclude_origins": [
+    "scenario:v2-ad-bad-image-tag"
+  ],
+  "verdict": {
+    "root_cause": "Frontend's failures are entirely transport-level gRPC UNAVAILABLE connect errors (EHOSTUNREACH) to a single upstream endpoint 172.18.0.19:9555, with no connection ever established [tr_6ff7346a746a]. That endpoint is the ad service, whose log stream ends at 11:34:37 with an orderly JVM-shutdown-hook gRPC server stop after serving traffic cleanly, and emits nothing thereafter [tr_c85bcff4e31a]. The cause of the absence is in ad's change log: platform-automation flapped ad's image reference nine times in two hours, alternating set-to-hotfix-tag and revert-to-unset on an 11-13 minute cycle, with a set landing at 11:34:38, one second after the shutdown [tr_01c07e0c0e82]. The running artifact for ad is therefore not a correct, stable one, and during the gaps nothing listens on 9555, so callers get host-unreachable. Frontend is the reporter, not the fault: no changes [tr_a2f0a0ac1ded] and an error-span ratio below baseline with no step change at onset [tr_0f07ecb071ff].",
+    "service": "ad",
+    "fault_class": "bad_deploy",
+    "remediation_class": "rollback",
+    "confidence": "medium",
+    "evidence": [
+      "tr_6ff7346a746a",
+      "tr_c85bcff4e31a",
+      "tr_01c07e0c0e82",
+      "tr_0f07ecb071ff",
+      "tr_a2f0a0ac1ded"
+    ],
+    "reasoning": "Frontend errors are connect-time failures to exactly one address and port, never a deadline, TLS, DNS or application error [tr_6ff7346a746a], which means the far end is absent rather than slow or rejecting. The far end stopped cleanly via a shutdown hook with no preceding warnings [tr_c85bcff4e31a], excluding crash, OOM, process_freeze (a frozen process does not log a graceful stop) and network_partition (a partitioned but running ad would still log and complain about its own reachability). The change history supplies the act: repeated image-reference set/revert churn by automation, the last set coinciding with the shutdown [tr_01c07e0c0e82]. Since every set names the same tag, this is not a defective new build but a workload left running the wrong (or no) artifact \u2014 the bad_deploy case. Frontend is excluded by its empty change log and sub-baseline error ratio [tr_a2f0a0ac1ded][tr_0f07ecb071ff]. Fix: stop the flap and pin ad to a known-good image so the workload comes back.",
+    "open_questions": [
+      "The ad/172.18.0.19:9555 mapping is topology inference, not evidence; no result ties that IP to an ad pod [tr_6ff7346a746a].",
+      "The ad error-ratio query covered 2026-10-05, a day before the incident [tr_0361fa04f99c], so its 100%-error baseline and empty window may describe a different period.",
+      "Why platform-automation is flapping the image reference, and whether ad recovered on a later cycle, is unestablished; six of eight blast-radius services were never queried."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "Ad is running but cut off at the network layer from its callers.",
+        "service": "ad",
+        "fault_class": "network_partition",
+        "remediation_class": "reconnect",
+        "why_not": "A running-but-partitioned ad would keep logging and complain about reachability; its log instead ends at a clean shutdown with nothing after [tr_c85bcff4e31a]."
+      },
+      {
+        "root_cause": "The automation's reverts leave ad's image reference unset, and that wrong value is what stops the service existing.",
+        "service": "ad",
+        "fault_class": "bad_config",
+        "remediation_class": "config_revert",
+        "why_not": "An image reference pointed at the wrong (or no) artifact is classed as bad_deploy by the taxonomy, even though it is configuration."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "runbook:class-bad-config / What the change record holds: The variable and a timestamp, and **the new value only** - no change record in this world carries\na prior value, which `world-change-records-have-no-prior-value` sets out.\n\n**What the logs hold is not uniform, and this document had it wrong.** An earlier version said a\nservice po",
+    "v2-valkey-cart-dependency-latency / What was checked: **The traces, because cart paged first and its callers followed.** Every slow trace touched cart,\nand inside cart the time was in one place. At rest, cart answered a `GetCart` in 0.3ms and its\nstore answered an `HGET` in 0.2ms. Under the fault, in 80 traces drawn, every `HGET`, `",
+    "v2-product-catalog-freeze / Detection notes: - Onset to first page: **4m15s**. The proxy's latency was at the ceiling more than two minutes\n  before that, frontend's a minute later, and frontend's own alert came under two minutes after\n  the page.\n- Services on the page: **two** (two alerts), neither of them one you would f"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 25595,
+    "pulled_tokens": 4637,
+    "pull_rate": 0.1534,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 433,
+        "content_tokens": 435,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1569,
+        "content_tokens": 1572,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 7827,
+        "content_tokens": 7803,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 7158,
+        "content_tokens": 7160,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 8608,
+        "content_tokens": 8585,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "rollback",
+    "action_id": "rollback_image",
+    "target": "ad",
+    "rests_on": [
+      "tr_01c07e0c0e82",
+      "tr_c85bcff4e31a",
+      "tr_6ff7346a746a"
+    ],
+    "expected_effect": "Ad's log stream, silent since the 11:34:37 shutdown-hook line, resumes with a gRPC server-started entry and AdService request lines; frontend's repeating 'UNAVAILABLE ... EHOSTUNREACH 172.18.0.19:9555' lines stop within ~60s of ad listening; sum(rate(traces_span_metrics_calls_total{service_name=\"ad\"}[5m])) returns non-zero samples instead of none.",
+    "confirm_within_seconds": 300,
+    "if_wrong": "Falsified if ad logs show a started server but frontend still emits EHOSTUNREACH to 172.18.0.19:9555 (the IP-to-ad mapping is topology inference, never confirmed). Also falsified if ad is stopped again within ~13 minutes: platform-automation flapped the image nine times on an 11-13 minute cycle, so the controller, not the artifact, is the fault, and stopping it is outside this system's reach. Third falsifier: no concrete prior tag exists (reverts return to unset) and the recreate fails to start.",
+    "risk": "If the diagnosis is wrong, this forces another restart on a service that may already be recovering on a later flap cycle, dropping its in-process cache and any in-flight ad requests. If the recorded prior reference is 'unset', the recreate may leave ad with no runnable image, turning an intermittent outage into a continuous one. It does not address the flapping automation, so relief may be temporary and may mask the real fault.",
+    "blast_radius": "One service, ad. Frontend sees connections reset during the recreate; it is already failing every call to this endpoint, so the marginal harm is small. Checkout, product-catalog, recommendation, cart, product-reviews and frontend-proxy share the blast radius and would notice only if they also call ad."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Critical alerts on frontend and its proxy simultaneously affect the user-facing entry point and cannot be dismissed. No open incidents to attribute this to, and the symmetric timing gives no clear signal between a frontend-side fault and a downstream dependency."
+  }
+}

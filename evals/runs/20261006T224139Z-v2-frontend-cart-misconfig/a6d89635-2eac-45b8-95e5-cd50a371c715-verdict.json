@@ -1,0 +1,94 @@
+{
+  "incident_id": "a6d89635-2eac-45b8-95e5-cd50a371c715",
+  "trajectory_id": "c855d043-3374-4034-93e2-ca6d4850b905",
+  "states": [
+    "triaging",
+    "investigating"
+  ],
+  "blast_radius": [
+    "frontend",
+    "frontend-proxy",
+    "checkout",
+    "load-generator",
+    "ad",
+    "cart",
+    "currency",
+    "email",
+    "payment",
+    "product-catalog",
+    "product-reviews",
+    "recommendation",
+    "shipping"
+  ],
+  "unmeasured_edges": 13,
+  "exclude_origins": [
+    "scenario:scenario:v2-frontend-cart-misconfig"
+  ],
+  "verdict": {
+    "fault_class": "bad_config",
+    "remediation_class": "config_revert",
+    "service": "frontend",
+    "alternatives": [
+      {
+        "root_cause": "Cart service crashed or stopped accepting connections.",
+        "service": "cart",
+        "fault_class": "process_freeze",
+        "remediation_class": null,
+        "why_not": "Cart kept logging normal store operations through and after onset and served checkout's cart calls successfully in traces; a frozen process would be silent and callers would hang rather than be refused."
+      },
+      {
+        "root_cause": "A flag flip in flagd enabled a failing cart code path.",
+        "service": "cart",
+        "fault_class": "feature_flag",
+        "remediation_class": null,
+        "why_not": "Flag evaluation spans resolve normally in checkout traces and the failure is a connect-time refusal at the frontend client, not an in-path logic error."
+      },
+      {
+        "root_cause": "A bad frontend artifact was rolled out that cannot reach its dependencies.",
+        "service": "frontend",
+        "fault_class": "bad_deploy",
+        "remediation_class": null,
+        "why_not": "The only recorded changes are environment value updates, not an image or version change, and frontend starts and serves non-cart routes successfully."
+      }
+    ],
+    "summary": "A configuration change on frontend set CART_ADDR to a cart endpoint/port that nothing is listening on, so frontend's cart gRPC calls are refused at connect time while cart itself is healthy.",
+    "confidence": "high",
+    "evidence": [
+      "tr_c683fc4f9561",
+      "tr_3823a3da79a6",
+      "tr_7022f1eaf578",
+      "tr_994799adb6fc",
+      "tr_b4908273d8a9",
+      "tr_33fc3a6992e2"
+    ],
+    "reasoning": "Frontend traces show the only error-bearing hop is frontend's own cart client span, which terminates at frontend with no child span on cart (tr_7022f1eaf578); cart meanwhile logs normal store operations throughout the window and shows no error samples and no changes (tr_994799adb6fc, tr_b4908273d8a9, tr_33fc3a6992e2), so cart is serving. Frontend's own log shows repeated connect-refused gRPC failures against a fixed address and port (tr_3823a3da79a6), i.e. the socket is actively refused rather than hanging, which rules out freeze, partition and latency. The frontend change log shows the cart address environment value being set, reverted, and set again shortly before onset (tr_c683fc4f9561), and the failures track that re-application. The wrongness of the address value itself is the failure, so bad_config; frontend-proxy, checkout and load-generator errors are propagation toward the caller.",
+    "open_questions": [
+      "Whether the configured port is simply wrong or whether cart listens on a different port than the one named, since cart's listener was not directly observed.",
+      "The checkout 'email service' 400 failures appear in traces predating onset and may be a separate pre-existing fault not explained by the cart address change.",
+      "Exact per-minute onset on frontend was unresolved: the metric query returned no baseline samples and reported no sustained departure."
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B1",
+    "tool_calls": 9,
+    "turns": 11,
+    "looked_at": [
+      "metrics:frontend",
+      "traces:frontend",
+      "logs:cart",
+      "metrics:cart",
+      "changes:cart",
+      "traces:checkout",
+      "changes:flagd",
+      "logs:frontend",
+      "changes:frontend"
+    ]
+  }
+}

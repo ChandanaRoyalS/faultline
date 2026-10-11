@@ -1,0 +1,89 @@
+{
+  "incident_id": "1af01056-e129-4113-93a2-208d14cce427",
+  "trajectory_id": "d63ccba6-b0cd-4d6a-963d-caba0031e6e4",
+  "states": [
+    "triaging",
+    "investigating"
+  ],
+  "blast_radius": [
+    "frontend",
+    "frontend-proxy",
+    "ad",
+    "cart",
+    "checkout",
+    "product-catalog",
+    "product-reviews",
+    "recommendation"
+  ],
+  "unmeasured_edges": 7,
+  "exclude_origins": [
+    "scenario:scenario:v2-product-catalog-flag-failure"
+  ],
+  "verdict": {
+    "fault_class": "feature_flag",
+    "remediation_class": "config_revert",
+    "service": "product-catalog",
+    "alternatives": [
+      {
+        "root_cause": "product-catalog shipped a broken artifact that fails GetProduct",
+        "service": "product-catalog",
+        "fault_class": "bad_deploy",
+        "remediation_class": null,
+        "why_not": "The change log for product-catalog is empty over 24h (tr_0d60a32b7898), so no artifact reference changed; and the service still serves successful requests with healthy store queries in the same window."
+      },
+      {
+        "root_cause": "frontend-proxy or frontend is itself generating the errors it alerted on",
+        "service": "frontend-proxy",
+        "fault_class": "bad_config",
+        "remediation_class": null,
+        "why_not": "Both carry the identical downstream error payload and their spans end at the same instant as the product-catalog child span (tr_03374cd34f6a), which is propagation, not origination; frontend's change log is also empty (tr_a304d1b70a3a)."
+      },
+      {
+        "root_cause": "product-reviews became slow and dragged the frontend past its deadlines",
+        "service": "product-reviews",
+        "fault_class": "dependency_latency",
+        "remediation_class": null,
+        "why_not": "Its spans are the slowest hop in some traces but complete in tens of milliseconds without errors, which does not produce the gRPC INTERNAL failures seen at the frontend."
+      }
+    ],
+    "summary": "A runtime feature flag on product-catalog makes its GetProduct handler fail, and those gRPC errors propagate up through frontend to frontend-proxy, which alerted.",
+    "confidence": "medium",
+    "evidence": [
+      "tr_03374cd34f6a",
+      "tr_0d60a32b7898",
+      "tr_c949fa9e8a7d",
+      "tr_a304d1b70a3a",
+      "tr_d3fb89d9a781"
+    ],
+    "reasoning": "Traces from the alerting edge show the error originating at the product-catalog GetProduct span and being re-raised unchanged by frontend and frontend-proxy, so the callers are reporting a failure they did not cause (tr_03374cd34f6a). product-catalog's change log is empty over a 24h window (tr_0d60a32b7898) and frontend's is empty too (tr_a304d1b70a3a), so no artifact or config file changed; a flag flipped in the flag store is the only mechanism that produces failures with an empty change log. frontend's own logs carry an upstream gRPC INTERNAL from product-catalog continuously through the end of the window (tr_c949fa9e8a7d). product-catalog spans that do not hit the flagged path still complete in under a few ms with healthy store queries, which rules out exhaustion, slow dependency, freeze, partition and disk pressure.",
+    "open_questions": [
+      "The error-ratio series for product-catalog, frontend and frontend-proxy showed no sustained departure from baseline in the queried window (tr_d3fb89d9a781, tr_df120b974d84, tr_b50744114147), so the metric evidence does not corroborate the 15:54:16 onset and the failure may have been present well before the alert fired.",
+      "Failing calls appear as far back as the start of the observed window, so the actual flip time is not established and may precede the stated onset.",
+      "A direct log query against product-catalog returned empty on retry (tr_79fe8eeb21b2), so the service's own account of the failure was not independently confirmed.",
+      "Whether the other blast-radius services (cart, checkout, ad, recommendation, product-reviews) were affected by the same cause or only by shared frontend pages was not examined."
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B1",
+    "tool_calls": 9,
+    "turns": 11,
+    "looked_at": [
+      "traces:frontend",
+      "changes:product-catalog",
+      "logs:product-catalog",
+      "metrics:product-catalog",
+      "metrics:frontend",
+      "logs:frontend",
+      "metrics:frontend-proxy",
+      "traces:frontend-proxy",
+      "changes:frontend"
+    ]
+  }
+}

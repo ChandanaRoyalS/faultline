@@ -1,0 +1,9 @@
+incident efdba307-64e1-487b-abe7-a3c28f74c1c9  state triaging  anchor 20:59:16
+triage: 5 services, severity critical, start from ad, 3 unmeasured edge(s) crossed
+
+B2: process_freeze / restart (medium)
+  The ad service's process is frozen (stopped but its listening socket still accepts), so it emits no telemetry at all while frontend/frontend-proxy/load-generator block on it until their deadlines.
+  looked at nothing - this is the model's prior
+wrote /Users/chandana/dev/faultline/evals/runs/20261007T205155Z-v2-ad-partition/efdba307-64e1-487b-abe7-a3c28f74c1c9-verdict.json
+{"ts": "2026-10-07T21:01:29.286+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-07T21:01:47.461+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}

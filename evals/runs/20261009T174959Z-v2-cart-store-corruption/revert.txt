@@ -1,0 +1,3 @@
+reverted v2-cart-store-corruption
+  - valkey-cart: stop file placed; the corruption loop ends after 10830 sweeps
+  - valkey-cli FLUSHALL: every corrupted value discarded

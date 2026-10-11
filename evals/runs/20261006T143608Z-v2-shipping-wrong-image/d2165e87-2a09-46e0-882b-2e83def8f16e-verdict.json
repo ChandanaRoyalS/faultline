@@ -1,0 +1,92 @@
+{
+  "incident_id": "d2165e87-2a09-46e0-882b-2e83def8f16e",
+  "trajectory_id": "6973cb66-366f-4f83-8fbf-981bb29be31c",
+  "states": [
+    "triaging",
+    "investigating"
+  ],
+  "blast_radius": [
+    "checkout",
+    "accounting",
+    "email",
+    "frontend-proxy",
+    "payment",
+    "quote",
+    "shipping",
+    "fraud-detection",
+    "frontend",
+    "ad",
+    "cart",
+    "currency",
+    "flagd",
+    "product-catalog",
+    "product-reviews",
+    "recommendation"
+  ],
+  "unmeasured_edges": 15,
+  "exclude_origins": [
+    "scenario:scenario:v2-shipping-wrong-image"
+  ],
+  "verdict": {
+    "fault_class": "bad_deploy",
+    "remediation_class": "rollback",
+    "service": "shipping",
+    "alternatives": [
+      {
+        "root_cause": "Checkout holds a wrong shipping address or port in its configuration.",
+        "service": "checkout",
+        "fault_class": "bad_config",
+        "remediation_class": null,
+        "why_not": "Checkout's change window was observed and held nothing, and the failure coincides instead with an image change recorded on shipping."
+      },
+      {
+        "root_cause": "Shipping is cut off from the network so callers cannot reach it.",
+        "service": "shipping",
+        "fault_class": "network_partition",
+        "remediation_class": null,
+        "why_not": "Callers fail fast at connect time rather than hanging to deadlines, and shipping's log shows repeated process starts rather than complaints about unreachable peers."
+      },
+      {
+        "root_cause": "Shipping's process is frozen while its socket still accepts.",
+        "service": "shipping",
+        "fault_class": "process_freeze",
+        "remediation_class": null,
+        "why_not": "A frozen process writes nothing; shipping is writing startup output repeatedly and callers get immediate connection failures."
+      }
+    ],
+    "summary": "Shipping's image reference was repointed to a wrong artifact (an ad-service build) at 14:36, so the shipping container crash-loops on startup and never serves, leaving callers unable to resolve or reach it.",
+    "confidence": "high",
+    "evidence": [
+      "tr_a6fc3459f2f0",
+      "tr_589438b5ff79",
+      "tr_de541bf0a9f7",
+      "tr_916583aacdfd",
+      "tr_c519571eebc8"
+    ],
+    "reasoning": "Checkout alerted first but its own error ratio did not depart from baseline (tr_a6fc3459f2f0) and no change was made to it (tr_de541bf0a9f7); every failing checkout trace fails on the single hop out to shipping with a name-resolution/connection failure, while all its other dependencies (cart, currency, product-catalog) answer in sub-millisecond time (tr_589438b5ff79). The change log for shipping shows repeated repointing of its image reference to an artifact tagged for a different service, the last at 14:36, minutes before the 14:40 onset (tr_916583aacdfd). Shipping's own log shows only repeated JVM/agent startup banners recurring every few seconds with no steady-state service output, the signature of a container restarting continuously rather than a frozen, partitioned or disk-full process (tr_c519571eebc8). The downstream alerting set (accounting, email, payment, quote, fraud-detection, frontend, frontend-proxy) follows from failed order placement propagating toward callers.",
+    "open_questions": [
+      "Whether the endpoint is unreachable because the pod never becomes ready or because its DNS record was withdrawn was not directly observed.",
+      "The elided middle of the shipping log may contain an explicit startup error naming the mismatched artifact; it was not retrieved.",
+      "Whether the earlier image flips at 13:52 and 14:16 caused shorter, unalerted outages was not checked."
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B1",
+    "tool_calls": 5,
+    "turns": 7,
+    "looked_at": [
+      "metrics:checkout",
+      "traces:checkout",
+      "changes:checkout",
+      "changes:shipping",
+      "logs:shipping"
+    ]
+  }
+}

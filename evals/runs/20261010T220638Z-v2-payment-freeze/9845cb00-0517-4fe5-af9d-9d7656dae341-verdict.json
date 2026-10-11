@@ -1,0 +1,168 @@
+{
+  "incident_id": "9845cb00-0517-4fe5-af9d-9d7656dae341",
+  "trajectory_id": "cca38863-1f1a-429d-873b-86226b40d77e",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "accounting",
+    "checkout",
+    "email",
+    "flagd",
+    "fraud-detection",
+    "frontend",
+    "payment"
+  ],
+  "unmeasured_edges": 4,
+  "exclude_origins": [
+    "scenario:v2-payment-freeze"
+  ],
+  "verdict": {
+    "root_cause": "fraud-detection and accounting, two independently deployed Kafka consumers, both stopped emitting any output at 22:06:01 and stayed silent for the remaining ~9.5 minutes of the window, with no error, retry, rebalance, or shutdown line and no throughput taper beforehand [tr_5e43a3fc2766][tr_6f52d2b8ddfb]. A simultaneous, clean, errorless stop in two separate services points at what they share \u2014 the Kafka broker they fetch from \u2014 rather than at either consumer. No deploy, config edit, or flag change is recorded for fraud-detection or flagd over the onset period [tr_b77cfa65182d][tr_f00573730c17][tr_73bfbbc9c230], and fraud-detection's own error ratio shows no change point at onset and no sustained departure from baseline [tr_0e031dfae678][tr_ee99a848e51c], so fraud-detection is a victim that noticed, not the origin. Consumers blocked silently instead of logging connection failures is the signature of a broker process stopped while its socket still accepts: fetches hang, clients write nothing, and the 22:12-22:13 alerts on fraud-detection, accounting, payment and email are callers timing out behind the stalled path.",
+    "service": "kafka",
+    "fault_class": "process_freeze",
+    "remediation_class": "restart",
+    "confidence": "low",
+    "evidence": [
+      "tr_5e43a3fc2766",
+      "tr_6f52d2b8ddfb",
+      "tr_0e031dfae678",
+      "tr_ee99a848e51c",
+      "tr_f00573730c17"
+    ],
+    "reasoning": "The decisive fact is coincidence plus silence. Both consumers' last lines land within one second of each other after steady cadence, and both specialists independently ruled out gradual lag, truncation artifact, and any logged crash or rebalance [tr_5e43a3fc2766][tr_6f52d2b8ddfb]. That shared timing forces a cause upstream of both. The absence of connectivity complaints in either consumer's log discriminates among upstream options: a dead or network-severed broker typically produces client-side retry and connection errors, while a frozen broker leaves clients blocked in fetch writing nothing. Empty change history across onset removes bad_deploy, bad_config and feature_flag as mechanisms on the alerting service [tr_f00573730c17][tr_73bfbbc9c230], and the error-ratio work shows fraud-detection entered no new error regime at 22:12 \u2014 it simply went quiet [tr_0e031dfae678][tr_ee99a848e51c]. Confidence is low because no dispatch ever touched kafka itself; the mechanism is inferred from two victims' symmetry.",
+    "open_questions": [
+      "kafka was never dispatched against: its logs, resource metrics, restart counters and change history are entirely unexamined, so the broker's role and the freeze mechanism are inferred, not observed.",
+      "All change-history queries started at the incident timestamp and ran forward; the hours before 22:06 were never queried for any service, leaving a pre-onset change anywhere still possible.",
+      "payment and email alerted but were never examined, and nothing distinguishes a genuine processing stop from a log-shipping failure affecting both consumers."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "The Kafka broker exhausted heap, file descriptors, or log-segment disk and stopped serving fetches, stalling both consumers.",
+        "service": "kafka",
+        "fault_class": "resource_exhaustion",
+        "remediation_class": "restart",
+        "why_not": "No resource metrics were ever collected for kafka, so this is unsupported rather than contradicted; the perfectly abrupt stop with zero degradation ramp fits a freeze better than exhaustion, which usually shows slowdown or error bursts first."
+      },
+      {
+        "root_cause": "The broker or the consumers lost network reachability to each other, hanging fetches at both consumers simultaneously.",
+        "service": "kafka",
+        "fault_class": "network_partition",
+        "remediation_class": "reconnect",
+        "why_not": "A partition normally leaves the cut-off side logging that it cannot reach anything; both consumers produced no lines at all, including no connectivity complaints, which fits silence from a frozen upstream better."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "v2-fraud-detection-memory-squeeze / What was observed: One alert. `ServiceNoTraffic` on **fraud-detection**, 7m15s after the trouble started. Nothing\nelse fired for the entire incident, and nothing fired after the fix.\n\nThe store was perfect throughout. The frontend, frontend-proxy and the load generator recorded no\nerrors and no cha",
+    "v2-frontend-cart-misconfig / What was checked: **The error text, because it was the first thing a responder would read.** Checkout's error spans\nand the frontend's log said `shipping quote failure: failed POST to email service: expected 200,\ngot 400`. That names two services, and neither was at fault. It is checkout's own wor",
+    "v2-fraud-detection-partition / What was observed: The page came 7m46s after onset and it was one line: `ServiceNoTraffic` on **fraud-detection**.\nNothing before it, nothing beside it, nothing after it. One alert on one service by the fix, and\nthe world all clear 1m00s after the fix.\n\nNothing else in the world had moved. The stor"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 26033,
+    "pulled_tokens": 7640,
+    "pull_rate": 0.2269,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 418,
+        "content_tokens": 420,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1607,
+        "content_tokens": 1610,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 7910,
+        "content_tokens": 7885,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 7390,
+        "content_tokens": 7393,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 8708,
+        "content_tokens": 8685,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_5e43a3fc2766",
+      "tr_6f52d2b8ddfb",
+      "tr_b77cfa65182d",
+      "tr_73bfbbc9c230",
+      "tr_0e031dfae678"
+    ],
+    "expected_effect": "No action proposed, so no effect is expected. The reason is that the mechanism the verdict names \u2014 a Kafka broker process frozen while its socket still accepts \u2014 sits on a service that is not in this incident's blast radius and therefore not a legal target. The only actions available (restart_service on fraud-detection or accounting) would recreate a consumer that the evidence shows was healthy up to the instant it went silent: steady ~8 records/min with no taper, no error, no retry, no rebalance, no shutdown line in either service [tr_5e43a3fc2766][tr_6f52d2b8ddfb]. A consumer restarted against a still-frozen broker re-establishes a socket, issues a fetch, and blocks again \u2014 producing exactly the same silence, while discarding in-process state and adding a consumer-group rebalance to an already stalled partition set. There is no observable improvement to predict.",
+    "confirm_within_seconds": 0,
+    "if_wrong": "This abstention is wrong if the two consumers are independently wedged rather than blocked on a shared broker \u2014 i.e. if the freeze is in the client processes. The distinguishing observation was never made: kafka's logs, resource metrics, restart counters and change history are entirely unexamined, so the broker's role is inferred from the coincidence of two silences, not observed. Dispatch against kafka first. Separately, nothing yet distinguishes a genuine processing stop from a log-shipping failure that hit both consumers: if fraud-detection's and accounting's span-metrics call volume continued through 22:06\u201322:15 while Loki showed nothing, the whole premise collapses and the correct target is the telemetry pipeline, which this system cannot act on either. Note also that fraud-detection's own error ratio shows no change point at onset and no sustained departure from baseline [tr_0e031dfae678], which is an argument against it being the origin and against restarting it.",
+    "risk": "Not acting carries real cost: the consumer stall continues and payment, email, checkout and frontend keep timing out behind it until someone with broker access intervenes. I am accepting that cost because the alternative is a restart with no mechanism linking it to the fault. If the broker is frozen, restarting either consumer forces a consumer-group rebalance against an unresponsive coordinator, which can leave partitions unassigned and extend the outage past the point where a broker fix alone would have cleared it; restart_service is also marked irreversible, so that state cannot be undone by this system.",
+    "blast_radius": "None from this proposal, since nothing is executed. For context on what was declined: a restart of fraud-detection or accounting would be one container recreate, visible to its inbound callers as a connection reset \u2014 the already-alerting payment and email, and downstream checkout and frontend reached via payment. The escalation this abstention implies (operator action on kafka) has a wider radius than any action available here, which is part of why it belongs with a human."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "feature_flag",
+    "confidence": "low",
+    "reasoning": "Four services alerting within a minute at critical severity is a real fan-out that cannot be dismissed. flagd appears as a candidate cause one hop from the first alerter, so a flag change is a cheap first prior, but evidence is absent."
+  }
+}

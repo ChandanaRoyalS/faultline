@@ -1,0 +1,9 @@
+incident e08e6a0d-e809-43e4-a1a5-9f1c57ab94d2  state triaging  anchor 02:51:16
+triage: 1 services, severity critical, start from nowhere the graph knows, 0 unmeasured edge(s) crossed
+
+B2: datastore_corruption / restore_data (low)
+  accounting's backing store (postgresql) is reachable but the records/messages it reads back cannot be decoded, so every read path throws and the service reports a high error rate.
+  looked at nothing - this is the model's prior
+wrote /Users/chandana/dev/faultline/evals/runs/20261008T024725Z-v2-accounting-bad-credential/e08e6a0d-e809-43e4-a1a5-9f1c57ab94d2-verdict.json
+{"ts": "2026-10-08T02:53:42.038+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-08T02:53:50.276+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}

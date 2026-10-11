@@ -1,0 +1,9 @@
+incident 2a3ae8cc-5d2a-428e-811d-a6b2e43fee07  state triaging  anchor 07:56:31
+triage: 14 services, severity warning, start from checkout, 15 unmeasured edge(s) crossed
+
+B2: resource_exhaustion / restart (low)
+  product-catalog became slow under its own resource pressure (CPU/thread/connection saturation), and every caller that waits on it inherited the latency
+  looked at nothing - this is the model's prior
+wrote /Users/chandana/dev/faultline/evals/runs/20261010T075218Z-v2-product-catalog-dependency-latency/2a3ae8cc-5d2a-428e-811d-a6b2e43fee07-verdict.json
+{"ts": "2026-10-10T07:58:37.740+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-10T07:58:46.402+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}

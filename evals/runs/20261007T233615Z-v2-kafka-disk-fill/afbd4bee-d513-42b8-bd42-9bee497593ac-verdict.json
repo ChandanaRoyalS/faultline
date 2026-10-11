@@ -1,0 +1,165 @@
+{
+  "incident_id": "afbd4bee-d513-42b8-bd42-9bee497593ac",
+  "trajectory_id": "66ed3cc6-c6c6-4b83-8b2d-a725699a69a9",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "accounting",
+    "cart",
+    "checkout",
+    "currency",
+    "email",
+    "frontend",
+    "frontend-proxy",
+    "load-generator",
+    "payment",
+    "product-catalog",
+    "shipping"
+  ],
+  "unmeasured_edges": 8,
+  "exclude_origins": [
+    "scenario:v2-kafka-disk-fill"
+  ],
+  "verdict": {
+    "root_cause": "Checkout's only failing operation is the message-publish span to the orders destination, which is ~100% self-time (77-87s) and reports an open circuit breaker, while every synchronous dependency of checkout (cart, product-catalog, currency, payment, shipping, quote, email, flagd, SQL and Redis children) completes in milliseconds [tr_8719614363ed]. Upstream ERRORs on frontend-proxy/ingress and load-generator/POST are fixed ~15s client timeouts layered over that blocked publish, which explains the later alerts on frontend-proxy, load-generator and accounting (the other orders-topic consumer). No change landed on checkout in the observed period [tr_dab151cfa659, tr_9c7465d904a2], and the cart image flapping ended ~21.7h before onset on a revert [tr_71c49059b02e], so no artifact or config edit is in play. The mechanism is the orders message broker becoming unresponsive to publishes: checkout fails because it waits, and its client breaker trips, giving the bursty 0-6.8% error ratio against a flat-zero baseline [tr_acf64d1a9ed8].",
+    "service": "kafka",
+    "fault_class": "dependency_latency",
+    "remediation_class": "restart",
+    "confidence": "medium",
+    "evidence": [
+      "tr_8719614363ed",
+      "tr_acf64d1a9ed8",
+      "tr_dab151cfa659",
+      "tr_71c49059b02e"
+    ],
+    "reasoning": "Traces isolate one failing edge and exonerate all others out of checkout [tr_8719614363ed]; the error onset is abrupt at 23:41 against a zero baseline and partial rather than total [tr_acf64d1a9ed8]; the change surface is empty for checkout and stale for cart [tr_dab151cfa659, tr_9c7465d904a2, tr_71c49059b02e]. A blocked publish with an open breaker and healthy peers is a slow dependency being waited on, not exhaustion, corruption or a bad artifact.",
+    "open_questions": [
+      "No specialist dispatched to kafka itself - its logs, metrics, disk and broker health are entirely unqueried, so the reason the broker stopped accepting publishes (disk fill, GC pause, partition leader loss, freeze) is unestablished.",
+      "Checkout's log stream returned zero lines of any severity for the whole window [tr_a4625767eb51]; this is unexplained and could mask a checkout-side signal, though traces still flow.",
+      "The pre-onset change window for checkout was never queried - both change dispatches ran forward from onset, not backward [tr_9c7465d904a2].",
+      "Cart span metrics are absent in both baseline and incident windows [tr_7a8da45f85dc], so cart's health is unverified by any source."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "The orders broker is not slow but unreachable from checkout - a network partition on the checkout-to-broker path.",
+        "service": "kafka",
+        "fault_class": "network_partition",
+        "remediation_class": "reconnect",
+        "why_not": "Caller-side symptoms are identical, but the publish span blocks for 77-87s rather than failing fast with a connection error, which fits a slow/unresponsive peer better; checkout's own log is empty [tr_a4625767eb51] so the partition-distinguishing 'cannot reach' line could not be checked either way."
+      },
+      {
+        "root_cause": "The broker process is frozen - its socket still accepts connections so publishes hang indefinitely while it writes nothing.",
+        "service": "kafka",
+        "fault_class": "process_freeze",
+        "remediation_class": "restart",
+        "why_not": "Consistent with the long-blocking publish, but checkout's error ratio is bursty with repeated zero samples and 93%+ success [tr_acf64d1a9ed8]; a total freeze would be expected to fail publishes more uniformly. No kafka-side evidence was gathered to separate these."
+      }
+    ]
+  },
+  "flags": [
+    "scribe produced no valid findings: schema validation failed twice (Expecting ',' delimiter: line 1 column 2926 (char 2925))"
+  ],
+  "retrieved": [
+    "v2-inj-payment-dependency-latency-log-checkout / What was observed: The page came 5m20s after onset and it was one line: `ServiceHighLatency` on **checkout**. Nothing\nelse fired before it, beside it or after it - no error-rate alert anywhere, no service gone quiet.\n\nCheckout's 95th percentile stepped from 16 to 18ms at rest to 267ms at T+2, 313 a",
+    "v2-frontend-cart-misconfig / What was checked: **The error text, because it was the first thing a responder would read.** Checkout's error spans\nand the frontend's log said `shipping quote failure: failed POST to email service: expected 200,\ngot 400`. That names two services, and neither was at fault. It is checkout's own wor",
+    "v2-payment-dependency-latency / What was observed: The page was one alert, `ServiceHighLatency` on **checkout**, 5m35s after the trouble started.\nNothing else fired, then or later, and nothing fired after the fix. Nothing errored: every error\nratio on the world stayed at zero for the whole incident.\n\nCheckout's p95 had been 35 to"
+  ],
+  "failed_dispatches": [
+    [
+      "scribe",
+      "schema validation failed twice (Expecting ',' delimiter: line 1 column 2926 (char 2925))"
+    ]
+  ],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 18110,
+    "pulled_tokens": 5874,
+    "pull_rate": 0.2449,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 458,
+        "content_tokens": 460,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1510,
+        "content_tokens": 1513,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 7638,
+        "content_tokens": 7613,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 8504,
+        "content_tokens": 8481,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_8719614363ed",
+      "tr_acf64d1a9ed8",
+      "tr_dab151cfa659"
+    ],
+    "expected_effect": "No action proposed, so no effect is predicted. The mechanism named by the verdict is the orders message broker refusing to accept publishes [tr_8719614363ed]; the broker is not a legal target in this incident's blast radius, and no permitted action (rollback_image, revert_config, restart_service) can be aimed at it. The only actions that plausibly address a broker that has stopped accepting writes \u2014 free_storage, reconnect_service, restore_store \u2014 are all listed UNAVAILABLE. Restarting checkout, the one target where restart_service has a surface, would at most reset checkout's client-side circuit breaker; since the publish span is ~100% self-time waiting on an unresponsive destination [tr_8719614363ed], the breaker would re-trip within a handful of publish attempts and the 0-6.8% bursty error ratio [tr_acf64d1a9ed8] would return, while the restart itself resets checkout's in-process state and drops every in-flight PlaceOrder. rollback_image and revert_config fail their preconditions outright: the change log for checkout is empty across the queried window [tr_dab151cfa659, tr_9c7465d904a2], so no prior image tag and no prior configuration are recorded, and no deploy or config edit is named inside the window.",
+    "confirm_within_seconds": 0,
+    "if_wrong": "This abstention is wrong if the broker is in fact healthy and the fault is confined to checkout's own client \u2014 a stuck producer thread or a breaker latched open by a transient blip. Two observations would show that: (a) the other orders-topic consumer, accounting, showing it is still receiving messages published by anything other than checkout during the window, which would mean the destination accepts writes and only checkout cannot reach it; or (b) kafka broker metrics/logs \u2014 entirely unqueried right now \u2014 coming back clean on disk, GC, and partition leadership across 23:41 onward. Either would make restart_service on checkout the correct proposal. Note also that checkout's log stream returned zero lines of any severity for the whole window [tr_a4625767eb51], so a checkout-side signal (producer thread death, config pointing at a dead broker address) may be masked; that gap cuts against confidence in any checkout-targeted action, not for it. Dispatch a specialist to kafka and re-query checkout's change history backward from onset before anyone acts.",
+    "risk": "The risk of abstaining is that the incident continues: checkout keeps burning ~15s of every PlaceOrder on a publish that will not complete, callers keep timing out, and orders are being lost or stalled for as long as this holds. That is a real and ongoing cost, not zero. The risk I am refusing to take is the mirror of it \u2014 a restart of checkout on a medium-confidence diagnosis that does not touch the mechanism would discard in-flight checkouts and in-process state, produce a brief window of apparent recovery as the breaker resets, and then fail again, which is worse than no action because the false recovery would be read as confirmation and send the investigation away from the broker.",
+    "blast_radius": "No service is touched by this proposal. For the record, had restart_service been proposed against checkout, the services that would have seen the container recreate are its inbound callers named in the graph \u2014 frontend and through it frontend-proxy and load-generator (all three already alerted) \u2014 plus accounting, the other orders-topic consumer, which would see no change because its starvation originates at the broker rather than at checkout."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Critical multi-service failure originating at checkout and spreading to accounting and the frontend proxy within two minutes; nothing here can be dismissed. No open incidents to attribute it to, and the alerts alone don't single out a cause."
+  }
+}

@@ -1,0 +1,9 @@
+incident 2460c29a-f531-473c-a28c-db3adc11da2f  state triaging  anchor 17:46:31
+triage: 2 services, severity critical, start from fraud-detection, 1 unmeasured edge(s) crossed
+B0: dependency_latency / restart
+  suspect: largest error-rate delta among alerting services (+0.000)
+  class: no change on any alerting service before onset
+  remediation: table lookup from dependency_latency
+wrote /Users/chandana/dev/faultline/evals/runs/20261006T173854Z-v2-fraud-detection-partition/2460c29a-f531-473c-a28c-db3adc11da2f-verdict.json
+{"ts": "2026-10-06T17:48:29.300+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=fraud-detection start=2026-10-05T17:46:31.664000+00:00 end=2026-10-06T17:48:29.283595+00:00 span_s=86517 refused=False", "component": "investigator"}
+{"ts": "2026-10-06T17:48:29.303+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=promql_query subject=sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"fraud-detection\",status_code=\"STATUS_CODE_ERROR\"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"fraud-detection\"}[5m])) start=2026-10-06T17:16:31.664000+00:00 end=2026-10-06T17:48:29.283595+00:00 span_s=1917 refused=False", "component": "investigator"}

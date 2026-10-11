@@ -1,0 +1,75 @@
+{
+  "incident_id": "c2d6c9a8-7257-4048-8876-4545f8ab9b2e",
+  "trajectory_id": "91443241-5936-4e21-86f7-38f427552a5a",
+  "states": [
+    "triaging",
+    "investigating"
+  ],
+  "blast_radius": [
+    "accounting"
+  ],
+  "unmeasured_edges": 0,
+  "exclude_origins": [
+    "scenario:scenario:v2-accounting-kafka-misconfig"
+  ],
+  "verdict": {
+    "fault_class": "bad_config",
+    "remediation_class": "config_revert",
+    "service": "accounting",
+    "alternatives": [
+      {
+        "root_cause": "Kafka broker crashed or stopped serving, making accounting's consumer fail.",
+        "service": "kafka",
+        "fault_class": "process_freeze",
+        "remediation_class": null,
+        "why_not": "Kafka logged continuous normal KRaft segment and snapshot activity through the incident window (tr_695e17f3d6e1), so it was neither frozen nor silent."
+      },
+      {
+        "root_cause": "accounting was cut off from the network and could not reach any dependency.",
+        "service": "accounting",
+        "fault_class": "network_partition",
+        "remediation_class": null,
+        "why_not": "The failure tracks a specific environment value applied and reverted repeatedly (tr_8498f6b2d799) while the broker is reachable and healthy, which points to a wrong address rather than loss of network."
+      },
+      {
+        "root_cause": "A new accounting artifact was rolled out that cannot talk to Kafka.",
+        "service": "accounting",
+        "fault_class": "bad_deploy",
+        "remediation_class": null,
+        "why_not": "The change log shows only environment variable updates, no image or version change (tr_8498f6b2d799)."
+      }
+    ],
+    "summary": "accounting's KAFKA_ADDR environment value was repeatedly set to a broker endpoint (kafka:9094) that the healthy Kafka broker does not serve, so the consumer could not connect and stopped processing orders.",
+    "confidence": "high",
+    "evidence": [
+      "tr_e7d63f2732df",
+      "tr_7855c70dac7d",
+      "tr_8498f6b2d799",
+      "tr_695e17f3d6e1"
+    ],
+    "reasoning": "accounting's error-ratio series had no defined values for much of the window (tr_e7d63f2732df), consistent with the consumer processing no messages rather than failing requests. Its own log shows normal order consumption early in the window and then continuous broker-unreachable errors naming the configured bootstrap endpoint at the end (tr_7855c70dac7d). The change log shows a repeated environment edit by platform-automation setting KAFKA_ADDR to that endpoint, with reverts each time, and a final re-application at 11:45 immediately preceding onset (tr_8498f6b2d799). Kafka itself is alive and healthily rolling segments and writing metadata snapshots throughout the same window (tr_695e17f3d6e1), so the broker is not down and the fault is the configured address value itself being wrong, not a broker outage, partition or freeze.",
+    "open_questions": [
+      "Which port the broker actually advertises for client listeners was not directly observed, only inferred from Kafka's health and the correlation with the config change.",
+      "Whether any downstream consumer of accounting's output was affected was not examined; blast radius reported only accounting.",
+      "Why platform-automation repeatedly re-applies this value was not settled."
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B1",
+    "tool_calls": 4,
+    "turns": 6,
+    "looked_at": [
+      "metrics:accounting",
+      "logs:accounting",
+      "changes:accounting",
+      "logs:kafka"
+    ]
+  }
+}

@@ -1,0 +1,164 @@
+{
+  "incident_id": "8dc1e12b-7a43-48f4-ac67-ca5de8a0051d",
+  "trajectory_id": "76264adc-f04e-42d6-ba9d-889b1540dc7c",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "checkout",
+    "frontend",
+    "payment"
+  ],
+  "unmeasured_edges": 2,
+  "exclude_origins": [
+    "scenario:v2-payment-telemetry-blackout"
+  ],
+  "verdict": {
+    "root_cause": "Payment's OTLP traces exporter endpoint was rewritten five times by platform-automation and left pointing at loopback (http://127.0.0.1:4317) about 7 minutes before onset [tr_4ee3762a334c]. The last sampled payment span is at 19:21:18, seconds before that final application, and no trace exists at the 19:29:16 onset [tr_fb545a7a5108]; span-derived metrics for payment are empty throughout [tr_45a53db95206][tr_8a968aa941ab]. Payment itself is healthy: zero error-matching log lines over the window containing onset [tr_8d91e69b300f] and a successful card transaction logged two minutes after onset [tr_24b2e5ff92f3]. The wrong endpoint value is itself the failure \u2014 telemetry export is directed at an address nothing serves, producing a data-absence signal that read as a critical payment incident.",
+    "service": "payment",
+    "fault_class": "bad_config",
+    "remediation_class": "config_revert",
+    "confidence": "medium",
+    "evidence": [
+      "tr_4ee3762a334c",
+      "tr_fb545a7a5108",
+      "tr_8d91e69b300f",
+      "tr_24b2e5ff92f3",
+      "tr_45a53db95206"
+    ],
+    "reasoning": "Three channels agree payment is doing its work correctly: sub-1.5ms Charge spans with no error status and checkout flows completing past Charge [tr_fb545a7a5108], no error log lines across a window that fully covers 19:29:16 [tr_8d91e69b300f], and a successful transaction after onset [tr_24b2e5ff92f3]. What is missing is payment's telemetry, not payment's requests. The only change in the window is one variable, the traces exporter endpoint, last applied 7 minutes before onset and pointing at loopback [tr_4ee3762a334c] \u2014 and sampled spans stop six seconds before that application [tr_fb545a7a5108]. This is bad_config rather than a mere upstream act: the wrong address is the mechanism that breaks the export.",
+    "open_questions": [
+      "Whether the 19:29:16 alert fired on a customer-facing symptom or on telemetry absence \u2014 the alert predicate is unknown.",
+      "Whether a collector actually listens on 127.0.0.1:4317 on payment's host; the endpoint is only wrong if nothing is there.",
+      "The 19:21\u201319:31 interval is largely unobserved (truncated logs, no sampled traces), and the other two blast-radius services were never dispatched against."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "Payment's span-metrics and trace gap is a long-standing instrumentation/label mismatch unrelated to the config edits, and the real incident lies in an undispatched service such as checkout or frontend.",
+        "service": "checkout",
+        "fault_class": "unknown",
+        "remediation_class": "none",
+        "why_not": "Nothing was gathered on checkout or frontend, so this is unsupported speculation; the config edit's timing against the last sampled span is concrete.",
+        "note": ""
+      },
+      {
+        "root_cause": "A transient payment degradation occurred inside the unobserved 19:21\u201319:31 window and resolved before the last log line.",
+        "service": "payment",
+        "fault_class": "unknown",
+        "remediation_class": "none",
+        "why_not": "The error-substring query covers that interval and returned nothing [tr_8d91e69b300f], and payment was completing transactions at window close [tr_24b2e5ff92f3].",
+        "note": ""
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "v2-inj-payment-dependency-latency-log-checkout / Root cause: A traffic-shaping rule attached to the payment service's network namespace added 300ms of delay to\nevery packet leaving the container. Payment's code, image, configuration and process were untouched\nand it answered every charge in its usual milliseconds; its answers were late arr",
+    "v2-product-catalog-freeze / What was checked: **The proxy, because it was loudest.** Its errors were all the same kind: upstream requests\ncut at the fifteen-second route timeout. The proxy was doing its job. Nothing in its own\nbehaviour had changed, so it was reporting the problem, not causing it.\n\n**Frontend, because its la",
+    "v2-payment-dependency-latency / Root cause: A traffic-shaping rule attached to the payment service's network namespace added 300ms of delay\nto every packet leaving the container. Payment's code, image, configuration and process were\nuntouched, and it answered every charge in under a millisecond; its answers arrived 300ms l"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 23872,
+    "pulled_tokens": 6361,
+    "pull_rate": 0.2104,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 383,
+        "content_tokens": 385,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1442,
+        "content_tokens": 1445,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 7333,
+        "content_tokens": 7309,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 6667,
+        "content_tokens": 6669,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 8047,
+        "content_tokens": 8024,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "config_revert",
+    "action_id": "revert_config",
+    "target": "payment",
+    "rests_on": [
+      "tr_4ee3762a334c",
+      "tr_fb545a7a5108",
+      "tr_24b2e5ff92f3"
+    ],
+    "expected_effect": "Reverting payment's environment removes OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://127.0.0.1:4317 applied 7m before onset. Observable: a Tempo query for service=payment should again return PaymentService/Charge server spans plus the inner charge span under checkout's Charge, sub-1.5ms, as seen up to 19:21:18 and not after. I do not predict traces_span_metrics_calls_total for payment becomes non-empty \u2014 that series was already empty in the pre-change baseline and is not a valid confirmation signal.",
+    "confirm_within_seconds": 600,
+    "if_wrong": "Falsified if sampled checkout traces still show no payment child spans 10 minutes after the recreate, meaning loopback was not what severed export. Also materially wrong if the 19:29:16 alert keeps firing once payment traces return: the alert predicate is unknown, so this may fix only visibility while a real fault stays unlocated.",
+    "risk": "The changes oscillate set/revert, so the recorded 'previous' value may itself be wrong, and automation may re-apply loopback within 10-15 minutes unless stopped. The action recreates the container of a service currently completing card transactions with zero error lines, so in-flight charges fail during the recreate \u2014 a self-inflicted outage if the diagnosis is wrong.",
+    "blast_radius": "payment only, for the recreate duration. checkout sees Charge connection resets and frontend sees them via checkout. Trace export traffic moves from loopback back to the prior collector address."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "A single critical alert on payment, a revenue-path service with downstream checkout and frontend exposure, cannot be dismissed without evidence. No open incidents to attribute it to and nothing in the alert pattern suggests a specific fault class."
+  }
+}

@@ -1,0 +1,67 @@
+{
+  "incident_id": "6756dc4d-b6f8-447b-b2a2-2cf93ee5cfe9",
+  "trajectory_id": "69f3c5dd-0e72-445e-a7a7-693ae476d7cf",
+  "states": [
+    "triaging"
+  ],
+  "blast_radius": [
+    "checkout",
+    "cart",
+    "currency",
+    "email",
+    "frontend",
+    "payment",
+    "product-catalog",
+    "shipping",
+    "frontend-proxy"
+  ],
+  "unmeasured_edges": 8,
+  "exclude_origins": [
+    "scenario:scenario:v2-email-flag-memory-leak"
+  ],
+  "verdict": {
+    "fault_class": "resource_exhaustion",
+    "remediation_class": "restart",
+    "service": "checkout",
+    "alternatives": [
+      {
+        "root_cause": "A checkout dependency (most likely payment or cart) became slow, and checkout failed while waiting on it.",
+        "service": "payment",
+        "fault_class": "dependency_latency",
+        "remediation_class": null,
+        "why_not": "No downstream service alerted at all, and dependency latency usually surfaces as pure latency at checkout before errors rather than a simultaneous critical error-rate alert."
+      },
+      {
+        "root_cause": "A wrong configuration value in checkout (endpoint, port, credential, or timeout) made calls fail immediately after a change.",
+        "service": "checkout",
+        "fault_class": "bad_config",
+        "remediation_class": null,
+        "why_not": "A wrong address or credential gives fast, clean failures; it does not readily explain the accompanying latency warning."
+      }
+    ],
+    "summary": "checkout itself exhausted a local resource (memory/thread or connection pool), so requests queued and then failed \u2014 producing simultaneous latency and error-rate alerts with no downstream service degrading.",
+    "confidence": "low",
+    "evidence": [],
+    "reasoning": "checkout is the only alerting service, and it alerts for errors and latency at the same instant; everything else in the blast radius is simply reachable from checkout by graph traversal, not independently sick. If a dependency (payment, cart, currency, shipping, product-catalog, email) had become slow or broken, that dependency would normally alert too, or at least checkout's upstream frontend/frontend-proxy would have been dragged in \u2014 neither happened. A freeze or partition would show hangs with no errors from checkout, and a failed deploy would show hard startup failures rather than a latency warning paired with errors. The coexistence of rising latency and rising errors from a single node is the signature of saturation inside that node: pool/queue waits first, then rejections and timeouts.",
+    "open_questions": [
+      "checkout container memory/CPU usage and OOMKill or restart count around 03:43",
+      "checkout gRPC/HTTP client pool and thread-pool saturation metrics, and whether errors are RESOURCE_EXHAUSTED/DEADLINE_EXCEEDED vs UNAVAILABLE",
+      "per-dependency latency from checkout's client spans (payment, cart, shipping) to rule out a quiet slow dependency",
+      "deploy/config change history for checkout in the hour before onset",
+      "whether frontend saw elevated checkout errors but stayed under its own alert threshold"
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B2",
+    "tool_calls": 0,
+    "attempts": 2,
+    "cited_without_looking": []
+  }
+}

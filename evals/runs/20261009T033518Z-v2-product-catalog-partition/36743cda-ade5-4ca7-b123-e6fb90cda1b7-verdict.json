@@ -1,0 +1,67 @@
+{
+  "incident_id": "36743cda-ade5-4ca7-b123-e6fb90cda1b7",
+  "trajectory_id": "f7b0bf79-ee69-47b5-a465-d9f4d4c1b661",
+  "states": [
+    "triaging"
+  ],
+  "blast_radius": [
+    "frontend-proxy",
+    "load-generator",
+    "frontend",
+    "ad",
+    "cart",
+    "checkout",
+    "product-catalog",
+    "product-reviews",
+    "recommendation"
+  ],
+  "unmeasured_edges": 7,
+  "exclude_origins": [
+    "scenario:scenario:v2-product-catalog-partition"
+  ],
+  "verdict": {
+    "fault_class": "process_freeze",
+    "remediation_class": "restart",
+    "service": "product-catalog",
+    "alternatives": [
+      {
+        "root_cause": "A flagd feature flag toggled a failing code path in a frontend dependency (e.g. product-catalog or cart), producing errors with no deploy or config change.",
+        "service": "flagd",
+        "fault_class": "feature_flag",
+        "remediation_class": null,
+        "why_not": "A flag-driven failure usually makes the affected service log and report errors itself, so it would likely have tripped its own error-rate alert rather than staying silent."
+      },
+      {
+        "root_cause": "cart exhausted connections/memory against its backing store, slowing every frontend and checkout request.",
+        "service": "cart",
+        "fault_class": "resource_exhaustion",
+        "remediation_class": null,
+        "why_not": "cart is not on the recommendation path, and exhaustion normally produces visible errors and resource alerts on cart itself, which are absent."
+      }
+    ],
+    "summary": "product-catalog stopped serving while its socket stayed open, so frontend requests hung to their deadlines and surfaced as latency and 5xx at frontend-proxy/load-generator.",
+    "confidence": "low",
+    "evidence": [],
+    "reasoning": "Only the edge services alert (load-generator, frontend-proxy with errors, frontend with latency one minute later) while every backend in the blast radius is silent. That silence pattern - callers hanging and timing out, the suspect emitting nothing - fits a frozen or wedged process rather than a crashing or erroring one; a service that was erroring would raise its own ServiceHighErrorRate. Within the fan-out from frontend, product-catalog is the most shared node (frontend, checkout, and recommendation all call it), which explains why the whole downstream subgraph is implicated but only the entry points complain. Frontend showing latency without its own error alert also points to waiting on a dependency, not local failure.",
+    "open_questions": [
+      "Did product-catalog emit any logs or metrics at all after onset, or did it go completely silent?",
+      "Do frontend traces show spans to product-catalog stalling at the client deadline, versus fast errors?",
+      "Were cart/ad/recommendation latencies normal while product-catalog spans hung?",
+      "Any recent flagd flag flips (e.g. productCatalogFailure) or deploys to product-catalog just before 03:39?",
+      "Resource metrics for product-catalog: CPU near zero (frozen) vs pegged (exhaustion)?"
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B2",
+    "tool_calls": 0,
+    "attempts": 2,
+    "cited_without_looking": []
+  }
+}

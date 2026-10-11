@@ -1,0 +1,71 @@
+{
+  "incident_id": "b87cfb3b-d9a0-41eb-8d1d-727ecafac4aa",
+  "trajectory_id": "29c94ba3-980b-4a03-9d52-2d0d443e5918",
+  "states": [
+    "triaging"
+  ],
+  "blast_radius": [
+    "checkout",
+    "frontend",
+    "frontend-proxy",
+    "load-generator",
+    "ad",
+    "cart",
+    "currency",
+    "email",
+    "payment",
+    "product-catalog",
+    "product-reviews",
+    "recommendation",
+    "shipping"
+  ],
+  "unmeasured_edges": 13,
+  "exclude_origins": [
+    "scenario:scenario:v2-cart-bad-image-tag"
+  ],
+  "verdict": {
+    "fault_class": "bad_config",
+    "remediation_class": "config_revert",
+    "service": "checkout",
+    "alternatives": [
+      {
+        "root_cause": "A bad checkout build was rolled out and fails on every order request.",
+        "service": "checkout",
+        "fault_class": "bad_deploy",
+        "remediation_class": null,
+        "why_not": "A crash-looping or unstartable artifact would usually show checkout itself unreachable and produce connection-level errors in frontend; a running service returning errors fits a wrong config value more cleanly, though only the change log would separate them."
+      },
+      {
+        "root_cause": "payment (or another checkout-only dependency) became slow, and checkout's deadlines expired, turning latency into errors.",
+        "service": "payment",
+        "fault_class": "dependency_latency",
+        "remediation_class": null,
+        "why_not": "The downstream services raised no alerts of their own, and the upstream symptom is error rate rather than the latency alerts a slow dependency usually trips first."
+      }
+    ],
+    "summary": "checkout is failing all orders because one of its exclusive downstream endpoints (most likely payment) is configured with a wrong/unreachable address, so calls fail immediately at checkout and the error surfaces up through frontend and frontend-proxy to the load-generator.",
+    "confidence": "low",
+    "evidence": [],
+    "reasoning": "The alerting set is exactly checkout plus everything upstream of it (frontend -> frontend-proxy -> load-generator); no shared dependency alerts. If product-catalog or cart were broken, frontend and recommendation would show errors on their own paths, not only via checkout. That localises the fault to checkout itself or to a dependency only checkout uses (currency, email, payment, shipping). Those downstreams are silent, which fits a caller-side failure: checkout never reaches them, or reaches the wrong place, so they log nothing and raise no alert. The symptom is a high error rate rather than latency, so the calls are failing fast rather than hanging - that argues for a wrong address/port/credential in checkout's dependency configuration rather than a slow or frozen dependency.",
+    "open_questions": [
+      "checkout's error text on failed orders - connection refused / DNS failure vs. an application-level error returned by payment",
+      "Whether payment, shipping, currency or email saw any request volume at all during the window",
+      "checkout's effective env/config for the payment and shipping endpoints versus the last known-good values",
+      "Whether checkout latency rose (dependency slow) or stayed flat (fail fast)",
+      "flagd flag state at onset, even though checkout is not shown as a flagd client"
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B2",
+    "tool_calls": 0,
+    "attempts": 2,
+    "cited_without_looking": []
+  }
+}

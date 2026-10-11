@@ -1,0 +1,9 @@
+incident 073a2ae0-7cb7-4aa3-a79b-59d96a475bd5  state triaging  anchor 08:45:16
+triage: 8 services, severity critical, start from frontend, 7 unmeasured edge(s) crossed
+
+B2: bad_config / config_revert (low)
+  The frontend itself is returning errors on most requests - most plausibly a wrong configuration value (e.g. a downstream endpoint address/port or required env var) that makes nearly every request fail fast, with frontend-proxy merely reflecting its upstream's errors.
+  looked at nothing - this is the model's prior
+wrote /Users/chandana/dev/faultline/evals/runs/20261008T083914Z-v2-ad-memory-squeeze/073a2ae0-7cb7-4aa3-a79b-59d96a475bd5-verdict.json
+{"ts": "2026-10-08T08:47:34.366+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-08T08:47:42.916+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}

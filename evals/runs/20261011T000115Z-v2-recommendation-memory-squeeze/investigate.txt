@@ -1,0 +1,9 @@
+incident 4e7322f7-88ae-4992-9b76-879388f215d7  state triaging  anchor 00:05:46
+triage: 8 services, severity critical, start from frontend, 7 unmeasured edge(s) crossed
+
+B2: resource_exhaustion / restart (low)
+  The frontend service itself broke — it began returning errors on essentially all request paths (not one dependency's path), most likely because it exhausted a local resource (heap/goroutines/outbound connection pool) and could no longer serve or complete upstream calls.
+  looked at nothing - this is the model's prior
+wrote /Users/chandana/dev/faultline/evals/runs/20261011T000115Z-v2-recommendation-memory-squeeze/4e7322f7-88ae-4992-9b76-879388f215d7-verdict.json
+{"ts": "2026-10-11T00:08:21.795+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-11T00:08:30.954+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}

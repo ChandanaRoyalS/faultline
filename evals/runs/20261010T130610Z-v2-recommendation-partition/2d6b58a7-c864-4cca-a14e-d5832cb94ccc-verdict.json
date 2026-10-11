@@ -1,0 +1,96 @@
+{
+  "incident_id": "2d6b58a7-c864-4cca-a14e-d5832cb94ccc",
+  "trajectory_id": "6cb2bf33-31de-45e0-ada8-ba7434529ed8",
+  "states": [
+    "triaging",
+    "investigating"
+  ],
+  "blast_radius": [
+    "frontend-proxy",
+    "load-generator",
+    "recommendation",
+    "flagd",
+    "frontend",
+    "product-catalog"
+  ],
+  "unmeasured_edges": 4,
+  "exclude_origins": [
+    "scenario:scenario:v2-recommendation-partition"
+  ],
+  "verdict": {
+    "fault_class": "resource_exhaustion",
+    "remediation_class": "restart",
+    "service": "recommendation",
+    "alternatives": [
+      {
+        "root_cause": "A runtime flag was flipped in the flag store, enabling a recommendation code path that fails or leaks, with no artifact or config change recorded.",
+        "service": "recommendation",
+        "fault_class": "feature_flag",
+        "remediation_class": null,
+        "why_not": "The change logs for both recommendation and flagd are empty as this class predicts (tr_8edbbe078f9f, tr_145bd22a70ef), but flagd produced no log lines at all in the window (tr_e20158cf6250) and no flag evaluation changed behaviour in the traces, so there is no positive evidence of a flip; a flip is also a plausible trigger for the same exhaustion rather than a competing mechanism."
+      },
+      {
+        "root_cause": "product-catalog became slow under traffic shaping and recommendation failed while waiting on it.",
+        "service": "product-catalog",
+        "fault_class": "dependency_latency",
+        "remediation_class": null,
+        "why_not": "product-catalog's error ratio is flat zero (tr_718779b87cee), its spans in the sampled traces complete in single-digit milliseconds (tr_31a1e623c034), and every traffic-shaping attachment in its change history was removed hours before onset (tr_b2b625132003)."
+      },
+      {
+        "root_cause": "The recommendation process froze while its socket kept accepting, hanging callers to their deadlines.",
+        "service": "recommendation",
+        "fault_class": "process_freeze",
+        "remediation_class": null,
+        "why_not": "A frozen process writes nothing, but recommendation kept emitting log lines throughout the window (tr_5c4a0f75067a), and the frontend saw fast connection resets rather than deadline hangs (tr_e35b1e6379d8)."
+      }
+    ],
+    "summary": "The recommendation service intermittently stops serving and drops in-flight gRPC connections - consistent with its process being killed and restarted after exhausting memory - so callers see resets and the recommendation path shows traffic gaps rather than steady errors.",
+    "confidence": "low",
+    "evidence": [
+      "tr_442550895c67",
+      "tr_5c4a0f75067a",
+      "tr_31a1e623c034",
+      "tr_e35b1e6379d8",
+      "tr_8edbbe078f9f",
+      "tr_718779b87cee",
+      "tr_f9e99c52c7af",
+      "tr_145bd22a70ef"
+    ],
+    "reasoning": "recommendation's error ratio never departs from baseline but roughly half the intervals in the incident window have no defined value at all, i.e. intervals with no traffic (tr_442550895c67); its own log shows request handling ceasing well before the window closes while only exporter failures continue (tr_5c4a0f75067a), and its traces stop appearing after the early part of the window (tr_31a1e623c034). The frontend records gRPC UNAVAILABLE connection-reset failures, including one wrapped by a Python application reporting its own reset downstream (tr_e35b1e6379d8), which is the shape of a callee dying mid-call rather than returning errors. product-catalog, the only shared downstream on that path, is clean on error ratio (tr_718779b87cee) and silent in logs (tr_f9e99c52c7af), and its only recorded changes are traffic-shaping attachments hours before onset that were all removed (tr_b2b625132003), so a slow dependency does not explain the gaps. No deploy or config change landed on recommendation (tr_8edbbe078f9f) or flagd (tr_145bd22a70ef), so the failure is in the running process rather than in a new artifact or edited value; repeated disappearance-and-return of a service with no change behind it is the signature of the process being killed for over-consuming a resource. frontend-proxy's edge error ratio moved only slightly (tr_e98e6975a937), consistent with it being the noticer, not the breaker.",
+    "open_questions": [
+      "No memory, CPU, file-descriptor or restart-count metric was retrieved for recommendation, so exhaustion is inferred from traffic gaps and resets rather than observed directly.",
+      "Which resource was exhausted, and whether the kill was an OOM kill or a liveness-probe restart, is unsettled.",
+      "The log result elided the middle of the window, so the exact first moment recommendation stopped serving relative to the 13:13:31 onset is not pinned down.",
+      "flagd wrote no logs in the window, so a runtime flag flip into a leaking code path could not be confirmed or excluded.",
+      "frontend-proxy and load-generator produced no logs, leaving the caller-side timeout-versus-reset distinction unverified at the edge."
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B1",
+    "tool_calls": 14,
+    "turns": 16,
+    "looked_at": [
+      "metrics:recommendation",
+      "logs:recommendation",
+      "metrics:product-catalog",
+      "traces:frontend",
+      "changes:recommendation",
+      "traces:recommendation",
+      "changes:flagd",
+      "metrics:frontend-proxy",
+      "logs:frontend",
+      "logs:product-catalog",
+      "logs:flagd",
+      "logs:load-generator",
+      "changes:product-catalog",
+      "logs:frontend-proxy"
+    ]
+  }
+}

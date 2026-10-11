@@ -1,0 +1,175 @@
+{
+  "incident_id": "4d98a115-b027-4169-be46-1289c7c6c1d3",
+  "trajectory_id": "ad6d2bb9-1bd0-4679-b5dd-1370daf3d43c",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "ad",
+    "cart",
+    "checkout",
+    "currency",
+    "email",
+    "frontend",
+    "frontend-proxy",
+    "load-generator",
+    "payment",
+    "product-catalog",
+    "product-reviews",
+    "recommendation",
+    "shipping"
+  ],
+  "unmeasured_edges": 13,
+  "exclude_origins": [
+    "scenario:v2-cart-bad-image-tag"
+  ],
+  "verdict": {
+    "root_cause": "The cart service stopped accepting connections at ~08:31 and its endpoint was withdrawn from service discovery. Checkout's traces show all 10 sampled PlaceOrder flows aborting on the first dependency call, GetCart, with client-side gRPC UNAVAILABLE from a resolver returning zero addresses \u2014 the request never reached a cart instance [tr_16de3a6a8892]. frontend's logs show the same transport failure against one fixed peer 172.18.0.19:7070, ECONNREFUSED around 08:29 degrading to EHOSTUNREACH by 08:33 \u2014 a host with nothing listening, then an address no longer routable [tr_ebb4459c8a52]. Error ratios at frontend and checkout were flat zero across the 32-minute baseline then stepped up at 08:31/08:32 [tr_e1386aed2206][tr_8ec587ee7e45]. No cart-side telemetry was collected, so the location of the fault is established but the mechanism that killed the cart process is not.",
+    "service": "cart",
+    "fault_class": "unknown",
+    "remediation_class": "restart",
+    "confidence": "medium",
+    "evidence": [
+      "tr_16de3a6a8892",
+      "tr_ebb4459c8a52",
+      "tr_8ec587ee7e45"
+    ],
+    "reasoning": "The deepest erroring span in every trace is checkout's outbound GetCart; frontend, frontend-proxy and load-generator carry ERROR only as inherited status with trivial self time, so the alerting services are reporters, not culprits [tr_16de3a6a8892]. Checkout is not the origin either: its self time is minimal, the error attaches to the client span, its change log is empty [tr_948b37be18cb], and it still serves ~33% of spans [tr_8ec587ee7e45]. frontend's socket-level ECONNREFUSED/EHOSTUNREACH against a single peer rules out latency, DNS, TLS and application-level errors [tr_ebb4459c8a52], converging with the trace evidence on cart being absent rather than slow or broken in its handler. The step onset rules out gradual saturation at the caller [tr_e1386aed2206]. Because no cart logs, metrics or change history were ever queried, a crash-looping bad artifact, an OOM kill, and an operator stop are all still consistent with this caller-side picture, so I name the service but not the mechanism.",
+    "open_questions": [
+      "No cart-side evidence exists at all \u2014 cart logs, memory/restart metrics and change history were never queried; these would distinguish a crash-looping deploy, an OOM kill, and a deliberate stop.",
+      "Is 172.18.0.19:7070 actually cart? The frontend log names only an address, and no endpoint/DNS mapping was retrieved [tr_ebb4459c8a52].",
+      "Checkout's log stream returned zero lines for the whole window, which may indicate a broken log pipeline or label mismatch independent of this incident [tr_8c913248cd48]; change queries also covered only post-onset time, so a pre-08:31 change to cart or checkout would not appear [tr_85c449e104e6]."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "A bad cart deploy or image left the container unable to start, so it crash-loops and its endpoints are withdrawn.",
+        "service": "cart",
+        "fault_class": "bad_deploy",
+        "remediation_class": "rollback",
+        "why_not": "Plausible and fits the ECONNREFUSED\u2192EHOSTUNREACH progression, but no change history for cart was ever queried, so there is no evidence of any artifact change."
+      },
+      {
+        "root_cause": "The cart process was OOM-killed or hit a resource limit and died, taking its listener with it.",
+        "service": "cart",
+        "fault_class": "resource_exhaustion",
+        "remediation_class": "scale",
+        "why_not": "The caller-side onset is a sharp step rather than a ramp [tr_8ec587ee7e45], which fits a sudden kill but no cart memory/CPU metrics were collected to confirm exhaustion."
+      },
+      {
+        "root_cause": "Cart is running but severed from the network, so callers cannot reach it.",
+        "service": "cart",
+        "fault_class": "network_partition",
+        "remediation_class": "reconnect",
+        "why_not": "ECONNREFUSED at onset means the host was reachable and actively rejecting the port \u2014 a partition would not refuse \u2014 so a dead listener fits better than a severed network."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "cart-dependency-latency / What was never measured: Checkout's error-ratio change point sits ~19 minutes before the shaping attachment, overlapping the hotfix apply-and-restore window; that gap is unexplained and may be a second, independent story. No latency or request-rate series returned for either service, and traces cover onl",
+    "cart-dependency-latency / Detection notes: - Onset to first page: **3m35s**, against a three-minute persistence clause. Detection\n  is dominated by the clause, not by how long the signal took to appear \u2014 the underlying\n  measurement crossed the threshold almost immediately.\n- Services alerting at the page: **2**. Over the",
+    "shipping-wrong-image / What the investigation concluded: shippingservice was running an artifact that was not the shipping binary. About two minutes before onset (T-2m), platform-automation moved shippingservice's image reference to a demo artifact whose tag names a different service entirely (adservice). Four earlier change records in"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 26714,
+    "pulled_tokens": 5593,
+    "pull_rate": 0.1731,
+    "dropped_sections": 1,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 466,
+        "content_tokens": 468,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1637,
+        "content_tokens": 1640,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 8124,
+        "content_tokens": 8100,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 7553,
+        "content_tokens": 7555,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 8934,
+        "content_tokens": 8937,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "restart",
+    "action_id": "restart_service",
+    "target": "cart",
+    "rests_on": [
+      "tr_16de3a6a8892",
+      "tr_ebb4459c8a52",
+      "tr_8ec587ee7e45"
+    ],
+    "expected_effect": "Recreating cart should restore a listener on its gRPC port and its discovery endpoint. Within ~5 minutes: checkout's error ratio (same query as tr_8ec587ee7e45) falls from its post-08:32 level back toward the flat-zero baseline; frontend stops logging '14 UNAVAILABLE ... ECONNREFUSED/EHOSTUNREACH 172.18.0.19:7070'; new checkout traces show GetCart completing OK instead of failing sub-millisecond with a zero-address resolver error.",
+    "confirm_within_seconds": 300,
+    "if_wrong": "Falsified if after 5 minutes frontend still logs transport errors to 172.18.0.19:7070, checkout traces still abort at GetCart, or checkout's error ratio has not fallen. A container that exits again means a crash-looping image or OOM kill (needs rollback_image plus cart-side logs/metrics never collected); cart up but callers still seeing EHOSTUNREACH means a detached network, fixable only by reconnect_service, which this executor cannot do. Note the peer address was never mapped to cart via DNS/endpoint data, and checkout's log stream is empty, so confirmation must come from frontend logs and traces.",
+    "risk": "If the real mechanism is a bad deploy or OOM, the recreate destroys the exited container's exit code and logs \u2014 the only remaining evidence of why cart died \u2014 and cart comes back only to die again, costing time with no diagnosis. If 172.18.0.19:7070 is not cart, this restarts a healthy service for nothing. The action is not reversible and discards cart's in-process cache, causing a brief cold-cache latency bump.",
+    "blast_radius": "cart only, for the duration of the recreate. Its callers checkout and frontend see connection resets during the restart \u2014 they are already failing against it, so the marginal harm is small. Downstream of checkout (payment, shipping, currency, product-catalog, email) will begin receiving traffic again if the fix works, which is itself a change in their load."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Critical multi-service failure spanning the frontend path and checkout, with load-generator also affected, indicating user-visible impact. No open incident covers it and the alerts do not point to a single fault class yet."
+  }
+}

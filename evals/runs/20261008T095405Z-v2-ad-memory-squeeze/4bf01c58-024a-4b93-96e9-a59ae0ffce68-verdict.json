@@ -1,0 +1,52 @@
+{
+  "incident_id": "4bf01c58-024a-4b93-96e9-a59ae0ffce68",
+  "trajectory_id": "a89cf336-42c0-4c85-a5ed-19770c4fce36",
+  "states": [
+    "triaging",
+    "investigating"
+  ],
+  "blast_radius": [
+    "frontend",
+    "frontend-proxy",
+    "ad",
+    "cart",
+    "checkout",
+    "flagd",
+    "product-catalog",
+    "product-reviews",
+    "recommendation"
+  ],
+  "unmeasured_edges": 8,
+  "exclude_origins": [
+    "scenario:scenario:v2-ad-memory-squeeze"
+  ],
+  "verdict": {
+    "fault_class": null,
+    "remediation_class": null,
+    "service": null,
+    "alternatives": [],
+    "summary": "",
+    "confidence": null,
+    "evidence": [],
+    "reasoning": "",
+    "open_questions": []
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": "B1 produced no valid verdict: schema validation failed twice (1 validation error for Verdict\nremediation_class\n  Input should be 'rollback', 'restart', 'config_revert', 'scale', 'reconnect', 'restore_data', 'free_storage' or 'none' [type=literal_error, input_value='restore_resource_limits', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/literal_error)",
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B1",
+    "tool_calls": 4,
+    "turns": 5,
+    "looked_at": [
+      "metrics:ad",
+      "traces:frontend",
+      "logs:ad",
+      "changes:ad"
+    ]
+  }
+}

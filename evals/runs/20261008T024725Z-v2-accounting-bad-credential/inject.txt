@@ -1,0 +1,4 @@
+injected v2-accounting-bad-credential (bad_config) on accounting
+  - compose: accounting recreated with DB_CONNECTION_STRING=Host=postgresql;Username=otelu;Password=otelp-2026q3;Database=otel
+  - override written to /Users/chandana/dev/faultline/.faultline/overrides/v2-accounting-bad-credential.yml
+revert with: faultline-inject stop v2-accounting-bad-credential

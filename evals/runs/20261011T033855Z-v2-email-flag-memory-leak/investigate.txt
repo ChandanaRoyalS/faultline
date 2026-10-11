@@ -1,0 +1,9 @@
+incident 6756dc4d-b6f8-447b-b2a2-2cf93ee5cfe9  state triaging  anchor 03:43:46
+triage: 9 services, severity critical, start from checkout, 8 unmeasured edge(s) crossed
+
+B2: resource_exhaustion / restart (low)
+  checkout itself exhausted a local resource (memory/thread or connection pool), so requests queued and then failed — producing simultaneous latency and error-rate alerts with no downstream service degrading.
+  looked at nothing - this is the model's prior
+wrote /Users/chandana/dev/faultline/evals/runs/20261011T033855Z-v2-email-flag-memory-leak/6756dc4d-b6f8-447b-b2a2-2cf93ee5cfe9-verdict.json
+{"ts": "2026-10-11T03:46:10.078+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-11T03:46:17.964+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}

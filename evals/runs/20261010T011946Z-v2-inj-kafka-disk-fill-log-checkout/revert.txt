@@ -1,0 +1,3 @@
+reverted v2-kafka-disk-fill
+  - could not reach kafka to delete the fill; recreated kafka, which discards the filled directory
+  - restarted accounting, fraud-detection, checkout (they do not reconnect on their own); expect ~4 min of duplicate-key errors on any that kept uncommitted offsets

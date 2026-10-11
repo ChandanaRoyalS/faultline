@@ -1,0 +1,25 @@
+incident 4bf01c58-024a-4b93-96e9-a59ae0ffce68  state triaging  anchor 09:59:16
+triage: 9 services, severity critical, start from frontend, 8 unmeasured edge(s) crossed
+
+B1 FAILED: B1 produced no valid verdict: schema validation failed twice (1 validation error for Verdict
+remediation_class
+  Input should be 'rollback', 'restart', 'config_revert', 'scale', 'reconnect', 'restore_data', 'free_storage' or 'none' [type=literal_error, input_value='restore_resource_limits', input_type=str]
+    For further information visit https://errors.pydantic.dev/2.13/v/literal_error)
+the trajectory holds every tool call it made before the failure
+  4 tool calls over 5 turns
+    metrics:ad  Check error ratio shape and onset timing on the deepest alerting service to see whether ad is the origin or a victim.
+    traces:frontend  See which downstream call in frontend's spans is slow or erroring, to point at the origin rather than the alerting service.
+    logs:ad  See what ad itself reports at the time of the fast-failing GetAds calls — error type and whether a flag path is involved.
+    changes:ad  Determine whether a deploy, image change, or memory-limit edit preceded the ad crash-loop.
+wrote /Users/chandana/dev/faultline/evals/runs/20261008T095405Z-v2-ad-memory-squeeze/4bf01c58-024a-4b93-96e9-a59ae0ffce68-verdict.json
+{"ts": "2026-10-08T10:02:05.438+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-08T10:02:05.456+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=metric_baseline subject=sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"ad\",status_code=\"STATUS_CODE_ERROR\"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"ad\"}[5m])) start=2026-10-08T08:56:32.341327+00:00 end=2026-10-08T10:02:00.986673+00:00 span_s=3928 refused=False", "component": "investigator"}
+{"ts": "2026-10-08T10:02:10.261+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-08T10:02:10.265+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=trace_query subject=frontend start=2026-10-08T09:29:16.664000+00:00 end=2026-10-08T10:02:00.986673+00:00 span_s=1964 refused=False", "component": "investigator"}
+{"ts": "2026-10-08T10:02:15.616+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-08T10:02:15.618+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=logql_query subject={service=\"ad\"} start=2026-10-08T09:29:16.664000+00:00 end=2026-10-08T10:02:00.986673+00:00 span_s=1964 refused=False", "component": "investigator"}
+{"ts": "2026-10-08T10:02:20.487+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-08T10:02:20.488+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=ad start=2026-10-07T09:59:16.664000+00:00 end=2026-10-08T10:02:00.986673+00:00 span_s=86564 refused=False", "component": "investigator"}
+{"ts": "2026-10-08T10:02:36.636+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-08T10:02:58.274+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-08T10:03:08.366+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}

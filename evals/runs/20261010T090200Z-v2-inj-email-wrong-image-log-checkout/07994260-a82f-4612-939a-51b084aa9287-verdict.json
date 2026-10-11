@@ -1,0 +1,67 @@
+{
+  "incident_id": "07994260-a82f-4612-939a-51b084aa9287",
+  "trajectory_id": "7c3ea177-2a7d-47bd-8436-1f903f918101",
+  "states": [
+    "triaging"
+  ],
+  "blast_radius": [
+    "checkout",
+    "email",
+    "cart",
+    "currency",
+    "frontend",
+    "payment",
+    "product-catalog",
+    "shipping",
+    "frontend-proxy"
+  ],
+  "unmeasured_edges": 8,
+  "exclude_origins": [
+    "scenario:scenario:v2-inj-email-wrong-image-log-checkout"
+  ],
+  "verdict": {
+    "fault_class": "process_freeze",
+    "remediation_class": "restart",
+    "service": "email",
+    "alternatives": [
+      {
+        "root_cause": "A bad email deploy produced an artifact that cannot start, so the pod crashloops and serves nothing.",
+        "service": "email",
+        "fault_class": "bad_deploy",
+        "remediation_class": null,
+        "why_not": "A crashlooping service normally fails checkout fast with connection errors and raises an availability/restart alert, not a plain ServiceNoTraffic; also nothing in the report points to a deploy."
+      },
+      {
+        "root_cause": "email became slow (e.g. its own upstream mail path), and checkout exhausted its request deadlines waiting.",
+        "service": "email",
+        "fault_class": "dependency_latency",
+        "remediation_class": null,
+        "why_not": "Pure slowness would still show inbound traffic and partial successes at email, which contradicts the ServiceNoTraffic alert."
+      }
+    ],
+    "summary": "The email service's process is stopped/hung \u2014 it still accepts connections but never responds or logs, so checkout's calls to it hang until deadline and fail, surfacing as checkout's error-rate alert while email itself appears to receive no traffic.",
+    "confidence": "low",
+    "evidence": [],
+    "reasoning": "checkout alerted first on errors, but checkout is the caller; of its dependencies (product-catalog, currency, cart, payment, shipping, email) only email also alerted, and it alerted with ServiceNoTraffic \u2014 the signature of a service that stopped emitting anything. The blast radius is exactly checkout's dependency closure plus frontend/frontend-proxy above it, i.e. errors propagating up from the checkout\u2192email edge rather than a shared backend like flagd (ad, recommendation, cart, product-reviews, fraud-detection would be implicated instead). A frozen process explains both symptoms at once: no self-reported traffic or logs from email, and timeout-driven failures in its only caller. A hard crash would also yield no traffic, but then checkout would fail fast on connection refused and email would typically alert on being down rather than merely silent.",
+    "open_questions": [
+      "Does email write any log lines after onset, or is its output entirely silent?",
+      "Are checkout's failures timeouts/deadline-exceeded or immediate connection-refused/5xx?",
+      "Do email's TCP sockets still accept connections while health checks hang?",
+      "Email container CPU/memory and thread state (stopped, GC pause, deadlock) at onset?",
+      "Any recent deploy or image change to email in the change log?"
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B2",
+    "tool_calls": 0,
+    "attempts": 2,
+    "cited_without_looking": []
+  }
+}

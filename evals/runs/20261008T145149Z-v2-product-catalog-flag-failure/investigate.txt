@@ -1,0 +1,8 @@
+incident d417432c-938c-4c84-a013-e1230a650c65  state triaging  anchor 14:58:16
+triage: 8 services, severity critical, start from frontend, 7 unmeasured edge(s) crossed
+
+B2: bad_deploy / rollback (low)
+  The frontend service began failing on its own — most likely a newly rolled-out frontend artifact that errors on request handling — and frontend-proxy merely surfaces those errors to clients.
+  looked at nothing - this is the model's prior
+wrote /Users/chandana/dev/faultline/evals/runs/20261008T145149Z-v2-product-catalog-flag-failure/d417432c-938c-4c84-a013-e1230a650c65-verdict.json
+{"ts": "2026-10-08T15:00:21.206+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}

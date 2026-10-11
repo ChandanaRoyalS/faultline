@@ -1,0 +1,9 @@
+incident cdcc6993-ca83-486d-a2a4-18f79b33b513  state triaging  anchor 22:58:16
+triage: 2 services, severity critical, start from fraud-detection, 1 unmeasured edge(s) crossed
+B0: resource_exhaustion / config_revert
+  suspect: service of the most recent pre-onset change in the window (22:51:01)
+  class: that change was to resource_limits
+  remediation: table lookup from resource_exhaustion
+wrote /Users/chandana/dev/faultline/evals/runs/20261007T225058Z-v2-fraud-detection-memory-squeeze/cdcc6993-ca83-486d-a2a4-18f79b33b513-verdict.json
+{"ts": "2026-10-07T23:00:13.563+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=fraud-detection start=2026-10-06T22:58:16.664000+00:00 end=2026-10-07T23:00:13.558831+00:00 span_s=86516 refused=False", "component": "investigator"}
+{"ts": "2026-10-07T23:00:13.565+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=promql_query subject=sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"fraud-detection\",status_code=\"STATUS_CODE_ERROR\"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"fraud-detection\"}[5m])) start=2026-10-07T22:28:16.664000+00:00 end=2026-10-07T23:00:13.558831+00:00 span_s=1916 refused=False", "component": "investigator"}

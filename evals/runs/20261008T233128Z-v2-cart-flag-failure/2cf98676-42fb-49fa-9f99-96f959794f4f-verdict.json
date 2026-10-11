@@ -1,0 +1,67 @@
+{
+  "incident_id": "2cf98676-42fb-49fa-9f99-96f959794f4f",
+  "trajectory_id": "971fcda4-96e1-4e0b-9d0b-c8de9e01c51c",
+  "states": [
+    "triaging"
+  ],
+  "blast_radius": [
+    "checkout",
+    "cart",
+    "currency",
+    "email",
+    "frontend",
+    "payment",
+    "product-catalog",
+    "shipping",
+    "frontend-proxy"
+  ],
+  "unmeasured_edges": 8,
+  "exclude_origins": [
+    "scenario:scenario:v2-cart-flag-failure"
+  ],
+  "verdict": {
+    "fault_class": "bad_config",
+    "remediation_class": "config_revert",
+    "service": "checkout",
+    "alternatives": [
+      {
+        "root_cause": "A flag flip in flagd turned on a failure path in cart (or payment), and checkout surfaces those errors to the user.",
+        "service": "cart",
+        "fault_class": "feature_flag",
+        "remediation_class": null,
+        "why_not": "cart is flagd-connected and this is a classic failure mode, but cart itself did not alert, and the errors would likely have surfaced in frontend's direct cart calls too, not only in checkout."
+      },
+      {
+        "root_cause": "checkout was deployed with a broken or mismatched artifact that fails on every order request.",
+        "service": "checkout",
+        "fault_class": "bad_deploy",
+        "remediation_class": null,
+        "why_not": "A bad artifact usually shows up as unavailability/crashlooping or a drop in request volume rather than a steady high error rate from a service that is still serving."
+      }
+    ],
+    "summary": "checkout is running with a wrong configuration value (most likely a bad endpoint/port or credential for one of its downstream gRPC dependencies), so its order requests fail fast with errors.",
+    "confidence": "low",
+    "evidence": [],
+    "reasoning": "checkout is the only alerting service and the alert is an error-rate alert, not a latency alert. The blast radius is simply checkout plus its fan-out of dependencies and its callers, which is what graph traversal produces regardless of which node broke. If a downstream (payment, cart, currency, product-catalog, shipping, email) had become slow or had started erroring, that service would normally have tripped its own alert and the propagation would have shown up as checkout latency rather than clean errors; none of them alerted. Fast, immediate failures in a single service with healthy neighbours point at the service's own running state: either the artifact or the configuration it was handed. Between those, a wrong config value (dependency address/port, currency code, or a limit) is the common way checkout errors on every order while still being up and answering; a broken artifact would usually also show as crashloops or unavailability rather than a plain high error rate. Note that checkout has no flagd edge in this catalog, which argues against the usual feature-flag-driven checkout failure in this topology.",
+    "open_questions": [
+      "checkout's own error logs: are the failures gRPC UNAVAILABLE/connection-refused toward a specific dependency (bad address/port) or application-level errors from a dependency's response?",
+      "Did checkout restart or get a new image/config revision just before 23:36:46?",
+      "Per-dependency error and latency breakdown from checkout's client spans: does one downstream account for all failures?",
+      "Did payment/cart error rates rise without crossing their alert thresholds?",
+      "Were any flagd flag values changed around onset, even for services upstream of checkout?"
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B2",
+    "tool_calls": 0,
+    "attempts": 2,
+    "cited_without_looking": []
+  }
+}

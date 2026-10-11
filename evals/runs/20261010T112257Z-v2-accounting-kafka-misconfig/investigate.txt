@@ -1,0 +1,9 @@
+incident 60233311-905a-4e57-a05f-92c4d2402a7f  state triaging  anchor 11:30:31
+triage: 1 services, severity critical, start from nowhere the graph knows, 0 unmeasured edge(s) crossed
+B0: bad_config / config_revert
+  suspect: service of the most recent pre-onset change in the window (11:23:01)
+  class: that change was to environment
+  remediation: table lookup from bad_config
+wrote /Users/chandana/dev/faultline/evals/runs/20261010T112257Z-v2-accounting-kafka-misconfig/60233311-905a-4e57-a05f-92c4d2402a7f-verdict.json
+{"ts": "2026-10-10T11:32:32.526+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=accounting start=2026-10-09T11:30:31.664000+00:00 end=2026-10-10T11:32:32.512760+00:00 span_s=86520 refused=False", "component": "investigator"}
+{"ts": "2026-10-10T11:32:32.535+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=promql_query subject=sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"accounting\",status_code=\"STATUS_CODE_ERROR\"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"accounting\"}[5m])) start=2026-10-10T11:00:31.664000+00:00 end=2026-10-10T11:32:32.512760+00:00 span_s=1920 refused=False", "component": "investigator"}

@@ -1,0 +1,85 @@
+{
+  "incident_id": "44ac4e4a-4a48-4503-af1e-b3a95d911511",
+  "trajectory_id": "f971e2ac-0bca-4c90-939f-b2b0ca5b8c37",
+  "states": [
+    "triaging",
+    "investigating"
+  ],
+  "blast_radius": [
+    "frontend",
+    "frontend-proxy",
+    "ad",
+    "cart",
+    "checkout",
+    "flagd",
+    "product-catalog",
+    "product-reviews",
+    "recommendation"
+  ],
+  "unmeasured_edges": 8,
+  "exclude_origins": [
+    "scenario:scenario:v2-ad-bad-image-tag"
+  ],
+  "verdict": {
+    "fault_class": "bad_deploy",
+    "remediation_class": "rollback",
+    "service": "ad",
+    "alternatives": [
+      {
+        "root_cause": "A lowered memory limit caused the ad JVM to be killed for exceeding it.",
+        "service": "ad",
+        "fault_class": "resource_exhaustion",
+        "remediation_class": null,
+        "why_not": "The memory limit edits were each reverted, the last one at 10:03, more than an hour before the 11:19 shutdown and the 11:24 onset; the change in force at onset is the image reference."
+      },
+      {
+        "root_cause": "The ad process is frozen while its socket still accepts, so callers hang.",
+        "service": "ad",
+        "fault_class": "process_freeze",
+        "remediation_class": null,
+        "why_not": "Callers do not hang - the GetAds span fails in a fraction of a millisecond, which is a refused or immediately-errored call, not a wait to deadline."
+      },
+      {
+        "root_cause": "A flag flip turned on a failing ad code path.",
+        "service": "flagd",
+        "fault_class": "feature_flag",
+        "remediation_class": null,
+        "why_not": "The change log for ad is not empty - it carries a concrete image change coincident with the process shutdown - and flagd calls complete normally inside the checkout trace."
+      }
+    ],
+    "summary": "The ad service was redeployed onto the wrong artifact (image reference switched to the 2.2.0-ad-hotfix.2 tag) at 11:19, after which the ad process shut down and never came back up, so AdService calls fail at the caller.",
+    "confidence": "medium",
+    "evidence": [
+      "tr_23670b00714d",
+      "tr_c001782cd5ff",
+      "tr_4e9b1e4c87e7",
+      "tr_e98c192b6c15",
+      "tr_b7b6210585f2"
+    ],
+    "reasoning": "Frontend traces show the only erroring path is the GetAds call, failing in well under a millisecond at the frontend's own span with no child span from ad at all (tr_e98c192b6c15) - the callee is not serving, and the errors propagate up through frontend and frontend-proxy, which is why those alerted first. Ad's own error-ratio barely moves and a large share of intervals have no defined value, i.e. no ad spans are being produced (tr_4e9b1e4c87e7), consistent with the service not serving rather than serving errors. Ad's log ends with a JVM shutdown just after 11:19 and nothing afterwards (tr_c001782cd5ff), and the change log shows an image reference flipped to a hotfix tag at 11:19:06, immediately after that shutdown, with no subsequent revert (tr_23670b00714d). Earlier in the day the same automation lowered a memory limit and also applied this same image, but each of those was reverted well before onset; the only change still in force across the incident window is the hotfix image. The running artifact is not the one that should be running and it does not come up, which is bad_deploy rather than resource_exhaustion.",
+    "open_questions": [
+      "No startup or crash-loop log lines from ad after 11:19 were observed, so whether the new image fails to start, crashes repeatedly, or was never scheduled is unsettled.",
+      "Whether the earlier 144m memory limit contributed to the 11:19 JVM shutdown was not checked - the limit record shows reverted before onset, but ad memory metrics were not inspected.",
+      "The other blast-radius services (cart, checkout, flagd, product-catalog, recommendation) were not examined directly; their inclusion may be graph reachability rather than real symptoms."
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B1",
+    "tool_calls": 5,
+    "turns": 7,
+    "looked_at": [
+      "metrics:ad",
+      "metrics:frontend",
+      "traces:frontend",
+      "logs:ad",
+      "changes:ad"
+    ]
+  }
+}

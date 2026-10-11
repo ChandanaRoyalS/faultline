@@ -1,0 +1,19 @@
+incident 1089071d-9238-47e0-8487-bc4a4f4d48fa  state triaging  anchor 02:31:16
+triage: 1 services, severity critical, start from nowhere the graph knows, 0 unmeasured edge(s) crossed
+
+B1: bad_config / config_revert (high)
+  A change to accounting's DB_CONNECTION_STRING environment value supplied credentials the database rejects, so every database write fails authentication.
+  3 tool calls over 5 turns
+    metrics:accounting  Establish the error pattern and timing for the only alerting service against its quiet baseline.
+    changes:accounting  See whether any deploy, config or artifact change lands near 02:29 on accounting.
+    logs:accounting  See what accounting's own log says after the connection string change — auth/host failure vs something else.
+wrote /Users/chandana/dev/faultline/evals/runs/20261008T022806Z-v2-accounting-bad-credential/1089071d-9238-47e0-8487-bc4a4f4d48fa-verdict.json
+{"ts": "2026-10-08T02:33:08.062+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-08T02:33:08.078+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=metric_baseline subject=sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"accounting\",status_code=\"STATUS_CODE_ERROR\"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"accounting\"}[5m])) start=2026-10-08T01:29:30.218148+00:00 end=2026-10-08T02:33:03.109852+00:00 span_s=3812 refused=False", "component": "investigator"}
+{"ts": "2026-10-08T02:33:11.443+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-08T02:33:11.446+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=accounting start=2026-10-07T02:31:16.664000+00:00 end=2026-10-08T02:33:03.109852+00:00 span_s=86506 refused=False", "component": "investigator"}
+{"ts": "2026-10-08T02:33:15.726+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-08T02:33:15.730+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=logql_query subject={service=\"accounting\"} start=2026-10-08T02:01:16.664000+00:00 end=2026-10-08T02:33:03.109852+00:00 span_s=1906 refused=False", "component": "investigator"}
+{"ts": "2026-10-08T02:33:19.763+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-08T02:33:33.378+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-08T02:33:44.163+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}

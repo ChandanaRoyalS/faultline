@@ -1,0 +1,168 @@
+{
+  "incident_id": "dd9eee30-bd94-4877-9f79-afef05dbcb80",
+  "trajectory_id": "3be880b6-9273-4683-be44-f8ee4deda284",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "ad",
+    "cart",
+    "checkout",
+    "flagd",
+    "frontend",
+    "frontend-proxy",
+    "product-catalog",
+    "product-reviews",
+    "recommendation"
+  ],
+  "unmeasured_edges": 8,
+  "exclude_origins": [
+    "scenario:v2-ad-bad-image-tag"
+  ],
+  "verdict": {
+    "root_cause": "The ad service stopped existing on the network at 12:25:29 and did not return. Its own log shows clean traffic up to the final second, then an orderly JVM shutdown-hook teardown of the gRPC ads server and total silence afterwards [tr_fb2d7b15b665]; one second later the change log records platform-automation setting ad's image reference from unset to the 2.2.0-ad-hotfix.2 tag [tr_2ab1b562f262]. From 12:30 the frontend logs gRPC status 14 UNAVAILABLE against one peer, 172.18.0.19:9555 (the conventional ad port), with a host-unreachable connect error \u2014 no TCP session is ever established, so the peer is absent rather than refusing or hanging [tr_fe847d5db367]. The deploy action terminated the running replica and no healthy replacement came up on that address: the artifact that should be running is not running. The frontend and frontend-proxy alerts are caller-side propagation of the missing dependency.",
+    "service": "ad",
+    "fault_class": "bad_deploy",
+    "remediation_class": "rollback",
+    "confidence": "medium",
+    "evidence": [
+      "tr_fb2d7b15b665",
+      "tr_2ab1b562f262",
+      "tr_fe847d5db367",
+      "tr_361e4ee9a7d6"
+    ],
+    "reasoning": "ad's log ends at an explicit graceful shutdown at 12:25:29 with no error ramp, no OOM and no panic, and the specialist confirmed the silence is a real service state rather than a retention artifact [tr_fb2d7b15b665]. An image-reference change lands one second later from the same automation actor that has been oscillating this service between one hotfix tag and unset [tr_2ab1b562f262] \u2014 a shutdown hook firing at that instant is the orchestrator replacing the replica. The caller's symptom matches a missing peer exactly: status 14 with a host-unreachable transport error to a single address, explicitly distinguished from connection-refused, from application-level errors, and from slow-but-connected saturation [tr_fe847d5db367]. This rules out process_freeze (a frozen process keeps accepting and hangs callers) and network_partition (a running-but-cut-off ad would log its own unreachability; ad logs nothing after a self-initiated stop). Both metric dispatches on ad were rejected with HTTP 400 and returned no data on restarts, availability or resources [tr_361e4ee9a7d6], which is the main gap.",
+    "open_questions": [
+      "Did a replacement ad pod ever start \u2014 crashlooping, stuck pulling the hotfix tag, or never scheduled? No availability or restart metric was retrieved; both queries failed with HTTP 400 [tr_361e4ee9a7d6].",
+      "The frontend log names only 172.18.0.19:9555, not a service name; ad attribution rests on port convention plus the coincident shutdown [tr_fe847d5db367].",
+      "The same tag was applied and reverted repeatedly earlier in the week without this outcome [tr_2ab1b562f262], so the defect may lie in the automation leaving zero replicas rather than in the image itself."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "The ad replica was evicted or descheduled under node resource pressure, and the graceful shutdown is the SIGTERM path of that eviction.",
+        "service": "ad",
+        "fault_class": "resource_exhaustion",
+        "remediation_class": "scale",
+        "why_not": "An eviction and a rollout give the same orderly shutdown signature, but only the deploy is independently corroborated by a change record one second before the shutdown line [tr_2ab1b562f262], and ad's final minute shows no degradation ramp [tr_fb2d7b15b665]. No resource metric exists either way.",
+        "_": ""
+      },
+      {
+        "root_cause": "The host-unreachable errors reflect a network/routing fault isolating ad's address from the frontend rather than ad's absence.",
+        "service": "ad",
+        "fault_class": "network_partition",
+        "remediation_class": "reconnect",
+        "why_not": "A partitioned ad would still be running and logging; instead ad recorded a completed, self-initiated shutdown and emitted nothing at all afterwards [tr_fb2d7b15b665]."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "v2-ad-partition / Resolution: The container was put back on its network under its original names, on the same address. Where\nan operator cannot reconnect a container with its aliases, recreating or restarting it does the\nsame job. Class of fix: **restart**. Nothing was deployed or misconfigured, so there was ",
+    "v2-ad-memory-squeeze / What was checked: **The page names callers.** Frontend-proxy forwards what the frontend returns, and the load\ngenerator is the synthetic shoppers counting their own failures. The frontend was the one service\nmaking calls that failed, and the order path was not among them.\n\n**The frontend's error t",
+    "v2-ad-memory-squeeze / Resolution: The memory limit was restored to 300M. The next JVM start, twenty seconds after the fix, was the\nfirst in ten minutes to reach `Ad service started, listening on 9555`, and it served its first ad\nrequest just under two minutes later, as the frontend found it again; a new set of 51"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 23202,
+    "pulled_tokens": 9340,
+    "pull_rate": 0.287,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 438,
+        "content_tokens": 440,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1718,
+        "content_tokens": 1721,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 6899,
+        "content_tokens": 6875,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 6409,
+        "content_tokens": 6411,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 7738,
+        "content_tokens": 7716,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "rollback",
+    "action_id": "rollback_image",
+    "target": "ad",
+    "rests_on": [
+      "tr_fb2d7b15b665",
+      "tr_2ab1b562f262",
+      "tr_fe847d5db367"
+    ],
+    "expected_effect": "ad logs resume (gRPC ads server startup, then routine request lines), ending the silence that began at the 12:25:29 shutdown-hook teardown; frontend stops logging status 14 UNAVAILABLE / host-unreachable to 172.18.0.19:9555, and the frontend and frontend-proxy alerts clear. The effect comes mainly from the container recreate, not the tag value \u2014 the same tag ran healthily earlier in the week. Confirmation must be from Loki on both sides: ad metrics are unusable here (both Prometheus queries returned HTTP 400).",
+    "confirm_within_seconds": 300,
+    "if_wrong": "Falsified if ad logs show startup then another shutdown or a stack trace (image genuinely bad / crashloop), or stay empty (never scheduled or pull failure \u2014 fix lies in platform-automation, outside this system, escalate), or if frontend keeps logging host-unreachable to 172.18.0.19:9555 after ad is up, meaning the port-convention attribution was wrong.",
+    "risk": "If the real defect is the automation leaving zero replicas rather than the image, this restores service only until the next apply/revert cycle (~10-20 min) and masks the loop. The recreate itself discards ad's in-process cache and briefly resets any connection that had recovered.",
+    "blast_radius": "ad only, plus its callers: frontend and frontend-proxy see a connection reset during recreate (they are already failing against this peer). ad's downstream flagd sees ad traffic resume."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Critical multi-service alert cascading from frontend through proxy to ad within two minutes, with no open incident to attribute it to. Nothing here can be dismissed; fault class is not yet suggested by the alert pattern (flagd downstream of ad hints at feature flag, but that is speculation)."
+  }
+}

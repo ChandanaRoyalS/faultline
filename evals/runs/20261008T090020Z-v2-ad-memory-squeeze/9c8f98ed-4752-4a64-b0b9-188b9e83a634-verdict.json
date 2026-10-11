@@ -1,0 +1,171 @@
+{
+  "incident_id": "9c8f98ed-4752-4a64-b0b9-188b9e83a634",
+  "trajectory_id": "0ed6c4a2-14d3-4e85-b14a-4abe5496b77f",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "ad",
+    "cart",
+    "checkout",
+    "frontend",
+    "frontend-proxy",
+    "product-catalog",
+    "product-reviews",
+    "recommendation"
+  ],
+  "unmeasured_edges": 7,
+  "exclude_origins": [
+    "scenario:v2-ad-memory-squeeze"
+  ],
+  "verdict": {
+    "root_cause": "Platform-automation lowered the ad service's container memory limit to 144m about four minutes before onset, after flapping the same value on and off twice in the preceding half hour [tr_bfa66f2085e8]. Under that ceiling the ad JVM completes boot and emits its own start line, then is terminated from outside with no exception, no shutdown signal and no teardown logging, roughly every 63 seconds across five cycles [tr_cabccb7e77d8]. Each death takes the gRPC listener on port 9555 with it, so frontend's server-side GetAds calls fail at TCP connect with status 14 UNAVAILABLE / ECONNREFUSED against 172.18.0.19:9555, later reporting host unreachable [tr_bbd4b2677696]. Traces localise the only erroring hop to frontend's ad GetAds client span on user_get_ads, sub-millisecond with no server-side child, while cart, product-catalog and checkout stay clean [tr_5e9cba3726a9]. Frontend is the reporter, not the culprit: its errors are new, bursty and a few percent of traffic [tr_9a837cdd24ab], with no deploy, flag or config change at all [tr_23ee4c378371]. Ad's error ratio did not rise; instead 33 intervals have no defined value against zero in baseline, the signature of a process that is gone rather than one returning errors [tr_0076ada631ae].",
+    "service": "ad",
+    "fault_class": "resource_exhaustion",
+    "remediation_class": "config_revert",
+    "confidence": "high",
+    "evidence": [
+      "tr_bfa66f2085e8",
+      "tr_cabccb7e77d8",
+      "tr_bbd4b2677696",
+      "tr_5e9cba3726a9",
+      "tr_0076ada631ae",
+      "tr_9a837cdd24ab",
+      "tr_23ee4c378371"
+    ],
+    "reasoning": "Direction of causation runs from ad to frontend: a caller cannot refuse its own connections, and frontend's failures are client-side connect refusals to one concrete peer address and port after DNS succeeded [tr_bbd4b2677696], localised by traces to the ad hop alone [tr_5e9cba3726a9]. The culprit's own state is a restart loop where the process is killed mid-stream after successful initialization, with no application-level error [tr_cabccb7e77d8] and intervals of no traffic at all [tr_0076ada631ae] - the expected shape of a container exceeding its memory cgroup, since a kernel kill leaves nothing in the application log. The only change touching ad in 24 hours is the memory limit reduction minutes before onset [tr_bfa66f2085e8]. I classify this as resource_exhaustion rather than bad_config because the process is failing by running out of memory it needs; the edit is how it started, exhaustion is what is happening. The fix is reverting that limit, not merely restarting, which would re-enter the loop.",
+    "open_questions": [
+      "The kill mechanism is inferred: no OOM-kill event, exit code, restart count or memory-usage series for ad was retrieved [tr_cabccb7e77d8, tr_0076ada631ae]. A fixed ~63s cycle could equally fit a liveness-probe timeout, which was never examined.",
+      "Onset timing is not fully reconciled - frontend crossings at ~08:43 and ~09:03 [tr_9a837cdd24ab] against limit changes at ~08:40, reverted ~08:47, reapplied 09:00 [tr_bfa66f2085e8]; frontend log coverage before 08:39 is truncated [tr_bbd4b2677696].",
+      "Six of eight services in the blast radius were never queried, and no service-discovery record confirms 172.18.0.19:9555 is ad [tr_23ee4c378371]."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "The ad container is killed by a liveness probe whose timeout it cannot meet, independent of the memory limit.",
+        "service": "ad",
+        "fault_class": "bad_config",
+        "remediation_class": "config_revert",
+        "why_not": "Nothing in the change log shows a probe change, while a memory limit reduction lands four minutes before onset [tr_bfa66f2085e8]; the probe hypothesis has no recorded trigger and ad was healthy on the same probe settings minutes earlier [tr_cabccb7e77d8]."
+      },
+      {
+        "root_cause": "The ad instances were removed from the network or their route withdrawn, cutting frontend off from port 9555.",
+        "service": "ad",
+        "fault_class": "network_partition",
+        "remediation_class": "reconnect",
+        "why_not": "A partition would leave ad running and complaining it cannot reach things; instead ad is repeatedly booting and dying [tr_cabccb7e77d8], and the initial connect failures are refusals rather than unreachable-host, meaning the host was up and nothing was listening [tr_bbd4b2677696]."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "v2-product-catalog-freeze / What was observed: The page came 4m15s after requests started hanging: two alerts at once, error rate on\n**frontend-proxy** and on **load-generator**. Neither is a service anyone would fix. One is the\nedge proxy and the other is the synthetic client, and both were reporting what they received\nfrom ",
+    "v2-frontend-cart-misconfig / What was checked: **The error text, because it was the first thing a responder would read.** Checkout's error spans\nand the frontend's log said `shipping quote failure: failed POST to email service: expected 200,\ngot 400`. That names two services, and neither was at fault. It is checkout's own wor",
+    "v2-cart-freeze / Detection notes: - Onset to first page: **5m31s**. The proxy's latency was at the ceiling three and a half\n  minutes before that, the frontend's two and a half.\n- Services on the page: **two** (four alerts), neither of them one you would fix. By the fix:\n  **fourteen alerts across twelve services"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 30109,
+    "pulled_tokens": 8040,
+    "pull_rate": 0.2108,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 433,
+        "content_tokens": 435,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1769,
+        "content_tokens": 1773,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 9222,
+        "content_tokens": 9198,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 8567,
+        "content_tokens": 8569,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 10118,
+        "content_tokens": 10095,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "config_revert",
+    "action_id": "revert_config",
+    "target": "ad",
+    "rests_on": [
+      "tr_bfa66f2085e8",
+      "tr_cabccb7e77d8",
+      "tr_bbd4b2677696",
+      "tr_0076ada631ae",
+      "tr_5e9cba3726a9"
+    ],
+    "expected_effect": "Restoring ad's prior configuration removes the 144m container memory limit that platform-automation applied at 09:00:24, ~4m before onset [tr_bfa66f2085e8], and recreates the container. Observable within a few minutes: (1) ad's logs stop showing a fresh JVM boot banner + 'service starting' line every ~63s \u2014 one boot, then continuous AdService request lines as seen at 08:35-08:36 [tr_cabccb7e77d8]; (2) frontend's Loki stream stops emitting '14 UNAVAILABLE ... connect ECONNREFUSED 172.18.0.19:9555' / host-unreachable lines [tr_bbd4b2677696]; (3) ad's span-metrics error-ratio series stops producing undefined intervals (traffic present in every scrape interval again) [tr_0076ada631ae]; (4) frontend's error ratio falls back toward the baseline flat zero and the user_get_ads GetAds client span stops carrying an error flag [tr_9a837cdd24ab is the baseline; confirm via tr_5e9cba3726a9's trace shape \u2014 an ad-side server child span should reappear under frontend's GetAds client span].",
+    "confirm_within_seconds": 300,
+    "if_wrong": "If ad still boots and dies on the same ~63s cadence after the revert, the memory ceiling was not the kill mechanism and the open question stands: a liveness/health-probe timeout killing the container on a fixed interval fits the evidence equally well, and no OOM-kill event, exit code, restart count or memory-usage series for ad was ever retrieved [tr_cabccb7e77d8, tr_0076ada631ae]. Also falsifying: frontend keeps logging ECONNREFUSED/host-unreachable against 172.18.0.19:9555 while ad logs look healthy \u2014 that would mean the peer at that address is not ad, which no service-discovery record confirms. A third failure mode is non-persistence: platform-automation flapped this same value on at ~08:40, off at ~08:47 and on again at 09:00 [tr_bfa66f2085e8], so if the loop reapplies 144m the restart cycle will resume within minutes and the revert will appear to work and then regress. Watch past the first clean boot for at least two further 63s intervals before calling it fixed.",
+    "risk": "Not none. (a) If the 144m limit was applied by the automation loop in response to a real memory problem in ad, removing it lets the JVM grow unbounded; on a shared host that can push memory pressure onto co-located containers and turn a single-service outage into a host-level one. (b) The revert recreates the ad container, so there is a deliberate short outage of port 9555 \u2014 during it frontend's GetAds calls fail exactly as they do now. (c) If the kill is actually a probe timeout, this changes configuration for no benefit and consumes the revert as a diagnostic, leaving the probe hypothesis untested while the loop continues. (d) The automation actor is not paused by this action; a revert that is immediately overwritten leaves the system in the same state with one more config flap in its history.",
+    "blast_radius": "Directly: ad alone. Inbound edge in this incident is frontend, which calls ad GetAds server-side on the /api/data route for user_get_ads [tr_5e9cba3726a9]; frontend sees connection resets for the seconds the container takes to recreate, and those propagate up through frontend-proxy ingress/egress to the load-generator's GET, so the user_get_ads operation is the user-visible surface. cart, product-catalog and checkout paths are clean and unaffected [tr_5e9cba3726a9]. product-reviews and recommendation were never queried, so if either also calls ad they would see the same brief reset without this brief having recorded it."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Critical alerts on both frontend and its proxy simultaneously indicate user-facing impact that cannot be dismissed, with no open incident to attribute it to. The shared timing could reflect a frontend-tier failure or an upstream dependency, so the fault class stays open pending evidence."
+  }
+}

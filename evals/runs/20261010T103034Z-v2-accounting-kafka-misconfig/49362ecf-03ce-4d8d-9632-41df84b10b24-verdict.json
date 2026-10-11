@@ -1,0 +1,59 @@
+{
+  "incident_id": "49362ecf-03ce-4d8d-9632-41df84b10b24",
+  "trajectory_id": "d86712db-24da-4a83-9435-d86525dc21ac",
+  "states": [
+    "triaging"
+  ],
+  "blast_radius": [
+    "accounting"
+  ],
+  "unmeasured_edges": 0,
+  "exclude_origins": [
+    "scenario:scenario:v2-accounting-kafka-misconfig"
+  ],
+  "verdict": {
+    "fault_class": "process_freeze",
+    "remediation_class": "restart",
+    "service": "accounting",
+    "alternatives": [
+      {
+        "root_cause": "A bad deploy of accounting rolled out an artifact that cannot start, so the service never began consuming.",
+        "service": "accounting",
+        "fault_class": "bad_deploy",
+        "remediation_class": null,
+        "why_not": "A failed start usually leaves crash-loop evidence and startup error logs; nothing in the report suggests a release, and the onset is a clean cutover to silence rather than flapping."
+      },
+      {
+        "root_cause": "accounting exhausted memory or threads and was killed/wedged, halting consumption.",
+        "service": "accounting",
+        "fault_class": "resource_exhaustion",
+        "remediation_class": null,
+        "why_not": "Exhaustion normally shows a degradation ramp (slowing consumption, partial traffic, OOM restarts) before silence, whereas the single instantaneous NoTraffic alert with no precursor fits an abrupt stop better."
+      }
+    ],
+    "summary": "The accounting service's process stopped doing work (frozen/suspended) while its container stayed up, so it emitted no spans or consumer activity at all, triggering ServiceNoTraffic with no downstream impact.",
+    "confidence": "low",
+    "evidence": [],
+    "reasoning": "accounting is an asynchronous Kafka consumer with no inbound edges in the catalog, so no caller can surface its failure as errors \u2014 the only observable symptom is the absence of its own telemetry, which is exactly what fired. The blast radius is confined to accounting alone: nothing upstream degraded, no latency or error propagation anywhere in the frontend/checkout chain, and no sibling consumer (fraud-detection) complained. A silent, self-contained total-stop with zero emitted output is the signature of a frozen process rather than a crash (which usually produces restart churn and startup errors) or a dependency problem (which would produce slow-but-present traffic and error logs). Kafka being absent from the graph means a broker-side stall is also plausible, but that would typically silence other consumers too.",
+    "open_questions": [
+      "Does the accounting container show any log lines at all after onset, or does the log simply stop mid-stream?",
+      "Is the Kafka consumer group lag for accounting growing while the partition assignment stays held (freeze) versus being rebalanced away (crash/restart)?",
+      "Did the pod restart count or image digest change around 10:38?",
+      "Are other Kafka consumers (fraud-detection) still committing offsets, which would exonerate the broker?",
+      "CPU/memory usage of the accounting process at onset \u2014 flatlined near zero (freeze) or pinned/OOM-killed (exhaustion)?"
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B2",
+    "tool_calls": 0,
+    "attempts": 2,
+    "cited_without_looking": []
+  }
+}

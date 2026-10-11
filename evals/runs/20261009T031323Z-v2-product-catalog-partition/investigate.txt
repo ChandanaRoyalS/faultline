@@ -1,0 +1,40 @@
+incident d3b1c6e4-de60-4674-8643-c6b4a328c460  state triaging  anchor 03:17:46
+triage: 3 services, severity critical, start from frontend-proxy, 1 unmeasured edge(s) crossed
+
+B1: process_freeze / restart (medium)
+  The frontend process stopped executing while its socket kept accepting connections, so proxy requests hung to their 15s deadlines and in-flight gRPC calls to product-catalog sat for minutes without ever reaching it.
+  10 tool calls over 12 turns
+    metrics:frontend  frontend is in the blast radius but not alerting; check whether its error ratio moved, to see if it is the origin or a silent hang point
+    logs:frontend  frontend's error ratio is flat; check whether it is logging at all during the window (freeze/partition) or complaining about a dependency
+    changes:frontend  frontend stopped logging well before onset; check whether any deploy or config change coincides
+    traces:frontend-proxy  see whether proxy spans to frontend hang to deadline (freeze/partition) or fail fast
+    logs:product-catalog  frontend hangs on GetProduct with no child span; check if product-catalog is silent (freeze), complaining it cannot reach anything (partition), or reporting errors
+    changes:product-catalog  check whether a deploy/config change on product-catalog coincides with the hang window
+    traces:product-catalog  determine whether product-catalog is serving requests at all during the hang window, and whether its own spans show slow/erroring internals
+    logs:recommendation  corroborate that another caller of product-catalog also cannot reach it, distinguishing a product-catalog-side cutoff from frontend-specific trouble
+    metrics:product-catalog  determine whether product-catalog itself is returning errors (server-side failure) or whether frontend's calls never reach it (ratio flat)
+    logs:frontend-proxy  confirm at onset the proxy hangs to deadline against frontend (timeout) rather than getting refused connections, supporting a frozen frontend
+wrote /Users/chandana/dev/faultline/evals/runs/20261009T031323Z-v2-product-catalog-partition/d3b1c6e4-de60-4674-8643-c6b4a328c460-verdict.json
+{"ts": "2026-10-09T03:19:43.361+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-09T03:19:43.378+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=metric_baseline subject=sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"frontend\",status_code=\"STATUS_CODE_ERROR\"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"frontend\"}[5m])) start=2026-10-09T02:15:52.327570+00:00 end=2026-10-09T03:19:41.000430+00:00 span_s=3828 refused=False", "component": "investigator"}
+{"ts": "2026-10-09T03:19:46.607+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-09T03:19:46.612+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=logql_query subject={service=\"frontend\"} start=2026-10-09T02:47:46.664000+00:00 end=2026-10-09T03:19:41.000430+00:00 span_s=1914 refused=False", "component": "investigator"}
+{"ts": "2026-10-09T03:19:52.416+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-09T03:19:52.418+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=frontend start=2026-10-08T03:17:46.664000+00:00 end=2026-10-09T03:19:41.000430+00:00 span_s=86514 refused=False", "component": "investigator"}
+{"ts": "2026-10-09T03:19:58.290+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-09T03:19:58.293+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=trace_query subject=frontend-proxy start=2026-10-09T02:47:46.664000+00:00 end=2026-10-09T03:19:41.000430+00:00 span_s=1914 refused=False", "component": "investigator"}
+{"ts": "2026-10-09T03:20:03.645+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-09T03:20:03.650+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=logql_query subject={service=\"product-catalog\"} start=2026-10-09T02:47:46.664000+00:00 end=2026-10-09T03:19:41.000430+00:00 span_s=1914 refused=False", "component": "investigator"}
+{"ts": "2026-10-09T03:20:11.509+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-09T03:20:11.511+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=product-catalog start=2026-10-08T03:17:46.664000+00:00 end=2026-10-09T03:19:41.000430+00:00 span_s=86514 refused=False", "component": "investigator"}
+{"ts": "2026-10-09T03:20:22.597+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-09T03:20:22.600+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=trace_query subject=product-catalog start=2026-10-09T02:47:46.664000+00:00 end=2026-10-09T03:19:41.000430+00:00 span_s=1914 refused=False", "component": "investigator"}
+{"ts": "2026-10-09T03:20:45.933+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-09T03:20:45.947+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=logql_query subject={service=\"recommendation\"} start=2026-10-09T02:47:46.664000+00:00 end=2026-10-09T03:19:41.000430+00:00 span_s=1914 refused=False", "component": "investigator"}
+{"ts": "2026-10-09T03:21:15.865+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-09T03:21:15.875+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=metric_baseline subject=sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"product-catalog\",status_code=\"STATUS_CODE_ERROR\"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"product-catalog\"}[5m])) start=2026-10-09T02:15:52.327570+00:00 end=2026-10-09T03:19:41.000430+00:00 span_s=3828 refused=False", "component": "investigator"}
+{"ts": "2026-10-09T03:21:40.177+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-09T03:21:40.186+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=logql_query subject={service=\"frontend-proxy\"} start=2026-10-09T02:47:46.664000+00:00 end=2026-10-09T03:19:41.000430+00:00 span_s=1914 refused=False", "component": "investigator"}
+{"ts": "2026-10-09T03:22:02.753+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-09T03:22:29.379+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-09T03:22:42.026+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}

@@ -1,0 +1,165 @@
+{
+  "incident_id": "4481cfbd-a0d8-42db-98a9-a32ef2c6b61b",
+  "trajectory_id": "b336299e-6407-4dac-a2ae-0435cc8428ce",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "ad",
+    "flagd",
+    "frontend",
+    "frontend-proxy",
+    "load-generator"
+  ],
+  "unmeasured_edges": 3,
+  "exclude_origins": [
+    "scenario:v2-ad-partition"
+  ],
+  "verdict": {
+    "root_cause": "Around 21:21:16 the ad service appears to have lost network reachability while its process stayed alive: its own log shows sustained unknown-host/DNS failures reaching the telemetry collector at 21:22:01 and 21:23:02 with the JVM still emitting lines [tr_bcf16c853e28], while inbound calls to ad stop entirely after 21:12:43 with no latency growth and no error spans [tr_8e6042e441f7] and span-metric intervals go empty far more often than baseline [tr_0436f1b59aa8]. Ad is not failing requests \u2014 its error ratio is at or below baseline over both the 32-minute and 6-hour comparisons [tr_c7c9ce4eccaf] \u2014 and no deploy, image, config or resource change is recorded for ad or flagd in the queried range [tr_9b4a746e1fd2][tr_4c0d67afa997][tr_fd7faf55dc4a]. A running-but-cut-off ad fits the simultaneous ad/frontend-proxy/load-generator alerts: callers hang rather than receive errors, and ad itself complains only that it cannot resolve a hostname.",
+    "service": "ad",
+    "fault_class": "network_partition",
+    "remediation_class": "reconnect",
+    "confidence": "low",
+    "evidence": [
+      "tr_bcf16c853e28",
+      "tr_8e6042e441f7",
+      "tr_0436f1b59aa8"
+    ],
+    "reasoning": "Ad is alive and not erroring, so bad_deploy, resource_exhaustion and error-propagation are all contradicted [tr_c7c9ce4eccaf][tr_bcf16c853e28]. Traffic to ad ceases without latency growth or errors, which is the caller-side signature shared by freeze and partition [tr_8e6042e441f7]; the discriminator is that ad keeps logging and what it logs is an inability to reach a hostname [tr_bcf16c853e28], which points to partition rather than freeze. The change log is empty for ad and flagd, removing deploy/config acts as explanations [tr_9b4a746e1fd2][tr_4c0d67afa997][tr_fd7faf55dc4a].",
+    "open_questions": [
+      "All change queries ran forward from 21:21:16, so nothing is known about edits in the hours before onset \u2014 the pre-onset window was never examined.",
+      "Request rate, latency, CPU/memory and restart counts for ad were never returned; only error ratio was measured [tr_0436f1b59aa8][tr_c7c9ce4eccaf].",
+      "No specialist examined frontend, frontend-proxy or load-generator directly, so whether traffic stopped at the generator or was blocked reaching ad is unresolved \u2014 traces say the proxy/frontend hops were intact for all observed traces [tr_8e6042e441f7]."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "Load-generator stopped issuing ad requests, so the drop in ad traffic is upstream demand loss rather than any fault in ad.",
+        "service": "load-generator",
+        "fault_class": "unknown",
+        "remediation_class": "restart",
+        "why_not": "Trace analysis notes sparseness originates above the proxy [tr_8e6042e441f7], which would support this, but it does not explain ad's own sustained DNS failures [tr_bcf16c853e28] or why ad alerted critical alongside the callers."
+      },
+      {
+        "root_cause": "The ad process froze while its socket still accepted, hanging callers to their deadlines.",
+        "service": "ad",
+        "fault_class": "process_freeze",
+        "remediation_class": "restart",
+        "why_not": "A frozen process writes nothing; ad was still logging at 21:23:02, after onset [tr_bcf16c853e28]."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "v2-ad-flag-failure / What was checked: **Ad's log, the service on the page.** For every request it logged `Targeted ad request received for\n[...]` or `Non-targeted ad request received`, and now and then, straight after, `GetAds Failed with\nstatus Status{code=UNAVAILABLE, description=null, cause=null}`. Counted over th",
+    "v2-ad-memory-squeeze / What was checked: **The page names callers.** Frontend-proxy forwards what the frontend returns, and the load\ngenerator is the synthetic shoppers counting their own failures. The frontend was the one service\nmaking calls that failed, and the order path was not among them.\n\n**The frontend's error t",
+    "v2-ad-flag-failure / What was observed: The page was one alert, `ServiceHighErrorRate` on **ad**, 8m31s after the trouble started.\nNothing else fired, then or later, and nothing fired after the fix.\n\nIt was slow to come because the error ratio hovered around the line. Ad's ratio had been under 1%.\nIt crossed the line a"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 24691,
+    "pulled_tokens": 5369,
+    "pull_rate": 0.1786,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 388,
+        "content_tokens": 390,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1602,
+        "content_tokens": 1605,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 7509,
+        "content_tokens": 7485,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 6945,
+        "content_tokens": 6946,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 8247,
+        "content_tokens": 8224,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_bcf16c853e28",
+      "tr_8e6042e441f7",
+      "tr_9b4a746e1fd2",
+      "tr_4c0d67afa997",
+      "tr_fd7faf55dc4a"
+    ],
+    "expected_effect": "No action is proposed, so nothing should change. The expected observation is continuity: ad's JVM keeps logging while its OTel exporter keeps raising unknown-host failures against the collector, inbound ad traces stay absent, and ad's error ratio stays at or below baseline. Any divergence from that is new information worth collecting before acting.",
+    "confirm_within_seconds": 600,
+    "if_wrong": "This abstention is wrong if one of three things turns out to be true. (a) Restart counts or container-state metrics for ad \u2014 never retrieved [tr_0436f1b59aa8][tr_c7c9ce4eccaf] \u2014 show the process actually cycling, which would meet restart_service's 'evidence points at process state' precondition and make a restart the right call. (b) A change-history query run *backwards* from 21:21:16 (every change query so far ran forward from onset [tr_9b4a746e1fd2][tr_4c0d67afa997][tr_fd7faf55dc4a]) turns up a deploy or config edit on ad or flagd shortly before onset, which would unlock rollback_image or revert_config. (c) Load-generator is examined directly and found to have stopped generating, in which case the fault is upstream of ad entirely and ad needs no remediation at all. Each of those is a cheap query, and each changes the answer; none of them has been run.",
+    "risk": "The risk of abstaining is that the partition persists and the ad path stays dark for as long as it takes a human to run `docker network connect`. That is a real cost, and it is the cost I am choosing. The risk of the alternative is worse: the only mechanically plausible action left is restart_service on ad, and the evidence directly contradicts its precondition \u2014 the JVM is alive and logging at 21:23:02, no shutdown or startup banner appears, and the request path throws nothing [tr_bcf16c853e28]. Recreating a healthy container does not reattach a detached network; it would discard ad's in-process cache, reset the one process whose logs are the clearest live witness to the fault, and produce a confounding restart event in the record \u2014 all while leaving the actual partition in place. A restart here would look like action and function as evidence destruction.",
+    "blast_radius": "Nobody sees a change, because nothing changes. For contrast, the restart I am declining would have hit ad directly and been visible to frontend and frontend-proxy as reset connections on the ad hop (traces confirm load-generator -> frontend-proxy -> frontend -> ad is the sole inbound path [tr_8e6042e441f7]); since callers are already hanging rather than erroring, that would have added a second failure mode on top of the first.",
+    "_notes": "The synthesizer named 'reconnect' as the fix class and reconnect_service is marked UNAVAILABLE \u2014 not built, executor performs rollback_image, revert_config and restart_service only. The one action class that matches the diagnosed mechanism cannot be performed by this system, and the three that can be performed all fail their preconditions on this evidence: no image or deploy change is recorded for ad [tr_9b4a746e1fd2][tr_4c0d67afa997], no prior configuration is recorded for ad or flagd [tr_4c0d67afa997][tr_fd7faf55dc4a], and the evidence points away from process state rather than toward it [tr_bcf16c853e28]. Verdict confidence is low with three named open questions. The correct output is an abstention plus a clear handoff: this needs `docker network connect` on ad's container by an operator, which ADR-0043's addendum records as having resolved an identical fault with the world quiet six minutes later. That is outside what this system may do, and saying so is more useful than substituting an action that is available for the action that is right."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "feature_flag",
+    "confidence": "low",
+    "reasoning": "Critical alerts on ad and frontend-proxy simultaneously, not a lone warning, so it cannot be dismissed. flagd as a one-hop candidate cause makes a feature flag change a cheap first guess."
+  }
+}

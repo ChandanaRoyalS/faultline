@@ -1,0 +1,166 @@
+{
+  "incident_id": "9290cd47-e28b-443a-aa77-3094f6c568f0",
+  "trajectory_id": "d152b5a5-8da3-48c7-a3c3-2534a38dff37",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "flagd",
+    "frontend",
+    "frontend-proxy",
+    "load-generator",
+    "product-catalog",
+    "recommendation"
+  ],
+  "unmeasured_edges": 4,
+  "exclude_origins": [
+    "scenario:v2-recommendation-partition"
+  ],
+  "verdict": {
+    "root_cause": "At ~12:09:46 recommendation stopped serving inbound requests while its process stayed alive: application receive logs cease in a contiguous tail, but the OTLP exporter keeps firing on a regular ~70s cadence through 12:17:29, each attempt failing deadline-exceeded reaching the collector [tr_7e6a31596bb4]. Its span-metric series goes undefined for 16 incident-window samples that had no counterpart in baseline, while the error ratio toward callers stays at baseline [tr_bc4057ba39b5]. So recommendation is running and logging, complaining only that it cannot reach anything, and serving nothing - callers hang, which is why frontend-proxy and load-generator alerted first at 12:16:31. No change landed on recommendation or flagd in the prior 24h [tr_91005a395ba9][tr_8b4ac4a063a4][tr_872665a3b0f5], and product-catalog served normally with a flat-zero error ratio [tr_dbf040f62a93][tr_3eb3fe3e887c]. The mechanism is network isolation of the recommendation instance.",
+    "service": "recommendation",
+    "fault_class": "network_partition",
+    "remediation_class": "reconnect",
+    "confidence": "medium",
+    "evidence": [
+      "tr_7e6a31596bb4",
+      "tr_bc4057ba39b5",
+      "tr_3eb3fe3e887c",
+      "tr_dbf040f62a93",
+      "tr_91005a395ba9"
+    ],
+    "reasoning": "Recommendation is not erroring toward callers [tr_bc4057ba39b5] and its sampled spans are fast and complete [tr_3eb3fe3e887c], so a quality-of-service failure is out. It simply stops appearing: no traces after ~12:05 [tr_3eb3fe3e887c], no request logs after 12:09:46, undefined metric samples [tr_bc4057ba39b5][tr_7e6a31596bb4]. A frozen process would write nothing at all, but the exporter timer keeps producing output on schedule [tr_7e6a31596bb4], which also rules out a crash-restart. The only lines it does write are outbound-reachability failures to the collector - the signature that distinguishes partition from freeze. Downstream causes are closed: product-catalog is zero-error and continuously trafficked [tr_dbf040f62a93] and its subtree completes in every trace [tr_3eb3fe3e887c]. Change-driven classes have no change to point at [tr_91005a395ba9][tr_8b4ac4a063a4][tr_872665a3b0f5].",
+    "open_questions": [
+      "No CPU, memory, file-descriptor or connection-count data was collected for recommendation [tr_bc4057ba39b5]; a resource ceiling that stalls request handling while a background exporter thread survives is not excluded.",
+      "Frontend emitted zero logs across the whole window under the queried selector [tr_d003cd23f01a], so the caller-side failure mode (connection refused vs. timeout) is unverified - that distinction would confirm or break the partition reading.",
+      "Whether the collector-unreachable errors indicate broad network isolation or only a broken telemetry path is unproven; recommendation logged no failed attempt to reach product-catalog or any business dependency [tr_7e6a31596bb4].",
+      "The ~6-minute offset between recommendation going quiet (12:09:46) and the 12:16:31 alerts is unexplained by the evidence in hand."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "Recommendation exhausted a resource (threads, connections, memory) so request handling stalled while a background exporter thread kept running.",
+        "service": "recommendation",
+        "fault_class": "resource_exhaustion",
+        "remediation_class": "restart",
+        "why_not": "No utilization or saturation data was returned at all [tr_bc4057ba39b5], and exhaustion would typically surface rejections or exceptions in the log rather than only outbound-reachability errors [tr_7e6a31596bb4]; it remains live purely because it was never measured."
+      },
+      {
+        "root_cause": "Recommendation's process froze while its socket still accepted, hanging callers to their deadlines.",
+        "service": "recommendation",
+        "fault_class": "process_freeze",
+        "remediation_class": "restart",
+        "why_not": "A frozen process writes nothing; recommendation kept emitting exporter errors on an unbroken ~70s cadence through 12:17:29 [tr_7e6a31596bb4], so its runtime was still scheduling work."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "v2-product-catalog-partition / What was observed: The page came 4m46s after requests started hanging, and it was four alerts at once: error rate\nand latency on **frontend-proxy** and on **load-generator**. Neither is a service anyone would\nfix. One is the edge proxy and the other is the synthetic client, and both were reporting ",
+    "v2-product-catalog-freeze / What was checked: **The proxy, because it was loudest.** Its errors were all the same kind: upstream requests\ncut at the fifteen-second route timeout. The proxy was doing its job. Nothing in its own\nbehaviour had changed, so it was reporting the problem, not causing it.\n\n**Frontend, because its la",
+    "v2-cart-store-corruption / What was observed: The page came 6m16s after the first failed request, and it was one line: `ServiceHighErrorRate` on\n**checkout**. Nothing before it, nothing beside it - no latency alert anywhere, no service gone\nquiet - and nothing after it. One alert on one service by the fix.\n\nThen, under two m"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 28641,
+    "pulled_tokens": 9761,
+    "pull_rate": 0.2542,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 405,
+        "content_tokens": 407,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1836,
+        "content_tokens": 1840,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 8729,
+        "content_tokens": 8705,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 8159,
+        "content_tokens": 8161,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 9512,
+        "content_tokens": 9489,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_7e6a31596bb4",
+      "tr_bc4057ba39b5",
+      "tr_91005a395ba9"
+    ],
+    "expected_effect": "No action proposed, so nothing should change: recommendation's OTLP deadline-exceeded lines continue on their ~70s cadence and its span-metric series stays undefined until an operator reattaches the container to its network out of band. The named fix class, reconnect_service, is UNAVAILABLE. rollback_image and revert_config fail their preconditions - change history for recommendation is empty across the full 24h window, so there is no prior image tag, no prior config, and no change named inside the window. restart_service requires evidence pointing at process state; the process is demonstrably healthy (unbroken exporter timer through 12:17:29, no application exceptions, error ratio flat at baseline), so the fault sits outside the process, in its reachability.",
+    "confirm_within_seconds": 300,
+    "if_wrong": "Wrong if the stall is in-process: a thread-pool, FD or connection ceiling that freezes request handling while the exporter thread survives would look identical, and no CPU, memory, FD or connection data was collected for recommendation. Resource metrics showing saturation at or before 12:09:46, or caller-side evidence of hung rather than refused connections, would overturn this toward restart_service.",
+    "risk": "Abstaining prolongs a total outage of recommendation since 12:09:46. The alternative, restart_service, is irreversible, destroys the live partitioned process that is the only artefact distinguishing isolation from a resource ceiling, and may return into the same isolation - costing a recreate window and the diagnosis.",
+    "blast_radius": "Nothing is touched. Still affected by the unremediated fault: frontend (sole caller), and transitively frontend-proxy and load-generator, which alerted at 12:16:31."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "feature_flag",
+    "confidence": "low",
+    "reasoning": "Critical multi-service alerting spanning frontend-proxy and recommendation with a one-minute spread is not dismissible, and no open incident could absorb it. Recommendation's dependency on flagd makes a flag change a cheap first guess, but product-catalog latency is equally plausible."
+  }
+}

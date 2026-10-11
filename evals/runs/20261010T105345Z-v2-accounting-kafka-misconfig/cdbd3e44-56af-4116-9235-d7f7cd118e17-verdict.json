@@ -1,0 +1,164 @@
+{
+  "incident_id": "cdbd3e44-56af-4116-9235-d7f7cd118e17",
+  "trajectory_id": "6b1016db-f2ec-4085-ae23-4e089c661bcf",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "accounting"
+  ],
+  "unmeasured_edges": 0,
+  "exclude_origins": [
+    "scenario:v2-accounting-kafka-misconfig"
+  ],
+  "verdict": {
+    "root_cause": "Accounting's Kafka bootstrap address was reconfigured by platform-automation to point at kafka:9094, and nothing is listening for it there. The service is up and uncrashed, but its librdkafka consumer thread sits in a tight ~50ms reconnect loop reporting that 1 of 1 configured brokers is down against that exact 9094 bootstrap endpoint [tr_d2b8c6f561f2]. Because accounting's entire traced surface is consumer-rooted work (order-consumed, with a trivial postgresql child), an unreachable broker means no messages arrive: root spans balloon into tens of seconds of pure self-time while the receive and DB children stay in the millisecond range [tr_e4d694deb0de], throughput collapses to ten traces in ~92 minutes, and span emission stops entirely after 10:53:45 \u2014 which is what Prometheus sees as 44 of 84 incident-window samples with an empty denominator against zero such gaps in the baseline [tr_ff90f092fdaa][tr_d190988c83d2]. The change log shows the variable was set, reverted, then re-set to the same 9094 value ~7 minutes before the alert [tr_0b8d07e94941], and the only two normal-speed traces in the whole window (~1ms end-to-end, at 10:41:10) fall seconds after the 10:41:08 revert that unset the variable [tr_e4d694deb0de] \u2014 the pipeline is healthy precisely when the override is absent. The wrong broker address is itself the failure mechanism.",
+    "service": "accounting",
+    "fault_class": "bad_config",
+    "remediation_class": "config_revert",
+    "confidence": "medium",
+    "evidence": [
+      "tr_0b8d07e94941",
+      "tr_d2b8c6f561f2",
+      "tr_e4d694deb0de",
+      "tr_ff90f092fdaa",
+      "tr_d190988c83d2"
+    ],
+    "reasoning": "Three independent signals converge on one endpoint. The log dispatch names the failing target explicitly and scopes it: every retained line in the 32-minute window is the same client-level connectivity error against the 9094 bootstrap, with no application exception, no non-Kafka dependency complaint, and a stable consumer instance id ruling out crash-looping or restart [tr_d2b8c6f561f2]. That rules out process_freeze (a frozen process writes nothing; this one writes continuously) and it rules out an internal fault or a database problem. The trace dispatch supplies the mechanism from accounting's side: latency lives in the consumer root's own self-time, not in the receive child or the postgresql child, so this is a consumer starved of messages rather than a slow downstream call [tr_e4d694deb0de]. The metric dispatches confirm the failure shape is absence rather than error \u2014 error ratio flat zero with half the incident window undefined for lack of any spans at all, and the baseline fully defined, so the gap is real and scoped to the incident [tr_ff90f092fdaa][tr_d190988c83d2]. The change dispatch supplies the act: one variable, three times, nothing else \u2014 no deploy, no flag, no dependency change on record [tr_0b8d07e94941], which eliminates bad_deploy and feature_flag. I classify this as bad_config rather than dependency_latency because the evidence points at the address value itself: the brief window of normal 1ms processing at 10:41:10 lands immediately after the 10:41:08 revert that removed KAFKA_ADDR, i.e. the service works on its default endpoint and fails on the overridden one. Nothing in the evidence indicates exhaustion, disk pressure, or unreadable stored data. Remediation is to revert the KAFKA_ADDR override (or correct it to the port the broker actually serves), not to restart or scale a service that is running fine.",
+    "open_questions": [
+      "No dispatch examined the Kafka broker itself. It was never confirmed that a broker is listening on some other port (e.g. 9092) and healthy \u2014 if the broker is genuinely down everywhere, the port value is incidental and this is a dependency outage, not a misconfiguration.",
+      "Why the degradation resumed at 10:41:18 while KAFKA_ADDR was still unset (the revert held until 10:53:50). The two fast traces at 10:41:10 support the config hypothesis but the relapse eight seconds later is unexplained and weakens the clean on/off correlation.",
+      "The log window begins at 10:31:31 with the error already firing, and the earliest change was ~30m before onset. Nothing establishes a pre-change clean state in the logs, so the first set of the variable is inferred as the start, not observed.",
+      "No saturation, consumer-lag, queue-depth or absolute request-rate metrics were retrieved [tr_ff90f092fdaa][tr_d190988c83d2]; resource pressure inside accounting is unmeasured rather than excluded.",
+      "What actually fired the 11:01:31 alert is unresolved \u2014 accounting's own signals degrade from ~10:02 and go silent at 10:53:45, so the alert timestamp does not correspond to any onset visible in accounting's data.",
+      "Whether other services share the same broker endpoint and are also affected was not checked; a blast radius of one service would favour the per-service override, a broader one would favour broker outage."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "The Kafka broker accounting depends on is genuinely down or unreachable as a cluster, and accounting is a blameless casualty stalled waiting on it.",
+        "service": "kafka",
+        "fault_class": "dependency_latency",
+        "remediation_class": "restart",
+        "why_not": "No dispatch inspected the broker, so this is not excluded \u2014 but it does not explain why accounting processed two messages at normal 1ms speed seconds after the override was reverted [tr_e4d694deb0de], nor why the only configuration touched in 24h is the broker address itself, repeatedly, by an automation actor [tr_0b8d07e94941]. A cluster-wide broker outage would be indifferent to accounting's own env var."
+      },
+      {
+        "root_cause": "Accounting is network-isolated from the Kafka broker \u2014 the address is correct but the path to it is severed.",
+        "service": "accounting",
+        "fault_class": "network_partition",
+        "remediation_class": "reconnect",
+        "why_not": "Fits the log shape (the service is running and complaining it cannot reach anything) but fails to explain the targeted coincidence with a port-changing config edit and the momentary recovery during the revert window. A partition would also be expected to disturb the postgresql child spans, which stay healthy at ~3ms throughout [tr_e4d694deb0de]."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "v2-fraud-detection-flag-queue-lag / Root cause: The `kafkaQueueProblems` feature flag was turned on in the flag service, and it acts on both sides\nof the orders topic. Fraud-detection sleeps a second before each record, so it consumes one a\nsecond, and checkout publishes every order a hundred extra times, so the consumer falls",
+    "v2-cart-dependency-latency / What was checked: **The traces, because four services slowed at once and the page did not say which one first.**\nEvery slow trace touched cart, and the time sat in the same places in all of them. At rest, cart\nanswered a `GetCart` in 0.4ms and its store answered an `HGET` in 0.3ms. Under the fault",
+    "v2-kafka-disk-fill / Root cause: Kafka's only log directory filled to capacity. A broker whose every log directory has failed halts\nitself within seconds - this one did at 4.7, naming the file it could not write and the directory\nthat had failed. Its supervisor then restarted it in place, and on this world that "
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 24177,
+    "pulled_tokens": 3673,
+    "pull_rate": 0.1319,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 361,
+        "content_tokens": 363,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1485,
+        "content_tokens": 1488,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 7134,
+        "content_tokens": 7111,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 6940,
+        "content_tokens": 6942,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 8257,
+        "content_tokens": 8234,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "config_revert",
+    "action_id": "revert_config",
+    "target": "accounting",
+    "rests_on": [
+      "tr_0b8d07e94941",
+      "tr_d2b8c6f561f2",
+      "tr_e4d694deb0de",
+      "tr_ff90f092fdaa"
+    ],
+    "expected_effect": "Restoring accounting's prior configuration removes the KAFKA_ADDR=kafka:9094 override (prior recorded state: unset) and recreates the container, so the consumer bootstraps against the default broker address. Observable within minutes: (1) the repeated librdkafka line `[thrd:kafka:9094/bootstrap]: 1/1 brokers are down`, currently emitted every ~50-52ms and constituting accounting's entire log output, stops appearing in Loki for {service=\"accounting\"}; (2) accounting resumes emitting order-consumed root spans in Tempo, with root durations back in the ~1ms range seen at 10:41:10 rather than seconds-to-tens-of-seconds of root self-time; (3) the Prometheus error-ratio series stops producing undefined samples (empty denominator) \u2014 the 44-of-84 gap should go to zero over a subsequent window \u2014 while the ratio itself stays at 0.",
+    "confirm_within_seconds": 300,
+    "if_wrong": "Falsified if, after the recreate, the same `1/1 brokers are down` error continues at the same ~50ms cadence but now naming a different bootstrap endpoint (e.g. kafka:9092) \u2014 that means no broker is listening anywhere and this is a dependency outage in which the port value was incidental, which no permitted action here fixes. Also falsified if the error lines cease but accounting still emits no order-consumed spans for several minutes (the stall is upstream of the broker connection, e.g. no producers), or if spans resume with multi-second root self-time (the latency lives inside accounting's own processing, not in message arrival). A third falsifier: the error reappears against :9094 within minutes without any operator action, indicating platform-automation's reconciler re-applies the value and the revert cannot hold \u2014 the fix then belongs in the automation, outside this system. Note two things this cannot show: the unexplained relapse at 10:41:18 while the variable was still unset is not addressed by this action, and nothing here confirms what fired the 11:01:31 alert, since accounting's own signals went silent at 10:53:45.",
+    "risk": "If the real fault is the broker being down on every port, this change moves accounting to a second dead address, costs a container recreate for nothing, and burns the one clean reverse-test we had. The recreate discards the in-process consumer state and forces a consumer-group rejoin/rebalance; any messages mid-processing in the current 22-second root spans are lost or redelivered, and accounting writes to postgresql, so a redelivered message could double-apply if its handler is not idempotent. If the 9094 override was a deliberate, correct migration and the broker genuinely moved, reverting points accounting at a stale endpoint and re-breaks a configuration someone was in the middle of fixing. The change is reversible, but the competing set/revert/set pattern from platform-automation means a revert may flap against the reconciler and leave the service recreating repeatedly.",
+    "blast_radius": "One service: accounting. The brief names accounting as the only service this incident reached, and its traced surface contains no inbound server-rooted spans, so no caller is recorded as depending on it synchronously \u2014 but anything consuming the results of order-consumed work sees a gap during the recreate. Downstream, accounting's postgresql child calls pause for the duration. The Kafka endpoint sees traffic move: connection attempts stop arriving at kafka:9094 and start arriving at the default address, and other members of accounting's consumer group experience a rebalance. Whether other services carry the same 9094 override was never checked, so this does not address them if they do."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "low",
+    "reasoning": "A single critical alert on accounting with no open incidents to attribute it to; critical severity is not dismissible as noise. Nothing in the single-service signal suggests a particular fault class yet."
+  }
+}

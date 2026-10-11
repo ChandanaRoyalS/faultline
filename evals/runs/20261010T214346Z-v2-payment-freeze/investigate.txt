@@ -1,0 +1,9 @@
+incident f47b5401-1c68-4bfb-87fd-477516ef2e40  state triaging  anchor 21:51:46
+triage: 8 services, severity critical, start from email, 5 unmeasured edge(s) crossed
+
+B2: process_freeze / restart (low)
+  flagd became unresponsive (process alive but serving no evaluations), so every service that resolves flags through it — fraud-detection directly, and cart/checkout on the order path — stalled or errored, cutting off all traffic to payment, email and accounting.
+  looked at nothing - this is the model's prior
+wrote /Users/chandana/dev/faultline/evals/runs/20261010T214346Z-v2-payment-freeze/f47b5401-1c68-4bfb-87fd-477516ef2e40-verdict.json
+{"ts": "2026-10-10T21:54:23.609+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-10T21:54:34.275+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}

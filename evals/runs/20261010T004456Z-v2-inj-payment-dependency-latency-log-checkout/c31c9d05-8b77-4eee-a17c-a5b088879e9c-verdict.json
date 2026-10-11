@@ -1,0 +1,69 @@
+{
+  "incident_id": "c31c9d05-8b77-4eee-a17c-a5b088879e9c",
+  "trajectory_id": "43ba39df-a20c-496d-8747-f349348fd443",
+  "states": [
+    "triaging"
+  ],
+  "blast_radius": [
+    "checkout",
+    "cart",
+    "currency",
+    "email",
+    "frontend",
+    "payment",
+    "product-catalog",
+    "shipping",
+    "frontend-proxy"
+  ],
+  "unmeasured_edges": 8,
+  "exclude_origins": [
+    "scenario:scenario:v2-inj-payment-dependency-latency-log-checkout"
+  ],
+  "verdict": {
+    "fault_class": "dependency_latency",
+    "remediation_class": "restart",
+    "service": "checkout",
+    "alternatives": [
+      {
+        "root_cause": "checkout itself exhausted a local resource (connection pool, threads, or heap causing GC thrash), so requests queued inside checkout rather than in any dependency.",
+        "service": "checkout",
+        "fault_class": "resource_exhaustion",
+        "remediation_class": null,
+        "why_not": "Pure exhaustion usually escalates into errors (timeouts, 5xx) and pulls frontend/frontend-proxy into alerting too; here only a latency warning on checkout is reported.",
+        "confidence": "low"
+      },
+      {
+        "root_cause": "A checkout-only dependency's process was stopped while its socket still accepted, so checkout hung to its deadlines on every order.",
+        "service": "payment",
+        "fault_class": "process_freeze",
+        "remediation_class": null,
+        "why_not": "A full freeze would normally drive checkout past its timeouts into an error alert, not a latency warning, and would likely take frontend down with it.",
+        "confidence": "low"
+      }
+    ],
+    "summary": "checkout's end-to-end latency rose because one of its synchronous downstream calls (most plausibly a checkout-only dependency such as payment, currency, email or shipping) became slow, and checkout blocked on it while holding request threads.",
+    "confidence": "low",
+    "evidence": [],
+    "reasoning": "The only alert is a latency warning on checkout, with no error alerts anywhere and no second service alerting. checkout is the deepest fan-out node in this graph (product-catalog, currency, cart, email, payment, shipping), so it is the natural place for a downstream slowdown to surface first; the listed blast radius is just graph traversal from checkout, not independent evidence. If product-catalog or cart were the slow dependency I would expect frontend/recommendation to degrade too, so a checkout-exclusive dependency (payment, currency, email, shipping) is the more likely source \u2014 a slow dependency that is merely latent, not erroring, would not alert on its own. Latency with no errors and no restart-worthy symptom argues against a bad artifact or a wrong config value, which usually fail fast and loudly.",
+    "open_questions": [
+      "Per-dependency client latency histograms from checkout: which outbound call's p99 rose at 00:50:16?",
+      "Did any downstream service (payment, currency, email, shipping, cart) show matching server-side latency, or did it stay fast \u2014 implying checkout-side queuing instead?",
+      "checkout's own resource metrics: goroutine/thread count, heap, GC pause, connection-pool saturation at onset",
+      "Whether any downstream service stopped emitting logs entirely (freeze) or logged connection failures (partition)",
+      "Change/deploy and flag-flip history for checkout and its dependencies in the hour before onset"
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B2",
+    "tool_calls": 0,
+    "attempts": 1,
+    "cited_without_looking": []
+  }
+}

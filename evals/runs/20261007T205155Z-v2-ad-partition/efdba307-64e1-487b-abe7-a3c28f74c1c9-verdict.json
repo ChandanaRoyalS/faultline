@@ -1,0 +1,63 @@
+{
+  "incident_id": "efdba307-64e1-487b-abe7-a3c28f74c1c9",
+  "trajectory_id": "3a29a564-ef22-420d-ad9d-d757b507ca59",
+  "states": [
+    "triaging"
+  ],
+  "blast_radius": [
+    "ad",
+    "frontend-proxy",
+    "load-generator",
+    "flagd",
+    "frontend"
+  ],
+  "unmeasured_edges": 3,
+  "exclude_origins": [
+    "scenario:scenario:v2-ad-partition"
+  ],
+  "verdict": {
+    "fault_class": "process_freeze",
+    "remediation_class": "restart",
+    "service": "ad",
+    "alternatives": [
+      {
+        "root_cause": "flagd became slow or unresponsive and ad blocked on flag evaluation until timeout",
+        "service": "flagd",
+        "fault_class": "dependency_latency",
+        "remediation_class": null,
+        "why_not": "flagd's other consumers (cart, recommendation, product-reviews, fraud-detection) are not alerting, and ad would still be emitting traffic and spans rather than triggering ServiceNoTraffic."
+      },
+      {
+        "root_cause": "ad was cut off from the network, so it could not reach flagd and callers hung",
+        "service": "ad",
+        "fault_class": "network_partition",
+        "remediation_class": null,
+        "why_not": "A partitioned-but-running ad would still log loudly about unreachable peers and would likely still record inbound requests; the complete absence of traffic/telemetry fits a frozen process better."
+      }
+    ],
+    "summary": "The ad service's process is frozen (stopped but its listening socket still accepts), so it emits no telemetry at all while frontend/frontend-proxy/load-generator block on it until their deadlines.",
+    "confidence": "medium",
+    "evidence": [],
+    "reasoning": "The signal pattern is the giveaway: ad shows ServiceNoTraffic (critical) \u2014 zero spans/requests recorded, meaning the service is writing nothing \u2014 while everything on the call path toward the user (frontend-proxy, load-generator) shows latency rather than errors. A crashed or refusing service would give fast connection errors and 5xx, not latency; a slow dependency would still produce ad-side traffic and spans. Silent service + hanging callers is the textbook freeze shape. The blast radius (ad, frontend, frontend-proxy, load-generator, plus ad's only dependency flagd pulled in by traversal) is exactly the fan-in of ad, with no other ad-independent consumer of flagd (cart, recommendation, product-reviews, fraud-detection) alerting, which argues the fault is local to ad rather than in flagd.",
+    "open_questions": [
+      "Does ad's own log contain anything after onset \u2014 any error, any connection complaint \u2014 or is it completely silent?",
+      "Did ad's process stay up (RSS/threads present, no restart count increment) while health/readiness probes hung or timed out?",
+      "Do callers see read timeouts after their full deadline, or connection resets/refusals?",
+      "Are flagd's other consumers (cart, recommendation, product-reviews) healthy, confirming flagd itself is fine?",
+      "Any recent deploy, SIGSTOP/debugger attach, or CPU throttling (cgroup throttled_time) on the ad pod?"
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B2",
+    "tool_calls": 0,
+    "attempts": 2,
+    "cited_without_looking": []
+  }
+}

@@ -1,0 +1,11 @@
+incident 28bc7571-c336-4e5e-9985-52e78505cb5f  state triaging  anchor 12:21:16
+triage: 10 services, severity critical, start from checkout, 9 unmeasured edge(s) crossed
+B0: bad_config / config_revert
+  suspect: service of the most recent pre-onset change in the window (12:17:34)
+  class: that change was to environment
+  remediation: table lookup from bad_config
+wrote /Users/chandana/dev/faultline/evals/runs/20261008T121726Z-v2-shipping-quote-misconfig/28bc7571-c336-4e5e-9985-52e78505cb5f-verdict.json
+{"ts": "2026-10-08T12:23:05.209+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=checkout start=2026-10-07T12:21:16.664000+00:00 end=2026-10-08T12:23:05.202034+00:00 span_s=86508 refused=False", "component": "investigator"}
+{"ts": "2026-10-08T12:23:05.210+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=promql_query subject=sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"checkout\",status_code=\"STATUS_CODE_ERROR\"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"checkout\"}[5m])) start=2026-10-08T11:51:16.664000+00:00 end=2026-10-08T12:23:05.202034+00:00 span_s=1908 refused=False", "component": "investigator"}
+{"ts": "2026-10-08T12:23:05.219+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=shipping start=2026-10-07T12:21:16.664000+00:00 end=2026-10-08T12:23:05.202034+00:00 span_s=86508 refused=False", "component": "investigator"}
+{"ts": "2026-10-08T12:23:05.220+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=promql_query subject=sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"shipping\",status_code=\"STATUS_CODE_ERROR\"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"shipping\"}[5m])) start=2026-10-08T11:51:16.664000+00:00 end=2026-10-08T12:23:05.202034+00:00 span_s=1908 refused=False", "component": "investigator"}

@@ -1,0 +1,78 @@
+{
+  "incident_id": "0bab8621-c27d-466b-b6cc-71087761cc63",
+  "trajectory_id": "6b6362bb-3e05-4eb4-8f94-c83e45acdbde",
+  "states": [
+    "triaging",
+    "investigating"
+  ],
+  "blast_radius": [
+    "fraud-detection",
+    "flagd"
+  ],
+  "unmeasured_edges": 1,
+  "exclude_origins": [
+    "scenario:scenario:v2-fraud-detection-flag-queue-lag"
+  ],
+  "verdict": {
+    "fault_class": "feature_flag",
+    "remediation_class": "config_revert",
+    "service": "fraud-detection",
+    "alternatives": [
+      {
+        "root_cause": "An upstream dependency of fraud-detection became slow and the service waited on it.",
+        "service": "fraud-detection",
+        "fault_class": "dependency_latency",
+        "remediation_class": null,
+        "why_not": "The ~1s delay is self-time inside fraud-detection's own process spans with no outbound dependency span, and the service logs the sleep as its own deliberate flagged behaviour."
+      },
+      {
+        "root_cause": "A configuration value controlling consumer timing was set wrongly.",
+        "service": "fraud-detection",
+        "fault_class": "bad_config",
+        "remediation_class": null,
+        "why_not": "The change log for fraud-detection is empty over 24 hours, so no configuration file or artifact changed; the switch was runtime-only."
+      },
+      {
+        "root_cause": "flagd itself broke and fraud-detection failed on flag evaluation.",
+        "service": "flagd",
+        "fault_class": "bad_deploy",
+        "remediation_class": null,
+        "why_not": "No change recorded for flagd, and fraud-detection evaluates the flag successfully \u2014 it reports the flag as enabled and then executes the slow path as designed."
+      }
+    ],
+    "summary": "A runtime feature flag served by flagd was enabled for fraud-detection, and the flagged code path inserts a one-second sleep on every consumed order record, stalling consumption from the onset time onward.",
+    "confidence": "high",
+    "evidence": [
+      "tr_21c823186d28",
+      "tr_d26577bfecc0",
+      "tr_cd86f6f11df3",
+      "tr_971a82948ecd",
+      "tr_fcc31b75656c"
+    ],
+    "reasoning": "Error ratio did not depart from baseline (tr_21c823186d28) \u2014 the fault is delay and stalled traffic (8 intervals with no traffic at all), not failures. The service's own logs (tr_d26577bfecc0) show it repeatedly announcing an enabled feature flag and a deliberate one-second sleep per consumed record, and traces (tr_fcc31b75656c) show one trace with ~100 sibling process spans each ~1002ms, matching that injected delay exactly. No deploy or config change was recorded for fraud-detection or for flagd over a full day (tr_cd86f6f11df3, tr_971a82948ecd), which is the signature of a runtime flag flip in the flag store rather than an artifact or file change. Blast radius is limited to fraud-detection and flagd, the flag evaluator, consistent with the flagged path being the failing mechanism. Remediation is to revert the flag value in the flag store.",
+    "open_questions": [
+      "Who flipped the flag and at what exact time \u2014 the flag store's own audit trail was not inspected.",
+      "Whether upstream producers (the order queue) are backing up and whether any caller-visible errors resulted downstream.",
+      "Whether the 8 no-traffic intervals are consumption stall alone or also include a brief restart."
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B1",
+    "tool_calls": 5,
+    "turns": 7,
+    "looked_at": [
+      "metrics:fraud-detection",
+      "logs:fraud-detection",
+      "changes:fraud-detection",
+      "changes:flagd",
+      "traces:fraud-detection"
+    ]
+  }
+}

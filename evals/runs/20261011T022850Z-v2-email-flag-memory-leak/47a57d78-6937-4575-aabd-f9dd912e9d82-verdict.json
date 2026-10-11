@@ -1,0 +1,166 @@
+{
+  "incident_id": "47a57d78-6937-4575-aabd-f9dd912e9d82",
+  "trajectory_id": "753f83ab-96ed-4645-a516-72c42fb823bc",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "cart",
+    "checkout",
+    "currency",
+    "email",
+    "frontend",
+    "frontend-proxy",
+    "payment",
+    "product-catalog",
+    "shipping"
+  ],
+  "unmeasured_edges": 8,
+  "exclude_origins": [
+    "scenario:v2-email-flag-memory-leak"
+  ],
+  "verdict": {
+    "root_cause": "Checkout's errors are a downstream symptom. In every failing trace the error sits on a checkout-side outbound HTTP POST client span ending in EOF with no server-side child span, meaning the callee closed the connection mid-request and produced no span of its own [tr_13b302399095]. Email matches that description: it serves plain HTTP POSTs on port 6060 and emits no span-call metrics under its service name in either window, so it would be invisible in trace topology [tr_d25404675376][tr_71ba4f61b489]. Email's log shows healthy 200s early in the window, then nothing but three complete Sinatra/Puma boot sequences at ~02:35:54, 02:36:16 and 02:36:44 \u2014 a ~25s crash-restart cycle where the process boots fully, binds its listener, reaches serving state, then dies with no exception or error text at all [tr_71ba4f61b489]. A process that starts cleanly, serves briefly, and is killed silently on a short repeating cycle is terminated from outside the application \u2014 the signature of a kill for exceeding a resource limit. Each kill severs in-flight connections, producing checkout's EOFs and the partial, bursty error ratio (mean ~1.2%, peak ~7.4%, change point 02:32:46) rather than a total outage [tr_f643c74d6f9c]. No change landed near onset on either service: checkout's CURRENCY_ADDR flapping ended ~19.8h earlier on the revert side and email's image flapping ~16.4h earlier, also net-reverted [tr_54f09d5ac3cd][tr_85aed0c53f6b].",
+    "service": "email",
+    "fault_class": "resource_exhaustion",
+    "remediation_class": "scale",
+    "confidence": "medium",
+    "evidence": [
+      "tr_71ba4f61b489",
+      "tr_13b302399095",
+      "tr_d25404675376"
+    ],
+    "reasoning": "The failing hop is a childless EOF on a checkout HTTP client span \u2014 a connection closed by the callee, not a timeout or a downstream error status; cart, currency, payment, product-catalog and shipping were all explicitly cleared in the same traces [tr_13b302399095]. Email is the plausible callee that leaves no server span because it emits no span metrics at all, in baseline as well as incident [tr_d25404675376]. Email is simultaneously in a boot-serve-die loop with no error output [tr_71ba4f61b489]; the silence at death discriminates the mechanism, since bad config, an unreachable dependency, a corrupt store or a full disk all write something, and a bad artifact fails during init rather than after binding the port \u2014 both ruled out there. The partial, bursty error shape fits each fresh instance serving most requests and failing only those in flight at kill time [tr_f643c74d6f9c]. Checkout itself keeps producing spans and tolerates the failure, continuing to EmptyCart, ship and publish, so it is the noticer, not the culprit [tr_13b302399095].",
+    "open_questions": [
+      "No memory, CPU, fd or OOM-kill evidence for email was gathered; the exhaustion mechanism is inferred from the silent-kill signature. Container exit codes, restart counts and a memory series would settle it.",
+      "The erroring callee is inferred, not proven \u2014 the POST span names no target; confirming checkout's outbound host/port for the confirmation call would close it.",
+      "Email's log was truncated (oldest 8, newest 32 lines), so 02:05-02:35 is unobserved and the exact first-crash time is unknown."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "Email is crash-looping on a bad image or artifact left behind by the automated image flapping, killing connections checkout holds open.",
+        "service": "email",
+        "fault_class": "bad_deploy",
+        "remediation_class": "rollback",
+        "why_not": "Every boot sequence runs to completion and binds the port before the process dies, which is not how a broken artifact fails; the image flapping also net-reverted ~16.4h before onset [tr_85aed0c53f6b][tr_71ba4f61b489]."
+      },
+      {
+        "root_cause": "Checkout itself is the fault \u2014 an in-process stall or broken outbound client produces the EOF and the unexplained self-time, independent of any callee.",
+        "service": "checkout",
+        "fault_class": "unknown",
+        "remediation_class": "restart",
+        "why_not": "It does not explain email's concurrent restart loop, and an EOF status is a peer-closed connection rather than a local stall; checkout otherwise completes its work normally [tr_13b302399095][tr_71ba4f61b489]."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "v2-currency-freeze / Resolution: The currency process was resumed. Every held order woke together: 110 orders completed in the\nminutes after the resume, each one's conversion having waited up to ten minutes and then taken\ntwo milliseconds, and not one failed - checkout, the frontend and currency have no error tr",
+    "v2-kafka-disk-fill / What was checked: **Checkout, because it paged.** Its error traces were all orders, and all the same shape:\n`PlaceOrder` prepared the order in a few milliseconds - cart, catalog, currency, shipping quote -\ncharged the card, booked the shipment, emptied the cart, sent the confirmation email, and th",
+    "runbook:class-bad-config / What the change record holds: The variable and a timestamp, and **the new value only** - no change record in this world carries\na prior value, which `world-change-records-have-no-prior-value` sets out.\n\n**What the logs hold is not uniform, and this document had it wrong.** An earlier version said a\nservice po"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 28162,
+    "pulled_tokens": 7141,
+    "pull_rate": 0.2023,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 444,
+        "content_tokens": 446,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1538,
+        "content_tokens": 1541,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 8640,
+        "content_tokens": 8616,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 7985,
+        "content_tokens": 7988,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 9555,
+        "content_tokens": 9533,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_71ba4f61b489",
+      "tr_85aed0c53f6b",
+      "tr_13b302399095"
+    ],
+    "expected_effect": "No action taken. Email will keep emitting Sinatra/Puma boot banners every ~22-28s in {service=\"email\"}, and checkout's span error ratio will keep bursting around a ~1.2% mean. Abstaining because the named fix class (scale) is unavailable here, and no permitted action fits: rollback_image and revert_config require a change inside the window, but email's only changes are matched image update/revert pairs ending ~16.4h before onset, net-reverted [tr_85aed0c53f6b]. restart_service nominally matches process state, but the world is already recreating this process every ~25s [tr_71ba4f61b489], so a recreate predicts no observable change. Next step is evidence: email's container exit code, restart count and memory series, plus the outbound host:port on checkout's erroring POST span.",
+    "confirm_within_seconds": 300,
+    "if_wrong": "Falsified if email stops cycling and resumes 200-status access lines with no action, and checkout's error ratio returns to zero \u2014 the fault was transient. Also falsified if a restart makes email serve cleanly well past ~25s. Note the callee is inferred: the erroring POST names no target and has no server-side child [tr_13b302399095], so no observable today directly confirms email.",
+    "risk": "Abstaining lets checkout keep losing ~1.2% of spans (peaks ~7.4%) and keeps order-confirmation emails undelivered while diagnosis continues. If the kill is in fact something a clean recreate would clear, that delay is my error.",
+    "blast_radius": "Nobody sees a change; the current degradation persists for checkout and its callers frontend and frontend-proxy, and for email's inbound traffic."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Critical severity with two independent seeds (checkout and email) alerting a minute apart and a wide downstream radius \u2014 not dismissible, and no open incident to attach it to. Nothing in the alerts yet distinguishes a shared dependency fault from a deploy or resource issue."
+  }
+}

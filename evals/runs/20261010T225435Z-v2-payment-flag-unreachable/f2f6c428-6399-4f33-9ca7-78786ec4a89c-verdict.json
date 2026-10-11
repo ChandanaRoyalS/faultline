@@ -1,0 +1,72 @@
+{
+  "incident_id": "f2f6c428-6399-4f33-9ca7-78786ec4a89c",
+  "trajectory_id": "dd50701a-d486-4c0a-8db3-35d2b8a8332a",
+  "states": [
+    "triaging"
+  ],
+  "blast_radius": [
+    "checkout",
+    "accounting",
+    "email",
+    "fraud-detection",
+    "payment",
+    "cart",
+    "currency",
+    "flagd",
+    "frontend",
+    "product-catalog",
+    "shipping",
+    "frontend-proxy"
+  ],
+  "unmeasured_edges": 9,
+  "exclude_origins": [
+    "scenario:scenario:v2-payment-flag-unreachable"
+  ],
+  "verdict": {
+    "fault_class": "bad_deploy",
+    "remediation_class": "rollback",
+    "service": "checkout",
+    "alternatives": [
+      {
+        "root_cause": "a configuration value in checkout (wrong payment/email endpoint, port or credential) makes every order attempt fail.",
+        "service": "checkout",
+        "fault_class": "bad_config",
+        "remediation_class": null,
+        "why_not": "a wrong downstream address would usually let checkout complete earlier steps and error only at that call; the uniformly fast total failure with no downstream traffic at all fits a broken artifact slightly better, but this is close and would be my second pick.",
+        "alternatives": []
+      },
+      {
+        "root_cause": "a feature flag flipped in flagd turned on a failing code path consumed by fraud-detection and, indirectly, the order pipeline.",
+        "service": "flagd",
+        "fault_class": "feature_flag",
+        "remediation_class": null,
+        "why_not": "checkout does not read flagd in this graph and alerted three minutes before fraud-detection; the other flagd consumers (cart, ad, recommendation, product-reviews) are all quiet, which a flag store problem would not explain.",
+        "alternatives": []
+      }
+    ],
+    "summary": "checkout began failing its own request handling immediately after a change to its running artifact, erroring before it could call payment, email or publish orders downstream.",
+    "confidence": "low",
+    "evidence": [],
+    "reasoning": "checkout alerted first and is the only service showing a true high error rate at onset; payment, email and accounting show NoTraffic rather than errors, which is the signature of a caller that stops calling rather than a callee that breaks. accounting and fraud-detection are order consumers fed from checkout, so their silence (and fraud-detection's error/latency pattern on empty or partial order flow) follows from checkout no longer emitting orders. checkout's own upstream dependencies (cart, currency, product-catalog, shipping) are only in the blast radius by traversal and never alert, so the failure is internal to checkout rather than inherited. A service that fails fast on every request while its dependencies are healthy most often means the process that is running is not the one that should be - a wrong image or a build that errors on the hot path.",
+    "open_questions": [
+      "checkout's deploy/change history in the 30 minutes before 22:58:46 and the image digest actually running",
+      "checkout error payloads: are they 5xx from its own handler, or wrapped errors naming a downstream (payment/cart/currency)?",
+      "whether checkout logged startup successfully and is serving some requests, versus crash-looping",
+      "flagd flag-change audit log, since fraud-detection depends on flagd and is the only other service erroring",
+      "whether the Kafka order topic stopped receiving messages at exactly 22:58:46 (confirming checkout stopped producing)"
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B2",
+    "tool_calls": 0,
+    "attempts": 1,
+    "cited_without_looking": []
+  }
+}

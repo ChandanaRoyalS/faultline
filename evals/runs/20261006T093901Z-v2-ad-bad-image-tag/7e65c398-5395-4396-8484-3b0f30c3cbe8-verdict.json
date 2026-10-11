@@ -1,0 +1,172 @@
+{
+  "incident_id": "7e65c398-5395-4396-8484-3b0f30c3cbe8",
+  "trajectory_id": "ad0d5ed7-4f1c-4359-b446-4f55cf4d0985",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "ad",
+    "cart",
+    "checkout",
+    "flagd",
+    "frontend",
+    "frontend-proxy",
+    "product-catalog",
+    "product-reviews",
+    "recommendation"
+  ],
+  "unmeasured_edges": 8,
+  "exclude_origins": [
+    "scenario:v2-ad-bad-image-tag"
+  ],
+  "verdict": {
+    "root_cause": "At 09:39:07 platform automation updated ad's container image reference to a hotfix-tagged build (tr_35644441905b). Ad's own log stream ends one second earlier with an orderly JVM-driven gRPC server shutdown and a clean shutdown confirmation, and then nothing at all for the remaining eight minutes of the window (tr_8337203492c7) \u2014 the old container was stopped for the rollout and no replacement ever came up logging. From 09:39:47 onward frontend's only error is a sustained gRPC code 14 with connect EHOSTUNREACH to a single peer endpoint on the ad port, with the resolved address present and no connection ever established (tr_79bc6944e185), and traces show the failing frontend client spans are childless leaves on the AdService/GetAds call that error in well under a millisecond while every other frontend dependency in the same traces succeeds (tr_637a00c2a3a4). The failure mechanism is therefore that the artifact deployed to ad is not serving: the rollout tore down the running instance and the new image never established a listening endpoint, so ad's address is unreachable and every /api/data request through frontend and frontend-proxy fails upward.",
+    "service": "ad",
+    "fault_class": "bad_deploy",
+    "remediation_class": "rollback",
+    "confidence": "high",
+    "evidence": [
+      "tr_35644441905b",
+      "tr_8337203492c7",
+      "tr_79bc6944e185",
+      "tr_637a00c2a3a4",
+      "tr_2b011490442f"
+    ],
+    "reasoning": "Three independent signals line up on one second. The only change recorded against ad in 24h is an image reference update landing at 09:39:07 (tr_35644441905b); ad's last log line is a graceful JVM shutdown at 09:39:06 followed by silence through the end of the window (tr_8337203492c7); frontend begins failing at 09:39:47 and keeps failing through 09:47 (tr_79bc6944e185). The failure signature discriminates the class: connect-level EHOSTUNREACH with a concrete resolved IP and port rules out DNS, TLS/auth, and application-level status errors, and sub-millisecond span durations rule out deadline or saturation-driven latency (tr_637a00c2a3a4, tr_79bc6944e185). It also distinguishes this from a process freeze \u2014 a frozen process still accepts on its socket and hangs callers, whereas here the connect syscall is rejected outright and the endpoint is simply absent \u2014 and from a partition, since ad is not logging complaints about reaching anything; ad is logging nothing because no ad process is running. Ad's error-ratio metrics are flat and slightly below baseline (tr_2b011490442f), which is exactly what a service that stopped receiving and serving traffic looks like rather than one failing requests; the 15 undefined ratio intervals, absent from the baseline, are the missing-traffic footprint of the stopped instance. Blame sits on ad rather than frontend because frontend's handlers on every non-ad route succeed in the same traces and the error originates at frontend's outbound client span and propagates upward through proxy and load generator. The fix is to revert to the pre-hotfix artifact, which is what would restore a listening ad endpoint.",
+    "open_questions": [
+      "No container-level evidence was gathered for ad \u2014 restart counts, exit codes, OOM kills, or image-pull failures \u2014 so whether the new image crash-looped, failed to pull, or started and died silently is unestablished.",
+      "The prior image reference is recorded as absent (None -> hotfix), so this is a first-recorded pin rather than a diffable bump; the exact artifact to roll back to is not named by the evidence.",
+      "Ad's log result returned only the oldest 8 and newest 32 lines, leaving roughly 09:14:56-09:37:58 unexamined; an earlier degradation or an intervening restart attempt in that gap cannot be excluded.",
+      "172.18.0.19:9555 was never confirmed to be ad's address by any result \u2014 the trace output exposed no span attributes, so the IP-to-service mapping is inferred from the failing logical dependency rather than observed.",
+      "Ad latency, memory, CPU and restart metrics were never queried; only the error-ratio template was returned for every ad metric dispatch.",
+      "Frontend's own error-ratio baseline window returned zero samples, so no pre-incident comparison at the frontend tier exists and the onset time at that tier rests on logs and traces alone.",
+      "Six of the nine services in the blast radius were never dispatched on; whether anything else depends on ad and is silently degraded is unknown."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "Ad's process was stopped and never restarted for reasons unrelated to the artifact \u2014 an orchestrator eviction, node-level failure, or scheduling problem \u2014 leaving its endpoint unreachable.",
+        "service": "ad",
+        "fault_class": "process_freeze",
+        "remediation_class": "restart",
+        "why_not": "The shutdown is one second from the only recorded change in a 24h window, which is far tighter than coincidence comfortably allows; and a frozen or evicted-but-present process would not produce EHOSTUNREACH on connect. Still admissible because no container-level restart or exit evidence was collected to confirm the new image is what failed to come up."
+      },
+      {
+        "root_cause": "The hotfix image starts but is immediately killed for exceeding a memory or CPU limit, so ad never holds a listening socket long enough to serve.",
+        "service": "ad",
+        "fault_class": "resource_exhaustion",
+        "remediation_class": "rollback",
+        "why_not": "Nothing in ad's log shows an OOM, exception, or resource warning \u2014 the final lines are an orderly shutdown with no error output \u2014 and no memory or restart metrics were queried to support it. This would change the mechanism but not the fix."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "v2-ad-partition / What was observed: The page came 7m01s after the first request hung, and it was thin: `ServiceHighLatency` on\n**frontend-proxy** and on **load-generator**, nothing else. Neither is a service anyone would fix;\nboth were reporting what they received from below them. A minute later `ServiceNoTraffic` ",
+    "v2-frontend-cart-misconfig / What was checked: **The error text, because it was the first thing a responder would read.** Checkout's error spans\nand the frontend's log said `shipping quote failure: failed POST to email service: expected 200,\ngot 400`. That names two services, and neither was at fault. It is checkout's own wor",
+    "v2-ad-memory-squeeze / What was observed: The page was two alerts in the same moment, `ServiceHighErrorRate` on **frontend-proxy** and\n**frontend**, 5m01s after the trouble started. Three minutes later `ServiceNoTraffic` fired on\n**ad**. Three alerts on three services by the fix, and none after it.\n\nThe frontend's error "
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 34602,
+    "pulled_tokens": 8083,
+    "pull_rate": 0.1894,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 438,
+        "content_tokens": 440,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1901,
+        "content_tokens": 1904,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 15139,
+        "content_tokens": 15115,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 7761,
+        "content_tokens": 7763,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 9363,
+        "content_tokens": 9341,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_35644441905b",
+      "tr_8337203492c7",
+      "tr_79bc6944e185"
+    ],
+    "expected_effect": "No action is proposed, so nothing should change: frontend will keep emitting the same sustained gRPC code 14 / connect EHOSTUNREACH line against the ad endpoint on port 9555, and the {service=\"ad\"} log stream will stay empty past 09:39:06. Those two observations are the handoff signal \u2014 if a human operator supplies the prior image tag, rollback_image becomes executable and the same two signals (error line ceasing, ad log stream resuming with gRPC server-start lines) are what would confirm it.",
+    "confirm_within_seconds": 600,
+    "if_wrong": "The abstention is wrong if change history actually does hold a prior image tag for ad that this briefing's change_history result failed to render \u2014 tr_35644441905b shows the prior reference as absent (None -> ghcr.io/open-telemetry/demo:2.2.0-ad-hotfix.2), which is the whole basis for declining. A second query against the change log, or any deployment manifest naming ad's pre-09:39 tag, would falsify it and make rollback_image the right call immediately. It would also be wrong if container-level evidence (restart count, exit code, image-pull status) showed ad's container repeatedly starting and dying on the *same* image rather than never coming up \u2014 that would be process state and would open restart_service.",
+    "risk": "The risk of abstaining is doing nothing while /api/data is fully broken for however long it takes a human to name the rollback target. The risk of the alternatives is why I abstain: rollback_image's stated precondition \u2014 a prior image tag recorded in change history \u2014 is explicitly unmet, so the executor would be redeploying at an unnamed or defaulted tag, which could pin ad to something older and wronger than the hotfix, or no-op back onto the same broken artifact. restart_service's precondition is also unmet: the evidence names a change (the 09:39:07 image update), not process state, and recreating the container at the current hotfix image would reproduce whatever already failed to start \u2014 and it is marked irreversible.",
+    "blast_radius": "Unchanged by this non-action, and that is the point: frontend and frontend-proxy continue to fail every /api/data request upward to the load generator, and any of the six undispatched services in the blast radius that depend on ad remain silently degraded. No caller sees a connection reset from a container recreate, because none is performed."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Critical multi-service alerting spreading from frontend through proxy to ad within two minutes cannot be dismissed, and no open incident covers it. Fault class is genuinely ambiguous: flagd adjacency hints at a flag/config change, but there is no evidence yet."
+  }
+}

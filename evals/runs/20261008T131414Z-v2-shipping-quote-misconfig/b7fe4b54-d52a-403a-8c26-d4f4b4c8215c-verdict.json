@@ -1,0 +1,172 @@
+{
+  "incident_id": "b7fe4b54-d52a-403a-8c26-d4f4b4c8215c",
+  "trajectory_id": "1de82d8f-b626-45ee-8768-085dbc958c8a",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "cart",
+    "checkout",
+    "currency",
+    "email",
+    "frontend",
+    "frontend-proxy",
+    "payment",
+    "product-catalog",
+    "quote",
+    "shipping"
+  ],
+  "unmeasured_edges": 9,
+  "exclude_origins": [
+    "scenario:v2-shipping-quote-misconfig"
+  ],
+  "verdict": {
+    "root_cause": "Shipping's QUOTE_ADDR environment variable was set to http://quote-gone:8090 \u2014 a hostname that does not resolve \u2014 roughly two minutes before onset by an automation actor that had been flapping this one variable set/revert every 6\u201313 minutes for the preceding hour [tr_49565a751401]. With shipping left in the 'set' state, every outbound quote call from shipping fails at the resolver stage in 2\u201313ms with a name-not-known error, and shipping's //get-quote handler returns Internal Server Error, which propagates up checkout \u2192 frontend \u2192 frontend-proxy to the user-facing checkout failures [tr_3ffcfacdaf52]. The configuration value is itself wrong and its wrongness is the mechanism: the request never leaves shipping, so nothing about quote's own health, capacity or latency is involved. The pre-onset elevation and non-spiking error ratio on shipping [tr_7139bd5665b4] is consistent with the set/revert flapping having already been breaking a fraction of quote calls for the hour before the alert fired, rather than with a clean healthy-to-broken transition at 13:17.",
+    "service": "shipping",
+    "fault_class": "bad_config",
+    "remediation_class": "config_revert",
+    "confidence": "high",
+    "evidence": [
+      "tr_49565a751401",
+      "tr_3ffcfacdaf52",
+      "tr_7139bd5665b4",
+      "tr_de28c03990c7",
+      "tr_10d0986ac8a1"
+    ],
+    "reasoning": "Two independent signals line up. The change log shows exactly one configuration surface moved on shipping in 24 hours \u2014 QUOTE_ADDR \u2014 with the last action before onset re-applying a pointer to a non-existent host, and no deploy, image bump or other edit anywhere in the window [tr_49565a751401]. The traces then show the consequence directly and at the leaf: shipping's outbound quote-gone POST child fails with a Connect/Resolver name-lookup error in every sampled trace carrying a shipping leg, and the shipping handler's entire error duration is attributable to that hop; sibling checkout dependencies (currency, cart/Redis, product-catalog/SQL) complete cleanly in the same traces [tr_3ffcfacdaf52]. That rules out the competing shapes: a resolver failure precedes TCP connect, so this is not connection-refused or a 5xx from quote; the failures are millisecond-fast with near-zero self time, so it is not saturation or waiting on a slow dependency; and only the one hostname fails, so it is not a general loss of network or DNS for shipping. The empty quote metrics [tr_10d0986ac8a1] and the empty shipping/checkout log streams [tr_de28c03990c7] are pre-existing telemetry gaps \u2014 both are empty across the baseline as well as the incident window \u2014 so they neither support nor contradict the diagnosis, and the diagnosis rests on traces plus the change record. The flat/decreasing shipping error ratio [tr_7139bd5665b4] does not undercut the verdict; it argues the breakage predates the 13:17 alert, which is exactly what an hour of set/revert flapping on the same variable would produce. Fault class is bad_config rather than a deploy or dependency class because the wrong address value is the failing mechanism itself, and remediation is a config revert \u2014 but a durable fix also has to stop the automation loop that keeps re-applying it.",
+    "open_questions": [
+      "What the correct value of QUOTE_ADDR should be was never confirmed; one recorded revert state reads :809 rather than :8090, so the 'good' state in the change log may itself be malformed.",
+      "Why platform-automation is flapping this single variable on a ~6\u201313 minute cycle is unexplained; a plain revert will likely be overwritten on the next reconciliation pass.",
+      "Quote's own health is entirely unmeasured \u2014 its span metrics are empty in both windows \u2014 so we cannot confirm a healthy quote service exists behind the correct address.",
+      "Both shipping and checkout log streams are empty across baseline and incident, so shipping never got to state in its own words that it could not resolve the name; the resolver attribution rests solely on trace error text.",
+      "The checkout span's error text blames an email-service 500, which contradicts the child-span evidence; whether that is stale/hardcoded error wording or a second, masked failure path is unsettled.",
+      "One trace at 13:17:26 shows a user-facing checkout failure with no checkout or shipping child spans at all, so not every failing request has been shown to follow the quote-resolution chain.",
+      "Triage reports 10 services and 9 unmeasured edges; no specialist examined the seven services outside the checkout\u2192shipping chain, so collateral or unrelated impact is unassessed."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "Shipping lost network or DNS reachability and therefore could not resolve its quote dependency.",
+        "service": "shipping",
+        "fault_class": "network_partition",
+        "remediation_class": "reconnect",
+        "why_not": "Only the single quote-gone hostname fails; in the same traces shipping's peers and checkout's other dependencies (currency, cart/Redis, product-catalog/SQL) resolve and complete without error [tr_3ffcfacdaf52], and a named, recently-applied bad address explains the selectivity that a partition cannot."
+      },
+      {
+        "root_cause": "The quote service was removed or scaled to zero so its name no longer resolves, and shipping's configuration is merely pointing at a now-absent deployment.",
+        "service": "quote",
+        "fault_class": "bad_deploy",
+        "remediation_class": "rollback",
+        "why_not": "The hostname shipping is dialling is a distinct value re-applied by automation two minutes before onset, not a stable long-standing address that went dark [tr_49565a751401]; no change record touches quote, and quote's metrics were already empty throughout the baseline [tr_10d0986ac8a1], so there is no evidence of a quote deployment change at all."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "runbook:class-bad-config / What the change record holds: The variable and a timestamp, and **the new value only** - no change record in this world carries\na prior value, which `world-change-records-have-no-prior-value` sets out.\n\n**What the logs hold is not uniform, and this document had it wrong.** An earlier version said a\nservice po",
+    "v2-frontend-cart-misconfig / What was checked: **The error text, because it was the first thing a responder would read.** Checkout's error spans\nand the frontend's log said `shipping quote failure: failed POST to email service: expected 200,\ngot 400`. That names two services, and neither was at fault. It is checkout's own wor",
+    "v2-cart-freeze / Resolution: The cart process was resumed. Its runtime reports came back within fifteen seconds and its log\nwithin one; it answered two hundred held requests in the first half-minute. Where an operator\ncannot resume a suspended process, restarting the container does the same job. Class of fix"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 23393,
+    "pulled_tokens": 6456,
+    "pull_rate": 0.2163,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 454,
+        "content_tokens": 456,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1303,
+        "content_tokens": 1307,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 6940,
+        "content_tokens": 6916,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 6666,
+        "content_tokens": 6668,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 8030,
+        "content_tokens": 8007,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "config_revert",
+    "action_id": "revert_config",
+    "target": "shipping",
+    "rests_on": [
+      "tr_49565a751401",
+      "tr_3ffcfacdaf52"
+    ],
+    "expected_effect": "Restoring shipping's prior environment removes QUOTE_ADDR=http://quote-gone:8090, the only key that moved [tr_49565a751401]. Within ~5 minutes of the recreate, new checkout traces should contain no shipping outbound quote span with a resolver 'name or service not known' error, shipping's //get-quote should stop returning Internal Server Error, and the ERROR status should stop propagating to checkout/frontend/frontend-proxy. Verify by re-running the trace query over the 5 minutes after the recreate (expect zero resolver-error shipping spans); shipping's own error ratio is too volatile to serve as the check [tr_7139bd5665b4] and its logs are empty [tr_de28c03990c7].",
+    "confirm_within_seconds": 300,
+    "if_wrong": "Falsified if resolver errors persist after the recreate - likely if the recorded prior value is the malformed :809 seen in the change log. Also falsified if resolver errors become connect-refused or timeouts, meaning the name resolves but no healthy quote exists behind it; quote is entirely unmeasured [tr_10d0986ac8a1]. Recovery followed by relapse in 6-13 minutes confirms the fix but not durability: the flapping automation is untouched by this action and must be paused by a human.",
+    "risk": "If the prior recorded config is itself malformed, shipping comes back equally broken and the recreate was wasted. If quote is unhealthy, cheap 2-13ms failures become slow connects or timeouts - a worse mode for checkout than failing fast. The checkout span blaming an email-service 500 may be a second masked path this does not address, so checkout errors may only partially clear.",
+    "blast_radius": "shipping only: unavailable during the recreate, in-process cache discarded, open connections from checkout reset. checkout sees the reset and thus frontend and frontend-proxy briefly see user-facing checkout errors. The restored address moves quote traffic back to the real quote host, which sees inbound requests resume."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Critical severity with two seeds alerting a minute apart across shipping and checkout, no open incident to attribute it to. Shared downstream dependencies make a common cause plausible but nothing in the alerts names one."
+  }
+}

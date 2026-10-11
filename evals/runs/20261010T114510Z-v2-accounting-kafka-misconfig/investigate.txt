@@ -1,0 +1,22 @@
+incident c2d6c9a8-7257-4048-8876-4545f8ab9b2e  state triaging  anchor 11:52:31
+triage: 1 services, severity critical, start from nowhere the graph knows, 0 unmeasured edge(s) crossed
+
+B1: bad_config / config_revert (high)
+  accounting's KAFKA_ADDR environment value was repeatedly set to a broker endpoint (kafka:9094) that the healthy Kafka broker does not serve, so the consumer could not connect and stopped processing orders.
+  4 tool calls over 6 turns
+    metrics:accounting  Confirm the error-ratio shape and departure timestamps for the only alerting service.
+    logs:accounting  Zero errors with undefined samples suggests silence; check whether accounting logs anything at all during the window.
+    changes:accounting  See whether a config/deploy change altered the broker endpoint (port 9094 is unusual) just before onset.
+    logs:kafka  Distinguish a genuinely down broker from accounting pointing at the wrong port: is kafka itself running and serving?
+wrote /Users/chandana/dev/faultline/evals/runs/20261010T114510Z-v2-accounting-kafka-misconfig/c2d6c9a8-7257-4048-8876-4545f8ab9b2e-verdict.json
+{"ts": "2026-10-10T11:54:29.793+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-10T11:54:29.817+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=metric_baseline subject=sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"accounting\",status_code=\"STATUS_CODE_ERROR\"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"accounting\"}[5m])) start=2026-10-10T10:50:35.913786+00:00 end=2026-10-10T11:54:27.414214+00:00 span_s=3831 refused=False", "component": "investigator"}
+{"ts": "2026-10-10T11:54:32.290+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-10T11:54:32.292+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=logql_query subject={service=\"accounting\"} start=2026-10-10T11:22:31.664000+00:00 end=2026-10-10T11:54:27.414214+00:00 span_s=1915 refused=False", "component": "investigator"}
+{"ts": "2026-10-10T11:54:35.517+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-10T11:54:35.518+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=accounting start=2026-10-09T11:52:31.664000+00:00 end=2026-10-10T11:54:27.414214+00:00 span_s=86515 refused=False", "component": "investigator"}
+{"ts": "2026-10-10T11:54:39.092+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-10T11:54:39.093+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=logql_query subject={service=\"kafka\"} start=2026-10-10T11:22:31.664000+00:00 end=2026-10-10T11:54:27.414214+00:00 span_s=1915 refused=False", "component": "investigator"}
+{"ts": "2026-10-10T11:54:41.978+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-10T11:54:54.785+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-10T11:55:03.367+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}

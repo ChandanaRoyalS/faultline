@@ -1,0 +1,53 @@
+{
+  "run_id": "20261004T061123Z-v2-cart-bad-image-tag",
+  "scenario_id": "v2-cart-bad-image-tag",
+  "split": "dev",
+  "scenario_fingerprint": "70129d0711a75bdaf97d72db3b535a56786473c7cb70dac41861fa874e951923",
+  "started_at": "2026-10-04T06:11:23.570480+00:00",
+  "demo": false,
+  "recorder": {
+    "tool": "evalharness.run",
+    "git_sha": "8943d4a2067e2959552a0fc0f4b9a14c94b32675",
+    "git_dirty": true
+  },
+  "models": {
+    "changes": "claude-opus-5",
+    "logs": "claude-opus-5",
+    "metrics": "claude-opus-5",
+    "planner": "claude-opus-5",
+    "scribe": "claude-opus-5",
+    "synthesizer": "claude-opus-5",
+    "traces": "claude-opus-5"
+  },
+  "efforts": {
+    "default": "high"
+  },
+  "budget": {
+    "max_tool_calls_per_specialist": 4,
+    "max_tokens": 120000,
+    "wall_clock_seconds": 600,
+    "max_dispatch_rounds": 2,
+    "briefing_tokens": 4000,
+    "max_usd": 2.0,
+    "usd_per_mtok_in": 5.0,
+    "usd_per_mtok_out": 25.0,
+    "per_specialist_tool_calls": {}
+  },
+  "world_lock": {
+    "acquired": true,
+    "pid": 7044,
+    "host": "chandanas-MacBook-Air.local",
+    "since": "2026-10-04T06:11:23.774945+00:00",
+    "reason": "faultline-eval v2-cart-bad-image-tag",
+    "token": "7044-1791094283.774814"
+  },
+  "preflight": {
+    "checked": true,
+    "ok": false,
+    "detail": "the configured model (claude-opus-5) could not be reached or billed.\n  \"Could not resolve authentication method. Expected one of api_key, auth_token, or credentials to be set. Or for one of the `X-Api-Key` or `Authorization` headers to be explicitly omitted\"\nNothing was injected and the world is untouched. This is not a discard - the run\nnever started, and counting it as one would inflate a number kept honest on purpose.\nDev sweep 8 injected the same scenario four times before discovering this at the\ntriage call; the check that would have caught it costs one token (Q20)."
+  },
+  "refused": {
+    "reason": "model unreachable",
+    "at": "2026-10-04T06:11:24.151178+00:00"
+  }
+}

@@ -1,0 +1,164 @@
+{
+  "incident_id": "9f88d476-48ac-4e0a-a14f-4c619d586a21",
+  "trajectory_id": "22abeece-0d9d-4279-a7a2-cc76f2dbd1f5",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "flagd",
+    "fraud-detection"
+  ],
+  "unmeasured_edges": 1,
+  "exclude_origins": [
+    "scenario:v2-fraud-detection-memory-squeeze"
+  ],
+  "verdict": {
+    "root_cause": "A platform-automation change lowered fraud-detection's container memory limit to 160m; the JVM cannot live inside that limit, so the process is killed shortly after start and restarts repeatedly, never reaching steady-state serving. The change log shows 160m applied ~30 min before onset, removed at 22:11:47, and re-applied at 22:25:01 [tr_eed9c479d942]. Telemetry tracks that pattern: logs contain only repeated JVM/OTel cold-start banners on a ~60s cadence at ~22:02 and ~22:29-22:33, i.e. while the limit is in force [tr_b57c923f0775], while every trace falls between 22:12:23 and 22:24:30 - exactly the interval with no limit - and those order traces are clean and fast [tr_4adabd5aade4]. Metrics show 49 intervals with no traffic at all versus full baseline coverage, with no error elevation [tr_69dbb843c817, tr_6b6ec8474dd6]. The mechanism is the process being killed for exceeding the memory it was given.",
+    "service": "fraud-detection",
+    "fault_class": "resource_exhaustion",
+    "remediation_class": "config_revert",
+    "confidence": "high",
+    "evidence": [
+      "tr_eed9c479d942",
+      "tr_b57c923f0775",
+      "tr_4adabd5aade4",
+      "tr_69dbb843c817",
+      "tr_6b6ec8474dd6",
+      "tr_c7e976599c5a",
+      "tr_86a7fa3e2a19"
+    ],
+    "reasoning": "The apply/revert/re-apply of the memory limit [tr_eed9c479d942] forms a natural control, and fraud-detection's signals flip with it: restarts during the limited periods [tr_b57c923f0775], completed traces only during the unlimited 22:12-22:24 window [tr_4adabd5aade4], traffic gaps rather than error spikes [tr_69dbb843c817, tr_6b6ec8474dd6]. flagd is exonerated as origin: no changes in 24h [tr_86a7fa3e2a19], error ratio below baseline with continuous coverage [tr_c7e976599c5a]; the ~600s EventStream timeout is fraud-detection's own outbound stream dying with the pod, uncoupled from the clean order traces [tr_4adabd5aade4]. Class is resource_exhaustion, not bad_config: no artifact or endpoint value is wrong - a ceiling was lowered until the process was killed for exceeding it.",
+    "open_questions": [
+      "No container memory, OOMKilled, exit-code or restart-count series was ever retrieved [tr_6b6ec8474dd6]; the OOM kill is inferred from restart cadence and limit timing, not observed.",
+      "Application logging falls back to an SLF4J no-op provider [tr_b57c923f0775], so any in-process startup exception or dependency error is invisible.",
+      "Why platform-automation applied, reverted and re-applied the same 160m limit is unexplained, so a manual revert may simply be re-applied."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "The 160m value is itself invalid for this container - the process cannot complete startup under it at all, making the wrong value the failure.",
+        "service": "fraud-detection",
+        "fault_class": "bad_config",
+        "remediation_class": "config_revert",
+        "why_not": "Logs show the process reaching javaagent init each cycle and dying ~1-2s in [tr_b57c923f0775], the signature of being killed for exceeding a ceiling rather than refusing to launch; remediation is identical either way."
+      },
+      {
+        "root_cause": "fraud-detection's long-lived flagd EventStream stalls and times out, wedging the service so it stops processing.",
+        "service": "flagd",
+        "fault_class": "dependency_latency",
+        "remediation_class": "restart",
+        "why_not": "The order traces concurrent with the stream error are fast and clean with no coupling [tr_4adabd5aade4], flagd's error ratio is below baseline with continuous coverage [tr_c7e976599c5a], and no flagd change exists [tr_86a7fa3e2a19]."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "v2-fraud-detection-partition / Resolution: The container was put back on its network under its original names. Where an operator cannot\nreconnect a container with its aliases, recreating or restarting it does the same job. Class of\nfix: **restart**. Nothing was deployed or misconfigured, so there was nothing to roll back ",
+    "v2-cart-bad-image-tag / What was checked: **The page names callers.** Frontend-proxy forwards what the frontend returns, and the load\ngenerator is the synthetic shoppers counting their own failures. Frontend and checkout were the\ntwo services making calls that failed.\n\n**Checkout's error traces.** Every failing order was",
+    "v2-fraud-detection-flag-queue-lag / What was checked: **Fraud-detection's traces, to see what the time was spent on.** Its work is two kinds of span:\n`orders receive`, when it polls Kafka for a batch of records, and `orders process`, one for each\nrecord it handles. The receive spans were fast. Every `orders process` span lasted abou"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 26660,
+    "pulled_tokens": 3905,
+    "pull_rate": 0.1278,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 377,
+        "content_tokens": 379,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1574,
+        "content_tokens": 1578,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 8262,
+        "content_tokens": 8238,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 7486,
+        "content_tokens": 7488,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 8961,
+        "content_tokens": 8939,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "config_revert",
+    "action_id": "revert_config",
+    "target": "fraud-detection",
+    "rests_on": [
+      "tr_eed9c479d942",
+      "tr_b57c923f0775",
+      "tr_4adabd5aade4",
+      "tr_69dbb843c817"
+    ],
+    "expected_effect": "Restoring fraud-detection's prior configuration removes the 160m memory limit (prior recorded value: None, re-applied at 22:25:01). Within one restart cycle the JVM/OTel cold-start banner sequence in Loki ({service=\"fraud-detection\"}) should stop repeating on its ~60s cadence and the newest banner should be followed by several minutes of no further startup output \u2014 the same steady state that held during the unconstrained 22:11:47-22:25:01 control interval. Concurrently, fraud-detection spans in Tempo should reappear continuously (the 'orders receive' -> 'orders process' traces, 8-95ms, clean) rather than stopping as they did at 22:24:30, and the span-metrics error-ratio series should regain defined values in every 5m interval instead of the 49-of-320 undefined intervals seen during the incident. Error ratio itself should not move; it was never elevated.",
+    "confirm_within_seconds": 300,
+    "if_wrong": "If, 5 minutes after the revert, Loki still shows a fresh JVM/OTel startup banner roughly every 60 seconds, the restart loop is not caused by the memory limit and this diagnosis is wrong \u2014 the kill is inferred from restart cadence plus limit timing, never observed (no memory working-set, OOMKilled, exit-code or restart-count series was ever retrieved [tr_6b6ec8474dd6]), and SLF4J's no-op fallback [tr_b57c923f0775] hides any in-process startup exception that would be the real cause. A second falsifier is transience: if banners stop and then resume within ~10-15 minutes, platform-automation has re-applied the same 160m limit, as it already did once in this window; the manual revert is then being overwritten and the fix must move to the automation, which is outside what this system may do. Note the limitation that the thing I most want to see \u2014 an OOMKill event or the container's memory limit value \u2014 is not observable through the metrics this system has queried; confirmation rests entirely on the restart cadence ceasing and traffic resuming.",
+    "risk": "The action recreates the container, so it does not distinguish itself cleanly from a plain restart: if the true cause is a transient process-state fault, the loop may stop for reasons unrelated to the config and we will have drawn a false conclusion about the mechanism. If the prior configuration recorded in change history contains more than the memory limit, reverting restores all of it and could undo an unrelated intended setting. Removing the memory ceiling on a service whose actual memory behaviour was never measured means that if the JVM has a genuine leak, it will now grow unbounded on the host rather than being killed at 160m, which trades a visible restart loop for host-level memory pressure affecting co-located services.",
+    "blast_radius": "One service, fraud-detection, for the duration of the container recreate; in-process cache is discarded. Inbound work is asynchronous messaging, not synchronous RPC [tr_4adabd5aade4], so no caller sees a connection reset \u2014 instead the order topic backs up for the recreate interval and drains after. flagd is the one named downstream: fraud-detection's long-lived outbound EventStream to flagd is torn down and re-established, which flagd sees as a stream disconnect and reconnect. flagd showed no error elevation and continuous traffic through the window [tr_c7e976599c5a], so a single reconnect should be absorbed; watch flagd's error ratio for a brief blip around the recreate."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "feature_flag",
+    "confidence": "low",
+    "reasoning": "A critical-severity alert on fraud-detection is not dismissible, and no open incident covers it. Its only upstream is flagd, so a flag evaluation change is the cheapest prior, though nothing yet distinguishes it from a fault local to the service."
+  }
+}

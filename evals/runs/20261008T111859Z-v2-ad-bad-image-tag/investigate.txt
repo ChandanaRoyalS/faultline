@@ -1,0 +1,25 @@
+incident 44ac4e4a-4a48-4503-af1e-b3a95d911511  state triaging  anchor 11:24:16
+triage: 9 services, severity critical, start from frontend, 8 unmeasured edge(s) crossed
+
+B1: bad_deploy / rollback (medium)
+  The ad service was redeployed onto the wrong artifact (image reference switched to the 2.2.0-ad-hotfix.2 tag) at 11:19, after which the ad process shut down and never came back up, so AdService calls fail at the caller.
+  5 tool calls over 7 turns
+    metrics:ad  Check error ratio shape and onset timing for the deepest alerting service to see if it leads frontend
+    metrics:frontend  Establish whether frontend's error ratio truly departs at onset, to anchor the incident
+    traces:frontend  Error ratios barely moved, so suspect latency/hangs; look for which downstream call is slow in frontend spans
+    logs:ad  See what ad reports when GetAds fails fast — flag-driven failure vs other
+    changes:ad  Ad stopped logging after a JVM shutdown at 11:19; check whether a deploy/config/limit change preceded it
+wrote /Users/chandana/dev/faultline/evals/runs/20261008T111859Z-v2-ad-bad-image-tag/44ac4e4a-4a48-4503-af1e-b3a95d911511-verdict.json
+{"ts": "2026-10-08T11:27:19.246+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-08T11:27:19.264+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=metric_baseline subject=sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"ad\",status_code=\"STATUS_CODE_ERROR\"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"ad\"}[5m])) start=2026-10-08T10:21:16.168638+00:00 end=2026-10-08T11:27:17.159362+00:00 span_s=3960 refused=False", "component": "investigator"}
+{"ts": "2026-10-08T11:27:21.600+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-08T11:27:21.602+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=metric_baseline subject=sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"frontend\",status_code=\"STATUS_CODE_ERROR\"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"frontend\"}[5m])) start=2026-10-08T10:21:16.168638+00:00 end=2026-10-08T11:27:17.159362+00:00 span_s=3960 refused=False", "component": "investigator"}
+{"ts": "2026-10-08T11:27:24.469+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-08T11:27:24.472+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=trace_query subject=frontend start=2026-10-08T10:54:16.664000+00:00 end=2026-10-08T11:27:17.159362+00:00 span_s=1980 refused=False", "component": "investigator"}
+{"ts": "2026-10-08T11:27:28.866+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-08T11:27:28.869+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=logql_query subject={service=\"ad\"} start=2026-10-08T10:54:16.664000+00:00 end=2026-10-08T11:27:17.159362+00:00 span_s=1980 refused=False", "component": "investigator"}
+{"ts": "2026-10-08T11:27:35.216+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-08T11:27:35.220+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=ad start=2026-10-07T11:24:16.664000+00:00 end=2026-10-08T11:27:17.159362+00:00 span_s=86580 refused=False", "component": "investigator"}
+{"ts": "2026-10-08T11:27:42.917+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-08T11:28:01.055+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-08T11:28:11.777+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}

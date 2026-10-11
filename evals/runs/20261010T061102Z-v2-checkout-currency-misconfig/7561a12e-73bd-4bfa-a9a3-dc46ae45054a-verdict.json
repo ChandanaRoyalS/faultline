@@ -1,0 +1,101 @@
+{
+  "incident_id": "7561a12e-73bd-4bfa-a9a3-dc46ae45054a",
+  "trajectory_id": "dbae021d-e2ef-4cb7-95e8-066891a466f9",
+  "states": [
+    "triaging",
+    "investigating"
+  ],
+  "blast_radius": [
+    "checkout",
+    "fraud-detection",
+    "cart",
+    "currency",
+    "email",
+    "flagd",
+    "frontend",
+    "payment",
+    "product-catalog",
+    "shipping",
+    "frontend-proxy"
+  ],
+  "unmeasured_edges": 9,
+  "exclude_origins": [
+    "scenario:scenario:v2-checkout-currency-misconfig"
+  ],
+  "verdict": {
+    "fault_class": "bad_config",
+    "remediation_class": "config_revert",
+    "service": "checkout",
+    "alternatives": [
+      {
+        "root_cause": "flagd's event stream to fraud-detection fails, breaking the flagged code path in fraud-detection.",
+        "service": "flagd",
+        "fault_class": "feature_flag",
+        "remediation_class": null,
+        "why_not": "flagd's error ratio is flat and below baseline (tr_c7ffb8ffbc4d), and the only erroring fraud-detection span is a 600s event stream closing on server-side timeout (tr_0441a3299765), which is the normal lifecycle of a long-lived stream rather than a failing flag path."
+      },
+      {
+        "root_cause": "currency became unavailable or slow, and checkout failed waiting on it.",
+        "service": "currency",
+        "fault_class": "dependency_latency",
+        "remediation_class": null,
+        "why_not": "currency served sub-millisecond conversions throughout the observed traces (tr_06a8624b2283) with no latency growth; its absence of span-metric samples (tr_b423cd92571a) spans the baseline window too, so it is an instrumentation gap, not an outage."
+      },
+      {
+        "root_cause": "fraud-detection's process stopped consuming while its socket stayed open.",
+        "service": "fraud-detection",
+        "fault_class": "process_freeze",
+        "remediation_class": null,
+        "why_not": "fraud-detection kept writing consumption lines through 06:11 (tr_a360dee3e4a7), so it was running and not silent; its gaps in traffic point upstream to missing orders."
+      }
+    ],
+    "summary": "An automated environment edit set checkout's CURRENCY_ADDR to currencyservice:7001 \u2014 a wrong endpoint for the currency service \u2014 and the last application of it at 06:11 was never reverted, so checkout's currency-conversion path in the order flow broke and downstream order volume collapsed around the 06:15 onset.",
+    "confidence": "medium",
+    "evidence": [
+      "tr_f3e859ef2e34",
+      "tr_4981bfabb07a",
+      "tr_0b89452b1770",
+      "tr_06a8624b2283",
+      "tr_0441a3299765",
+      "tr_f3892c5e1302",
+      "tr_c7ffb8ffbc4d",
+      "tr_b423cd92571a"
+    ],
+    "reasoning": "checkout's change log (tr_f3e859ef2e34) shows a repeating apply/revert cycle of a single environment value, CURRENCY_ADDR=currencyservice:7001, by platform-automation; the applications at 05:20 and 05:49 were each reverted, but the 06:11:07 application was still in place at the 06:15:16 onset. fraud-detection's error ratio (tr_4981bfabb07a) has change points at 05:53:31 and 06:15:31 \u2014 each within minutes of an applied CURRENCY_ADDR edit \u2014 and the same window contains intervals with no traffic at all, which for an order-stream consumer means checkout stopped publishing orders rather than that fraud-detection itself broke. fraud-detection's change log is empty (tr_f3892c5e1302) and its only erroring span is a long-lived flagd event stream that closes on a server-side timeout (tr_0441a3299765), while flagd's error ratio is flat and slightly below baseline (tr_c7ffb8ffbc4d), so flagd is not the mechanism. currency produced no span-metric samples in either window (tr_b423cd92571a) yet pre-06:11 traces show checkout\u2192currency conversions completing in under a millisecond (tr_06a8624b2283), so currency was healthy and the wrongness lies in the address checkout was told to use, not in the dependency. A configuration value that names the wrong endpoint, whose wrongness is itself the failure, is bad_config rather than bad_deploy or dependency_latency.",
+    "open_questions": [
+      "checkout emitted no log lines over the whole window (tr_b9efd1a93974), so there is no direct confirmation of a connection refusal or name-resolution failure against the configured address.",
+      "checkout's own error ratio stayed flat against baseline (tr_0b89452b1770), which the wrong-address story does not fully explain \u2014 the failure may surface as absent order publishes rather than errored checkout spans.",
+      "No trace sample was returned from after 06:11, so the post-change call path through checkout was not observed directly.",
+      "Why platform-automation keeps re-applying this value, and what the correct currency endpoint is, was not established."
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B1",
+    "tool_calls": 15,
+    "turns": 17,
+    "looked_at": [
+      "metrics:checkout",
+      "metrics:fraud-detection",
+      "logs:fraud-detection",
+      "changes:checkout",
+      "logs:checkout",
+      "metrics:currency",
+      "traces:checkout",
+      "changes:fraud-detection",
+      "logs:currency",
+      "traces:fraud-detection",
+      "metrics:frontend",
+      "logs:flagd",
+      "changes:flagd",
+      "traces:currency",
+      "metrics:flagd"
+    ]
+  }
+}

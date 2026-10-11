@@ -1,0 +1,40 @@
+{
+  "incident_id": "5aff5a09-a2aa-4b58-aa5d-45c5067bf5ca",
+  "trajectory_id": "8f325ae7-93c8-43ac-abb7-dc678b610185",
+  "states": [
+    "triaging"
+  ],
+  "blast_radius": [
+    "fraud-detection",
+    "flagd"
+  ],
+  "unmeasured_edges": 1,
+  "exclude_origins": [
+    "scenario:scenario:v2-fraud-detection-flag-queue-lag"
+  ],
+  "verdict": {
+    "fault_class": "dependency_latency",
+    "remediation_class": "restart",
+    "service": "fraud-detection",
+    "summary": "suspect: largest error-rate delta among alerting services (+0.020); class: no change on any alerting service before onset; remediation: table lookup from dependency_latency",
+    "confidence": "n/a - B0 is a rule, not an estimate"
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B0",
+    "service": "fraud-detection",
+    "fault_class": "dependency_latency",
+    "fix_class": "restart",
+    "why": [
+      "suspect: largest error-rate delta among alerting services (+0.020)",
+      "class: no change on any alerting service before onset",
+      "remediation: table lookup from dependency_latency"
+    ]
+  }
+}

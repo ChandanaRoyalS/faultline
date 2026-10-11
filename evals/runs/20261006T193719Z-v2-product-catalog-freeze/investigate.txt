@@ -1,0 +1,11 @@
+incident 50ff9840-fe12-43d7-9c3f-52bbe1301abe  state triaging  anchor 19:41:31
+triage: 3 services, severity critical, start from frontend-proxy, 1 unmeasured edge(s) crossed
+B0: dependency_latency / restart
+  suspect: largest error-rate delta among alerting services (+0.303)
+  class: no change on any alerting service before onset
+  remediation: table lookup from dependency_latency
+wrote /Users/chandana/dev/faultline/evals/runs/20261006T193719Z-v2-product-catalog-freeze/50ff9840-fe12-43d7-9c3f-52bbe1301abe-verdict.json
+{"ts": "2026-10-06T19:43:13.234+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=frontend-proxy start=2026-10-05T19:41:31.664000+00:00 end=2026-10-06T19:43:13.228728+00:00 span_s=86501 refused=False", "component": "investigator"}
+{"ts": "2026-10-06T19:43:13.236+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=promql_query subject=sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"frontend-proxy\",status_code=\"STATUS_CODE_ERROR\"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"frontend-proxy\"}[5m])) start=2026-10-06T19:11:31.664000+00:00 end=2026-10-06T19:43:13.228728+00:00 span_s=1901 refused=False", "component": "investigator"}
+{"ts": "2026-10-06T19:43:13.244+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=load-generator start=2026-10-05T19:41:31.664000+00:00 end=2026-10-06T19:43:13.228728+00:00 span_s=86501 refused=False", "component": "investigator"}
+{"ts": "2026-10-06T19:43:13.245+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=promql_query subject=sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"load-generator\",status_code=\"STATUS_CODE_ERROR\"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"load-generator\"}[5m])) start=2026-10-06T19:11:31.664000+00:00 end=2026-10-06T19:43:13.228728+00:00 span_s=1901 refused=False", "component": "investigator"}

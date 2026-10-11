@@ -1,0 +1,9 @@
+incident f5bcaa7c-969d-474d-9825-6e68afb06dec  state triaging  anchor 01:51:16
+triage: 14 services, severity warning, start from cart, 14 unmeasured edge(s) crossed
+
+B2: dependency_latency / restart (low)
+  The cart service became slow because its backing store (valkey-cart, uninstrumented and therefore invisible in the graph) started responding slowly, and cart's request threads blocked waiting on it; the latency then propagated up through checkout, frontend, frontend-proxy and the load-generator.
+  looked at nothing - this is the model's prior
+wrote /Users/chandana/dev/faultline/evals/runs/20261008T014648Z-v2-valkey-cart-dependency-latency/f5bcaa7c-969d-474d-9825-6e68afb06dec-verdict.json
+{"ts": "2026-10-08T01:53:36.879+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-08T01:53:46.694+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}

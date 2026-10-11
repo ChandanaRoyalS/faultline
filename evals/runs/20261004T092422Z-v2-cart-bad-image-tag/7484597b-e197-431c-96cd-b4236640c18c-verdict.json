@@ -1,0 +1,71 @@
+{
+  "incident_id": "7484597b-e197-431c-96cd-b4236640c18c",
+  "trajectory_id": "33369b3a-66b5-47ad-9b94-e223fb31fef8",
+  "states": [
+    "triaging"
+  ],
+  "blast_radius": [
+    "checkout",
+    "frontend",
+    "frontend-proxy",
+    "load-generator",
+    "ad",
+    "cart",
+    "currency",
+    "email",
+    "payment",
+    "product-catalog",
+    "product-reviews",
+    "recommendation",
+    "shipping"
+  ],
+  "unmeasured_edges": 13,
+  "exclude_origins": [
+    "scenario:scenario:v2-cart-bad-image-tag"
+  ],
+  "verdict": {
+    "fault_class": "bad_config",
+    "remediation_class": "config_revert",
+    "service": "checkout",
+    "alternatives": [
+      {
+        "root_cause": "A bad deploy of checkout put a broken or wrong-version artifact into service.",
+        "service": "checkout",
+        "fault_class": "bad_deploy",
+        "remediation_class": null,
+        "why_not": "Plausible and nearly indistinguishable from bad_config at this resolution, but a crash-looping artifact usually produces connection failures at the proxy with checkout emitting nothing; a uniformly-erroring-but-responding checkout fits a wrong value more than a wrong binary."
+      },
+      {
+        "root_cause": "payment or another checkout dependency became slow, and checkout failed waiting on it.",
+        "service": "payment",
+        "fault_class": "dependency_latency",
+        "remediation_class": null,
+        "why_not": "No downstream service alerted, and a latency cascade would normally trip the dependency's own alert and appear as timeouts rather than an instantaneous high error rate at exactly the same second across all callers."
+      }
+    ],
+    "summary": "checkout is failing on every request because of a wrong configuration value (most likely a bad endpoint/address or credential for one of its downstream dependencies, e.g. the Kafka broker or a gRPC target), so it returns errors that surface at frontend, frontend-proxy and the load-generator.",
+    "confidence": "low",
+    "evidence": [],
+    "reasoning": "The alerting set is checkout plus its entire caller chain (frontend -> frontend-proxy -> load-generator), which is exactly the shape of errors propagating upward from a single broken node. None of checkout's own dependencies (product-catalog, currency, cart, email, payment, shipping) alert, and product-catalog/cart are shared with frontend yet show nothing, so the break is in checkout itself rather than beneath it. The simultaneous onset across all four services and a high error rate (rather than latency or timeouts) points to fast, deterministic failures - requests rejected immediately, not waited on - which fits a wrong configured address/port/credential or a dependency checkout talks to that is off the graph (Kafka is noted absent and checkout is its producer). checkout is not a flagd consumer in this catalog, which argues against a flag flip; a resource or disk problem would normally ramp rather than start cleanly at one instant.",
+    "open_questions": [
+      "checkout's own error logs: connection refused / unknown host / auth rejected vs. deadline exceeded vs. panic on startup",
+      "whether checkout pods restarted or rolled at 09:29 and what image/config version they came up with",
+      "whether checkout's Kafka producer is erroring (Kafka is absent from the graph but checkout depends on it in this topology)",
+      "checkout request latency distribution - fast failures (config) vs. timeouts (dependency latency)",
+      "error rates and saturation on payment, cart and shipping to confirm they are genuinely healthy"
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B2",
+    "tool_calls": 0,
+    "attempts": 2,
+    "cited_without_looking": []
+  }
+}

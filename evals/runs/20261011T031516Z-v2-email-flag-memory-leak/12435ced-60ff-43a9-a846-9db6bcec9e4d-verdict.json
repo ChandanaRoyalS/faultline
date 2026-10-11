@@ -1,0 +1,99 @@
+{
+  "incident_id": "12435ced-60ff-43a9-a846-9db6bcec9e4d",
+  "trajectory_id": "c64380ee-000b-4d89-b053-6baa04bb7125",
+  "states": [
+    "triaging",
+    "investigating"
+  ],
+  "blast_radius": [
+    "checkout",
+    "cart",
+    "currency",
+    "email",
+    "frontend",
+    "payment",
+    "product-catalog",
+    "shipping",
+    "frontend-proxy"
+  ],
+  "unmeasured_edges": 8,
+  "exclude_origins": [
+    "scenario:scenario:v2-email-flag-memory-leak"
+  ],
+  "verdict": {
+    "fault_class": "process_freeze",
+    "remediation_class": "restart",
+    "service": "checkout",
+    "alternatives": [
+      {
+        "root_cause": "A runtime flag was flipped and the flagged code path in checkout fails, leaving the change log empty.",
+        "service": "checkout",
+        "fault_class": "feature_flag",
+        "remediation_class": null,
+        "why_not": "A failing flagged path would surface as errors on checkout or its caller, but both error ratios stayed flat (tr_4366d707bbc2, tr_fa5bf545aadc); flag evaluations in pre-onset traces resolved in well under a millisecond."
+      },
+      {
+        "root_cause": "checkout was cut off from the network and could no longer reach its dependencies.",
+        "service": "checkout",
+        "fault_class": "network_partition",
+        "remediation_class": null,
+        "why_not": "A partitioned but running process normally logs that it cannot reach anything; checkout wrote nothing at all (tr_d5b1c75e7de7), though the empty logs on unrelated services weaken this distinction."
+      },
+      {
+        "root_cause": "A checkout dependency such as currency or payment became slow and checkout failed waiting on it.",
+        "service": "currency",
+        "fault_class": "dependency_latency",
+        "remediation_class": null,
+        "why_not": "Every dependency span in the sampled traces completed in a few milliseconds (tr_417c48410a27) and cart showed a flat zero error ratio (tr_43f6b5655ee8); no dependency hop was the degrading one."
+      }
+    ],
+    "summary": "The checkout process appears to have stopped doing work at onset while its socket still accepted: it emitted no telemetry after ~03:10 and no errors appeared anywhere in the call chain, so callers hang on PlaceOrder rather than receiving failures.",
+    "confidence": "low",
+    "evidence": [
+      "tr_4366d707bbc2",
+      "tr_417c48410a27",
+      "tr_d5b1c75e7de7",
+      "tr_6899666116e2",
+      "tr_fa5bf545aadc",
+      "tr_f7d0f76760e6",
+      "tr_86a8a5ca8008",
+      "tr_43f6b5655ee8",
+      "tr_5cb7f747a42e"
+    ],
+    "reasoning": "checkout alerted first, yet its error ratio never departed from baseline (tr_4366d707bbc2) and neither did its caller frontend (tr_fa5bf545aadc), the edge proxy (tr_86a8a5ca8008) or its dependency cart (tr_43f6b5655ee8) - the incident is not an error-returning failure anywhere in the chain. All sampled checkout traces (tr_417c48410a27) predate onset and are healthy end to end, with every dependency responding in single-digit milliseconds, which rules out a slow dependency as the mechanism. Caller-side traces (tr_f7d0f76760e6, tr_5cb7f747a42e) likewise end before onset and contain no completed checkout path afterwards, the pattern expected when a callee stops responding and requests hang to their deadlines instead of completing. The change log for checkout was observed and holds nothing near onset - only an unrelated environment edit pair a day earlier (tr_6899666116e2) - so no artifact or config change explains it. checkout wrote nothing in the window (tr_d5b1c75e7de7), which fits a frozen process; a partitioned process would complain in its own log about being unable to reach anything. The main weakness is that log queries for frontend, frontend-proxy and product-catalog were also empty (tr_3f519e10ae76, tr_6e680a749256, tr_fcb4ae59e0cd), so the silence may be a collection gap rather than a signal.",
+    "open_questions": [
+      "Whether checkout's log silence is specific to it or an environment-wide logging gap, since three other services were equally silent.",
+      "Whether any post-onset span exists showing a caller hanging on PlaceOrder to a deadline - no trace sample after 03:18:55 was returned at all.",
+      "Whether checkout's process was killed or stalled for exceeding a memory or CPU limit, which would make this resource_exhaustion; no host or container resource metric was examined.",
+      "Why checkout alerted at 03:20:46 when its own error-ratio series shows no sustained departure; the alerting condition itself was never inspected."
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B1",
+    "tool_calls": 14,
+    "turns": 16,
+    "looked_at": [
+      "metrics:checkout",
+      "traces:checkout",
+      "logs:checkout",
+      "changes:checkout",
+      "logs:currency",
+      "metrics:frontend",
+      "logs:frontend",
+      "traces:frontend",
+      "metrics:payment",
+      "metrics:frontend-proxy",
+      "metrics:cart",
+      "traces:frontend-proxy",
+      "logs:frontend-proxy",
+      "logs:product-catalog"
+    ]
+  }
+}

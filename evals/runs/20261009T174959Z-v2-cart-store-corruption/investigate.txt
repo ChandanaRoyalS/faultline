@@ -1,0 +1,9 @@
+incident d42df2c9-dcc2-400f-be8c-2f36311c66ca  state triaging  anchor 17:57:16
+triage: 9 services, severity critical, start from checkout, 8 unmeasured edge(s) crossed
+
+B2: bad_config / config_revert (low)
+  A bad configuration value in checkout (most likely a wrong endpoint/port or credential for one of its downstream dependencies) makes every order attempt fail immediately, producing checkout's high error rate without any downstream service degrading.
+  looked at nothing - this is the model's prior
+wrote /Users/chandana/dev/faultline/evals/runs/20261009T174959Z-v2-cart-store-corruption/d42df2c9-dcc2-400f-be8c-2f36311c66ca-verdict.json
+{"ts": "2026-10-09T17:59:36.483+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-09T17:59:44.682+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}

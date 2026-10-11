@@ -1,0 +1,28 @@
+incident ea904572-31cb-4d5b-b807-f93bf2d7abc0  state triaging  anchor 02:44:16
+triage: 10 services, severity critical, start from checkout, 8 unmeasured edge(s) crossed
+
+B1: bad_config / config_revert (medium)
+  The Kafka broker is in a crash loop because it cannot write its KRaft metadata into its data directory (permission denied on the bootstrap checkpoint file), so it never binds and its name does not resolve for clients.
+  6 tool calls over 8 turns
+    metrics:checkout  Establish the error profile and timing for the first alerting service before tracing upstream dependencies.
+    traces:checkout  Error ratio is flat, so the symptom may be latency; look for slow spans and which downstream call is hanging.
+    changes:checkout  Determine whether a config or deploy change altered the Kafka broker address or anything else on checkout around onset.
+    logs:accounting  Accounting is the other alerting service and consumes from Kafka; its logs should show whether it also cannot reach the broker.
+    logs:kafka  Check whether the broker itself is running and what it reports — distinguishes broker down/partitioned from a client-side misconfiguration.
+    changes:kafka  See whether a deploy or config change to kafka (image, volume, user, data dir) preceded the 02:43 crash-loop.
+wrote /Users/chandana/dev/faultline/evals/runs/20261010T023819Z-v2-inj-kafka-disk-fill-log-checkout/ea904572-31cb-4d5b-b807-f93bf2d7abc0-verdict.json
+{"ts": "2026-10-10T02:47:18.385+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-10T02:47:18.410+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=metric_baseline subject=sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"checkout\",status_code=\"STATUS_CODE_ERROR\"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"checkout\"}[5m])) start=2026-10-10T01:41:17.219879+00:00 end=2026-10-10T02:47:16.108121+00:00 span_s=3958 refused=False", "component": "investigator"}
+{"ts": "2026-10-10T02:47:20.909+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-10T02:47:20.914+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=trace_query subject=checkout start=2026-10-10T02:14:16.664000+00:00 end=2026-10-10T02:47:16.108121+00:00 span_s=1979 refused=False", "component": "investigator"}
+{"ts": "2026-10-10T02:47:28.026+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-10T02:47:28.049+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=checkout start=2026-10-09T02:44:16.664000+00:00 end=2026-10-10T02:47:16.108121+00:00 span_s=86579 refused=False", "component": "investigator"}
+{"ts": "2026-10-10T02:47:31.697+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-10T02:47:31.700+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=logql_query subject={service=\"accounting\"} start=2026-10-10T02:14:16.664000+00:00 end=2026-10-10T02:47:16.108121+00:00 span_s=1979 refused=False", "component": "investigator"}
+{"ts": "2026-10-10T02:47:40.369+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-10T02:47:40.376+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=logql_query subject={service=\"kafka\"} start=2026-10-10T02:14:16.664000+00:00 end=2026-10-10T02:47:16.108121+00:00 span_s=1979 refused=False", "component": "investigator"}
+{"ts": "2026-10-10T02:47:44.535+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-10T02:47:44.553+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=kafka start=2026-10-09T02:44:16.664000+00:00 end=2026-10-10T02:47:16.108121+00:00 span_s=86579 refused=False", "component": "investigator"}
+{"ts": "2026-10-10T02:48:10.735+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-10T02:48:35.724+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-10T02:48:47.075+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}

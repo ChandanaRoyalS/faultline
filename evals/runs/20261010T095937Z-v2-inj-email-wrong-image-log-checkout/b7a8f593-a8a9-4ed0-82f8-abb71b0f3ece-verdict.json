@@ -1,0 +1,47 @@
+{
+  "incident_id": "b7a8f593-a8a9-4ed0-82f8-abb71b0f3ece",
+  "trajectory_id": "fa288548-b5fd-4285-850d-686c941db231",
+  "states": [
+    "triaging"
+  ],
+  "blast_radius": [
+    "checkout",
+    "email",
+    "cart",
+    "currency",
+    "frontend",
+    "payment",
+    "product-catalog",
+    "shipping",
+    "frontend-proxy"
+  ],
+  "unmeasured_edges": 8,
+  "exclude_origins": [
+    "scenario:scenario:v2-inj-email-wrong-image-log-checkout"
+  ],
+  "verdict": {
+    "fault_class": "bad_deploy",
+    "remediation_class": "rollback",
+    "service": "email",
+    "summary": "suspect: service of the most recent pre-onset change in the window (09:59:41); class: that change was to image; remediation: table lookup from bad_deploy",
+    "confidence": "n/a - B0 is a rule, not an estimate"
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B0",
+    "service": "email",
+    "fault_class": "bad_deploy",
+    "fix_class": "rollback",
+    "why": [
+      "suspect: service of the most recent pre-onset change in the window (09:59:41)",
+      "class: that change was to image",
+      "remediation: table lookup from bad_deploy"
+    ]
+  }
+}

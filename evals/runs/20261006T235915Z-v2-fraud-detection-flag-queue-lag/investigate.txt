@@ -1,0 +1,9 @@
+incident 079a1a85-8d02-4928-b868-c31519cf991d  state triaging  anchor 00:03:46
+triage: 2 services, severity warning, start from fraud-detection, 1 unmeasured edge(s) crossed
+
+B2: feature_flag / config_revert (low)
+  A feature flag governing fraud-detection's evaluation path was flipped on in flagd, pushing requests onto a slow code path and raising fraud-detection latency.
+  looked at nothing - this is the model's prior
+wrote /Users/chandana/dev/faultline/evals/runs/20261006T235915Z-v2-fraud-detection-flag-queue-lag/079a1a85-8d02-4928-b868-c31519cf991d-verdict.json
+{"ts": "2026-10-07T00:05:44.348+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-07T00:05:51.720+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}

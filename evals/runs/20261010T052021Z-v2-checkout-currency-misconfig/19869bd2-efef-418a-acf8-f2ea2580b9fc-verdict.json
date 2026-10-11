@@ -1,0 +1,165 @@
+{
+  "incident_id": "19869bd2-efef-418a-acf8-f2ea2580b9fc",
+  "trajectory_id": "6556d00e-e7a3-4e66-a2c2-e2987f33edeb",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "cart",
+    "checkout",
+    "currency",
+    "email",
+    "flagd",
+    "fraud-detection",
+    "frontend",
+    "frontend-proxy",
+    "payment",
+    "product-catalog",
+    "shipping"
+  ],
+  "unmeasured_edges": 9,
+  "exclude_origins": [
+    "scenario:v2-checkout-currency-misconfig"
+  ],
+  "verdict": {
+    "root_cause": "Four minutes before onset, platform-automation set checkout's CURRENCY_ADDR from unset to an explicit target (currencyservice:7001) [tr_e543acc6035c]. From then, checkout's outbound CurrencyService/Convert calls fail inside the gRPC client at name resolution with an empty address set, in under a millisecond and with no currency-side server span, propagating up as PlaceOrder failures through frontend and frontend-proxy [tr_95fcde2a0c8a]. The configured value itself is what breaks the call, matching checkout's abrupt break from an exactly-zero baseline at ~05:22:31 [tr_ffa3d3b945a9]. fraud-detection's later, smaller error rise and its intervals of no traffic at all [tr_c6768487cfdd] follow from orders no longer completing; its own logs show only healthy consumption and no dependency errors [tr_e38467c81193]. Currency has no recorded change of any kind [tr_fbdd6981359e].",
+    "service": "checkout",
+    "fault_class": "bad_config",
+    "remediation_class": "config_revert",
+    "confidence": "high",
+    "evidence": [
+      "tr_e543acc6035c",
+      "tr_95fcde2a0c8a",
+      "tr_ffa3d3b945a9",
+      "tr_c6768487cfdd",
+      "tr_fbdd6981359e"
+    ],
+    "reasoning": "Timing, mechanism and locus converge. Checkout's error ratio is flat zero for 87 baseline samples then steps up ~2 minutes after the only recorded change to checkout [tr_ffa3d3b945a9, tr_e543acc6035c] - a step, not a ramp, which argues against saturation. The traces place the first error in checkout's own resolver, before any connection is attempted, which excludes a slow currency (no wait), malformed currency responses (no response exists) and upstream layers (their error status is inherited) [tr_95fcde2a0c8a]. The only change anywhere in the queried surface is the variable naming that very resolution target, moved from unset to set, while currency's change log is empty [tr_fbdd6981359e]. This is bad_config rather than dependency_latency or network_partition because the wrong value is the mechanism: nothing waits, nothing leaves the process, and checkout's cart/Redis and product-catalog/SQL dependencies resolve and respond normally in the same traces. The fix is reverting the variable, not rolling back an artifact - none changed.",
+    "open_questions": [
+      "Span attributes were not exposed, so the failing Convert spans' actual target host:port was never read; the link to CURRENCY_ADDR is inferred from timing and mechanism [tr_95fcde2a0c8a].",
+      "Why the name fails to resolve - wrong name, wrong port, or currency having no registered endpoints - is untested; no dispatch examined currency's health, replicas or DNS state.",
+      "Checkout emitted zero log lines of any level over the window [tr_7fa5cca05599], and fraud-detection went silent at 05:20:25 [tr_e38467c81193]; neither silence is explained, and fraud-detection could hide a second fault."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "Currency has no healthy endpoints behind its name, so any caller resolving it gets an empty address set.",
+        "service": "currency",
+        "fault_class": "network_partition",
+        "remediation_class": "reconnect",
+        "why_not": "Explains the empty resolver result but not the timing: no change is recorded for currency across a 24-hour window [tr_fbdd6981359e], while the one recorded change rewires exactly this edge four minutes before onset [tr_e543acc6035c]. It also predicts other currency callers failing, which was never checked."
+      },
+      {
+        "root_cause": "fraud-detection's consumer stopped while its socket stayed open, stalling the order pipeline.",
+        "service": "fraud-detection",
+        "fault_class": "process_freeze",
+        "remediation_class": "restart",
+        "why_not": "Its error change point at 05:24:31 is later than checkout's onset at 05:22:31 [tr_c6768487cfdd, tr_ffa3d3b945a9], and no checkout trace shows a fraud-detection hop failing - every failure is checkout's resolver [tr_95fcde2a0c8a], so this is downstream effect rather than cause."
+      }
+    ]
+  },
+  "flags": [
+    "scribe produced no valid findings: schema validation failed twice (Expecting ',' delimiter: line 1 column 7032 (char 7031))"
+  ],
+  "retrieved": [
+    "v2-accounting-bad-credential / What was observed: The page was a single alert, `ServiceHighErrorRate` on **accounting**, 3m16s after the trouble\nstarted. Nothing else fired then, and nothing else fired afterwards. Its error ratio had read\nzero before the incident. It rose from about a minute in, climbed, and settled at **exactly",
+    "v2-frontend-cart-misconfig / What was checked: **The error text, because it was the first thing a responder would read.** Checkout's error spans\nand the frontend's log said `shipping quote failure: failed POST to email service: expected 200,\ngot 400`. That names two services, and neither was at fault. It is checkout's own wor",
+    "v2-inj-kafka-disk-fill-log-checkout / What was observed: The page came 5m31s after onset: `ServiceHighLatency` on **checkout**. A minute later\n`ServiceHighErrorRate` on checkout and on **fraud-detection** together; at T+2m from the page\n`ServiceHighLatency` on fraud-detection and `ServiceNoTraffic` on **accounting**. Five alerts on\nthr"
+  ],
+  "failed_dispatches": [
+    [
+      "scribe",
+      "schema validation failed twice (Expecting ',' delimiter: line 1 column 7032 (char 7031))"
+    ]
+  ],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 19782,
+    "pulled_tokens": 8582,
+    "pull_rate": 0.3026,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 474,
+        "content_tokens": 476,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1706,
+        "content_tokens": 1709,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 8389,
+        "content_tokens": 8364,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 9213,
+        "content_tokens": 9191,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "config_revert",
+    "action_id": "revert_config",
+    "target": "checkout",
+    "rests_on": [
+      "tr_e543acc6035c",
+      "tr_95fcde2a0c8a",
+      "tr_ffa3d3b945a9"
+    ],
+    "expected_effect": "Restoring checkout's prior environment removes the CURRENCY_ADDR value set four minutes before onset [tr_e543acc6035c]. Within minutes checkout's span-metrics error ratio should fall from its incident mean ~0.056 / peak ~0.42 back to the exact zero it held across 87 baseline samples [tr_ffa3d3b945a9], and in Tempo the outbound CurrencyService/Convert spans should stop failing sub-millisecond with a zero-address resolver error and instead show a currency-side server span [tr_95fcde2a0c8a]; PlaceOrder, frontend and frontend-proxy error status clears with it.",
+    "confirm_within_seconds": 420,
+    "if_wrong": "Falsified if Convert spans still fail with an empty resolved-address set and checkout's error ratio stays above zero 7 minutes after the recreate \u2014 pointing instead at currency having no healthy endpoint or DNS record, which no dispatch tested. Two effects cannot be observed here: checkout emits zero log lines of any level [tr_7fa5cca05599], so no log confirmation exists, and fraud-detection's silence since 05:20:25 may persist from a separate fault.",
+    "risk": "If the diagnosis is wrong this is a no-op that still costs a recreate: in-flight PlaceOrder calls dropped, in-process cache discarded, and recovery time spent while a currency-side fault goes unexamined. If checkout's unexplained total log silence reflects a process-level problem, the recreate may mask it.",
+    "blast_radius": "checkout is recreated. frontend and frontend-proxy see connection resets during the recreate, on top of failures already occurring. currency sees Convert traffic return; cart, product-catalog, payment, shipping, email see a brief pause then resumption; fraud-detection sees order events resume if the revert works."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Critical alerts on checkout and fraud-detection two minutes apart with no open incidents to attribute them to; this cannot be dismissed. The shared flagd/downstream dependencies leave the cause genuinely open at this stage."
+  }
+}

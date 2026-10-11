@@ -1,0 +1,8 @@
+incident c31c9d05-8b77-4eee-a17c-a5b088879e9c  state triaging  anchor 00:50:16
+triage: 9 services, severity warning, start from checkout, 8 unmeasured edge(s) crossed
+
+B2: dependency_latency / restart (low)
+  checkout's end-to-end latency rose because one of its synchronous downstream calls (most plausibly a checkout-only dependency such as payment, currency, email or shipping) became slow, and checkout blocked on it while holding request threads.
+  looked at nothing - this is the model's prior
+wrote /Users/chandana/dev/faultline/evals/runs/20261010T004456Z-v2-inj-payment-dependency-latency-log-checkout/c31c9d05-8b77-4eee-a17c-a5b088879e9c-verdict.json
+{"ts": "2026-10-10T00:52:42.449+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}

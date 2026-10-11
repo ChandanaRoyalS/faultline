@@ -1,0 +1,75 @@
+{
+  "incident_id": "14bd7e72-94b8-4a1b-b69e-3338068a83d4",
+  "trajectory_id": "2cdf1b78-d616-4cee-a1dd-d16ca4f80cfc",
+  "states": [
+    "triaging",
+    "investigating"
+  ],
+  "blast_radius": [
+    "checkout",
+    "cart",
+    "currency",
+    "email",
+    "frontend",
+    "payment",
+    "product-catalog",
+    "shipping",
+    "frontend-proxy"
+  ],
+  "unmeasured_edges": 8,
+  "exclude_origins": [
+    "scenario:scenario:v2-payment-dependency-latency"
+  ],
+  "verdict": {
+    "fault_class": "dependency_latency",
+    "remediation_class": "config_revert",
+    "service": "payment",
+    "alternatives": [
+      {
+        "root_cause": "checkout exhausted threads or connections waiting on payment",
+        "service": "checkout",
+        "fault_class": "resource_exhaustion",
+        "remediation_class": null,
+        "why_not": "No change on checkout and the latency is confined to a single outbound hop, not spread across all of checkout's calls."
+      },
+      {
+        "root_cause": "payment is partitioned from the network",
+        "service": "payment",
+        "fault_class": "network_partition",
+        "remediation_class": null,
+        "why_not": "payment's spans still complete quickly and successfully; traffic flows, it is merely delayed by a fixed 300ms shaper."
+      }
+    ],
+    "summary": "A traffic-shaping sidecar attached to payment's network namespace added a 300ms delay on eth0, so checkout's Charge calls waited ~300ms in network time while payment's own handler stayed fast.",
+    "confidence": "high",
+    "evidence": [
+      "tr_e14c66103740",
+      "tr_d292182561d1",
+      "tr_b711513b5687",
+      "tr_e7d2aa6a4cee"
+    ],
+    "reasoning": "checkout's error ratio did not depart from baseline (tr_e7d2aa6a4cee), so this is a latency incident, not an error one. In tr_e14c66103740 the dominant hop is checkout's client span for PaymentService/Charge at ~300-310ms of self-time, while payment's own server and charge spans are ~1ms - the time is spent on the wire, outside payment's handler. checkout itself had no changes (tr_b711513b5687), while payment shows a traffic-shaping container attached to its network namespace imposing a 300ms eth0 delay just before the slow traces (tr_d292182561d1). A setting that inserts delay into a call path is dependency_latency, with checkout the service that merely noticed.",
+    "open_questions": [
+      "Whether the delay was intentional (chaos experiment) or an automation error",
+      "Whether other callers of payment were affected and whether any checkouts actually timed out, since error ratio stayed flat"
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B1",
+    "tool_calls": 4,
+    "turns": 6,
+    "looked_at": [
+      "metrics:checkout",
+      "traces:checkout",
+      "changes:checkout",
+      "changes:payment"
+    ]
+  }
+}

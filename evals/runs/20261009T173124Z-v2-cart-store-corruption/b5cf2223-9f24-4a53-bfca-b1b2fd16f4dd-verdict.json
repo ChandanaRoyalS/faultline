@@ -1,0 +1,85 @@
+{
+  "incident_id": "b5cf2223-9f24-4a53-bfca-b1b2fd16f4dd",
+  "trajectory_id": "2692e3b2-ea85-40be-8776-ba3f289facc0",
+  "states": [
+    "triaging",
+    "investigating"
+  ],
+  "blast_radius": [
+    "checkout",
+    "cart",
+    "currency",
+    "email",
+    "frontend",
+    "payment",
+    "product-catalog",
+    "shipping",
+    "frontend-proxy"
+  ],
+  "unmeasured_edges": 8,
+  "exclude_origins": [
+    "scenario:scenario:v2-cart-store-corruption"
+  ],
+  "verdict": {
+    "fault_class": "datastore_corruption",
+    "remediation_class": "restore_data",
+    "service": "cart",
+    "alternatives": [
+      {
+        "root_cause": "Cart was slowed by a reattached traffic-shaping delay on its network namespace",
+        "service": "cart",
+        "fault_class": "dependency_latency",
+        "remediation_class": null,
+        "why_not": "All shaping containers were removed by 01:30 and nothing changed in the incident window; the failing cart spans are sub-millisecond, not slow."
+      },
+      {
+        "root_cause": "A checkout-side defect caused it to reject valid cart responses",
+        "service": "checkout",
+        "fault_class": "bad_deploy",
+        "remediation_class": null,
+        "why_not": "The error text and stack originate inside cart's store layer and cart returns FailedPrecondition on its own; checkout emitted no logs and merely relays the failure."
+      },
+      {
+        "root_cause": "Cart's store ran out of memory and truncated stored values",
+        "service": "cart",
+        "fault_class": "resource_exhaustion",
+        "remediation_class": null,
+        "why_not": "No eviction, OOM or connection failure appears; the store responds promptly and only the decode of returned bytes fails."
+      }
+    ],
+    "summary": "Cart's Valkey/Redis-backed cart store returns byte payloads that cannot be deserialized, so cart reads and writes fail with protobuf parse errors and surface as FailedPrecondition to checkout.",
+    "confidence": "high",
+    "evidence": [
+      "tr_efb7dfe34ef5",
+      "tr_5cbcd4022f20",
+      "tr_329d3b7162f9",
+      "tr_71b8d968c175",
+      "tr_9d5b62e29a44"
+    ],
+    "reasoning": "checkout alerted first but its traces (tr_329d3b7162f9) show every failing PlaceOrder failing at the GetCart hop, with the error originating in cart's own span and propagating upward through frontend and frontend-proxy; the other dependencies (currency, payment, shipping, product-catalog, email) complete normally in the same traces, so their presence in the blast radius is caller-side propagation only. Cart's log (tr_9d5b62e29a44) shows the store connection working - HGET spans complete in sub-millisecond time and commands are issued - while decode of the stored message fails on read inside the cart store layer. That is a reachable, fast store whose contents cannot be decoded: datastore corruption, not latency or exhaustion. The cart change log (tr_71b8d968c175) holds only traffic-shaping attach/detach events many hours earlier, all reverted, and nothing in the incident window, which rules out a deploy or config edit as the mechanism. checkout's own log was empty (tr_5cbcd4022f20), consistent with it being a relay rather than the origin.",
+    "open_questions": [
+      "Whether the corrupt values were written by a bad writer path or damaged in the store itself was not determined.",
+      "The proportion of cart keys affected is unknown; the intermittent error ratio (~2% mean) suggests only some user carts decode badly.",
+      "The exact onset of the first corrupt read in cart was not pinned down, since the log result elided the middle of the window."
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B1",
+    "tool_calls": 5,
+    "turns": 7,
+    "looked_at": [
+      "metrics:checkout",
+      "logs:checkout",
+      "traces:checkout",
+      "changes:cart",
+      "logs:cart"
+    ]
+  }
+}

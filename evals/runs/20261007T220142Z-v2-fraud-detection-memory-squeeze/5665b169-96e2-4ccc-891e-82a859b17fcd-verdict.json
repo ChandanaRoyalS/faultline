@@ -1,0 +1,60 @@
+{
+  "incident_id": "5665b169-96e2-4ccc-891e-82a859b17fcd",
+  "trajectory_id": "76b9cbb0-b96c-4df5-b0b6-004ba50ea438",
+  "states": [
+    "triaging"
+  ],
+  "blast_radius": [
+    "fraud-detection",
+    "flagd"
+  ],
+  "unmeasured_edges": 1,
+  "exclude_origins": [
+    "scenario:scenario:v2-fraud-detection-memory-squeeze"
+  ],
+  "verdict": {
+    "fault_class": "process_freeze",
+    "remediation_class": "restart",
+    "service": "fraud-detection",
+    "alternatives": [
+      {
+        "root_cause": "fraud-detection exhausted memory/threads and stopped processing while the container stayed up.",
+        "service": "fraud-detection",
+        "fault_class": "resource_exhaustion",
+        "remediation_class": null,
+        "why_not": "Resource exhaustion usually shows itself first as rising latency or partial errors and then a crash/restart loop, which would produce some telemetry; a clean, instant drop to zero traffic fits a freeze better."
+      },
+      {
+        "root_cause": "A flag flipped in flagd disabled or broke the fraud-detection consumption path.",
+        "service": "flagd",
+        "fault_class": "feature_flag",
+        "remediation_class": null,
+        "why_not": "flagd is shared by ad, cart, recommendation and product-reviews, none of which alerted, and a flagged code path normally fails loudly rather than silencing all telemetry."
+      }
+    ],
+    "summary": "The fraud-detection process is stopped/frozen \u2014 it still holds its socket and Kafka session but executes nothing, so it emits no spans or logs at all and trips the no-traffic alert.",
+    "confidence": "low",
+    "evidence": [],
+    "reasoning": "The only signal is ServiceNoTraffic on fraud-detection, and the blast radius is just fraud-detection plus its single dependency flagd. A complete absence of telemetry from one leaf service, with no error-rate or latency alerts anywhere upstream (checkout, frontend, frontend-proxy are all quiet), is the signature of a process that is alive-but-not-running rather than one that is failing requests. fraud-detection is a consumer-side service with no inbound callers in this graph, so a freeze produces silence rather than caller-visible errors \u2014 exactly what was alerted. flagd appears in the radius only because it is the dependency edge, and flagd itself is not alerting, which argues against a flag-path or flagd-outage explanation.",
+    "open_questions": [
+      "Did fraud-detection emit any log line at all after onset, or is the log stream completely empty (freeze) versus complaining about unreachable peers (partition)?",
+      "Is the container still in Running state with no restarts, or did it OOM-kill/restart?",
+      "Is its Kafka consumer group lag growing while the member stays joined (freeze) or did it leave the group?",
+      "Did flagd's evaluation count for fraud-detection flags drop to zero at the same instant, or continue?",
+      "Any recent deploy or flag change touching fraud-detection in the minutes before 22:09:16?"
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B2",
+    "tool_calls": 0,
+    "attempts": 2,
+    "cited_without_looking": []
+  }
+}

@@ -1,0 +1,88 @@
+{
+  "incident_id": "d3b1c6e4-de60-4674-8643-c6b4a328c460",
+  "trajectory_id": "a7127180-8e7d-4e18-9e89-6f2fe0524305",
+  "states": [
+    "triaging",
+    "investigating"
+  ],
+  "blast_radius": [
+    "frontend-proxy",
+    "load-generator",
+    "frontend"
+  ],
+  "unmeasured_edges": 1,
+  "exclude_origins": [
+    "scenario:scenario:v2-product-catalog-partition"
+  ],
+  "verdict": {
+    "fault_class": "process_freeze",
+    "remediation_class": "restart",
+    "service": "frontend",
+    "alternatives": [
+      {
+        "root_cause": "frontend was cut off from the network and could not reach product-catalog.",
+        "service": "frontend",
+        "fault_class": "network_partition",
+        "remediation_class": null,
+        "why_not": "A partitioned but running service keeps logging its failures to reach peers; frontend wrote nothing at all after ~03:01 (tr_ae25c99037cd), and it had earlier logged connection errors normally, showing it logs when it can run."
+      },
+      {
+        "root_cause": "product-catalog became slow and frontend failed because it waited.",
+        "service": "product-catalog",
+        "fault_class": "dependency_latency",
+        "remediation_class": null,
+        "why_not": "product-catalog served other callers with sub-10ms spans throughout and showed no error-ratio departure (tr_173364a2eeae, tr_8b3eba96b0e1); the frontend's stalled gRPC spans have no matching server span, so the time was never spent inside product-catalog."
+      },
+      {
+        "root_cause": "A bad artifact or configuration was rolled out to frontend.",
+        "service": "frontend",
+        "fault_class": "bad_deploy",
+        "remediation_class": null,
+        "why_not": "The change log for frontend over the preceding 24 hours was observed and empty (tr_accc0d287580), and the service served normal traffic minutes before the stall."
+      }
+    ],
+    "summary": "The frontend process stopped executing while its socket kept accepting connections, so proxy requests hung to their 15s deadlines and in-flight gRPC calls to product-catalog sat for minutes without ever reaching it.",
+    "confidence": "medium",
+    "evidence": [
+      "tr_c9b7254728c4",
+      "tr_ae25c99037cd",
+      "tr_accc0d287580",
+      "tr_748cf57731a4",
+      "tr_6125406c5dd7",
+      "tr_173364a2eeae",
+      "tr_dfb1a3e72ee0",
+      "tr_8b3eba96b0e1"
+    ],
+    "reasoning": "frontend-proxy and load-generator alerted, but their traces (tr_748cf57731a4) show every failing request terminating at the proxy's fixed ~15s deadline while the frontend spans beneath continue for 250-300s, with the frontend's own gRPC client spans holding nearly all of that time as self-time and producing no child span at the callee. The suspected callee, product-catalog, is demonstrably healthy over the same window: it keeps serving recommendation's ListProducts calls (tr_173364a2eeae, tr_dfb1a3e72ee0) and its error ratio does not depart from baseline (tr_8b3eba96b0e1), with its only log noise being telemetry export deadlines (tr_6125406c5dd7). So the stall is on the frontend side of that hop, not in the dependency. frontend's error ratio never rises (tr_c9b7254728c4) - requests are not failing, they are not completing - and its log goes silent well before the stated onset and stays silent (tr_ae25c99037cd), which is the signature of a stopped process rather than a partitioned one, which would log its inability to reach peers. No deploy or config change exists for frontend or product-catalog in the preceding day (tr_accc0d287580, tr_060a332d7f69), ruling out artifact and configuration causes.",
+    "open_questions": [
+      "Whether the freeze was continuous from ~03:01 to the end of the window or intermittent, since the log result elided the middle and only the oldest and newest lines were returned.",
+      "What stopped the process - a SIGSTOP, a full GC/event-loop stall, or node-level pressure - which would distinguish a true freeze from resource exhaustion inside the runtime.",
+      "frontend-proxy produced no log lines at all (tr_590dd39896e4), so the proxy's own view of the upstream (timeout vs reset) was not confirmed independently of traces.",
+      "Why the declared onset is 03:17:46 when hanging traces appear from ~02:56 onward."
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B1",
+    "tool_calls": 10,
+    "turns": 12,
+    "looked_at": [
+      "metrics:frontend",
+      "logs:frontend",
+      "changes:frontend",
+      "traces:frontend-proxy",
+      "logs:product-catalog",
+      "changes:product-catalog",
+      "traces:product-catalog",
+      "logs:recommendation",
+      "metrics:product-catalog",
+      "logs:frontend-proxy"
+    ]
+  }
+}

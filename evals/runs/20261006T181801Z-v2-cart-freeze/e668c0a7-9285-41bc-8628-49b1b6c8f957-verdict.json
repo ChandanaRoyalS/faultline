@@ -1,0 +1,164 @@
+{
+  "incident_id": "e668c0a7-9285-41bc-8628-49b1b6c8f957",
+  "trajectory_id": "34bc9950-3f9e-47f7-82ae-95f95fe09ebf",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "frontend",
+    "frontend-proxy",
+    "load-generator"
+  ],
+  "unmeasured_edges": 1,
+  "exclude_origins": [
+    "scenario:v2-cart-freeze"
+  ],
+  "verdict": {
+    "root_cause": "The customer-visible failures are 15-second stalls that begin and end inside the frontend process. In both failing traces the entire ~15s is self-time on the frontend handler span, which is a leaf with no child spans at all, while the proxy ingress and router egress spans contribute near-zero self-time and only carry the error because that is where the timeout was enforced [tr_6b7a362b5bc2]. Frontend is therefore stalling before it ever dispatches a downstream call, intermittently: fast successes (6-52ms, including a sibling product-catalog branch inside the same failing trace) interleave with all-or-nothing 15s hangs, and there is no latency ramp [tr_6b7a362b5bc2]. That bimodal pattern matches the bursty, two-phase error ratio at the proxy (mean ~4.4%, peak ~15%, min 0, sd > mean) rising from an exactly flat zero baseline [tr_340936d9adc8], and the much smaller frontend-side error ratio [tr_79ca5b11ec3b] is consistent with frontend not recording the timeout itself. No frontend change of any kind is recorded [tr_7180be4300e6], and the shipping-quote/email-400 log signature [tr_8e876ea73e3a] is a separate, lower-severity issue that cannot be the stall path: no shipping, quote or email spans appear in any of the 116 spans examined [tr_6b7a362b5bc2], and email itself served only 200s with millisecond latencies throughout [tr_9328e45ce586]. The best-supported mechanism is frontend request handlers intermittently blocking on an exhausted local resource (event-loop/worker or connection-pool slot) until the 15s client deadline fires.",
+    "service": "frontend",
+    "fault_class": "resource_exhaustion",
+    "remediation_class": "restart",
+    "confidence": "low",
+    "evidence": [
+      "tr_6b7a362b5bc2",
+      "tr_340936d9adc8",
+      "tr_79ca5b11ec3b",
+      "tr_7180be4300e6",
+      "tr_8e876ea73e3a",
+      "tr_9328e45ce586",
+      "tr_3fe7069b5c94"
+    ],
+    "reasoning": "Localisation is strong: the 15s is frontend self-time with no children, so no instrumented dependency and no proxy hop is waiting [tr_6b7a362b5bc2]. Change-driven explanations are weak: frontend has no recorded changes [tr_7180be4300e6], email none [tr_8c7186360bf2], and shipping's only entries are automation image toggles that net to no change and end 3.3h before onset [tr_3fe7069b5c94]. The email-400 chain named in frontend logs [tr_8e876ea73e3a] is contradicted as the stall path by the trace topology and by email's own all-200 millisecond-latency logs [tr_9328e45ce586]. Intermittency with concurrent healthy requests in the same process points to a contended, exhaustible local resource rather than a uniformly wrong value or a dead process. Confidence is low because no frontend saturation metric (heap, event-loop lag, pool utilisation, fd count) was ever measured - the mechanism is inferred from trace shape alone.",
+    "open_questions": [
+      "No frontend resource metrics were collected: heap, CPU, event-loop lag, thread/connection-pool utilisation and fd counts are entirely unmeasured, so resource_exhaustion is inferred rather than observed.",
+      "Frontend's own logs were queried but only the gRPC/email-400 signature was reported; whether frontend logged anything at all during the 18:18:45 and 18:19:15 stalls is unknown, which leaves a silent-process explanation unexcluded.",
+      "All change windows began at the alert timestamp and ran forward, so the pre-onset hours - the interval that would contain a triggering change - were never examined for frontend or email."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "Frontend's process intermittently stops scheduling work while its socket keeps accepting, so callers hang to the 15s deadline.",
+        "service": "frontend",
+        "fault_class": "process_freeze",
+        "remediation_class": "restart",
+        "why_not": "A sibling request completed in 4.3ms inside the same trace as a stalled one [tr_6b7a362b5bc2], so the process was scheduling work throughout; a true freeze would stall every concurrent request."
+      },
+      {
+        "root_cause": "Shipping's quote path sends a request the email service rejects with 400, and frontend surfaces the resulting gRPC INTERNAL to users.",
+        "service": "shipping",
+        "fault_class": "bad_config",
+        "remediation_class": "config_revert",
+        "why_not": "Explains the frontend log signature [tr_8e876ea73e3a] but not the severity-driving 15s timeouts: no shipping or email spans appear in any failing trace [tr_6b7a362b5bc2], email logged only 200s [tr_9328e45ce586], and no shipping config change exists to revert [tr_3fe7069b5c94]."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "v2-product-catalog-freeze / What was observed: The page came 4m15s after requests started hanging: two alerts at once, error rate on\n**frontend-proxy** and on **load-generator**. Neither is a service anyone would fix. One is the\nedge proxy and the other is the synthetic client, and both were reporting what they received\nfrom ",
+    "v2-product-catalog-freeze / What was checked: **The proxy, because it was loudest.** Its errors were all the same kind: upstream requests\ncut at the fifteen-second route timeout. The proxy was doing its job. Nothing in its own\nbehaviour had changed, so it was reporting the problem, not causing it.\n\n**Frontend, because its la",
+    "v2-ad-bad-image-tag / What was observed: The page was two alerts in the same moment, `ServiceHighErrorRate` on **frontend** and\n**frontend-proxy**, 5m17s after the trouble started. The service the failures would turn out to\nname was not on it.\n\nThe frontend's error ratio had been zero. It was 3% at two minutes, 11% at f"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 29088,
+    "pulled_tokens": 6532,
+    "pull_rate": 0.1834,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 378,
+        "content_tokens": 380,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1490,
+        "content_tokens": 1493,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 9013,
+        "content_tokens": 8989,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 8347,
+        "content_tokens": 8349,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 9860,
+        "content_tokens": 9838,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "restart",
+    "action_id": "restart_service",
+    "target": "frontend",
+    "rests_on": [
+      "tr_6b7a362b5bc2",
+      "tr_7180be4300e6",
+      "tr_340936d9adc8"
+    ],
+    "expected_effect": "Recreating the frontend container should clear the in-process state holding handlers to the 15s deadline. Observable as: no further trace with a childless frontend GET/POST span at ~15000ms self-time; frontend-proxy error ratio back to its flat-zero baseline with no crossing above 5%. Bursty errors mean a quiet minute proves nothing - needs a stretch of traffic longer than the previous inter-spike gap.",
+    "confirm_within_seconds": 900,
+    "if_wrong": "Falsified by any new ~15s childless frontend span, or a fresh proxy error-ratio crossing above 5%, inside the window. If stalls stop then return after minutes, the cause re-accumulates and restart is a mask. The mechanism itself stays unobservable: heap, CPU, event-loop lag, pool and fd counts were never collected, so recovery would not confirm resource_exhaustion.",
+    "risk": "If the stall is driven by something outside the frontend process (host-level contention, an uninstrumented blocking dependency, a client-side deadline change), the restart discards frontend cache, causes a cold-start latency bump, and burns the live evidence of the stalled process without fixing anything. Not reversible.",
+    "blast_radius": "frontend only, for the recreate duration. frontend-proxy, its sole inbound caller in this graph, sees connection resets; load-generator traffic through it fails for that interval, briefly raising the same proxy error ratio used to confirm the fix."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Critical alerting at the edge proxy with the load generator seeing it too means user-facing impact, not a synthetic-only artifact. No open incident covers it and the one-hop candidate upstream is unverified, so it warrants investigation."
+  }
+}

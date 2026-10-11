@@ -1,0 +1,530 @@
+{
+  "run_id": "20261009T010318Z-v2-cart-dependency-latency",
+  "scenario_id": "v2-cart-dependency-latency",
+  "split": "dev",
+  "scenario_fingerprint": "ba9ae4aede101539be6f2639bb511623a908d0948e29180bb5dd854e799aaefa",
+  "started_at": "2026-10-09T01:03:18.884984+00:00",
+  "demo": false,
+  "recorder": {
+    "tool": "evalharness.run",
+    "git_sha": "890be7e20434c75fcb340383b3f883e2b50ddc73",
+    "git_dirty": true
+  },
+  "models": {
+    "changes": "claude-opus-5",
+    "logs": "claude-opus-5",
+    "metrics": "claude-opus-5",
+    "planner": "claude-opus-5",
+    "scribe": "claude-opus-5",
+    "synthesizer": "claude-opus-5",
+    "traces": "claude-opus-5"
+  },
+  "efforts": {
+    "default": "high"
+  },
+  "budget": {
+    "max_tool_calls_per_specialist": 4,
+    "max_tokens": 120000,
+    "wall_clock_seconds": 600,
+    "max_dispatch_rounds": 2,
+    "briefing_tokens": 4000,
+    "max_usd": 2.0,
+    "usd_per_mtok_in": 5.0,
+    "usd_per_mtok_out": 25.0,
+    "per_specialist_tool_calls": {}
+  },
+  "world_lock": {
+    "acquired": true,
+    "pid": 80623,
+    "host": "chandanas-MacBook-Air.local",
+    "since": "2026-10-09T01:03:19.082074+00:00",
+    "reason": "faultline-eval v2-cart-dependency-latency",
+    "token": "80623-1791507799.081989"
+  },
+  "preflight": {
+    "checked": true,
+    "model": "claude-opus-5",
+    "ok": true,
+    "detail": "20 token(s) billed",
+    "skipped_because": ""
+  },
+  "baseline_gate": {
+    "passed": true,
+    "world": "v2",
+    "firing_alerts": [],
+    "p95_over_ceiling_ms": {},
+    "p95_excursions": {},
+    "ingest_accepting": true,
+    "consumer_idle_ms": 3085,
+    "pipeline_down": [],
+    "silent_services": [],
+    "unexpected_silent": [],
+    "latency_invisible": [],
+    "services_reporting": 18,
+    "youngest_container": [
+      "quote",
+      9981
+    ],
+    "active_injections": "no active injections",
+    "open_incidents": [],
+    "settling_incidents": [],
+    "settle_seconds_remaining": 0,
+    "headroom": {
+      "container": "kafka",
+      "percent_now": 56.31,
+      "limit_mb": 1024.0,
+      "expected_run_hours": 3.475,
+      "runs_remaining": 10,
+      "uptime_seconds": 86919,
+      "growth_mb_per_hour": 1.3,
+      "growth_mb": 4.5,
+      "projected_percent": 56.75,
+      "threshold_percent": 89.56,
+      "guard_percent": 90.0,
+      "fits": true
+    },
+    "refusals": []
+  },
+  "world_continuity": {
+    "kafka_uptime_seconds": 86919,
+    "kafka_uptime_seconds_previous_run": 85641,
+    "previous_run_id": "20261009T004201Z-v2-cart-dependency-latency",
+    "kafka_restarted_since_previous_run": false,
+    "cause": "continuous - same kafka instance as the previous run",
+    "note": "A sweep spanning a restart did not run every scenario against the same kafka instance. That is a resource level, not a code or config change - no digest moves and the runs describe the same world (T7.33)."
+  },
+  "freeze": {
+    "frozen_for": "dev 20261009T010318Z-v2-cart-dependency-latency",
+    "runtime_version": "faultline/0.0.1+prompts:9ce16b66bbcc",
+    "prompts": {
+      "constants": [
+        "PLANNER_SYSTEM",
+        "PROPOSER_SYSTEM",
+        "SCRIBE_SYSTEM",
+        "SPECIALIST_SYSTEM",
+        "SYNTHESIZER_SYSTEM",
+        "TRIAGER_SYSTEM"
+      ],
+      "sha256": "be4a0e27319aac2433bfb8f0e719065747cf10703bf1c5b82f78a1a612a1805c",
+      "chars": 15822
+    },
+    "corpus": {
+      "rows": 200,
+      "sha256": "738e834925e06e445e0ad1366ca7c20e984d306a10b55fb058df841db81646b0",
+      "body_sha256": "8d75e8acc4b10903608970b317369b0982f4df51e641644c45f8cf5cd1c26198",
+      "documents": [
+        "runbook:action-restart-service",
+        "runbook:action-revert-config",
+        "runbook:action-rollback-image",
+        "runbook:action-scale-unavailable",
+        "runbook:alert-high-error-rate",
+        "runbook:class-bad-config",
+        "runbook:class-bad-deploy",
+        "runbook:class-datastore-corruption",
+        "runbook:class-dependency-latency",
+        "runbook:class-disk-fill",
+        "runbook:class-feature-flag",
+        "runbook:class-network-partition",
+        "runbook:class-process-freeze",
+        "runbook:class-resource-exhaustion",
+        "scenario:v2-accounting-bad-credential",
+        "scenario:v2-ad-bad-image-tag",
+        "scenario:v2-ad-flag-failure",
+        "scenario:v2-ad-memory-squeeze",
+        "scenario:v2-ad-partition",
+        "scenario:v2-cart-bad-image-tag",
+        "scenario:v2-cart-dependency-latency",
+        "scenario:v2-cart-flag-failure",
+        "scenario:v2-cart-freeze",
+        "scenario:v2-cart-store-corruption",
+        "scenario:v2-currency-freeze",
+        "scenario:v2-fraud-detection-flag-queue-lag",
+        "scenario:v2-fraud-detection-memory-squeeze",
+        "scenario:v2-fraud-detection-partition",
+        "scenario:v2-frontend-cart-misconfig",
+        "scenario:v2-inj-cart-flag-failure-log-checkout",
+        "scenario:v2-inj-kafka-disk-fill-log-checkout",
+        "scenario:v2-inj-payment-dependency-latency-log-checkout",
+        "scenario:v2-kafka-disk-fill",
+        "scenario:v2-payment-dependency-latency",
+        "scenario:v2-payment-memory-squeeze",
+        "scenario:v2-payment-telemetry-blackout",
+        "scenario:v2-postgresql-catalog-corruption",
+        "scenario:v2-product-catalog-flag-failure",
+        "scenario:v2-product-catalog-freeze",
+        "scenario:v2-product-catalog-partition",
+        "scenario:v2-shipping-quote-misconfig",
+        "scenario:v2-shipping-wrong-image",
+        "scenario:v2-valkey-cart-dependency-latency"
+      ],
+      "holdout_chunks": 0
+    },
+    "model_map": {
+      "models": {
+        "changes": "claude-opus-5",
+        "logs": "claude-opus-5",
+        "metrics": "claude-opus-5",
+        "planner": "claude-opus-5",
+        "proposer": "claude-opus-5",
+        "scribe": "claude-opus-5",
+        "synthesizer": "claude-opus-5",
+        "traces": "claude-opus-5",
+        "triage": "claude-opus-5"
+      },
+      "effort_default": "high",
+      "role_efforts": {}
+    },
+    "budget": {
+      "max_tool_calls_per_specialist": 4,
+      "max_tokens": 120000,
+      "wall_clock_seconds": 600,
+      "max_dispatch_rounds": 2,
+      "briefing_tokens": 4000,
+      "max_usd": 2.0,
+      "usd_per_mtok_in": 5.0,
+      "usd_per_mtok_out": 25.0
+    },
+    "tool_layer": {
+      "git_sha": "890be7e20434c75fcb340383b3f883e2b50ddc73",
+      "git_dirty": true
+    },
+    "judge": {
+      "model": null,
+      "prompt_sha256": "244108af996ad2a5138f6632a297941dd26643d806c73dfa9e24bc7d51392b54",
+      "allow_shared_lineage": false
+    },
+    "world": {
+      "compose_digest": "5a2bc6d912f922a03874ab2824d9362541362386fbcab7e0c2f99aa760f567df",
+      "observability_digest": "7d6097ab0f00132d57993804ee4f4d9eff1abedfb71a273bdd7e553ef887637b",
+      "ffs_stub_source_digest": "8defed3104c42adffb16b77e85396e1796f2681652d0771b99d3632358c37fde",
+      "otel_demo_image_digest": "ghcr.io/open-telemetry/demo@sha256:1adaf3b33fbf4d42e5a1fa68fec1ea1b645d50471881179bd7be0a0ce2656706",
+      "capability_version": "cap:91279a09",
+      "host_platform": "Darwin/arm64",
+      "host_overrides": [
+        "dev-tempo-otlp.override.yml"
+      ],
+      "unverifiable_fields": []
+    }
+  },
+  "baseline": null,
+  "ablation": [],
+  "ablation_config": {},
+  "exclusion_policy": "own",
+  "exclude_origins": [
+    "scenario:v2-cart-dependency-latency"
+  ],
+  "repeat_count": 1,
+  "tier": "manual",
+  "seed_policy": "unseeded: non-deterministic model, live world",
+  "world": "v2",
+  "sweep": {
+    "id": "headline-v2",
+    "slot": 91,
+    "of": 156,
+    "pass": 1
+  },
+  "comparability": {
+    "generation": "5a2bc6d912f9",
+    "provenance": "observed",
+    "previous_run": "20261009T004201Z-v2-cart-dependency-latency",
+    "previous_generation": "5a2bc6d912f9",
+    "previous_provenance": "observed",
+    "new_generation": false
+  },
+  "injected_at": "2026-10-09T01:03:24.019393+00:00",
+  "incident_id": "64191571-e197-4a9f-bc18-5ded07c36209",
+  "investigate_exit_code": 0,
+  "investigate_attempts": [
+    {
+      "attempt": 1,
+      "waited_seconds": 0,
+      "exit_code": 0,
+      "transient_signal": null
+    }
+  ],
+  "reverted_at": "2026-10-09T01:12:48.403484+00:00",
+  "recovery": {
+    "passed": true,
+    "world": "v2",
+    "firing_alerts": [],
+    "p95_over_ceiling_ms": {},
+    "p95_excursions": {},
+    "ingest_accepting": true,
+    "consumer_idle_ms": 4316,
+    "pipeline_down": [],
+    "silent_services": [],
+    "unexpected_silent": [],
+    "latency_invisible": [],
+    "services_reporting": 18,
+    "youngest_container": [
+      "quote",
+      10811
+    ],
+    "active_injections": "no active injections",
+    "open_incidents": [],
+    "settling_incidents": [],
+    "settle_seconds_remaining": 0,
+    "headroom": {
+      "container": "kafka",
+      "percent_now": 57.83,
+      "limit_mb": 1024.0,
+      "expected_run_hours": 0.8083,
+      "runs_remaining": null,
+      "uptime_seconds": 87749,
+      "growth_mb_per_hour": 1.3,
+      "growth_mb": 1.1,
+      "projected_percent": 57.93,
+      "threshold_percent": 89.9,
+      "guard_percent": 90.0,
+      "fits": true
+    },
+    "refusals": [],
+    "caller_reachability": {
+      "service": "cart",
+      "window_seconds": 120,
+      "callers": {
+        "checkout": null,
+        "flagd": null,
+        "frontend": null
+      },
+      "note": "observational (Q32); nothing refuses on this"
+    }
+  },
+  "unexpected_fields": {},
+  "score": {
+    "run_id": "20261009T010318Z-v2-cart-dependency-latency",
+    "scenario_id": "v2-cart-dependency-latency",
+    "trajectory_id": "f7cbe19b-06d1-4d24-9497-dcf1de04fd8a",
+    "runtime_version": "faultline/0.0.1+prompts:9ce16b66bbcc",
+    "budget": {
+      "max_tool_calls_per_specialist": 4,
+      "max_tokens": 120000,
+      "wall_clock_seconds": 600,
+      "max_dispatch_rounds": 2,
+      "briefing_tokens": 4000,
+      "max_usd": 2.0,
+      "usd_per_mtok_in": 5.0,
+      "usd_per_mtok_out": 25.0,
+      "per_specialist_tool_calls": {}
+    },
+    "reached_a_class": true,
+    "reachability": {
+      "answers_idle_or_absent": [
+        "runtime",
+        "logs"
+      ],
+      "derived_from": "the bundle's own captures (T7.5)",
+      "none_can_answer": false,
+      "runtime_series": 35,
+      "target_log_lines": 500
+    },
+    "service_visibility": {
+      "target": "cart",
+      "presence": "in_graph",
+      "nameable": true,
+      "reason": null
+    },
+    "triage": {
+      "recall": 1.0,
+      "precision": 0.35714285714285715,
+      "matched": [
+        "cart",
+        "checkout",
+        "frontend",
+        "frontend-proxy",
+        "load-generator"
+      ],
+      "missed_alerted_not_predicted": [],
+      "predicted_not_alerted": [
+        "ad",
+        "currency",
+        "email",
+        "flagd",
+        "payment",
+        "product-catalog",
+        "product-reviews",
+        "recommendation",
+        "shipping"
+      ],
+      "excluded_began_after_revert": [],
+      "unmeasured_edges_crossed": 14,
+      "n_alerted": 5,
+      "n_predicted": 14
+    },
+    "fault_class": {
+      "truth": "dependency_latency",
+      "returned": "dependency_latency",
+      "correct": true,
+      "correct_by_alternative": false,
+      "also_correct": [],
+      "abstained": false,
+      "dispute": null
+    },
+    "fix_class": {
+      "truth": "restart",
+      "returned": "config_revert",
+      "correct": false,
+      "correct_by_alternative": false,
+      "also_correct": [],
+      "abstained": false,
+      "dispute": null
+    },
+    "service": {
+      "truth": "cart",
+      "returned": "cart",
+      "correct": true,
+      "correct_by_alternative": false,
+      "also_correct": [],
+      "abstained": false,
+      "dispute": null
+    },
+    "ranked_class": {
+      "truth": "dependency_latency",
+      "ranked": [
+        "dependency_latency",
+        "unknown"
+      ],
+      "depth": 2,
+      "top_1": true,
+      "top_3": true,
+      "gained_by_ranking": false
+    },
+    "ranked_service": {
+      "truth": "cart",
+      "ranked": [
+        "cart",
+        "product-catalog",
+        "checkout"
+      ],
+      "depth": 3,
+      "top_1": true,
+      "top_3": true,
+      "gained_by_ranking": false
+    },
+    "categories": {
+      "flagged": [],
+      "n_flagged": 0,
+      "failed_alone": [],
+      "n_failed_alone": 0,
+      "contradictions": [],
+      "n_contradictions": 0,
+      "budget_exhausted": false,
+      "budget_exhausted_reason": null,
+      "narrative_refused": false,
+      "narrative_refused_reason": null
+    },
+    "tokens_in": 58124,
+    "tokens_out": 16250,
+    "cost_usd": 0.6969,
+    "models": {
+      "changes": "claude-opus-5",
+      "logs": "claude-opus-5",
+      "metrics": "claude-opus-5",
+      "planner": "claude-opus-5",
+      "scribe": "claude-opus-5",
+      "synthesizer": "claude-opus-5",
+      "traces": "claude-opus-5"
+    }
+  },
+  "finished_at": "2026-10-09T01:17:14.647973+00:00",
+  "leave_one_out": {
+    "retrievals": 2,
+    "excluding": 2,
+    "filtered": {
+      "1": 5,
+      "16": 5
+    },
+    "silent": [],
+    "unassessable": [],
+    "missing_own": [],
+    "enforced": true
+  },
+  "metrics": {
+    "latency": {
+      "investigation_ms": 181700,
+      "investigation_seconds": 181.7,
+      "tool_ms": 378,
+      "model_ms": 233655,
+      "retrieval_ms": 5564,
+      "steps": 20,
+      "within_gate4_threshold": false
+    },
+    "tool_calls": {
+      "total": 6,
+      "valid": 6,
+      "errored": 0,
+      "empty": 1,
+      "truncated": 1,
+      "redundant": 0,
+      "validity_rate": 1.0,
+      "redundancy_rate": 0.0
+    },
+    "context": {
+      "briefings": 5,
+      "over_budget": 3,
+      "overflow_rate": 0.6,
+      "dropped_sections": 2,
+      "largest_estimated_tokens": 8018,
+      "budget": 4000
+    },
+    "citations": {
+      "violations": 0,
+      "regenerated": false,
+      "escalated": false
+    }
+  },
+  "judge": {
+    "scenario_id": "v2-cart-dependency-latency",
+    "run_id": "20261009T010318Z-v2-cart-dependency-latency",
+    "agent_model": "claude-opus-5",
+    "judge_model": "claude-haiku-4-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "scored": true,
+    "not_scored_because": null,
+    "root_cause_agreement": "same_mechanism",
+    "agreement_reason": "Both narratives identify the same root cause: a traffic-shaping container applying a fixed 300ms egress delay to cart's network namespace, causing latency on all outbound messages from cart.",
+    "dead_ends_closed": [
+      "cart as the error source",
+      "Redis saturation",
+      "flagd lookup stalling",
+      "frontend change",
+      "cart as the degrading hop in traces"
+    ],
+    "dead_ends_missed": [
+      "per-call 300ms penalty visible in cart's spans (agent closes this; recorded does not explicitly name it as checked)"
+    ],
+    "traps": [
+      {
+        "trap": "cart's p95 latency being highest means cart is the culprit",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "the trace tool's flagged degrading hop (load-generator or frontend) points to the fault location",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "cart's healthy internal metrics mean nothing is wrong with cart",
+        "outcome": "avoided"
+      }
+    ],
+    "notes": "Agent explicitly acknowledges six open gaps in evidence (no latency metrics retrieved, narrow trace sample, no telemetry from callers, unexplained error ratio drop, bidirectionality/replica scope unknown, unmeasured product-catalog hops). Recorded narrative provides measured p95 data and detailed trace analysis the agent lacks; agent appropriately rates confidence as 'medium, not high' while recorded rates certainty as high, justified by direct observation of the 300ms step across 80 traces.",
+    "tokens_in": 8122,
+    "tokens_out": 406
+  },
+  "first_correct": {
+    "measured": true,
+    "reached": true,
+    "index": 29,
+    "depth": 30,
+    "elapsed_ms": 99122,
+    "role": "synthesizer",
+    "kind": "verdict",
+    "reason": "Entry 29 commits to the mechanism: a traffic-shaping container attached to cart's network namespace applies a 300ms egress delay, making every cart response pay a constant network penalty on the wire path rather than in service processing, which propagates latency to cart's callers.",
+    "judge_model": "claude-haiku-4-5",
+    "agent_model": "claude-opus-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "truncated": false
+  }
+}

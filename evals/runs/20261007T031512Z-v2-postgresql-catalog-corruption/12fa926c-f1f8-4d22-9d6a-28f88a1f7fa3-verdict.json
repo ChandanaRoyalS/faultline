@@ -1,0 +1,72 @@
+{
+  "incident_id": "12fa926c-f1f8-4d22-9d6a-28f88a1f7fa3",
+  "trajectory_id": "c58176e3-eba0-4eea-bee0-b19cf528eb46",
+  "states": [
+    "triaging"
+  ],
+  "blast_radius": [
+    "recommendation",
+    "checkout",
+    "frontend",
+    "frontend-proxy",
+    "load-generator",
+    "product-catalog",
+    "ad",
+    "cart",
+    "currency",
+    "email",
+    "flagd",
+    "payment",
+    "product-reviews",
+    "shipping"
+  ],
+  "unmeasured_edges": 15,
+  "exclude_origins": [
+    "scenario:scenario:v2-postgresql-catalog-corruption"
+  ],
+  "verdict": {
+    "fault_class": "feature_flag",
+    "remediation_class": "config_revert",
+    "service": "product-catalog",
+    "alternatives": [
+      {
+        "root_cause": "A bad deploy of product-catalog shipped an artifact that fails product lookups.",
+        "service": "product-catalog",
+        "fault_class": "bad_deploy",
+        "remediation_class": null,
+        "why_not": "Plausible shape, but a deploy at 03:17 UTC during low traffic is less likely than a flag flip, and flagd's presence in the graph makes a runtime toggle the cheaper explanation; a change log would settle it."
+      },
+      {
+        "root_cause": "recommendation exhausted memory or threads and began failing, with product-catalog errors a downstream artifact of retry pressure.",
+        "service": "recommendation",
+        "fault_class": "resource_exhaustion",
+        "remediation_class": null,
+        "why_not": "recommendation alerted first but product-catalog alerted too, and errors propagate toward the caller \u2014 a recommendation-local fault would not make product-catalog itself error, nor explain checkout which does not call recommendation."
+      }
+    ],
+    "summary": "A feature flag toggled in flagd put product-catalog into its failure path, so product lookup calls began returning errors that propagated to recommendation and then to all its callers.",
+    "confidence": "medium",
+    "evidence": [],
+    "reasoning": "The alerting set is exactly product-catalog plus everything that reads from it transitively (recommendation, then frontend, checkout, frontend-proxy, load-generator). recommendation alerting a minute earlier than the rest is consistent with it being the first caller to surface product-catalog errors on a tight read loop, with frontend/checkout/proxy/load-generator following on the next evaluation window. product-catalog itself alerting means it is emitting errors rather than hanging, which rules out freeze/partition and points at a fast error return, not a wait. flagd sits in this topology fanned out to ad, cart, recommendation, product-reviews and fraud-detection, and a runtime toggle changes behaviour with no deploy or config file change, which is why nothing would show in a change log. A hard fail-fast error path rather than slow responses also argues against dependency_latency or resource exhaustion.",
+    "open_questions": [
+      "flagd evaluation history around 03:17 \u2014 which flag changed and to what value",
+      "product-catalog error logs: are they synthetic/injected failures or real datastore or decode errors",
+      "whether product-catalog latency stayed flat while error rate jumped (fail-fast) or rose (saturation)",
+      "whether recommendation's errors are pass-through of product-catalog RPC status codes or its own internal faults",
+      "memory/CPU of recommendation and product-catalog to exclude a leak-driven failure"
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B2",
+    "tool_calls": 0,
+    "attempts": 2,
+    "cited_without_looking": []
+  }
+}

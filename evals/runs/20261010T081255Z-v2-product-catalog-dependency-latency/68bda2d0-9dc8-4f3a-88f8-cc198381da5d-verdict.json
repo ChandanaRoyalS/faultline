@@ -1,0 +1,172 @@
+{
+  "incident_id": "68bda2d0-9dc8-4f3a-88f8-cc198381da5d",
+  "trajectory_id": "4325ffce-661d-44fc-9f7d-e2fc75d33f1a",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "ad",
+    "cart",
+    "checkout",
+    "currency",
+    "email",
+    "flagd",
+    "frontend",
+    "frontend-proxy",
+    "load-generator",
+    "payment",
+    "product-catalog",
+    "product-reviews",
+    "recommendation",
+    "shipping"
+  ],
+  "unmeasured_edges": 15,
+  "exclude_origins": [
+    "scenario:v2-product-catalog-dependency-latency"
+  ],
+  "verdict": {
+    "root_cause": "A platform-automation traffic-shaping sidecar was attached to product-catalog's network namespace ~4 minutes before onset, applying a fixed 300ms/zero-jitter egress delay on eth0, still in place at onset with no matching removal [tr_b45878409cfe]. Every caller span into product-catalog carries a matching ~300-305ms of client-side self-time sitting on the response/egress leg, with server spans opening only 1-2ms after their client parent [tr_e5c454946a85]. product-catalog returns no errors at all across incident and baseline [tr_7a4c7ba2e4cc, tr_8497562b82fa], so this is a pure latency event: frontend, recommendation and the other alerting services failed because they waited, with four concurrent GetProduct calls serializing to ~2.7s on the recommendations route.",
+    "service": "product-catalog",
+    "fault_class": "dependency_latency",
+    "remediation_class": "config_revert",
+    "confidence": "medium",
+    "evidence": [
+      "tr_b45878409cfe",
+      "tr_e5c454946a85",
+      "tr_8497562b82fa"
+    ],
+    "reasoning": "The change log gives a latency-injecting state transition on product-catalog at 08:13:04, the only change in the window, with no deploy, config edit or flag flip [tr_b45878409cfe]. The traces show exactly the signature that change predicts: a flat, jitter-free ~300ms on the caller side of every product-catalog edge, consumed after the server returns rather than at call setup [tr_e5c454946a85]. Metrics show error ratio flat at zero with zero variance over 488 samples, identical to baseline, with continuous coverage proving the service alive \u2014 ruling out an error-propagation origin and ruling out the sidecar having broken the request path outright [tr_7a4c7ba2e4cc, tr_8497562b82fa]. Callers are waiting, not failing, which matches checkout alerting a minute later on deadlines. I blame product-catalog rather than frontend because frontend's own handler spans are sub-2ms and frontend-proxy passes through at 0.1-1.1ms [tr_e5c454946a85]. The fix is removing the injected shaping, not a rollback or restart, since no artifact changed. Confidence is medium because the 300ms explains only about a third of fast-path latency.",
+    "open_questions": [
+      "No latency percentiles or request rates were ever returned \u2014 both metric dispatches came back as error-ratio templates [tr_7a4c7ba2e4cc, tr_8497562b82fa], so the 300ms step is inferred from ten traces, not confirmed against product-catalog's own p50/p95/p99.",
+      "The ~600ms sql.conn.query leg and the 1.2-1.5s of handler self-time before the query is issued in half the traces [tr_e5c454946a85] are unexplained by a 300ms egress delay \u2014 queuing backpressure, pool saturation, or an independently slow datastore are all still open.",
+      "All sampled traces cluster between 08:13:16 and 08:15:57 with none near the 08:17:31 onset [tr_e5c454946a85]; Loki returned zero lines for both product-catalog and frontend across the whole window [tr_8b64d2581ea0, tr_c7ae3b3db44f], so no self-reported evidence exists and all sources are untrusted and uncorroborated."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "product-catalog is exhausting an internal resource (connection pool or worker threads), queuing requests 1.2-1.5s in-process before issuing the DB call, with the sidecar delay incidental.",
+        "service": "product-catalog",
+        "fault_class": "resource_exhaustion",
+        "remediation_class": "scale",
+        "why_not": "The long handler self-time appears in only about half the traces and is plausibly downstream of the injected delay, since concurrent GetProduct calls are observed serializing [tr_e5c454946a85]; no pool, thread or memory metric was collected and no change lowered a limit [tr_b45878409cfe], while the 300ms matches a recorded change in magnitude, shape and timing."
+      },
+      {
+        "root_cause": "product-catalog's database degraded independently and the ~600ms sql.conn.query leg is the true origin of user-visible latency.",
+        "service": "product-catalog",
+        "fault_class": "dependency_latency",
+        "remediation_class": "none",
+        "why_not": "No baseline for the DB leg was obtained, so that cost may be normal for this path; no change touched the datastore [tr_b45878409cfe], and it cannot explain the ~300ms sitting outside the server span nor the onset timing tracking the sidecar attach [tr_e5c454946a85]."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "v2-product-catalog-partition / What was checked: **The proxy and the load generator, because they paged.** Their error traces - 300 drawn, none\nunder fourteen seconds - were all the same shape: a request cut at the proxy's fifteen-second\nroute timeout. 143 product pages, 88 add-to-carts, 43 recommendation calls, 26 checkouts. U",
+    "v2-valkey-cart-dependency-latency / What was checked: **The traces, because cart paged first and its callers followed.** Every slow trace touched cart,\nand inside cart the time was in one place. At rest, cart answered a `GetCart` in 0.3ms and its\nstore answered an `HGET` in 0.2ms. Under the fault, in 80 traces drawn, every `HGET`, `",
+    "runbook:class-network-partition / Why a cut-off service hangs rather than refuses, measured: Removing a container from its network removes its interface, and packets on the connections its\ncallers already hold are **dropped, not reset**: nothing sends a reset or an unreachable, so the\ncaller waits out its deadline. New connections fare no better - the name is gone from t"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 24250,
+    "pulled_tokens": 5519,
+    "pull_rate": 0.1854,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 484,
+        "content_tokens": 486,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1591,
+        "content_tokens": 1594,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 7249,
+        "content_tokens": 7225,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 6772,
+        "content_tokens": 6774,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 8154,
+        "content_tokens": 8131,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_b45878409cfe",
+      "tr_e5c454946a85",
+      "tr_8497562b82fa"
+    ],
+    "expected_effect": "No action is proposed, so no effect should be observed. The effect that would resolve this incident \u2014 removal of the 300ms/0-jitter netem delay on eth0 in product-catalog's network namespace \u2014 is not reachable by any available action, and would show up as frontend's GetProduct client-span self-time dropping from ~300-305ms to ~1-5ms and the recommendations route root latency falling from ~2.7s toward ~1s.",
+    "confirm_within_seconds": 0,
+    "if_wrong": "This abstention is wrong if the executor can in fact reach the shaping sidecar. Two concrete checks would overturn it: (a) change-log shows a prior recorded *configuration* for product-catalog whose revert also detaches the traffic-shaping container \u2014 the current record explicitly shows no config-change events and only namespace attach/remove entries [tr_b45878409cfe]; or (b) recreating product-catalog's container is confirmed to tear down the shared network namespace and with it the netem qdisc, in which case restart_service becomes a candidate. It is also wrong if the latency is in fact process-state-resident in product-catalog rather than in the namespace \u2014 but the trace evidence puts ~300ms on the response/egress leg after the server span closes [tr_e5c454946a85], which a process restart would not address, and the ~600ms sql.conn.query leg plus 1.2-1.5s of pre-query handler self-time in half the traces [tr_e5c454946a85] remain unexplained by either mechanism.",
+    "risk": "Abstaining is not free: the shaping sidecar is still attached with no matching removal [tr_b45878409cfe], so the latency persists and frontend, recommendation, checkout and load-generator keep alerting until a human detaches it. The risk I am declining to take is the larger one \u2014 revert_config on product-catalog has an unmet precondition (the change history explicitly records no configuration change for this service in the window [tr_b45878409cfe]), so it would restore some unrelated prior environment, recreate the container, and almost certainly leave the netem delay in place while adding a connection reset and a cache flush on a service that is currently serving every request successfully [tr_8497562b82fa]. rollback_image is equally unmet: no deploy or image change appears in the window. restart_service requires evidence pointing at process state, and the evidence points squarely at an external change. Acting on any of the three would be a change to a service with a zero error ratio, on a diagnosis the metrics never confirmed \u2014 no p50/p95/p99 or request-rate series was ever returned [tr_7a4c7ba2e4cc, tr_8497562b82fa], so the 300ms step is inferred from ten traces that all predate onset by 90 seconds to 4 minutes [tr_e5c454946a85].",
+    "blast_radius": "No services are touched by this abstention. Had an action been taken on product-catalog, the inbound edges that would have seen the container recreate are frontend (both /api/products/{productId} and /api/recommendations routes) and recommendation via get_product_list -> ListProducts [tr_e5c454946a85], and transitively frontend-proxy and load-generator at the edge; checkout appears in the blast radius but no checkout span touches product-catalog in any sampled trace [tr_e5c454946a85]. The escalation this proposal implies \u2014 manual detach of the platform-automation traffic-shaping container \u2014 has the same reach, plus whatever scheduled job owns the attach/remove cycle, which will re-attach on its next pass unless it is stopped.",
+    "confirm_within_seconds_note": null
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Six services alerted simultaneously across frontend, catalog, recommendation and then checkout, which is far more than a single-service warning and cannot be dismissed. The shared fan-out suggests a common downstream or config/flag dependency, but nothing in the alerts pins a class yet."
+  }
+}

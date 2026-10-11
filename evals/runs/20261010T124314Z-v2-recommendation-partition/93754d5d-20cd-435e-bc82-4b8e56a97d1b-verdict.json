@@ -1,0 +1,44 @@
+{
+  "incident_id": "93754d5d-20cd-435e-bc82-4b8e56a97d1b",
+  "trajectory_id": "95ccac51-80f7-4731-8868-1529d726c2af",
+  "states": [
+    "triaging"
+  ],
+  "blast_radius": [
+    "frontend-proxy",
+    "load-generator",
+    "recommendation",
+    "flagd",
+    "frontend",
+    "product-catalog"
+  ],
+  "unmeasured_edges": 4,
+  "exclude_origins": [
+    "scenario:scenario:v2-recommendation-partition"
+  ],
+  "verdict": {
+    "fault_class": "dependency_latency",
+    "remediation_class": "restart",
+    "service": "recommendation",
+    "summary": "suspect: largest error-rate delta among alerting services (+0.262); class: no change on any alerting service before onset; remediation: table lookup from dependency_latency",
+    "confidence": "n/a - B0 is a rule, not an estimate"
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B0",
+    "service": "recommendation",
+    "fault_class": "dependency_latency",
+    "fix_class": "restart",
+    "why": [
+      "suspect: largest error-rate delta among alerting services (+0.262)",
+      "class: no change on any alerting service before onset",
+      "remediation: table lookup from dependency_latency"
+    ]
+  }
+}

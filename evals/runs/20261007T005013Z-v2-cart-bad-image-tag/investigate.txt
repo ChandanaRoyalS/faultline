@@ -1,0 +1,9 @@
+incident b87cfb3b-d9a0-41eb-8d1d-727ecafac4aa  state triaging  anchor 00:54:46
+triage: 13 services, severity critical, start from checkout, 13 unmeasured edge(s) crossed
+
+B2: bad_config / config_revert (low)
+  checkout is failing all orders because one of its exclusive downstream endpoints (most likely payment) is configured with a wrong/unreachable address, so calls fail immediately at checkout and the error surfaces up through frontend and frontend-proxy to the load-generator.
+  looked at nothing - this is the model's prior
+wrote /Users/chandana/dev/faultline/evals/runs/20261007T005013Z-v2-cart-bad-image-tag/b87cfb3b-d9a0-41eb-8d1d-727ecafac4aa-verdict.json
+{"ts": "2026-10-07T00:56:49.367+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-07T00:56:58.970+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}

@@ -1,0 +1,9 @@
+incident e787a2e7-42e8-42e2-8fa3-490e804451e6  state triaging  anchor 22:17:16
+triage: 4 services, severity critical, start from ad, 3 unmeasured edge(s) crossed
+
+B2: feature_flag / config_revert (medium)
+  A feature flag toggled in flagd enabled the failing ad-service code path, causing ad to return errors on a large share of requests.
+  looked at nothing - this is the model's prior
+wrote /Users/chandana/dev/faultline/evals/runs/20261009T220459Z-v2-ad-flag-failure/e787a2e7-42e8-42e2-8fa3-490e804451e6-verdict.json
+{"ts": "2026-10-09T22:19:28.168+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-09T22:19:35.459+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}

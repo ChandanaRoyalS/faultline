@@ -1,0 +1,22 @@
+incident 14bd7e72-94b8-4a1b-b69e-3338068a83d4  state triaging  anchor 13:41:16
+triage: 9 services, severity warning, start from checkout, 8 unmeasured edge(s) crossed
+
+B1: dependency_latency / config_revert (high)
+  A traffic-shaping sidecar attached to payment's network namespace added a 300ms delay on eth0, so checkout's Charge calls waited ~300ms in network time while payment's own handler stayed fast.
+  4 tool calls over 6 turns
+    metrics:checkout  Confirm the error pattern and timing on the first alerting service before tracing upstream dependencies.
+    traces:checkout  Error ratio is flat, so the symptom may be latency; check checkout spans for slow or hanging dependency calls.
+    changes:checkout  The 300ms is self-time in checkout's payment client span while payment's server span is ~1ms; see whether a deploy/config change on checkout introduced it.
+    changes:payment  Check whether payment had a deploy/config change that would explain added latency in its call path, despite its server span being fast.
+wrote /Users/chandana/dev/faultline/evals/runs/20261008T133621Z-v2-payment-dependency-latency/14bd7e72-94b8-4a1b-b69e-3338068a83d4-verdict.json
+{"ts": "2026-10-08T13:43:10.750+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-08T13:43:10.766+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=metric_baseline subject=sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"checkout\",status_code=\"STATUS_CODE_ERROR\"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"checkout\"}[5m])) start=2026-10-08T12:39:26.781938+00:00 end=2026-10-08T13:43:06.546062+00:00 span_s=3819 refused=False", "component": "investigator"}
+{"ts": "2026-10-08T13:43:13.824+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-08T13:43:13.826+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=trace_query subject=checkout start=2026-10-08T13:11:16.664000+00:00 end=2026-10-08T13:43:06.546062+00:00 span_s=1909 refused=False", "component": "investigator"}
+{"ts": "2026-10-08T13:43:23.840+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-08T13:43:23.844+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=checkout start=2026-10-07T13:41:16.664000+00:00 end=2026-10-08T13:43:06.546062+00:00 span_s=86509 refused=False", "component": "investigator"}
+{"ts": "2026-10-08T13:43:29.354+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-08T13:43:29.357+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=payment start=2026-10-07T13:41:16.664000+00:00 end=2026-10-08T13:43:06.546062+00:00 span_s=86509 refused=False", "component": "investigator"}
+{"ts": "2026-10-08T13:43:36.784+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-08T13:43:46.558+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-08T13:43:57.875+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
