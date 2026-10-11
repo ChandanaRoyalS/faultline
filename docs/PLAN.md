@@ -4617,6 +4617,16 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-10-11, later: the headline corrected - slot 127 is invalid under Q33, the holdout is
+nine.***
+
+- `tests/test_evaldb.py` failed on the merged record: a second run has outlived its wall clock
+  (slot 127, F, 624 s against 600 s). Under Q33 it is `invalid`; the first cut of
+  `analysis_headline_v2.py` had not applied that reading. The script now does, the scenario
+  (`v2-inj-email-wrong-image-log-checkout`) is out of every arm, and the report, README and the
+  registration (Addendum 6) carry the corrected figures: holdout F 6/9 class, 7/9 service, 4/9
+  fix; F - B1 still +0. No conclusion moves. Q129 opened; the test names both runs. $0.
+
 ***2026-10-11: the headline run complete - 37 scenarios on four arms, the report, README moved
 to the holdout headline.***
 

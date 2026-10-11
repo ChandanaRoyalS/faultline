@@ -585,3 +585,27 @@ reading, the authority, is added here when taken: ______.
 - **Nothing in the frozen setup moved**: one runtime stamp per arm, one world digest, the v2
   corpus at both pins, `cap:91279a09`, throughout. The harness's git sha moved once, at
   Addendum 4's fix, between slot 112 and slot 113; it is recorded in every manifest.
+
+## Addendum 6 - the correction: slot 127 is invalid, the holdout is nine (2026-10-11)
+
+**Found the same day the report merged, by `tests/test_evaldb.py` on the merged record.** Slot
+127 - F on `v2-inj-email-wrong-image-log-checkout`, holdout - recorded `investigation_seconds`
+624.0 against the 600 s `wall_clock_seconds` its own manifest declares. **Under Q33 (closed
+2026-09-14) that run is `invalid`**: a run that happened and may not be used.
+`faultline-eval-db` had read it so from the moment it was loaded; `analysis_headline_v2.py`'s
+first cut applied only the marks written on the manifest and counted it as scored.
+
+- **The script now applies Q33's reading** (the same comparison as `evaldb.outlived_its_budget`),
+  lists the run under *Removed* with its reason, and prints the corrected tables.
+- **The scenario is removed from every arm.** The registration's re-run is for a discard - a run
+  that never reached an investigation - and this run did; a holdout run is not run again to fix
+  a number. B0, B1 and B2's runs on it stay in the record and in no table.
+- **The first version's figures, superseded**: holdout F 7/10 class, 8/10 service, 5/10 fix;
+  B0 4/10, 7/10, 6/10; B1 7/10, 8/10, 7/10; B2 2/10, 6/10, 3/10; F - B1 +0. **The corrected**:
+  F 6/9, 7/9, 4/9; B0 3/9, 6/9, 5/9; B1 6/9, 7/9, 6/9; B2 2/9, 5/9, 3/9; F - B1 +0. No
+  conclusion moves; the one-sentence reading is the same.
+- **Why the deadline did not bind**: Q33's hardening checks the run's wall clock between model
+  calls and never inside one, so a single long call carries a run past it. The judge counts and
+  the cost per run are unaffected.
+- `test_exactly_one_run_in_the_archive_meets_the_budget_reread` now names both runs, and the
+  queue hears about it (Q129).
