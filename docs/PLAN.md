@@ -4617,6 +4617,17 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-10-11: the second go on T7.3's batch - 99 runs, the queue committed, the nights
+registered.***
+
+- **The go** (T7.3 registration, Addendum 3): the console read $82 against the tally's $81.55,
+  so the batch is projected at about $85 for 99 runs under the $114 stop; triage gated 2 of the
+  12 in the headline, within Addendum 1's three. `v2-payment-memory-squeeze` will not run and is
+  left out, not replaced (DEVIATIONS).
+- `QUEUE-t73-v2.tsv`, seed 20261011, 99 slots, E7 at the trial's revision, held to its seed by a
+  test; `faultline-batch queue` gained `--without` for the one scenario.
+- **Next: the batch's first block, slots 1-20, about $17.** $0 in this commit.
+
 ***2026-10-11, later: the headline corrected - slot 127 is invalid under Q33, the holdout is
 nine.***
 
