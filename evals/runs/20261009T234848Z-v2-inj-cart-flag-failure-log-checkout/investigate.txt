@@ -1,0 +1,9 @@
+incident df51e713-af2c-4b59-b67e-e5c379827b79  state triaging  anchor 23:54:16
+triage: 9 services, severity critical, start from checkout, 8 unmeasured edge(s) crossed
+
+B2: bad_config / config_revert (low)
+  checkout is failing its own requests fast after a bad configuration value (most likely a wrong endpoint/credential or limit for one of its downstream calls), so every checkout attempt errors while the downstream services themselves stay healthy.
+  looked at nothing - this is the model's prior
+wrote /Users/chandana/dev/faultline/evals/runs/20261009T234848Z-v2-inj-cart-flag-failure-log-checkout/df51e713-af2c-4b59-b67e-e5c379827b79-verdict.json
+{"ts": "2026-10-09T23:56:44.722+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-09T23:56:52.949+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}

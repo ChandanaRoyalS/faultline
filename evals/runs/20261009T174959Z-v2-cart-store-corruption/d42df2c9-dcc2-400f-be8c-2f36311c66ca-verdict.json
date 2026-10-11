@@ -1,0 +1,67 @@
+{
+  "incident_id": "d42df2c9-dcc2-400f-be8c-2f36311c66ca",
+  "trajectory_id": "2232d686-b7a0-47f2-a2d7-1f748258b10c",
+  "states": [
+    "triaging"
+  ],
+  "blast_radius": [
+    "checkout",
+    "cart",
+    "currency",
+    "email",
+    "frontend",
+    "payment",
+    "product-catalog",
+    "shipping",
+    "frontend-proxy"
+  ],
+  "unmeasured_edges": 8,
+  "exclude_origins": [
+    "scenario:scenario:v2-cart-store-corruption"
+  ],
+  "verdict": {
+    "fault_class": "bad_config",
+    "remediation_class": "config_revert",
+    "service": "checkout",
+    "alternatives": [
+      {
+        "root_cause": "A feature flag was flipped in flagd turning on a failure path in cart, whose errors surface at checkout.",
+        "service": "cart",
+        "fault_class": "feature_flag",
+        "remediation_class": null,
+        "why_not": "cart is in the graph with its own flagd edge and would normally trip its own error-rate alert; only checkout alerted, suggesting the errors are generated at checkout rather than passed through it."
+      },
+      {
+        "root_cause": "A new checkout artifact was deployed that fails at request handling.",
+        "service": "checkout",
+        "fault_class": "bad_deploy",
+        "remediation_class": null,
+        "why_not": "A broken artifact usually fails to start or crash-loops, which would show as unavailability rather than a steady high error rate from a serving instance; still plausible if the build serves but errors on every order."
+      }
+    ],
+    "summary": "A bad configuration value in checkout (most likely a wrong endpoint/port or credential for one of its downstream dependencies) makes every order attempt fail immediately, producing checkout's high error rate without any downstream service degrading.",
+    "confidence": "low",
+    "evidence": [],
+    "reasoning": "checkout is the only alerting service and the blast radius is simply its transitive neighbourhood, so nothing downstream is independently sick \u2014 no dependency raised its own alert, which argues against the failure originating in cart, payment, currency, shipping, email or product-catalog. The symptom is an error-rate alert rather than latency or saturation, which points at fast, deterministic failures (connection refused, auth rejection, invalid target) rather than waiting on a slow dependency, a frozen process, or exhausted resources. A wrong configured value in checkout itself is the simplest mechanism that makes checkout, and only checkout, fail hard on the first call of every request.",
+    "open_questions": [
+      "checkout's error messages: connection refused / DNS failure / 4xx from a specific dependency vs. generic 500s",
+      "whether checkout's recent change log shows a config or env-var change versus an image/tag change",
+      "per-dependency error and latency rates from checkout's client spans (does one downstream call fail while others succeed?)",
+      "whether cart or payment error rates rose at the same moment even if they never crossed alert thresholds",
+      "flagd flag-change history around 17:57 (cartServiceFailure, paymentServiceFailure and similar demo flags)"
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B2",
+    "tool_calls": 0,
+    "attempts": 2,
+    "cited_without_looking": []
+  }
+}

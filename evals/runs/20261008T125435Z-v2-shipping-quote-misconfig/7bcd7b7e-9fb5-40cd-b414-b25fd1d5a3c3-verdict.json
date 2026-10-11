@@ -1,0 +1,67 @@
+{
+  "incident_id": "7bcd7b7e-9fb5-40cd-b414-b25fd1d5a3c3",
+  "trajectory_id": "6d974d11-3afa-45bf-9ecd-bdd22119af80",
+  "states": [
+    "triaging"
+  ],
+  "blast_radius": [
+    "shipping",
+    "checkout",
+    "cart",
+    "currency",
+    "email",
+    "frontend",
+    "payment",
+    "product-catalog",
+    "quote",
+    "frontend-proxy"
+  ],
+  "unmeasured_edges": 9,
+  "exclude_origins": [
+    "scenario:scenario:v2-shipping-quote-misconfig"
+  ],
+  "verdict": {
+    "fault_class": "dependency_latency",
+    "remediation_class": "restart",
+    "service": "quote",
+    "alternatives": [
+      {
+        "root_cause": "The quote process was stopped while its socket still accepted, so shipping hung to its deadlines.",
+        "service": "quote",
+        "fault_class": "process_freeze",
+        "remediation_class": null,
+        "why_not": "Indistinguishable from latency at this resolution; a freeze would usually show shipping errors as uniformly deadline-shaped with zero quote logs, which I cannot confirm."
+      },
+      {
+        "root_cause": "Shipping was deployed or reconfigured with a wrong quote endpoint/credential and every quote call fails immediately.",
+        "service": "shipping",
+        "fault_class": "bad_config",
+        "remediation_class": null,
+        "why_not": "Would normally produce instant connection errors and a change-log entry; nothing in the report suggests a change, and the staged checkout alert one minute later fits timeout accumulation better."
+      }
+    ],
+    "summary": "The quote service became slow/unresponsive, so shipping's calls to it piled up and timed out, surfacing as shipping errors and then checkout errors.",
+    "confidence": "low",
+    "evidence": [],
+    "reasoning": "Shipping alerted first and its only downstream is quote; checkout alerted a minute later purely because it calls shipping, which is the expected caller-ward propagation. Quote itself never alerts, which fits a dependency that is slow or stalled rather than one throwing errors loudly \u2014 shipping is the service that noticed, not necessarily the one that broke. The rest of the blast radius (cart, currency, email, payment, product-catalog, frontend, frontend-proxy) is just checkout's and frontend's fan-out, with no independent alerts, so the fault is localized to the shipping->quote edge.",
+    "open_questions": [
+      "Shipping's error signatures: deadline-exceeded/timeout on the quote call vs connection-refused vs 5xx bodies from quote",
+      "Whether quote emitted any logs or served any requests during the window (silence would point to a freeze rather than slowness)",
+      "Quote's own latency/CPU/memory and GC behaviour, and whether its runtime was saturated",
+      "Any deploy or config change to shipping or quote immediately before 12:58"
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B2",
+    "tool_calls": 0,
+    "attempts": 2,
+    "cited_without_looking": []
+  }
+}

@@ -1,0 +1,60 @@
+{
+  "incident_id": "11f90583-9c2d-4d8a-8229-5210ab28bf90",
+  "trajectory_id": "5761505e-ce2a-4c7d-a5a4-9ee36d17ca1f",
+  "states": [
+    "triaging"
+  ],
+  "blast_radius": [
+    "fraud-detection",
+    "flagd"
+  ],
+  "unmeasured_edges": 1,
+  "exclude_origins": [
+    "scenario:scenario:v2-fraud-detection-partition"
+  ],
+  "verdict": {
+    "fault_class": "process_freeze",
+    "remediation_class": "restart",
+    "service": "fraud-detection",
+    "alternatives": [
+      {
+        "root_cause": "A bad artifact was rolled out to fraud-detection and the new build fails to start, so the service never begins consuming.",
+        "service": "fraud-detection",
+        "fault_class": "bad_deploy",
+        "remediation_class": null,
+        "why_not": "Equally consistent with zero traffic, but a failed start usually produces loud crash/restart logs and a container-level alert, not a bare ServiceNoTraffic; demoted because nothing here indicates a change event."
+      },
+      {
+        "root_cause": "fraud-detection blocks indefinitely on flagd flag evaluation at startup or per message, stalling its consume loop.",
+        "service": "flagd",
+        "fault_class": "dependency_latency",
+        "remediation_class": null,
+        "why_not": "flagd is shared with ad, cart, recommendation and product-reviews, none of which alerted; a slow flagd would show symptoms far wider than one service."
+      }
+    ],
+    "summary": "The fraud-detection process is stopped/hung \u2014 its container is still present but not executing, so it consumes and emits nothing and disappears from traffic entirely.",
+    "confidence": "low",
+    "evidence": [],
+    "reasoning": "The only signal is ServiceNoTraffic on fraud-detection, and the blast radius is just fraud-detection plus its single dependency flagd. fraud-detection has no inbound edges in the catalog (it is fed asynchronously, via the absent kafka), so nothing upstream is positioned to report errors \u2014 which is consistent with a silent stall rather than a propagating failure. A total absence of traffic with no error signal anywhere, and no complaint from flagd's other consumers (ad, cart, recommendation, product-reviews are all quiet), points at the process itself ceasing to do work rather than at a shared dependency. A frozen process emits nothing at all, which is exactly what a no-traffic alert with no accompanying error alert looks like.",
+    "open_questions": [
+      "Did fraud-detection write any log lines at or after onset, or did output stop cleanly at 17:10:31?",
+      "Is consumer lag on the fraud-detection topic growing without rebalance, which would distinguish a frozen consumer from a crashed/restarting one?",
+      "Container state and restart count for the fraud-detection pod \u2014 running vs. CrashLoopBackOff vs. OOMKilled.",
+      "Any recent deploy or image change to fraud-detection immediately before onset.",
+      "Was flagd evaluated successfully by its other four consumers during the window?"
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B2",
+    "tool_calls": 0,
+    "attempts": 2,
+    "cited_without_looking": []
+  }
+}

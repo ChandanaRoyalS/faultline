@@ -1,0 +1,478 @@
+{
+  "run_id": "20261006T143608Z-v2-shipping-wrong-image",
+  "scenario_id": "v2-shipping-wrong-image",
+  "split": "dev",
+  "scenario_fingerprint": "7f72da39614d5d3b1a86c329d46fbac2568e79d53c456f0b9696b28cb1d85ebe",
+  "started_at": "2026-10-06T14:36:08.892458+00:00",
+  "demo": false,
+  "recorder": {
+    "tool": "evalharness.run",
+    "git_sha": "890be7e20434c75fcb340383b3f883e2b50ddc73",
+    "git_dirty": true
+  },
+  "models": {
+    "changes": "claude-opus-5",
+    "logs": "claude-opus-5",
+    "metrics": "claude-opus-5",
+    "planner": "claude-opus-5",
+    "scribe": "claude-opus-5",
+    "synthesizer": "claude-opus-5",
+    "traces": "claude-opus-5"
+  },
+  "efforts": {
+    "default": "high"
+  },
+  "budget": {
+    "max_tool_calls_per_specialist": 4,
+    "max_tokens": 120000,
+    "wall_clock_seconds": 600,
+    "max_dispatch_rounds": 2,
+    "briefing_tokens": 4000,
+    "max_usd": 2.0,
+    "usd_per_mtok_in": 5.0,
+    "usd_per_mtok_out": 25.0,
+    "per_specialist_tool_calls": {}
+  },
+  "world_lock": {
+    "acquired": true,
+    "pid": 41499,
+    "host": "chandanas-MacBook-Air.local",
+    "since": "2026-10-06T14:36:09.041542+00:00",
+    "reason": "faultline-eval v2-shipping-wrong-image",
+    "token": "41499-1791297369.041475"
+  },
+  "preflight": {
+    "checked": true,
+    "model": "claude-opus-5",
+    "ok": true,
+    "detail": "20 token(s) billed",
+    "skipped_because": ""
+  },
+  "baseline_gate": {
+    "passed": true,
+    "world": "v2",
+    "firing_alerts": [],
+    "p95_over_ceiling_ms": {},
+    "p95_excursions": {},
+    "ingest_accepting": true,
+    "consumer_idle_ms": 4641,
+    "pipeline_down": [],
+    "silent_services": [],
+    "unexpected_silent": [],
+    "latency_invisible": [],
+    "services_reporting": 18,
+    "youngest_container": [
+      "shipping",
+      636
+    ],
+    "active_injections": "no active injections",
+    "open_incidents": [],
+    "settling_incidents": [],
+    "settle_seconds_remaining": 0,
+    "headroom": {
+      "container": "kafka",
+      "percent_now": 54.28,
+      "limit_mb": 1024.0,
+      "expected_run_hours": 6.255,
+      "runs_remaining": 18,
+      "uptime_seconds": 20692,
+      "growth_mb_per_hour": 1.3,
+      "growth_mb": 8.1,
+      "projected_percent": 55.07,
+      "threshold_percent": 89.21,
+      "guard_percent": 90.0,
+      "fits": true
+    },
+    "refusals": []
+  },
+  "world_continuity": {
+    "kafka_uptime_seconds": 20692,
+    "kafka_uptime_seconds_previous_run": 19498,
+    "previous_run_id": "20261006T141616Z-v2-shipping-wrong-image",
+    "kafka_restarted_since_previous_run": false,
+    "cause": "continuous - same kafka instance as the previous run",
+    "note": "A sweep spanning a restart did not run every scenario against the same kafka instance. That is a resource level, not a code or config change - no digest moves and the runs describe the same world (T7.33)."
+  },
+  "freeze": {
+    "frozen_for": "dev 20261006T143608Z-v2-shipping-wrong-image",
+    "runtime_version": "faultline/0.0.1+prompts:9ce16b66bbcc",
+    "prompts": {
+      "constants": [
+        "PLANNER_SYSTEM",
+        "PROPOSER_SYSTEM",
+        "SCRIBE_SYSTEM",
+        "SPECIALIST_SYSTEM",
+        "SYNTHESIZER_SYSTEM",
+        "TRIAGER_SYSTEM"
+      ],
+      "sha256": "be4a0e27319aac2433bfb8f0e719065747cf10703bf1c5b82f78a1a612a1805c",
+      "chars": 15822
+    },
+    "corpus": {
+      "rows": 200,
+      "sha256": "738e834925e06e445e0ad1366ca7c20e984d306a10b55fb058df841db81646b0",
+      "body_sha256": "8d75e8acc4b10903608970b317369b0982f4df51e641644c45f8cf5cd1c26198",
+      "documents": [
+        "runbook:action-restart-service",
+        "runbook:action-revert-config",
+        "runbook:action-rollback-image",
+        "runbook:action-scale-unavailable",
+        "runbook:alert-high-error-rate",
+        "runbook:class-bad-config",
+        "runbook:class-bad-deploy",
+        "runbook:class-datastore-corruption",
+        "runbook:class-dependency-latency",
+        "runbook:class-disk-fill",
+        "runbook:class-feature-flag",
+        "runbook:class-network-partition",
+        "runbook:class-process-freeze",
+        "runbook:class-resource-exhaustion",
+        "scenario:v2-accounting-bad-credential",
+        "scenario:v2-ad-bad-image-tag",
+        "scenario:v2-ad-flag-failure",
+        "scenario:v2-ad-memory-squeeze",
+        "scenario:v2-ad-partition",
+        "scenario:v2-cart-bad-image-tag",
+        "scenario:v2-cart-dependency-latency",
+        "scenario:v2-cart-flag-failure",
+        "scenario:v2-cart-freeze",
+        "scenario:v2-cart-store-corruption",
+        "scenario:v2-currency-freeze",
+        "scenario:v2-fraud-detection-flag-queue-lag",
+        "scenario:v2-fraud-detection-memory-squeeze",
+        "scenario:v2-fraud-detection-partition",
+        "scenario:v2-frontend-cart-misconfig",
+        "scenario:v2-inj-cart-flag-failure-log-checkout",
+        "scenario:v2-inj-kafka-disk-fill-log-checkout",
+        "scenario:v2-inj-payment-dependency-latency-log-checkout",
+        "scenario:v2-kafka-disk-fill",
+        "scenario:v2-payment-dependency-latency",
+        "scenario:v2-payment-memory-squeeze",
+        "scenario:v2-payment-telemetry-blackout",
+        "scenario:v2-postgresql-catalog-corruption",
+        "scenario:v2-product-catalog-flag-failure",
+        "scenario:v2-product-catalog-freeze",
+        "scenario:v2-product-catalog-partition",
+        "scenario:v2-shipping-quote-misconfig",
+        "scenario:v2-shipping-wrong-image",
+        "scenario:v2-valkey-cart-dependency-latency"
+      ],
+      "holdout_chunks": 0
+    },
+    "model_map": {
+      "models": {
+        "changes": "claude-opus-5",
+        "logs": "claude-opus-5",
+        "metrics": "claude-opus-5",
+        "planner": "claude-opus-5",
+        "proposer": "claude-opus-5",
+        "scribe": "claude-opus-5",
+        "synthesizer": "claude-opus-5",
+        "traces": "claude-opus-5",
+        "triage": "claude-opus-5"
+      },
+      "effort_default": "high",
+      "role_efforts": {}
+    },
+    "budget": {
+      "max_tool_calls_per_specialist": 4,
+      "max_tokens": 120000,
+      "wall_clock_seconds": 600,
+      "max_dispatch_rounds": 2,
+      "briefing_tokens": 4000,
+      "max_usd": 2.0,
+      "usd_per_mtok_in": 5.0,
+      "usd_per_mtok_out": 25.0
+    },
+    "tool_layer": {
+      "git_sha": "890be7e20434c75fcb340383b3f883e2b50ddc73",
+      "git_dirty": true
+    },
+    "judge": {
+      "model": null,
+      "prompt_sha256": "244108af996ad2a5138f6632a297941dd26643d806c73dfa9e24bc7d51392b54",
+      "allow_shared_lineage": false
+    },
+    "world": {
+      "compose_digest": "5a2bc6d912f922a03874ab2824d9362541362386fbcab7e0c2f99aa760f567df",
+      "observability_digest": "7d6097ab0f00132d57993804ee4f4d9eff1abedfb71a273bdd7e553ef887637b",
+      "ffs_stub_source_digest": "8defed3104c42adffb16b77e85396e1796f2681652d0771b99d3632358c37fde",
+      "otel_demo_image_digest": "ghcr.io/open-telemetry/demo@sha256:1adaf3b33fbf4d42e5a1fa68fec1ea1b645d50471881179bd7be0a0ce2656706",
+      "capability_version": "cap:91279a09",
+      "host_platform": "Darwin/arm64",
+      "host_overrides": [
+        "dev-tempo-otlp.override.yml"
+      ],
+      "unverifiable_fields": []
+    }
+  },
+  "baseline": "b1",
+  "ablation": [],
+  "ablation_config": {},
+  "exclusion_policy": "own",
+  "exclude_origins": [
+    "scenario:v2-shipping-wrong-image"
+  ],
+  "repeat_count": 1,
+  "tier": "manual",
+  "seed_policy": "unseeded: non-deterministic model, live world",
+  "world": "v2",
+  "sweep": {
+    "id": "headline-v2",
+    "slot": 3,
+    "of": 156,
+    "pass": 1
+  },
+  "comparability": {
+    "generation": "5a2bc6d912f9",
+    "provenance": "observed",
+    "previous_run": "20261006T141616Z-v2-shipping-wrong-image",
+    "previous_generation": "5a2bc6d912f9",
+    "previous_provenance": "observed",
+    "new_generation": false
+  },
+  "injected_at": "2026-10-06T14:36:13.168430+00:00",
+  "incident_id": "d2165e87-2a09-46e0-882b-2e83def8f16e",
+  "investigate_exit_code": 0,
+  "investigate_attempts": [
+    {
+      "attempt": 1,
+      "waited_seconds": 0,
+      "exit_code": 0,
+      "transient_signal": null
+    }
+  ],
+  "reverted_at": "2026-10-06T14:46:20.959125+00:00",
+  "recovery": {
+    "passed": true,
+    "world": "v2",
+    "firing_alerts": [],
+    "p95_over_ceiling_ms": {},
+    "p95_excursions": {},
+    "ingest_accepting": true,
+    "consumer_idle_ms": 2667,
+    "pipeline_down": [],
+    "silent_services": [],
+    "unexpected_silent": [],
+    "latency_invisible": [],
+    "services_reporting": 18,
+    "youngest_container": [
+      "shipping",
+      329
+    ],
+    "active_injections": "no active injections",
+    "open_incidents": [],
+    "settling_incidents": [],
+    "settle_seconds_remaining": 0,
+    "headroom": {
+      "container": "kafka",
+      "percent_now": 54.28,
+      "limit_mb": 1024.0,
+      "expected_run_hours": 0.8083,
+      "runs_remaining": null,
+      "uptime_seconds": 21632,
+      "growth_mb_per_hour": 1.3,
+      "growth_mb": 1.1,
+      "projected_percent": 54.38,
+      "threshold_percent": 89.9,
+      "guard_percent": 90.0,
+      "fits": true
+    },
+    "refusals": [],
+    "caller_reachability": {
+      "service": "shipping",
+      "window_seconds": 120,
+      "callers": {
+        "checkout": null,
+        "quote": null
+      },
+      "note": "observational (Q32); nothing refuses on this"
+    }
+  },
+  "unexpected_fields": {
+    "verdict": [
+      "summary"
+    ]
+  },
+  "score": {
+    "run_id": "20261006T143608Z-v2-shipping-wrong-image",
+    "scenario_id": "v2-shipping-wrong-image",
+    "trajectory_id": "6973cb66-366f-4f83-8fbf-981bb29be31c",
+    "runtime_version": "faultline/0.0.1+baseline:B1:aa84c9051695",
+    "budget": {
+      "max_tool_calls_per_specialist": 4,
+      "max_tokens": 120000,
+      "wall_clock_seconds": 600,
+      "max_dispatch_rounds": 2,
+      "briefing_tokens": 4000,
+      "max_usd": 2.0,
+      "usd_per_mtok_in": 5.0,
+      "usd_per_mtok_out": 25.0,
+      "per_specialist_tool_calls": {}
+    },
+    "reached_a_class": true,
+    "reachability": {
+      "answers_idle_or_absent": [
+        "logs"
+      ],
+      "derived_from": "the bundle's own captures (T7.5)",
+      "none_can_answer": false,
+      "runtime_series": 0,
+      "target_log_lines": 54
+    },
+    "service_visibility": {
+      "target": "shipping",
+      "presence": "in_graph",
+      "nameable": true,
+      "reason": null
+    },
+    "triage": {
+      "recall": 1.0,
+      "precision": 0.4375,
+      "matched": [
+        "accounting",
+        "checkout",
+        "email",
+        "fraud-detection",
+        "payment",
+        "quote",
+        "shipping"
+      ],
+      "missed_alerted_not_predicted": [],
+      "predicted_not_alerted": [
+        "ad",
+        "cart",
+        "currency",
+        "flagd",
+        "frontend",
+        "frontend-proxy",
+        "product-catalog",
+        "product-reviews",
+        "recommendation"
+      ],
+      "excluded_began_after_revert": [],
+      "unmeasured_edges_crossed": 15,
+      "n_alerted": 7,
+      "n_predicted": 16
+    },
+    "fault_class": {
+      "truth": "bad_deploy",
+      "returned": "bad_deploy",
+      "correct": true,
+      "correct_by_alternative": false,
+      "also_correct": [],
+      "abstained": false,
+      "dispute": null
+    },
+    "fix_class": {
+      "truth": "rollback",
+      "returned": "rollback",
+      "correct": true,
+      "correct_by_alternative": false,
+      "also_correct": [],
+      "abstained": false,
+      "dispute": null
+    },
+    "service": {
+      "truth": "shipping",
+      "returned": "shipping",
+      "correct": true,
+      "correct_by_alternative": false,
+      "also_correct": [],
+      "abstained": false,
+      "dispute": null
+    },
+    "ranked_class": {
+      "truth": "bad_deploy",
+      "ranked": [
+        "bad_deploy",
+        "bad_config",
+        "network_partition",
+        "process_freeze"
+      ],
+      "depth": 4,
+      "top_1": true,
+      "top_3": true,
+      "gained_by_ranking": false
+    },
+    "ranked_service": {
+      "truth": "shipping",
+      "ranked": [
+        "shipping",
+        "checkout"
+      ],
+      "depth": 2,
+      "top_1": true,
+      "top_3": true,
+      "gained_by_ranking": false
+    },
+    "categories": {
+      "flagged": [],
+      "n_flagged": 0,
+      "failed_alone": [],
+      "n_failed_alone": 0,
+      "contradictions": [],
+      "n_contradictions": 0,
+      "budget_exhausted": false,
+      "budget_exhausted_reason": null,
+      "narrative_refused": false,
+      "narrative_refused_reason": null
+    },
+    "tokens_in": 76573,
+    "tokens_out": 2273,
+    "cost_usd": 0.4397,
+    "models": {
+      "changes": "claude-opus-5",
+      "logs": "claude-opus-5",
+      "metrics": "claude-opus-5",
+      "planner": "claude-opus-5",
+      "scribe": "claude-opus-5",
+      "synthesizer": "claude-opus-5",
+      "traces": "claude-opus-5"
+    }
+  },
+  "finished_at": "2026-10-06T14:51:53.100315+00:00",
+  "leave_one_out": {
+    "retrievals": 0,
+    "excluding": 0,
+    "filtered": {},
+    "silent": [],
+    "unassessable": [],
+    "missing_own": [],
+    "enforced": false
+  },
+  "metrics": {
+    "latency": {
+      "investigation_ms": 53758,
+      "investigation_seconds": 53.8,
+      "tool_ms": 0,
+      "model_ms": 52879,
+      "retrieval_ms": 0,
+      "steps": 6,
+      "within_gate4_threshold": true
+    },
+    "tool_calls": {
+      "total": 5,
+      "valid": 5,
+      "errored": 0,
+      "empty": 1,
+      "truncated": 2,
+      "redundant": 0,
+      "validity_rate": 1.0,
+      "redundancy_rate": 0.0
+    },
+    "context": {
+      "briefings": 0,
+      "over_budget": 0,
+      "overflow_rate": null,
+      "dropped_sections": 0,
+      "largest_estimated_tokens": 0,
+      "budget": 0
+    },
+    "citations": {
+      "violations": 0,
+      "regenerated": false,
+      "escalated": false
+    }
+  }
+}

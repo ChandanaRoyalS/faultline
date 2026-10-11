@@ -1,0 +1,4 @@
+injected v2-product-catalog-freeze (process_freeze) on product-catalog
+  - docker pause: product-catalog frozen; its socket accepts and nothing answers
+  - callers will hang to their deadlines; expect ~6 min from unpause to quiet
+revert with: faultline-inject stop v2-product-catalog-freeze

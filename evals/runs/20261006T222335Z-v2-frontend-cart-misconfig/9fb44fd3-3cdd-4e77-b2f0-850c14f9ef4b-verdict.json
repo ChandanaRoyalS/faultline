@@ -1,0 +1,51 @@
+{
+  "incident_id": "9fb44fd3-3cdd-4e77-b2f0-850c14f9ef4b",
+  "trajectory_id": "63ad1f1a-e358-42ae-938e-5491ad56e5b0",
+  "states": [
+    "triaging"
+  ],
+  "blast_radius": [
+    "frontend-proxy",
+    "checkout",
+    "frontend",
+    "load-generator",
+    "ad",
+    "cart",
+    "currency",
+    "email",
+    "payment",
+    "product-catalog",
+    "product-reviews",
+    "recommendation",
+    "shipping"
+  ],
+  "unmeasured_edges": 13,
+  "exclude_origins": [
+    "scenario:scenario:v2-frontend-cart-misconfig"
+  ],
+  "verdict": {
+    "fault_class": "bad_config",
+    "remediation_class": "config_revert",
+    "service": "frontend",
+    "summary": "suspect: service of the most recent pre-onset change in the window (22:23:40); class: that change was to environment; remediation: table lookup from bad_config",
+    "confidence": "n/a - B0 is a rule, not an estimate"
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B0",
+    "service": "frontend",
+    "fault_class": "bad_config",
+    "fix_class": "config_revert",
+    "why": [
+      "suspect: service of the most recent pre-onset change in the window (22:23:40)",
+      "class: that change was to environment",
+      "remediation: table lookup from bad_config"
+    ]
+  }
+}

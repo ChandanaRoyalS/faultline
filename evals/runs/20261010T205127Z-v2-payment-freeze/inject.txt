@@ -1,0 +1,4 @@
+injected v2-payment-freeze (process_freeze) on payment
+  - docker pause: payment frozen; its socket accepts and nothing answers
+  - callers will hang to their deadlines; expect ~6 min from unpause to quiet
+revert with: faultline-inject stop v2-payment-freeze

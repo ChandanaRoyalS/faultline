@@ -1,0 +1,176 @@
+{
+  "incident_id": "5ba72747-e902-4271-80e7-f70259244002",
+  "trajectory_id": "4521b624-7f04-4f4f-82e5-2b18f88f46a5",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "ad",
+    "cart",
+    "checkout",
+    "frontend",
+    "frontend-proxy",
+    "product-catalog",
+    "product-reviews",
+    "recommendation"
+  ],
+  "unmeasured_edges": 7,
+  "exclude_origins": [
+    "scenario:v2-recommendation-memory-squeeze"
+  ],
+  "verdict": {
+    "root_cause": "The frontend is healthy and failing only at the TCP connect stage against one upstream, 172.18.0.27:9001, with code 14 UNAVAILABLE escalating from connection-refused to host-unreachable [tr_e47d08efc712] \u2014 the signature of a callee whose listener keeps disappearing, not a slow or erroring dependency. No frontend change exists to explain it [tr_66a3f7d4332b]. The only change in the investigated surface is platform-automation lowering recommendation's memory limit to 16m, applied ~4 minutes before onset and still in effect, part of a repeating apply/revert cycle [tr_218505dfc06f]. recommendation corroborates a process dying and returning: 33 of 96 incident-window samples have a zero request denominator, a gap pattern entirely absent from baseline, while served requests succeed at normal-or-better rates [tr_32156bcc2289]. recommendation is being OOM-killed under an unsustainable 16m cap, so its gRPC listener on 9001 vanishes in cycles and the frontend's recommendation-bound calls fail to connect, producing the intermittent ~2.2x frontend error-ratio rise [tr_bc2d57744bee].",
+    "service": "recommendation",
+    "fault_class": "resource_exhaustion",
+    "remediation_class": "config_revert",
+    "confidence": "medium",
+    "evidence": [
+      "tr_e47d08efc712",
+      "tr_218505dfc06f",
+      "tr_32156bcc2289",
+      "tr_bc2d57744bee",
+      "tr_66a3f7d4332b"
+    ],
+    "reasoning": "Connect-level refusal against a single endpoint with no DEADLINE_EXCEEDED and no application/auth/TLS responses excludes dependency_latency and points to a missing listener [tr_e47d08efc712]. The empty frontend change log places the cause outside the frontend [tr_66a3f7d4332b]. The 16m memory limit landing minutes before onset and remaining active [tr_218505dfc06f], combined with new baseline-absent intervals of zero served traffic on recommendation while its error ratio stays low [tr_32156bcc2289], matches a process repeatedly killed for exceeding memory rather than one returning errors. Per the taxonomy, a limit lowered until the process is killed is resource_exhaustion \u2014 the edit is how it started, exhaustion is what is happening \u2014 and reverting that limit is the actual fix. The trace specialist's rule-out of connect-level failure is scoped to the three sampled routes (checkout, product-catalog, cart), none of which is recommendation [tr_171169013046], so it does not override the direct log evidence.",
+    "open_questions": [
+      "172.18.0.27:9001 was never resolved to a service name; no dispatch confirmed that address belongs to recommendation.",
+      "No logs, memory metrics, or restart/OOM-kill events were gathered for recommendation, so memory exhaustion is inferred from the limit change plus traffic gaps rather than observed directly.",
+      "Frontend error onset precedes the 00:26:59 limit application (crossings at ~00:05 and ~00:08) [tr_bc2d57744bee], which the earlier apply/revert cycle may explain but no evidence confirms; the other five services in the blast radius were never investigated."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "The host or container behind 172.18.0.27 lost its network path, cutting the frontend off from that backend independently of any memory limit.",
+        "service": "recommendation",
+        "fault_class": "network_partition",
+        "remediation_class": "reconnect",
+        "why_not": "The failure began as connection-refused, meaning the host was still answering and only the port was dead; an unchanged-process partition would not start that way, and it leaves the coincident memory-limit change and the new traffic gaps unexplained."
+      },
+      {
+        "root_cause": "The upstream process on port 9001 is crash-looping or down for a reason unrelated to its memory cap, leaving the frontend with nothing to connect to.",
+        "service": "recommendation",
+        "fault_class": "process_freeze",
+        "remediation_class": "restart",
+        "why_not": "A frozen process still accepts connections and hangs callers; here connections are actively refused, and a concrete resource-limit change minutes before onset supplies a mechanism that a generic crash does not."
+      }
+    ]
+  },
+  "flags": [
+    "planner produced no valid findings: dispatch service 'frontend, ad, cart, checkout, product-catalog, product-reviews, recommendation' names more than one service. A dispatch is one specialist asking one question about one service; to cover three services, make three dispatches. Legal values: accounting, ad, cart, checkout, currency, email, flagd, flagd-ui, fraud-detection, frontend, frontend-proxy, image-provider, kafka, llm, load-generator, payment, postgresql, product-catalog, product-reviews, quote, recommendation, shipping, valkey-cart."
+  ],
+  "retrieved": [
+    "v2-product-catalog-freeze / What was checked: **The proxy, because it was loudest.** Its errors were all the same kind: upstream requests\ncut at the fifteen-second route timeout. The proxy was doing its job. Nothing in its own\nbehaviour had changed, so it was reporting the problem, not causing it.\n\n**Frontend, because its la",
+    "v2-frontend-cart-misconfig / What was checked: **The error text, because it was the first thing a responder would read.** Checkout's error spans\nand the frontend's log said `shipping quote failure: failed POST to email service: expected 200,\ngot 400`. That names two services, and neither was at fault. It is checkout's own wor",
+    "v2-ad-bad-image-tag / What was checked: **The page names callers.** Frontend-proxy forwards what the frontend returns, and the load\ngenerator is the synthetic shoppers counting their own failures. The frontend was the one service\nmaking calls that failed, and the order path was not among them.\n\n**The frontend's error t"
+  ],
+  "failed_dispatches": [
+    [
+      "planner",
+      "dispatch service 'frontend, ad, cart, checkout, product-catalog, product-reviews, recommendation' names more than one service. A dispatch is one specialist asking one question about one service; to cover three services, make three dispatches. Legal values: accounting, ad, cart, checkout, currency, email, flagd, flagd-ui, fraud-detection, frontend, frontend-proxy, image-provider, kafka, llm, load-generator, payment, postgresql, product-catalog, product-reviews, quote, recommendation, shipping, valkey-cart."
+    ]
+  ],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 24475,
+    "pulled_tokens": 6661,
+    "pull_rate": 0.2139,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 433,
+        "content_tokens": 435,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1156,
+        "content_tokens": 1159,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 7627,
+        "content_tokens": 7604,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board",
+          "incompleteness"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 6914,
+        "content_tokens": 6916,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 8345,
+        "content_tokens": 8323,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "config_revert",
+    "action_id": "revert_config",
+    "target": "recommendation",
+    "rests_on": [
+      "tr_218505dfc06f",
+      "tr_32156bcc2289",
+      "tr_e47d08efc712",
+      "tr_bc2d57744bee"
+    ],
+    "expected_effect": "Removing the 16m memory limit applied at 00:26:59 and recreating recommendation should let its process stay resident instead of being killed and restarted in cycles. Observable as: (1) the recommendation error-ratio series stops producing undefined samples \u2014 the 33-of-96 zero-denominator intervals seen in the incident window should return to the baseline pattern of 0 undefined out of ~129 within two 5m rate windows; (2) frontend logs stop emitting `14 UNAVAILABLE ... ECONNREFUSED/EHOSTUNREACH 172.18.0.27:9001` lines; (3) frontend error ratio falls from the incident mean ~0.0364 back toward the baseline ~0.0165 with no further threshold crossings.",
+    "confirm_within_seconds": 900,
+    "if_wrong": "Falsified if, 10-15 minutes after the revert, frontend still logs code 14 connect failures against 172.18.0.27:9001, or recommendation's metric series still shows zero-denominator gaps, or frontend error ratio stays near 0.036 with fresh threshold crossings. Two specific ways this can be wrong are already open in the verdict: 172.18.0.27:9001 was never resolved to a service name, so the failing upstream may not be recommendation at all; and no OOM-kill event, memory metric, or recommendation log was ever observed, so memory exhaustion is inferred, not seen. A third signal of wrongness: frontend error crossings at ~00:05 and ~00:08 precede the 00:26:59 limit application, so if gaps persist exactly as before while the limit is absent, the cap was never the mechanism. Also watch for the limit reappearing \u2014 platform-automation has applied and reverted this 16m cap twice already, so a clean recovery followed by regression means the revert held but the automation re-applied it, which is outside what this action can fix.",
+    "risk": "If the diagnosis is wrong, this costs a container recreate on a service that was not the fault: recommendation drops in-flight gRPC connections and its in-process cache, and frontend's recommendation-bound calls fail for the duration of the recreate \u2014 briefly pushing the frontend error ratio above its current level rather than below it. Removing the memory cap also removes whatever containment the automation intended; if recommendation has a genuine memory leak, it will now grow unbounded and may pressure the host instead of being killed in isolation. Finally, recreating the container destroys the current crash-cycle state, which is the only live evidence of the mechanism \u2014 if this does not fix it, the OOM/restart evidence that was never gathered becomes harder to collect after the fact.",
+    "blast_radius": "recommendation only, plus its callers for the seconds of the recreate. frontend is the named inbound caller in this incident's graph and will see connection resets; frontend-proxy and the user-facing routes behind it see any resulting error blip. The other five reached services (ad, cart, checkout, product-catalog, product-reviews) were never investigated and share no configuration with this change, but if any of them calls recommendation they see the same brief reset. No dependency address is being changed, so no traffic moves to a different target."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Critical alerts on frontend and its proxy simultaneously indicate user-facing impact that cannot be dismissed, with no open incident to attribute it to. The shared timestamp could reflect either a frontend-tier fault or a downstream dependency, so no fault class is favored yet."
+  }
+}

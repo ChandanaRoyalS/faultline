@@ -1,0 +1,4 @@
+injected v2-postgresql-catalog-corruption (datastore_corruption) on postgresql
+  - psql on postgresql: catalog.products.description set to NULL on all 10 rows (fingerprint f9b57aae49e7ad4305e3120a54fdc20d -> ea4a8cf36bcb834d426c151c896148e4; the 10 values are saved in the injector's state, outside the store)
+  - no change record: the store is healthy and its contents are wrong
+revert with: faultline-inject stop v2-postgresql-catalog-corruption

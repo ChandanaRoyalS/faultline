@@ -1,0 +1,31 @@
+incident 56371084-b2b6-4998-9201-3f011ef73a20  state triaging  anchor 18:41:16
+triage: 3 services, severity critical, start from payment, 2 unmeasured edge(s) crossed
+
+B1: bad_config / config_revert (medium)
+  A config change set payment's OTLP traces endpoint to a loopback address that has no collector listening, so payment stopped exporting spans and its telemetry vanished while the service itself kept serving charges normally.
+  7 tool calls over 9 turns
+    metrics:payment  Confirm the error onset shape and timing on the first alerting service before deciding whether it is source or witness.
+    logs:payment  No span metrics at all for payment suggests it stopped emitting; check whether its log is silent (freeze) or complaining about reachability (partition).
+    traces:payment  Payment logs look healthy; check span durations and error flags to see whether payment is slow/erroring or fine (making it a witness).
+    changes:payment  See whether any deploy or config change landed on payment near the 18:41 onset.
+    metrics:checkout  Determine whether downstream checkout actually shows real errors, or whether only payment's telemetry disappeared.
+    metrics:frontend  Confirm whether the rest of the blast radius shows real user-visible errors, or the incident is confined to payment's missing telemetry.
+    traces:checkout  Check recent post-18:34 checkout traces for whether payment child spans are missing while Charge calls still succeed — confirming telemetry export loss rather than service failure.
+wrote /Users/chandana/dev/faultline/evals/runs/20261009T183409Z-v2-payment-telemetry-blackout/56371084-b2b6-4998-9201-3f011ef73a20-verdict.json
+{"ts": "2026-10-09T18:43:13.269+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-09T18:43:13.285+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=metric_baseline subject=sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"payment\",status_code=\"STATUS_CODE_ERROR\"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"payment\"}[5m])) start=2026-10-09T17:39:23.835924+00:00 end=2026-10-09T18:43:09.492076+00:00 span_s=3825 refused=False", "component": "investigator"}
+{"ts": "2026-10-09T18:43:16.432+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-09T18:43:16.434+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=logql_query subject={service=\"payment\"} start=2026-10-09T18:11:16.664000+00:00 end=2026-10-09T18:43:09.492076+00:00 span_s=1912 refused=False", "component": "investigator"}
+{"ts": "2026-10-09T18:43:19.502+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-09T18:43:19.505+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=trace_query subject=payment start=2026-10-09T18:11:16.664000+00:00 end=2026-10-09T18:43:09.492076+00:00 span_s=1912 refused=False", "component": "investigator"}
+{"ts": "2026-10-09T18:43:23.292+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-09T18:43:23.293+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=payment start=2026-10-08T18:41:16.664000+00:00 end=2026-10-09T18:43:09.492076+00:00 span_s=86512 refused=False", "component": "investigator"}
+{"ts": "2026-10-09T18:43:28.667+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-09T18:43:28.676+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=metric_baseline subject=sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"checkout\",status_code=\"STATUS_CODE_ERROR\"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"checkout\"}[5m])) start=2026-10-09T17:39:23.835924+00:00 end=2026-10-09T18:43:09.492076+00:00 span_s=3825 refused=False", "component": "investigator"}
+{"ts": "2026-10-09T18:43:37.882+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-09T18:43:37.883+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=metric_baseline subject=sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"frontend\",status_code=\"STATUS_CODE_ERROR\"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"frontend\"}[5m])) start=2026-10-09T17:39:23.835924+00:00 end=2026-10-09T18:43:09.492076+00:00 span_s=3825 refused=False", "component": "investigator"}
+{"ts": "2026-10-09T18:43:45.104+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-09T18:43:45.108+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=trace_query subject=checkout start=2026-10-09T18:11:16.664000+00:00 end=2026-10-09T18:43:09.492076+00:00 span_s=1912 refused=False", "component": "investigator"}
+{"ts": "2026-10-09T18:43:51.453+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-09T18:44:11.903+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-09T18:44:24.691+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}

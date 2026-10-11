@@ -1,0 +1,71 @@
+{
+  "incident_id": "d43fbfe5-31fb-456f-9371-3f4c45f1fb7c",
+  "trajectory_id": "0fed5037-e8eb-4a14-9553-2cde4d32da02",
+  "states": [
+    "triaging"
+  ],
+  "blast_radius": [
+    "frontend",
+    "frontend-proxy",
+    "checkout",
+    "load-generator",
+    "ad",
+    "cart",
+    "currency",
+    "email",
+    "payment",
+    "product-catalog",
+    "product-reviews",
+    "recommendation",
+    "shipping"
+  ],
+  "unmeasured_edges": 13,
+  "exclude_origins": [
+    "scenario:scenario:v2-frontend-cart-misconfig"
+  ],
+  "verdict": {
+    "fault_class": "feature_flag",
+    "remediation_class": "config_revert",
+    "service": "product-catalog",
+    "alternatives": [
+      {
+        "root_cause": "cart began failing (flag-driven or valkey-backed), breaking both frontend and checkout",
+        "service": "cart",
+        "fault_class": "feature_flag",
+        "remediation_class": null,
+        "why_not": "Also fits the two-caller pattern, but cart failure usually shows loudest in checkout first rather than frontend, and valkey-cart/kafka are absent from the graph so a store-side cart fault is less observable here."
+      },
+      {
+        "root_cause": "payment or another checkout-only dependency failed, with frontend errors being pass-through of checkout failures",
+        "service": "payment",
+        "fault_class": "feature_flag",
+        "remediation_class": null,
+        "why_not": "checkout alerted a minute after frontend, not before; a checkout-only dependency should have made checkout the earliest alerter."
+      }
+    ],
+    "summary": "A failure flag on product-catalog's GetProduct path was flipped on in flagd, making product-catalog return errors to its callers, which surfaced as frontend/frontend-proxy and checkout error rates.",
+    "confidence": "low",
+    "evidence": [],
+    "reasoning": "The alerting set is frontend, frontend-proxy, checkout and load-generator - all callers or edge observers, not breakers. The only services shared by both frontend and checkout as direct dependencies are product-catalog and cart, so the failing component is most likely one of those. recommendation also calls product-catalog but did not alert, which fits the known demo-style failure mode where only the single-product lookup path errors while the list path keeps working; a wholesale product-catalog outage would likely have raised recommendation's error rate too. Simultaneous onset across two independent callers with no gradual degradation argues for an instantaneous switch rather than saturation or slowness, and a flag flip in the flag store is the switch that leaves no deploy or config change behind. Remediation is reverting the flag value in flagd.",
+    "open_questions": [
+      "product-catalog's own error logs and status codes - deliberate error returns on one RPC, or generic 5xx across all methods?",
+      "flagd evaluation history / flag store audit around 23:03:46",
+      "Whether recommendation's product-catalog calls succeeded during the window (discriminates single-method vs whole-service failure)",
+      "Latency on frontend->checkout: fast errors (flag) vs hangs to deadline (freeze/partition)",
+      "Deploy or config change log for product-catalog and cart in the preceding hour"
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B2",
+    "tool_calls": 0,
+    "attempts": 2,
+    "cited_without_looking": []
+  }
+}

@@ -1,0 +1,95 @@
+{
+  "incident_id": "33f18b1a-7f79-4a9a-bc42-f85d9e4a2561",
+  "trajectory_id": "4987e4e9-12e5-4a92-b59d-b9ee557e1c74",
+  "states": [
+    "triaging",
+    "investigating"
+  ],
+  "blast_radius": [
+    "cart",
+    "checkout",
+    "frontend",
+    "frontend-proxy",
+    "load-generator",
+    "ad",
+    "currency",
+    "email",
+    "flagd",
+    "payment",
+    "product-catalog",
+    "product-reviews",
+    "recommendation",
+    "shipping"
+  ],
+  "unmeasured_edges": 14,
+  "exclude_origins": [
+    "scenario:scenario:v2-cart-dependency-latency"
+  ],
+  "verdict": {
+    "fault_class": "dependency_latency",
+    "remediation_class": "config_revert",
+    "service": "cart",
+    "alternatives": [
+      {
+        "root_cause": "Cart's valkey datastore became slow or saturated",
+        "service": "cart",
+        "fault_class": "resource_exhaustion",
+        "remediation_class": null,
+        "why_not": "The ~300ms penalty is identical across valkey commands and the unrelated flagd HTTP call, which a store-side problem would not explain; and flagd itself answers in 0.1ms."
+      },
+      {
+        "root_cause": "flagd was slow and cart blocked on flag evaluation",
+        "service": "flagd",
+        "fault_class": "dependency_latency",
+        "remediation_class": null,
+        "why_not": "flagd's own spans are ~0.1ms; the 300ms sits in cart's client-side POST span before flagd is reached."
+      },
+      {
+        "root_cause": "Cart was cut off from the network",
+        "service": "cart",
+        "fault_class": "network_partition",
+        "remediation_class": null,
+        "why_not": "Cart reaches valkey and flagd successfully on every call and logs no unreachability; traffic is delayed, not dropped."
+      },
+      {
+        "root_cause": "A configuration value on cart was edited to the wrong timeout or address",
+        "service": "cart",
+        "fault_class": "bad_config",
+        "remediation_class": null,
+        "why_not": "The change record shows a sidecar network-shaping container, not an edit to any cart configuration value; the mechanism in play is injected latency on the call path."
+      }
+    ],
+    "summary": "A traffic-shaping container attached to cart's network namespace at 00:23 injected a 300ms delay on eth0, so every cart outbound call (valkey HGET/HMSET/EXPIRE and flagd) pays ~300ms and checkout/frontend requests stretch to seconds.",
+    "confidence": "high",
+    "evidence": [
+      "tr_8f53cea1c696",
+      "tr_ad46a5173ed3",
+      "tr_77b42b675c4d",
+      "tr_66d7729de4c0"
+    ],
+    "reasoning": "Cart's own error ratio is flat at zero and its log is continuous and healthy (tr_77b42b675c4d, tr_66d7729de4c0), so cart is not erroring or frozen - it is slow. Traces (tr_ad46a5173ed3) show a uniform ~300ms self-time on each of cart's outbound hops (HGET, HMSET, EXPIRE, the flagd POST) while flagd, product-catalog, currency, payment, shipping and email all respond in single-digit milliseconds; the delay is therefore added per network operation inside cart's namespace rather than caused by any downstream service. The change log (tr_8f53cea1c696) records a traffic-shaping container attached to cart's network namespace at 00:23:06 with eth0 delay=300ms, just before onset at 00:27:46. Checkout, frontend, frontend-proxy and load-generator alert because they wait on cart's EmptyCart/GetCart path; they are the callers, not the fault. Remediation is to remove that injected delay, i.e. revert the shaping change.",
+    "open_questions": [
+      "Why the traffic-shaping container was attached (deliberate experiment vs. misapplied automation) is not settled by the change record.",
+      "Whether the alerting services failed on deadline/timeout errors or merely on latency thresholds was not checked - no checkout/frontend error-ratio series was pulled.",
+      "Whether other services in the blast radius share the same shaping container was not observed."
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B1",
+    "tool_calls": 4,
+    "turns": 6,
+    "looked_at": [
+      "metrics:cart",
+      "logs:cart",
+      "traces:checkout",
+      "changes:cart"
+    ]
+  }
+}

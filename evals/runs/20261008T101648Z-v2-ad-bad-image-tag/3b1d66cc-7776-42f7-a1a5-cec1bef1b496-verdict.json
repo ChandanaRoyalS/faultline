@@ -1,0 +1,170 @@
+{
+  "incident_id": "3b1d66cc-7776-42f7-a1a5-cec1bef1b496",
+  "trajectory_id": "71f3239b-7383-48da-9df4-b2f597ad5b62",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "ad",
+    "cart",
+    "checkout",
+    "flagd",
+    "frontend",
+    "frontend-proxy",
+    "product-catalog",
+    "product-reviews",
+    "recommendation"
+  ],
+  "unmeasured_edges": 8,
+  "exclude_origins": [
+    "scenario:v2-ad-bad-image-tag"
+  ],
+  "verdict": {
+    "root_cause": "At 10:16:56 platform-automation updated ad's image reference to an ad-specific hotfix tag [tr_d0001383944f]; one second earlier ad wrote a clean, orderly gRPC-then-JVM shutdown and then emitted nothing at all for the rest of the window, with no startup lines [tr_7ce8853c40b5]. Ad produced zero server spans after 10:13:36 while pre-cutoff traces show healthy 1.6-10ms frontend\u2192ad chains [tr_6b93e795e969]. Frontend's errors are purely transport-level gRPC 14 UNAVAILABLE against a single peer 172.18.0.19:9555, refused and later host-unreachable, with no connection ever established [tr_3384ab529d86]. The replacement artifact never came up, so ad's address has nothing listening; frontend has no changes of its own [tr_877e05badcaa] and its raised error ratio [tr_ea08242c3d89] is the downstream shadow.",
+    "service": "ad",
+    "fault_class": "bad_deploy",
+    "remediation_class": "rollback",
+    "confidence": "medium",
+    "evidence": [
+      "tr_d0001383944f",
+      "tr_7ce8853c40b5",
+      "tr_6b93e795e969",
+      "tr_3384ab529d86",
+      "tr_877e05badcaa",
+      "tr_ea08242c3d89",
+      "tr_e5e86ff39423"
+    ],
+    "reasoning": "Three independent ad-side signals converge on the same second: the image change at 10:16:56 [tr_d0001383944f], the orderly shutdown at 10:16:55 with silence after [tr_7ce8853c40b5], and the hard cutoff of ad spans with no post-cutoff inbound server span of any kind [tr_6b93e795e969]. The caller's signature discriminates the look-alikes: ECONNREFUSED with no connection established is not a hang (freeze/partition) and not DEADLINE_EXCEEDED (dependency_latency), and slow-downstream plus DNS were both closed explicitly [tr_3384ab529d86]. The clean sequenced shutdown with no stack trace rules out an OOM kill, and the last memory-limit action before onset was a restore at 10:03 [tr_d0001383944f][tr_7ce8853c40b5]. Ad's own error ratio never departed baseline or approached saturation [tr_e5e86ff39423], consistent with a service that stopped serving rather than one serving badly. What is wrong now is that the artifact that should answer on ad's address is not running; the fix is restoring the prior image.",
+    "open_questions": [
+      "The 172.18.0.19:9555 \u2192 ad mapping is inferred from port and timing; frontend logs name only IP:port and no registry or inventory was consulted [tr_3384ab529d86].",
+      "Frontend was already logging identical UNAVAILABLE errors against that peer at 09:54, while ad was demonstrably serving traces at 10:06-10:13 [tr_3384ab529d86][tr_6b93e795e969] \u2014 unexplained, and it weakens the 10:16:56 onset story.",
+      "Why the new artifact failed to start is unknown (pull failure, crash before logging, never scheduled are indistinguishable), and no CPU/memory metrics for ad were ever collected [tr_e5e86ff39423]."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "Repeated lowering of ad's memory limit by platform-automation caused the JVM to be killed, leaving ad absent; the hotfix image is incidental.",
+        "service": "ad",
+        "fault_class": "resource_exhaustion",
+        "remediation_class": "config_revert",
+        "why_not": "No lowered limit was in force at onset (restored at 10:03) and the termination was an orderly shutdown with no stack trace [tr_d0001383944f][tr_7ce8853c40b5]; it survives only because no utilisation metrics were gathered and it could explain the 09:54 refusals."
+      },
+      {
+        "root_cause": "The ad container was stopped and removed by the orchestrator independently of the artifact change, so ad is simply absent rather than running a bad build.",
+        "service": "ad",
+        "fault_class": "unknown",
+        "remediation_class": "restart",
+        "why_not": "The shutdown coincides within one second of a recorded image update, which is the obvious proximate act [tr_d0001383944f]; this reading requires that coincidence to be accidental, though the refused\u2192host-unreachable shift at ~10:23:47 [tr_3384ab529d86] keeps it alive."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "v2-ad-memory-squeeze / Root cause: The ad service container's memory limit was lowered from 300M to 144m, below the 230MB working set\nof a JVM that had sized its heap against 300M, and below what a fresh JVM needs to load its\ninstrumentation agent and start at all. The kernel killed the running JVM within a second",
+    "v2-ad-memory-squeeze / What was checked: **The page names callers.** Frontend-proxy forwards what the frontend returns, and the load\ngenerator is the synthetic shoppers counting their own failures. The frontend was the one service\nmaking calls that failed, and the order path was not among them.\n\n**The frontend's error t",
+    "v2-ad-memory-squeeze / Resolution: The memory limit was restored to 300M. The next JVM start, twenty seconds after the fix, was the\nfirst in ten minutes to reach `Ad service started, listening on 9555`, and it served its first ad\nrequest just under two minutes later, as the frontend found it again; a new set of 51"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 25854,
+    "pulled_tokens": 7277,
+    "pull_rate": 0.2196,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 438,
+        "content_tokens": 440,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1745,
+        "content_tokens": 1748,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 7895,
+        "content_tokens": 7871,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 7111,
+        "content_tokens": 7113,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 8665,
+        "content_tokens": 8643,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "rollback",
+    "action_id": "rollback_image",
+    "target": "ad",
+    "rests_on": [
+      "tr_d0001383944f",
+      "tr_7ce8853c40b5",
+      "tr_6b93e795e969"
+    ],
+    "expected_effect": "Ad should come back up at its pre-10:16:56 image: new startup lines under {service=\"ad\"} in Loki within ~60s (ending the silence since 10:16:55), and ad server spans (oteldemo.AdService/GetAds) reappearing in Tempo after their 10:13:36 cutoff. If the 172.18.0.19:9555 mapping holds, frontend's fresh gRPC 14 UNAVAILABLE lines against that peer stop and its error ratio drifts from ~3.4% back toward the ~2.0% baseline.",
+    "confirm_within_seconds": 300,
+    "if_wrong": "Falsified if ad still emits zero logs and zero spans five minutes after the recreate \u2014 then the start failure is not image-tag-controlled (pull failure, never scheduled, crash before logging are indistinguishable here). Also falsified if ad serves spans again but frontend keeps logging fresh UNAVAILABLE against 172.18.0.19:9555, which breaks the inferred IP\u2192ad mapping; those errors already appeared at 09:54 while ad was healthy. Approver should verify a concrete prior image tag exists: the change record shows the prior value as 'None'. If none resolves, refuse rather than guess.",
+    "risk": "Reverts a deliberate hotfix for an unknown defect, reintroducing whatever it fixed. Adds a second image change minutes after the first, muddying attribution. Discards ad's in-process cache. platform-automation made every change here unattended and may reconcile back to the hotfix tag or fight the rollback.",
+    "blast_radius": "ad only; its callers see connection resets during the recreate. frontend (and frontend-proxy behind it) is the named inbound caller and is already failing on this path. flagd is ad's downstream and sees ad traffic resume."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Critical multi-service alerting across frontend, proxy, and ad within a minute is not dismissible, and no open incident covers it. The ad/flagd adjacency hints at a feature-flag or config path, but the evidence does not yet favor any class."
+  }
+}

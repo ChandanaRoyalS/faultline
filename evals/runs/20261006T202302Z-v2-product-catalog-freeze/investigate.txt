@@ -1,0 +1,9 @@
+incident 56045b7a-b6f9-459f-91a0-e9c0559ce3f5  state triaging  anchor 20:27:31
+triage: 9 services, severity critical, start from frontend-proxy, 7 unmeasured edge(s) crossed
+
+B2: dependency_latency / restart (low)
+  A shared downstream dependency of frontend—most likely product-catalog—became slow, so frontend requests piled up waiting and frontend-proxy returned timeout errors to the load generator.
+  looked at nothing - this is the model's prior
+wrote /Users/chandana/dev/faultline/evals/runs/20261006T202302Z-v2-product-catalog-freeze/56045b7a-b6f9-459f-91a0-e9c0559ce3f5-verdict.json
+{"ts": "2026-10-06T20:29:44.997+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-06T20:29:54.984+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}

@@ -1,0 +1,39 @@
+{
+  "incident_id": "60233311-905a-4e57-a05f-92c4d2402a7f",
+  "trajectory_id": "15777c82-8ded-4f63-8f11-d271ad10d8fa",
+  "states": [
+    "triaging"
+  ],
+  "blast_radius": [
+    "accounting"
+  ],
+  "unmeasured_edges": 0,
+  "exclude_origins": [
+    "scenario:scenario:v2-accounting-kafka-misconfig"
+  ],
+  "verdict": {
+    "fault_class": "bad_config",
+    "remediation_class": "config_revert",
+    "service": "accounting",
+    "summary": "suspect: service of the most recent pre-onset change in the window (11:23:01); class: that change was to environment; remediation: table lookup from bad_config",
+    "confidence": "n/a - B0 is a rule, not an estimate"
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B0",
+    "service": "accounting",
+    "fault_class": "bad_config",
+    "fix_class": "config_revert",
+    "why": [
+      "suspect: service of the most recent pre-onset change in the window (11:23:01)",
+      "class: that change was to environment",
+      "remediation: table lookup from bad_config"
+    ]
+  }
+}

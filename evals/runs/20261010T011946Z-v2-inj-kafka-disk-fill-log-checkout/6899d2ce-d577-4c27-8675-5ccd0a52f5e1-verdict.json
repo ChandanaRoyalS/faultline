@@ -1,0 +1,70 @@
+{
+  "incident_id": "6899d2ce-d577-4c27-8675-5ccd0a52f5e1",
+  "trajectory_id": "3d8c6823-db1f-4c79-a8c0-2969d8f35025",
+  "states": [
+    "triaging"
+  ],
+  "blast_radius": [
+    "checkout",
+    "accounting",
+    "fraud-detection",
+    "cart",
+    "currency",
+    "email",
+    "flagd",
+    "frontend",
+    "payment",
+    "product-catalog",
+    "shipping",
+    "frontend-proxy"
+  ],
+  "unmeasured_edges": 9,
+  "exclude_origins": [
+    "scenario:scenario:v2-inj-kafka-disk-fill-log-checkout"
+  ],
+  "verdict": {
+    "fault_class": "dependency_latency",
+    "remediation_class": "restart",
+    "service": "checkout",
+    "alternatives": [
+      {
+        "root_cause": "A runtime flag (e.g. a Kafka-queue-problem flag) was flipped in flagd, injecting the publish-path stall into checkout.",
+        "service": "flagd",
+        "fault_class": "feature_flag",
+        "remediation_class": null,
+        "why_not": "checkout has no edge to flagd in this catalog, so the flagged path would have to live elsewhere; flagd's other consumers (cart, ad, recommendation, product-reviews) show no symptoms."
+      },
+      {
+        "root_cause": "checkout exhausted memory/threads as in-flight requests and unsent producer records accumulated, causing the latency and error spike.",
+        "service": "checkout",
+        "fault_class": "resource_exhaustion",
+        "remediation_class": null,
+        "why_not": "Exhaustion is the usual downstream consequence of a blocked publish path rather than the initiating fault, and it would not by itself explain the clean simultaneous silence of both queue consumers."
+      }
+    ],
+    "summary": "checkout's asynchronous order-publishing path (the Kafka producer) became slow/blocked, so checkout requests piled up into latency then errors, and no order messages reached the downstream consumers accounting and fraud-detection.",
+    "confidence": "low",
+    "evidence": [],
+    "reasoning": "The alert ordering tells the story: checkout degrades first (latency, then errors), and one minute later accounting and fraud-detection report *no traffic* rather than errors. Those two are exactly the message-bus consumers in this topology \u2014 they are not callees of checkout in the graph at all (accounting is listed as absent, fraud-detection only talks to flagd), so the only way checkout's trouble reaches them is via the order queue. They went silent because nothing was being produced, not because they broke. Meanwhile none of checkout's synchronous dependencies (cart, currency, payment, shipping, email, product-catalog) alerted, which argues the stall is in checkout's own publish path rather than in a RPC callee. Latency-before-errors is the classic signature of waiting on a slow dependency until deadlines/queues overflow, so I blame the broker/producer path rather than checkout code itself.",
+    "open_questions": [
+      "Kafka broker health, under-replicated partitions, and producer send latency / buffer-full errors during the window",
+      "checkout logs: are errors 'context deadline exceeded' on produce, or failures from a specific RPC callee?",
+      "checkout container memory/CPU and goroutine or thread counts (producer buffer backpressure can look like a leak)",
+      "flagd flag state for kafkaQueueProblems / any flag toggled near 01:25",
+      "consumer lag on accounting and fraud-detection: zero lag with no new offsets confirms nothing was produced"
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B2",
+    "tool_calls": 0,
+    "attempts": 2,
+    "cited_without_looking": []
+  }
+}

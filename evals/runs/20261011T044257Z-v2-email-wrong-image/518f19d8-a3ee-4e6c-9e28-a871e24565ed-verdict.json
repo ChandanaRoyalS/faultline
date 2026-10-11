@@ -1,0 +1,67 @@
+{
+  "incident_id": "518f19d8-a3ee-4e6c-9e28-a871e24565ed",
+  "trajectory_id": "7b59e73e-8cbb-4128-80f7-08958c6911e2",
+  "states": [
+    "triaging"
+  ],
+  "blast_radius": [
+    "checkout",
+    "email",
+    "cart",
+    "currency",
+    "frontend",
+    "payment",
+    "product-catalog",
+    "shipping",
+    "frontend-proxy"
+  ],
+  "unmeasured_edges": 8,
+  "exclude_origins": [
+    "scenario:scenario:v2-email-wrong-image"
+  ],
+  "verdict": {
+    "fault_class": "process_freeze",
+    "remediation_class": "restart",
+    "service": "email",
+    "alternatives": [
+      {
+        "root_cause": "email exhausted memory or its worker/connection pool and stopped accepting or completing work",
+        "service": "email",
+        "fault_class": "resource_exhaustion",
+        "remediation_class": null,
+        "why_not": "A pool or memory exhaustion usually still produces error logs and partial traffic from the victim; a total NoTraffic signal points to a process that is not running the handler at all. Would be promoted by OOMKill or restart-count evidence."
+      },
+      {
+        "root_cause": "email was cut off from the network so callers hung while it logged unreachable dependencies",
+        "service": "email",
+        "fault_class": "network_partition",
+        "remediation_class": null,
+        "why_not": "email is a leaf with no outbound dependencies in this graph, so it would have little to complain about, and a partition would more likely surface as connection errors at checkout rather than a clean telemetry blackout."
+      }
+    ],
+    "summary": "The email service's process stopped serving while its listener still accepted connections, so checkout's calls to it hung to deadline and failed, and email itself emitted no telemetry at all.",
+    "confidence": "low",
+    "evidence": [],
+    "reasoning": "checkout alerted first but it is the caller: every other service in the blast radius is reachable through checkout's or frontend's fan-out, and the only leaf that alerted on its own is email, which checkout calls directly. The pairing of a caller-side high error rate with a downstream ServiceNoTraffic (and nothing from email itself) is the classic shape of a frozen or dead process: the dependency stops producing spans/logs entirely while the caller burns deadlines. The two-minute lag on the email alert is just the no-traffic evaluation window, not evidence that checkout broke first. Nothing in the topology suggests a shared-dependency fault (flagd is not on checkout's path, and cart/currency/payment/shipping are only in the radius by traversal, not by alerting).",
+    "open_questions": [
+      "Did email write any log lines at all during the window, or does its log stop cleanly at onset?",
+      "Are checkout->email failures deadline-exceeded/timeouts or immediate connection-refused? Timeouts favour a freeze, refusals favour a crashed or mis-deployed process.",
+      "Email pod state: OOMKilled, restart count, CPU throttling, GC pause metrics, or a thread/heap dump.",
+      "Any recent image or config rollout for email just before 04:48?",
+      "Did checkout error on all requests or only those reaching the email step (i.e., is the error rate bounded by the notification path)?"
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B2",
+    "tool_calls": 0,
+    "attempts": 2,
+    "cited_without_looking": []
+  }
+}

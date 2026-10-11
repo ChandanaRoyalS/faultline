@@ -1,0 +1,88 @@
+{
+  "incident_id": "2faca777-2b46-4e55-906c-19b7c5516f4b",
+  "trajectory_id": "5887d317-eb09-4414-85dc-fda7d9759a25",
+  "states": [
+    "triaging",
+    "investigating"
+  ],
+  "blast_radius": [
+    "checkout",
+    "accounting",
+    "fraud-detection",
+    "frontend-proxy",
+    "cart",
+    "currency",
+    "email",
+    "flagd",
+    "frontend",
+    "payment",
+    "product-catalog",
+    "shipping"
+  ],
+  "unmeasured_edges": 9,
+  "exclude_origins": [
+    "scenario:scenario:v2-kafka-disk-fill"
+  ],
+  "verdict": {
+    "fault_class": "disk_fill",
+    "remediation_class": "free_storage",
+    "service": "kafka",
+    "alternatives": [
+      {
+        "root_cause": "A wrong configuration value (volume mount path, data dir, or run-as user) made Kafka's log directory unwritable.",
+        "service": "kafka",
+        "fault_class": "bad_config",
+        "remediation_class": null,
+        "why_not": "The change log for kafka over the full 24h window is empty (tr_0af25205b2c1), so no configuration value was edited; the broker ran fine with the same settings until 00:28."
+      },
+      {
+        "root_cause": "checkout itself is misconfigured with an unreachable Kafka broker address.",
+        "service": "checkout",
+        "fault_class": "bad_config",
+        "remediation_class": null,
+        "why_not": "No change was recorded for checkout (tr_fdda0cf58bca) and the broker-side log shows an independent crash-loop beginning at the incident onset (tr_5b4a70137431), which explains the unresolvable endpoint without any client-side edit."
+      },
+      {
+        "root_cause": "The Kafka broker process is frozen or network-partitioned while its name still exists, so producers hang to their deadlines.",
+        "service": "kafka",
+        "fault_class": "process_freeze",
+        "remediation_class": null,
+        "why_not": "A frozen process writes nothing; Kafka is writing a continuous restart sequence every minute (tr_5b4a70137431), and its complaint is about writing its own storage, not about reaching the network."
+      }
+    ],
+    "summary": "Kafka cannot write to its data directory (/tmp/kafka-logs) at startup, so the broker crash-loops every ~60s and never serves, causing checkout's order-publish calls to hang and fail and that stall to propagate up through frontend and frontend-proxy to 15s client timeouts.",
+    "confidence": "medium",
+    "evidence": [
+      "tr_16dd96a79237",
+      "tr_ebe23acf1ace",
+      "tr_5b4a70137431",
+      "tr_fdda0cf58bca",
+      "tr_0af25205b2c1"
+    ],
+    "reasoning": "checkout alerted first but its own error ratio never departed from baseline (tr_16dd96a79237); its traces show every checkout operation (cart, currency, product-catalog, payment, shipping, email) completing in single-digit ms while the single span 'orders publish' consumes 60-90s and fails because the Kafka broker endpoint cannot even be resolved/reached (tr_ebe23acf1ace). That makes checkout the noticer, not the breaker, and frontend/frontend-proxy errors are just the 15s ingress deadline firing above it. Kafka's own log (tr_5b4a70137431) shows a healthy broker up to ~23:58 and then, from 00:28 onward, a repeating startup sequence that dies at the point of writing its metadata/checkpoint file into its log directory - a storage write failure that makes the broker refuse to come up rather than run slowly, which is why its DNS name has no live endpoint. No change was recorded for either checkout (tr_fdda0cf58bca) or kafka (tr_0af25205b2c1) in the preceding 24h, so this is not a deploy or config edit; the broker's storage simply stopped accepting writes.",
+    "open_questions": [
+      "The broker's write failure is reported as an access/permission denial on the log directory rather than an explicit out-of-space error, so whether the underlying cause is a full volume, a remounted/read-only volume, or an ownership change on /tmp/kafka-logs is not settled.",
+      "Kafka's host/volume-level disk metrics were not examined, so capacity exhaustion was inferred from the write failure rather than measured.",
+      "Whether accounting and fraud-detection (both Kafka consumers) failed purely from the broker being down, or had an independent symptom, was not checked."
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B1",
+    "tool_calls": 5,
+    "turns": 7,
+    "looked_at": [
+      "metrics:checkout",
+      "traces:checkout",
+      "changes:checkout",
+      "logs:kafka",
+      "changes:kafka"
+    ]
+  }
+}

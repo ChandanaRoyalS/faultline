@@ -1,0 +1,182 @@
+{
+  "incident_id": "7a8dc9bd-a210-49f6-93d2-53041240846b",
+  "trajectory_id": "cc91e4ac-b3a3-4c39-a499-5ba57482fd67",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "ad",
+    "cart",
+    "checkout",
+    "currency",
+    "email",
+    "flagd",
+    "frontend",
+    "frontend-proxy",
+    "load-generator",
+    "payment",
+    "product-catalog",
+    "product-reviews",
+    "recommendation",
+    "shipping"
+  ],
+  "unmeasured_edges": 15,
+  "exclude_origins": [
+    "scenario:v2-postgresql-catalog-corruption"
+  ],
+  "verdict": {
+    "root_cause": "product-catalog's backing product data is unreadable/incomplete while the database itself is healthy. Erroring GetProduct spans are immediate (0.5\u20134.3ms) and their only child, sql.conn.query, completes successfully with no error status, so the failure is generated inside product-catalog after the query returns [tr_c06c38605dc6]. The frontend's own log names the mechanism: alongside gRPC code 5 NOT_FOUND for specific product ids, a bulk product load fails with a peer INTERNAL error raised while scanning a database row because the description column returned NULL [tr_7ddb21fc2efb]. Five distinct product ids are affected, which rules out one bad row and points at a broader contents problem [tr_c06c38605dc6]. The error behaviour is newly emergent \u2014 the baseline error ratio was flat zero with a single change point at 02:17:46 and a peak around 0.34 [tr_c3854f8b8fa9] \u2014 and no deploy, config edit or flag flip is recorded for product-catalog or flagd in the covered window [tr_cec5ba87f76b][tr_42828fda6951][tr_41bc1b6d7c70]. That is a reachable, responsive store whose contents cannot be read correctly: datastore corruption in product-catalog's product data, propagating unchanged through frontend, frontend-proxy and checkout to the user [tr_c06c38605dc6].",
+    "service": "product-catalog",
+    "fault_class": "datastore_corruption",
+    "remediation_class": "restore_data",
+    "confidence": "medium",
+    "evidence": [
+      "tr_c06c38605dc6",
+      "tr_7ddb21fc2efb",
+      "tr_c3854f8b8fa9",
+      "tr_cec5ba87f76b",
+      "tr_42828fda6951",
+      "tr_41bc1b6d7c70",
+      "tr_4277a9f5d04e",
+      "tr_b75392aa996f"
+    ],
+    "reasoning": "The alert started at frontend-proxy, but the trace evidence puts the deepest span carrying an original exception on product-catalog's GetProduct; frontend and frontend-proxy spans carry ERROR only as inherited status [tr_c06c38605dc6]. That explains the shape of the blast radius: frontend-proxy and frontend error ratios roughly double but most traffic still succeeds [tr_4277a9f5d04e], checkout fails at PlaceOrder for the same product id, and recommendation is affected through ListProducts \u2014 all consistent with a partial, per-record failure inside one upstream rather than an outage. The mechanism is narrowed by two negatives: the database is not slow or failing (sql.conn.query succeeds in milliseconds, failures are immediate rejections not deadline expiries [tr_c06c38605dc6]) and the catalog backend is reachable and answering at the application level [tr_7ddb21fc2efb], which excludes freeze, partition and dependency latency. Exhaustion and disk fill are not supported by anything on the board and would not produce per-id NOT_FOUND with healthy fast queries. The only positive mechanism anyone observed is a read-side decode failure \u2014 a NULL in a column the scan cannot accept \u2014 plus missing rows for multiple ids, which is corrupt or partially lost store contents. The change log being empty for both product-catalog and flagd over the covered interval removes deploy, config and flag as triggers, so the fix is to repair/restore the catalog data rather than to revert anything.",
+    "open_questions": [
+      "All three change queries ran forward from 02:18:46 and explicitly did not sample the hours before onset [tr_cec5ba87f76b][tr_42828fda6951][tr_41bc1b6d7c70]; a pre-02:17 deploy, migration or data-loading job on product-catalog remains unexamined and is the most likely origin of the bad rows.",
+      "Why product-catalog emitted no log lines at all for over an hour [tr_b75392aa996f] is unexplained \u2014 it could be a telemetry/labelling gap or a genuine logging failure, and its own log would settle whether the scan error is the whole story.",
+      "Whether the per-id NOT_FOUND failures and the NULL-description scan failure are one fault or two was explicitly left open by the frontend log analysis [tr_7ddb21fc2efb].",
+      "The frontend log is truncated across 01:18:51\u201302:20:39, so the 02:17\u201302:19 onset minutes were never characterized from logs [tr_7ddb21fc2efb].",
+      "The earlier 01:18 EHOSTUNREACH on port 7070 and a resolver returning zero addresses [tr_7ddb21fc2efb] are unaccounted for \u2014 possibly a separate, earlier event, possibly a precursor.",
+      "No request-rate, latency or saturation metrics were retrieved for product-catalog [tr_c3854f8b8fa9], so a resource dimension was never measured.",
+      "Whether the corruption sits in the database rows themselves or in a file/seed dataset product-catalog loads from was not determined, which changes what 'restore' means operationally."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "An untracked product-catalog release or schema migration changed row handling so that rows the service previously served now fail to scan or resolve.",
+        "service": "product-catalog",
+        "fault_class": "bad_deploy",
+        "remediation_class": "rollback",
+        "why_not": "The change log is empty for the entire covered window [tr_cec5ba87f76b][tr_42828fda6951], and the failures are data-dependent \u2014 only some product ids fail while ListProducts and other GetProduct calls succeed [tr_c06c38605dc6] \u2014 which fits bad contents better than a uniformly wrong artifact. It stays plausible only because the pre-onset interval was never queried."
+      },
+      {
+        "root_cause": "product-catalog is pointed at the wrong or an incomplete dataset/schema by a configuration value, so lookups miss and columns arrive unexpectedly NULL.",
+        "service": "product-catalog",
+        "fault_class": "bad_config",
+        "remediation_class": "config_revert",
+        "why_not": "Nothing on the board names a wrong address, credential or limit, no config edit is recorded [tr_42828fda6951], and a wholly wrong datasource would fail far more uniformly than the observed ~34% peak with many successful lookups [tr_c3854f8b8fa9][tr_c06c38605dc6]."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "v2-product-catalog-freeze / What was checked: **The proxy, because it was loudest.** Its errors were all the same kind: upstream requests\ncut at the fifteen-second route timeout. The proxy was doing its job. Nothing in its own\nbehaviour had changed, so it was reporting the problem, not causing it.\n\n**Frontend, because its la",
+    "v2-product-catalog-flag-failure / What was checked: **The page names the edge, not a cause.** Frontend-proxy only forwards what frontend returns, and\nfrontend is the application the shoppers talk to. Both were reporting failures from somewhere\nbelow them.\n\n**The frontend's log, which named the cause in its own words.** From the fi",
+    "v2-product-catalog-freeze / Resolution: The catalog process was resumed. Its runtime reports came back within fifteen seconds and its\nrequest rate within a minute. Where an operator cannot resume a suspended process, restarting\nthe container does the same job. Class of fix: **restart**. Nothing was deployed or\nmisconfi"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 31211,
+    "pulled_tokens": 6887,
+    "pull_rate": 0.1808,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 485,
+        "content_tokens": 487,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1925,
+        "content_tokens": 1928,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 9373,
+        "content_tokens": 9350,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 8999,
+        "content_tokens": 9001,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 10429,
+        "content_tokens": 10407,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_c06c38605dc6",
+      "tr_7ddb21fc2efb",
+      "tr_cec5ba87f76b",
+      "tr_42828fda6951",
+      "tr_c3854f8b8fa9"
+    ],
+    "expected_effect": "No action proposed, so no effect is expected. The named fix class (restore_data, via restore_store) is listed UNAVAILABLE \u2014 the executor performs only rollback_image, revert_config and restart_service \u2014 so the only action that addresses the diagnosed mechanism cannot be performed by this system. None of the three available actions meets its own preconditions here: rollback_image requires evidence of a deploy or image change inside the window and a recorded prior tag, and the change log for product-catalog is empty across the whole covered window [tr_cec5ba87f76b][tr_42828fda6951]; revert_config requires a configuration or flag change named in the window, and none exists [tr_cec5ba87f76b][tr_42828fda6951]; restart_service requires evidence pointing at process state, but the evidence points at store contents \u2014 GetProduct fails in 0.5\u20134.3ms with its sql.conn.query child succeeding and unmarked [tr_c06c38605dc6], and the frontend log names a row scan failing on a NULL description column [tr_7ddb21fc2efb]. Recreating the container does not rewrite rows. Escalate to an operator who can inspect and reload product-catalog's product data; the operational question of whether the bad data sits in the database rows or in a seed/file dataset must be settled first, since it changes what restore means.",
+    "confirm_within_seconds": 0,
+    "if_wrong": "This abstention is wrong if product-catalog's product data is loaded into process memory at startup from a source that is itself intact \u2014 in that case a restart_service on product-catalog would reload clean data and the error ratio would fall from its ~0.34 peak back to the flat zero baseline [tr_c3854f8b8fa9] within a few minutes. Two things would show that: evidence that the catalog is served from an in-memory copy rather than read per-request (contradicted today by the per-request sql.conn.query child span [tr_c06c38605dc6]), or a product-catalog log stream showing a load-time parse of a seed file \u2014 currently unavailable, since the service emitted no lines at all for over an hour [tr_b75392aa996f]. It is also wrong if a pre-02:17 deploy or data-loading job exists: all three change queries began at 02:18:46 and never sampled the hours before onset [tr_cec5ba87f76b][tr_42828fda6951][tr_41bc1b6d7c70], so a rollback target may exist and simply not have been looked for. Re-running change_history over 2026-10-06T20:00Z..2026-10-07T02:18Z is the cheapest way to falsify this abstention.",
+    "risk": "The risk of abstaining is continued user-visible failure: roughly a third of product-catalog spans erroring at peak [tr_c3854f8b8fa9], propagating unchanged through frontend, frontend-proxy and checkout to failed PlaceOrder calls [tr_c06c38605dc6]. That cost is real and ongoing. It is accepted because the alternatives are worse: a restart_service on product-catalog discards in-process state, is listed irreversible, resets the service's error counters and would destroy the timing correlation that currently localises the fault, while leaving corrupt rows in place \u2014 buying nothing and making the next diagnosis harder. A rollback_image with no recorded prior tag either refuses or redeploys an arbitrary image into a data fault, risking a schema mismatch against an already-damaged store.",
+    "blast_radius": "No change is made, so nobody observes anything new. The services already affected remain affected: product-catalog directly, its callers frontend and checkout [tr_c06c38605dc6], and through them frontend-proxy, recommendation and load-generator. Had restart_service been proposed, its blast radius would have been product-catalog's container recreate, seen as connection resets by frontend, checkout and recommendation \u2014 the latter currently being served successfully by ListProducts [tr_c06c38605dc6], so a restart would break a path that works today."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Six services alerting critically within a minute across frontend, checkout, and recommendation paths is a broad, non-dismissible failure with no open incident to attribute it to. Shared downstream candidates (flagd, product-catalog) hint at a config/flag or common dependency, but nothing yet justifies naming a class."
+  }
+}

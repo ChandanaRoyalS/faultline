@@ -1,0 +1,71 @@
+{
+  "incident_id": "a0695d75-4221-42b5-a761-e086aeaabc08",
+  "trajectory_id": "c2e98ac9-1bee-4d9b-95c1-1a867e23cff4",
+  "states": [
+    "triaging"
+  ],
+  "blast_radius": [
+    "fraud-detection",
+    "accounting",
+    "currency",
+    "email",
+    "frontend-proxy",
+    "load-generator",
+    "payment",
+    "quote",
+    "shipping",
+    "checkout",
+    "flagd",
+    "frontend"
+  ],
+  "unmeasured_edges": 8,
+  "exclude_origins": [
+    "scenario:scenario:v2-currency-freeze"
+  ],
+  "verdict": {
+    "fault_class": "process_freeze",
+    "remediation_class": "restart",
+    "service": "flagd",
+    "alternatives": [
+      {
+        "root_cause": "checkout's process was stopped while its socket kept accepting, so frontend hung to its deadline and none of checkout's dependencies received calls.",
+        "service": "checkout",
+        "fault_class": "process_freeze",
+        "remediation_class": null,
+        "why_not": "Explains every no-traffic alert and the upstream latency cleanly, but leaves fraud-detection's high error rate two minutes earlier unexplained \u2014 a frozen checkout would make fraud-detection go quiet, not error."
+      },
+      {
+        "root_cause": "A feature flag was flipped in flagd enabling a failing code path that broke fraud-detection and stalled checkout's order flow.",
+        "service": "flagd",
+        "fault_class": "feature_flag",
+        "remediation_class": null,
+        "why_not": "A flipped flag normally produces fast failures on one code path, not a caller that goes entirely silent on six downstream services; the hang-like no-traffic pattern fits an unresponsive evaluator better than a bad flag value."
+      }
+    ],
+    "summary": "flagd stopped responding to flag-evaluation requests (process alive but serving nothing), so every service that blocks on a flag lookup \u2014 fraud-detection first, then checkout \u2014 hung or errored, and checkout stopped issuing any downstream calls.",
+    "confidence": "low",
+    "evidence": [],
+    "reasoning": "The alert shape splits into two kinds: one service erroring (fraud-detection) and a cluster of services going completely silent (payment, email, currency, shipping, quote, accounting) while their caller chain (frontend-proxy, load-generator) only gets slow. Silence downstream plus latency upstream means the caller \u2014 checkout \u2014 stopped emitting calls rather than failing them, which is the signature of a caller blocked on something, not of any one of the silent leaf services breaking. The only node common to the first alerter and the blocked caller path in this topology is flagd, which is in the blast radius and which fraud-detection calls directly; a frozen flagd makes fraud-detection's evaluations time out into errors and makes checkout's request path stall before it ever reaches payment/email/currency/shipping, with accounting going quiet because checkout never publishes an order. The two-minute gap between fraud-detection's error alert and the no-traffic alerts fits a dependency that stopped answering at once, with the no-traffic detectors needing a window to fire. I hold this only loosely: ad, recommendation, cart and product-reviews also call flagd and are not alerting, which is real evidence against a total flagd outage and would push the answer toward checkout itself being frozen.",
+    "open_questions": [
+      "Is flagd writing any log lines at all after 16:05, and are its own health/readiness probes passing?",
+      "Are ad, recommendation, cart and product-reviews actually healthy, or just not covered by the no-traffic alert rules?",
+      "Do checkout traces show spans that start and never end at the flag-evaluation call, or do they stop before any outbound span?",
+      "Did the flag store change (flag flipped or ruleset edited) around 16:05, with no deploy in the change log?",
+      "Is the Kafka path between checkout and accounting/fraud-detection healthy, since both are off-graph here?",
+      "What error text does fraud-detection emit \u2014 deadline exceeded, connection refused, or a decode/evaluation error?"
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B2",
+    "tool_calls": 0,
+    "attempts": 2,
+    "cited_without_looking": []
+  }
+}

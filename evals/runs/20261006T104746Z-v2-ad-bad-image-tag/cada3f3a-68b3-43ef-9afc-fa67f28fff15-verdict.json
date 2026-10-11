@@ -1,0 +1,167 @@
+{
+  "incident_id": "cada3f3a-68b3-43ef-9afc-fa67f28fff15",
+  "trajectory_id": "08deae42-ec67-4740-893f-20a33244e310",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "ad",
+    "cart",
+    "checkout",
+    "frontend",
+    "frontend-proxy",
+    "product-catalog",
+    "product-reviews",
+    "recommendation"
+  ],
+  "unmeasured_edges": 7,
+  "exclude_origins": [
+    "scenario:v2-ad-bad-image-tag"
+  ],
+  "verdict": {
+    "root_cause": "The ad service is not running. Its own logs end with a clean JVM-initiated gRPC server shutdown at 10:47:51 followed by total silence and no startup banner [tr_049f5c41df79], and its span-metrics series returns no samples at all \u2014 neither error nor total spans \u2014 in the incident window [tr_cf83f6da7194]. The ad change log shows seven platform-automation image-reference changes in the ~1.2 hours before onset, alternating every 11-13 minutes between an unset reference and a single hotfix tag, the last an update to that hotfix tag ~5 minutes before onset [tr_e6ff75165b3e]: the deploy loop tore the running instance down and the hotfix artifact never came back up. Frontend is the reporter, not the culprit \u2014 all its errors are gRPC status 14 UNAVAILABLE with connect EHOSTUNREACH to a single peer 172.18.0.19:9555, no connection ever established [tr_9129eb349cc8], the traces show the frontend\u2192AdService/GetAds client span as a childless leaf with no server-side ad span while cart, product-catalog and recommendation paths complete cleanly [tr_bead95082f1d], and frontend has no change records at all [tr_73b63a0cebf6].",
+    "service": "ad",
+    "fault_class": "bad_deploy",
+    "remediation_class": "rollback",
+    "confidence": "medium",
+    "evidence": [
+      "tr_049f5c41df79",
+      "tr_e6ff75165b3e",
+      "tr_cf83f6da7194",
+      "tr_9129eb349cc8",
+      "tr_bead95082f1d"
+    ],
+    "reasoning": "Ad's logs, metrics and traces all say the same thing: the process is absent, not erroring \u2014 orderly shutdown then silence [tr_049f5c41df79], an undefined error ratio with no denominator rather than a computed zero [tr_cf83f6da7194], and no server-side span for the frontend's ad call [tr_bead95082f1d]. Callers see a vanished endpoint: host-unreachable at connect time against one address, not a deadline, which excludes dependency_latency and overload [tr_9129eb349cc8]. It also excludes process_freeze, where the socket would still accept and callers would hang. Frontend is cleared by its empty change log [tr_73b63a0cebf6] and by its other dependencies being healthy in the same traces [tr_bead95082f1d]. The act upstream is the automation loop flapping ad's image reference, with the last update landing ~5 minutes before onset [tr_e6ff75165b3e]; only one tag is ever involved, so this is deployed-versus-not-deployed. The running artifact is not the one that should be running \u2014 bad_deploy \u2014 and the fix is to halt the flapping loop and restore ad to a known-good image that actually starts.",
+    "open_questions": [
+      "Why the hotfix image never started after 10:47:53 \u2014 no orchestrator or pod-event evidence was gathered, so pull failure, crash before first log line, or the deploy never being applied are all still open.",
+      "Whether 172.18.0.19:9555 is ad's current endpoint or a stale address from the prior instance; the peer was identified only by IP, never resolved to a service name.",
+      "Why identical ad-path failures already appear at ~10:02 and ~10:29, well before the 10:53:31 alert \u2014 the flapping loop plausibly explains it but was not directly correlated against those timestamps."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "The ad deployment's image reference was left pointing at an unset/invalid value by the automation loop, so no workload could be scheduled.",
+        "service": "ad",
+        "fault_class": "bad_config",
+        "remediation_class": "config_revert",
+        "why_not": "The last recorded change set the reference to a concrete hotfix tag rather than unsetting it [tr_e6ff75165b3e], so at onset the configured artifact existed and simply failed to run \u2014 an artifact problem, not a wrong value."
+      },
+      {
+        "root_cause": "The ad instance is alive but cut off at the network layer, so callers cannot reach it.",
+        "service": "ad",
+        "fault_class": "network_partition",
+        "remediation_class": "reconnect",
+        "why_not": "A partitioned-but-running ad would keep logging and keep emitting spans; instead it logged a graceful shutdown and then emitted nothing at all [tr_049f5c41df79][tr_cf83f6da7194]."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "v2-ad-memory-squeeze / What was observed: The page was two alerts in the same moment, `ServiceHighErrorRate` on **frontend-proxy** and\n**frontend**, 5m01s after the trouble started. Three minutes later `ServiceNoTraffic` fired on\n**ad**. Three alerts on three services by the fix, and none after it.\n\nThe frontend's error ",
+    "v2-product-catalog-freeze / What was observed: The page came 4m15s after requests started hanging: two alerts at once, error rate on\n**frontend-proxy** and on **load-generator**. Neither is a service anyone would fix. One is the\nedge proxy and the other is the synthetic client, and both were reporting what they received\nfrom ",
+    "v2-product-catalog-partition / What was observed: The page came 4m46s after requests started hanging, and it was four alerts at once: error rate\nand latency on **frontend-proxy** and on **load-generator**. Neither is a service anyone would\nfix. One is the edge proxy and the other is the synthetic client, and both were reporting "
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 29973,
+    "pulled_tokens": 8171,
+    "pull_rate": 0.2142,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 438,
+        "content_tokens": 440,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1512,
+        "content_tokens": 1515,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 9296,
+        "content_tokens": 9272,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 8588,
+        "content_tokens": 8590,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 10139,
+        "content_tokens": 10116,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_e6ff75165b3e",
+      "tr_049f5c41df79",
+      "tr_cf83f6da7194"
+    ],
+    "expected_effect": "Nothing changes: ad keeps emitting no span-metrics samples and no log lines, and frontend keeps logging gRPC 14 UNAVAILABLE / EHOSTUNREACH to 172.18.0.19:9555 at several lines per second. Any change in those signals without an operator acting means this brief is incomplete.",
+    "confirm_within_seconds": 0,
+    "if_wrong": "Overturn this if: (1) change history names a real prior image tag for ad other than the single hotfix tag - [tr_e6ff75165b3e] records the prior value as unset/None and only one tag ever appears, so rollback_image's precondition is met only by an absence, not a version; (2) orchestrator or container-event evidence shows the hotfix image pulls fine and the container was simply never recreated, which would make restart_service the right proposal; (3) evidence shows the platform-automation loop has stopped - as recorded it rewrote ad's image reference seven times at 11-13 minute intervals, so anything recreated now is likely torn down within a cycle.",
+    "risk": "Abstaining leaves ad down and the ad path failing. But rollback_image would most likely set ad's image reference back to unset, turning a stopped container into one with no image and losing the only pointer to the hotfix artifact. restart_service would recreate ad at a tag whose startup has never been observed in logs [tr_049f5c41df79]; if it cannot pull or dies pre-logging, the attempt is wasted and the timeline is muddied. Neither touches the automation loop, which is the actual mechanism and is outside this executor.",
+    "blast_radius": "Unchanged. Frontend remains the only observed caller of ad and continues to serve ~91-96% of calls successfully; cart, product-catalog and recommendation paths are unaffected either way."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Critical alerts on frontend and its proxy simultaneously affect the user-facing entry path, and no open incident covers them. Cause could be in the frontend itself or any of six downstream dependencies, so evidence is needed."
+  }
+}

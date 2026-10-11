@@ -1,0 +1,61 @@
+{
+  "incident_id": "e787a2e7-42e8-42e2-8fa3-490e804451e6",
+  "trajectory_id": "692a8d77-31c6-4d9d-a9d1-f009732d4666",
+  "states": [
+    "triaging"
+  ],
+  "blast_radius": [
+    "ad",
+    "flagd",
+    "frontend",
+    "frontend-proxy"
+  ],
+  "unmeasured_edges": 3,
+  "exclude_origins": [
+    "scenario:scenario:v2-ad-flag-failure"
+  ],
+  "verdict": {
+    "fault_class": "feature_flag",
+    "remediation_class": "config_revert",
+    "service": "ad",
+    "alternatives": [
+      {
+        "root_cause": "ad was redeployed with a broken artifact and fails on request handling",
+        "service": "ad",
+        "fault_class": "bad_deploy",
+        "remediation_class": null,
+        "why_not": "A bad artifact usually shows as crashloops or startup failure affecting all traffic, and nothing in the blast radius points at a release; a flag flip explains an empty change log."
+      },
+      {
+        "root_cause": "ad exhausted heap/thread capacity and began rejecting requests",
+        "service": "ad",
+        "fault_class": "resource_exhaustion",
+        "remediation_class": null,
+        "why_not": "Exhaustion typically ramps with rising latency and caller timeouts before hard errors, and would not single out ad at an instantaneous onset."
+      }
+    ],
+    "summary": "A feature flag toggled in flagd enabled the failing ad-service code path, causing ad to return errors on a large share of requests.",
+    "confidence": "medium",
+    "evidence": [],
+    "reasoning": "Only ad alerts, and the blast radius is exactly ad plus its flag source (flagd) and its callers upstream (frontend, frontend-proxy) - that is error propagation toward the caller, not a shared-dependency outage. flagd's other consumers (cart, recommendation, product-reviews, fraud-detection) are healthy, so flagd itself is fine; what differs is the flag value ad evaluates. An error rate that appears instantly with no downstream service degraded and no artifact change fits a runtime flag flip on an ad-specific code path (the familiar adServiceFailure-style toggle) better than a deploy or resource problem. If ad were merely slow rather than erroring, dependency_latency would fit, but the alert is error rate.",
+    "open_questions": [
+      "flagd flag-evaluation history / audit log for ad-scoped flags around 22:17",
+      "ad service logs: are errors thrown from a specific flag-guarded handler, or are they connection/timeout errors toward flagd?",
+      "whether any deploy or config rollout touched ad in the preceding hour",
+      "ad container CPU/memory, GC pauses and restart counts to rule out resource exhaustion"
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B2",
+    "tool_calls": 0,
+    "attempts": 2,
+    "cited_without_looking": []
+  }
+}

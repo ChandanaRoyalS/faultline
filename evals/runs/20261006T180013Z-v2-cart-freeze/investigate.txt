@@ -1,0 +1,9 @@
+incident 4a55f53f-0865-4a0d-befe-b5f0b2fe7d8d  state triaging  anchor 18:04:31
+triage: 11 services, severity critical, start from flagd, 13 unmeasured edge(s) crossed
+
+B2: resource_exhaustion / restart (low)
+  flagd became slow serving flag-evaluation requests (its own resources — CPU/connection/thread capacity — exhausted), so every service that evaluates flags on the request path (ad, cart, product-reviews, recommendation, fraud-detection) blocked and surfaced errors up through frontend and frontend-proxy to the load-generator.
+  looked at nothing - this is the model's prior
+wrote /Users/chandana/dev/faultline/evals/runs/20261006T180013Z-v2-cart-freeze/4a55f53f-0865-4a0d-befe-b5f0b2fe7d8d-verdict.json
+{"ts": "2026-10-06T18:07:49.488+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-06T18:07:57.811+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}

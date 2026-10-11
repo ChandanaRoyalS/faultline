@@ -1,0 +1,11 @@
+incident b7a8f593-a8a9-4ed0-82f8-abb71b0f3ece  state triaging  anchor 10:05:31
+triage: 9 services, severity critical, start from checkout, 8 unmeasured edge(s) crossed
+B0: bad_deploy / rollback
+  suspect: service of the most recent pre-onset change in the window (09:59:41)
+  class: that change was to image
+  remediation: table lookup from bad_deploy
+wrote /Users/chandana/dev/faultline/evals/runs/20261010T095937Z-v2-inj-email-wrong-image-log-checkout/b7a8f593-a8a9-4ed0-82f8-abb71b0f3ece-verdict.json
+{"ts": "2026-10-10T10:09:32.971+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=checkout start=2026-10-09T10:05:31.664000+00:00 end=2026-10-10T10:09:32.963862+00:00 span_s=86641 refused=False", "component": "investigator"}
+{"ts": "2026-10-10T10:09:32.974+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=promql_query subject=sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"checkout\",status_code=\"STATUS_CODE_ERROR\"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"checkout\"}[5m])) start=2026-10-10T09:35:31.664000+00:00 end=2026-10-10T10:09:32.963862+00:00 span_s=2041 refused=False", "component": "investigator"}
+{"ts": "2026-10-10T10:09:32.984+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=email start=2026-10-09T10:05:31.664000+00:00 end=2026-10-10T10:09:32.963862+00:00 span_s=86641 refused=False", "component": "investigator"}
+{"ts": "2026-10-10T10:09:32.985+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=promql_query subject=sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"email\",status_code=\"STATUS_CODE_ERROR\"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"email\"}[5m])) start=2026-10-10T09:35:31.664000+00:00 end=2026-10-10T10:09:32.963862+00:00 span_s=2041 refused=False", "component": "investigator"}

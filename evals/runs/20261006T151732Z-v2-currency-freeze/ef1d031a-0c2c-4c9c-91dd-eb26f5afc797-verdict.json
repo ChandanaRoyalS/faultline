@@ -1,0 +1,50 @@
+{
+  "incident_id": "ef1d031a-0c2c-4c9c-91dd-eb26f5afc797",
+  "trajectory_id": "434eac4e-aa41-455e-a00f-69337800f47f",
+  "states": [
+    "triaging"
+  ],
+  "blast_radius": [
+    "fraud-detection",
+    "frontend-proxy",
+    "load-generator",
+    "accounting",
+    "currency",
+    "email",
+    "payment",
+    "quote",
+    "shipping",
+    "checkout",
+    "flagd",
+    "frontend"
+  ],
+  "unmeasured_edges": 8,
+  "exclude_origins": [
+    "scenario:scenario:v2-currency-freeze"
+  ],
+  "verdict": {
+    "fault_class": "bad_deploy",
+    "remediation_class": "rollback",
+    "service": "shipping",
+    "summary": "suspect: service of the most recent pre-onset change in the window (15:06:57); class: that change was to image; remediation: table lookup from bad_deploy",
+    "confidence": "n/a - B0 is a rule, not an estimate"
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B0",
+    "service": "shipping",
+    "fault_class": "bad_deploy",
+    "fix_class": "rollback",
+    "why": [
+      "suspect: service of the most recent pre-onset change in the window (15:06:57)",
+      "class: that change was to image",
+      "remediation: table lookup from bad_deploy"
+    ]
+  }
+}

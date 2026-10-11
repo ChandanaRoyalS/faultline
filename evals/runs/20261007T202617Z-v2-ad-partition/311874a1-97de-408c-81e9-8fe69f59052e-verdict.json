@@ -1,0 +1,89 @@
+{
+  "incident_id": "311874a1-97de-408c-81e9-8fe69f59052e",
+  "trajectory_id": "26a50b2c-25d8-43de-b58b-721d8ba428c5",
+  "states": [
+    "triaging",
+    "investigating"
+  ],
+  "blast_radius": [
+    "frontend-proxy",
+    "load-generator",
+    "ad",
+    "flagd",
+    "frontend"
+  ],
+  "unmeasured_edges": 3,
+  "exclude_origins": [
+    "scenario:scenario:v2-ad-partition"
+  ],
+  "verdict": {
+    "fault_class": "feature_flag",
+    "remediation_class": "config_revert",
+    "service": "ad",
+    "alternatives": [
+      {
+        "root_cause": "ad is cut off from the network and cannot reach its dependencies, so callers see failures.",
+        "service": "ad",
+        "fault_class": "network_partition",
+        "remediation_class": null,
+        "why_not": "ad continued to serve requests with normal, short durations and its spans reached the trace store (tr_4cc23161b3d1); only the telemetry exporter host failed to resolve, and callers failed fast rather than hanging to deadlines."
+      },
+      {
+        "root_cause": "A wrong configuration value on ad broke the GetAds path.",
+        "service": "ad",
+        "fault_class": "bad_config",
+        "remediation_class": null,
+        "why_not": "The change log for ad was observed over a 24h window and held nothing (tr_bb7bcdd0be6b), so no configuration value was edited."
+      },
+      {
+        "root_cause": "ad became slow and callers failed waiting on it.",
+        "service": "ad",
+        "fault_class": "dependency_latency",
+        "remediation_class": null,
+        "why_not": "Peak ad self-time in the sampled traces is ~15ms (tr_4cc23161b3d1), far below any plausible client deadline, so waiting is not the failing mechanism."
+      }
+    ],
+    "summary": "A runtime feature flag governing the ad service's GetAds path was flipped, causing an intermittent fraction of ad requests to fail and surfacing as errors at frontend/frontend-proxy/load-generator.",
+    "confidence": "medium",
+    "evidence": [
+      "tr_99f274a85bb5",
+      "tr_4cc23161b3d1",
+      "tr_87fa092d3410",
+      "tr_6c93c8ed2f2f",
+      "tr_bb7bcdd0be6b",
+      "tr_b21c556a7169",
+      "tr_e371ffb70571"
+    ],
+    "reasoning": "Errors appear at the edge (frontend-proxy) and at the client (load-generator) but the only in-path service whose own calls fail is ad, and the blast radius includes flagd, which sits on ad's evaluation path. The failure is a partial, intermittent error fraction (tr_99f274a85bb5, tr_b21c556a7169) rather than hangs: ad spans complete in single-digit to tens of milliseconds (tr_4cc23161b3d1, tr_e371ffb70571), which rules out process_freeze, network_partition and dependency_latency as the mechanism seen by callers. Change logs for both ad and flagd were observed and are empty (tr_bb7bcdd0be6b, tr_6c93c8ed2f2f), so no artifact or config file changed, which is exactly the signature of a flag store flip. ad continues to serve and log request handling; the only exception text in its log concerns its telemetry exporter's name resolution (tr_87fa092d3410), which affects export rather than the GetAds request path and does not explain caller-visible errors. Other services in the same traces (product-catalog, cart, recommendation, product-reviews) are healthy, so this is not infrastructure-wide.",
+    "open_questions": [
+      "No flagd log lines were returned for the window (tr_9a693f1443a6), so the specific flag name, its new value and the exact flip time were not observed.",
+      "frontend, frontend-proxy and load-generator produced no log lines (tr_134dcc12ae87, tr_6e880136f836, tr_5092a891702e), so the status codes callers actually received were not directly confirmed.",
+      "The DNS failure to the telemetry collector seen in ad's log is unexplained and may indicate a separate, concurrent environment problem affecting observability completeness."
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B1",
+    "tool_calls": 11,
+    "turns": 13,
+    "looked_at": [
+      "metrics:ad",
+      "traces:ad",
+      "logs:ad",
+      "changes:flagd",
+      "changes:ad",
+      "logs:flagd",
+      "logs:frontend",
+      "logs:frontend-proxy",
+      "metrics:frontend-proxy",
+      "traces:frontend-proxy",
+      "logs:load-generator"
+    ]
+  }
+}

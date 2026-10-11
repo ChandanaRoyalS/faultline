@@ -1,0 +1,5 @@
+injected v2-ad-bad-image-tag (bad_deploy) on ad
+  - compose: ad stopped, then pointed at ghcr.io/open-telemetry/demo:2.2.0-ad-hotfix.2
+  - the tag does not resolve, so nothing came back up - ad is dark
+  - override written to /Users/chandana/dev/faultline/.faultline/overrides/v2-ad-bad-image-tag.yml
+revert with: faultline-inject stop v2-ad-bad-image-tag

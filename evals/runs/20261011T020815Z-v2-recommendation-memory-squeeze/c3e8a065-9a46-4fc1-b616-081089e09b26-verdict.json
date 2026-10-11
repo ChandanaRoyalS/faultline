@@ -1,0 +1,86 @@
+{
+  "incident_id": "c3e8a065-9a46-4fc1-b616-081089e09b26",
+  "trajectory_id": "bc820892-676e-4357-843d-6e4a2cbe6850",
+  "states": [
+    "triaging",
+    "investigating"
+  ],
+  "blast_radius": [
+    "frontend",
+    "frontend-proxy",
+    "ad",
+    "cart",
+    "checkout",
+    "product-catalog",
+    "product-reviews",
+    "recommendation"
+  ],
+  "unmeasured_edges": 7,
+  "exclude_origins": [
+    "scenario:scenario:v2-recommendation-memory-squeeze"
+  ],
+  "verdict": {
+    "fault_class": "resource_exhaustion",
+    "remediation_class": "config_revert",
+    "service": "recommendation",
+    "alternatives": [
+      {
+        "root_cause": "recommendation's process froze while its socket stayed open, causing callers to hang.",
+        "service": "recommendation",
+        "fault_class": "process_freeze",
+        "remediation_class": null,
+        "why_not": "A freeze makes callers hang to deadlines; here frontend gets immediate connection refused/host-unreachable and the erroring trace is only a few milliseconds long."
+      },
+      {
+        "root_cause": "recommendation was cut off from the network.",
+        "service": "recommendation",
+        "fault_class": "network_partition",
+        "remediation_class": null,
+        "why_not": "A partitioned service keeps running and logs that it cannot reach its own dependencies; recommendation's log simply stops, and a memory limit change immediately precedes the silence."
+      },
+      {
+        "root_cause": "frontend was misconfigured with the wrong recommendation address or port.",
+        "service": "frontend",
+        "fault_class": "bad_config",
+        "remediation_class": null,
+        "why_not": "The same endpoint served traffic successfully until ~02:08 and no change was recorded on frontend; the failure coincides with a change on recommendation."
+      }
+    ],
+    "summary": "A memory limit of 16m was applied to recommendation at 02:08:20, after which the process died for exceeding it and stopped serving, so frontend's gRPC calls to it were refused and then unreachable.",
+    "confidence": "high",
+    "evidence": [
+      "tr_7f6b018506b7",
+      "tr_a0bdaf6d7725",
+      "tr_ad02eea70f93",
+      "tr_2513056b7ff2",
+      "tr_8779fd4152b6",
+      "tr_813737c9647e"
+    ],
+    "reasoning": "frontend and frontend-proxy alerted but frontend's own error ratio did not depart from baseline (tr_813737c9647e); the only erroring trace fails at the frontend->recommendation hop with no server-side span (tr_2513056b7ff2), and frontend's log shows connection refused then host-unreachable toward a single peer address/port (tr_ad02eea70f93). recommendation's own log stops shortly after 02:08 (tr_a0bdaf6d7725) and its error ratio shows intervals with no traffic at all (tr_8779fd4152b6), i.e. it stopped serving rather than returning errors. The change log (tr_7f6b018506b7) shows a repeated pattern of lowering the memory limit to 16m, with the last application at 02:08:20 not reverted \u2014 the process is being killed for exceeding the lowered limit, which is resource exhaustion rather than the edit itself being a wrong value in a call path. Remediation is to revert the limit change (and let the process come back).",
+    "open_questions": [
+      "No direct OOM-kill or restart record was observed for recommendation; the kill is inferred from log silence plus the limit change.",
+      "Why frontend alerts began at 02:12:46 while the limit change and refused connections start near 02:08 was not settled.",
+      "Whether the other blast-radius services (ad, cart, checkout, product-catalog, product-reviews) were affected at all, or merely listed as graph neighbours."
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B1",
+    "tool_calls": 6,
+    "turns": 8,
+    "looked_at": [
+      "metrics:frontend",
+      "traces:frontend",
+      "metrics:recommendation",
+      "logs:frontend",
+      "logs:recommendation",
+      "changes:recommendation"
+    ]
+  }
+}

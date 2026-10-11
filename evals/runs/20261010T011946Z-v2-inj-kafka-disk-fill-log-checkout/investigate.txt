@@ -1,0 +1,9 @@
+incident 6899d2ce-d577-4c27-8675-5ccd0a52f5e1  state triaging  anchor 01:25:16
+triage: 12 services, severity critical, start from checkout, 9 unmeasured edge(s) crossed
+
+B2: dependency_latency / restart (low)
+  checkout's asynchronous order-publishing path (the Kafka producer) became slow/blocked, so checkout requests piled up into latency then errors, and no order messages reached the downstream consumers accounting and fraud-detection.
+  looked at nothing - this is the model's prior
+wrote /Users/chandana/dev/faultline/evals/runs/20261010T011946Z-v2-inj-kafka-disk-fill-log-checkout/6899d2ce-d577-4c27-8675-5ccd0a52f5e1-verdict.json
+{"ts": "2026-10-10T01:28:45.298+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-10T01:28:55.474+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}

@@ -1,0 +1,4 @@
+injected v2-kafka-disk-fill (disk_fill) on kafka
+  - dd on kafka: /tmp/kafka-logs filled to capacity (no space left on device)
+  - the broker will halt and crashloop against the full directory; no change record
+revert with: faultline-inject stop v2-kafka-disk-fill

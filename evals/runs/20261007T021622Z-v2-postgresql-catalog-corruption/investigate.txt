@@ -1,0 +1,111 @@
+incident 7a8dc9bd-a210-49f6-93d2-53041240846b  state triaging  anchor 02:18:46
+triage: 14 services, severity critical, start from frontend-proxy, 15 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: cc91e4ac-b3a3-4c39-a499-5ba57482fd67
+triage judged: investigate (medium confidence, suspects unknown)
+  Six services alerting critically within a minute across frontend, checkout, and recommendation paths is a broad, non-dismissible failure with no open incident to attribute it to. Shared downstream candidates (flagd, product-catalog) hint at a config/flag or common dependency, but nothing yet justifies naming a class.
+investigation: 2 round(s), 8 dispatch(es), 24 step(s)
+
+=== PROPOSAL ===
+  ABSTAINED - no permitted action fits the evidence
+  if wrong    : This abstention is wrong if product-catalog's product data is loaded into process memory at startup from a source that is itself intact — in that case a restart_service on product-catalog would reload clean data and the error ratio would fall from its ~0.34 peak back to the flat zero baseline [tr_c3854f8b8fa9] within a few minutes. Two things would show that: evidence that the catalog is served from an in-memory copy rather than read per-request (contradicted today by the per-request sql.conn.query child span [tr_c06c38605dc6]), or a product-catalog log stream showing a load-time parse of a seed file — currently unavailable, since the service emitted no lines at all for over an hour [tr_b75392aa996f]. It is also wrong if a pre-02:17 deploy or data-loading job exists: all three change queries began at 02:18:46 and never sampled the hours before onset [tr_cec5ba87f76b][tr_42828fda6951][tr_41bc1b6d7c70], so a rollback target may exist and simply not have been looked for. Re-running change_history over 2026-10-06T20:00Z..2026-10-07T02:18Z is the cheapest way to falsify this abstention.
+  rests on    : tr_c06c38605dc6, tr_7ddb21fc2efb, tr_cec5ba87f76b, tr_42828fda6951, tr_c3854f8b8fa9
+  execution   : not executed - a proposal is a claim, never the change (ADR-0028 §1)
+
+context: 31211 pushed / 6887 pulled (pull rate 0.1808), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : datastore_corruption
+  fix class   : restore_data
+  confidence  : medium
+  evidence    : tr_c06c38605dc6, tr_7ddb21fc2efb, tr_c3854f8b8fa9, tr_cec5ba87f76b, tr_42828fda6951, tr_41bc1b6d7c70, tr_4277a9f5d04e, tr_b75392aa996f
+  root cause  : product-catalog's backing product data is unreadable/incomplete while the database itself is healthy. Erroring GetProduct spans are immediate (0.5–4.3ms) and their only child, sql.conn.query, completes successfully with no error status, so the failure is generated inside product-catalog after the query returns [tr_c06c38605dc6]. The frontend's own log names the mechanism: alongside gRPC code 5 NOT_FOUND for specific product ids, a bulk product load fails with a peer INTERNAL error raised while scanning a database row because the description column returned NULL [tr_7ddb21fc2efb]. Five distinct product ids are affected, which rules out one bad row and points at a broader contents problem [tr_c06c38605dc6]. The error behaviour is newly emergent — the baseline error ratio was flat zero with a single change point at 02:17:46 and a peak around 0.34 [tr_c3854f8b8fa9] — and no deploy, config edit or flag flip is recorded for product-catalog or flagd in the covered window [tr_cec5ba87f76b][tr_42828fda6951][tr_41bc1b6d7c70]. That is a reachable, responsive store whose contents cannot be read correctly: datastore corruption in product-catalog's product data, propagating unchanged through frontend, frontend-proxy and checkout to the user [tr_c06c38605dc6].
+  OPEN        : All three change queries ran forward from 02:18:46 and explicitly did not sample the hours before onset [tr_cec5ba87f76b][tr_42828fda6951][tr_41bc1b6d7c70]; a pre-02:17 deploy, migration or data-loading job on product-catalog remains unexamined and is the most likely origin of the bad rows.
+  OPEN        : Why product-catalog emitted no log lines at all for over an hour [tr_b75392aa996f] is unexplained — it could be a telemetry/labelling gap or a genuine logging failure, and its own log would settle whether the scan error is the whole story.
+  OPEN        : Whether the per-id NOT_FOUND failures and the NULL-description scan failure are one fault or two was explicitly left open by the frontend log analysis [tr_7ddb21fc2efb].
+  OPEN        : The frontend log is truncated across 01:18:51–02:20:39, so the 02:17–02:19 onset minutes were never characterized from logs [tr_7ddb21fc2efb].
+  OPEN        : The earlier 01:18 EHOSTUNREACH on port 7070 and a resolver returning zero addresses [tr_7ddb21fc2efb] are unaccounted for — possibly a separate, earlier event, possibly a precursor.
+  OPEN        : No request-rate, latency or saturation metrics were retrieved for product-catalog [tr_c3854f8b8fa9], so a resource dimension was never measured.
+  OPEN        : Whether the corruption sits in the database rows themselves or in a file/seed dataset product-catalog loads from was not determined, which changes what 'restore' means operationally.
+
+flags: none
+
+retrieval: exclude_origins=['scenario:v2-postgresql-catalog-corruption'], 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20261007T021622Z-v2-postgresql-catalog-corruption/7a8dc9bd-a210-49f6-93d2-53041240846b-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20261007T021622Z-v2-postgresql-catalog-corruption/7a8dc9bd-a210-49f6-93d2-53041240846b-narrative.md
+{"ts": "2026-10-07T02:20:43.122+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-07T02:20:48.588+00:00", "level": "INFO", "logger": "sentence_transformers.base.model", "msg": "No device provided, using mps", "component": "investigator"}
+{"ts": "2026-10-07T02:20:48.727+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/modules.json \"HTTP/1.1 307 Temporary Redirect\"", "component": "investigator"}
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+{"ts": "2026-10-07T02:20:48.727+00:00", "level": "WARNING", "logger": "huggingface_hub.utils._http", "msg": "Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.", "component": "investigator"}
+{"ts": "2026-10-07T02:20:48.739+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/sentence-transformers/all-MiniLM-L6-v2/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/modules.json \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-07T02:20:48.792+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/config_sentence_transformers.json \"HTTP/1.1 307 Temporary Redirect\"", "component": "investigator"}
+{"ts": "2026-10-07T02:20:48.803+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/sentence-transformers/all-MiniLM-L6-v2/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/config_sentence_transformers.json \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-07T02:20:48.808+00:00", "level": "INFO", "logger": "sentence_transformers.base.model", "msg": "Loading SentenceTransformer model from sentence-transformers/all-MiniLM-L6-v2.", "component": "investigator"}
+{"ts": "2026-10-07T02:20:48.859+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/config_sentence_transformers.json \"HTTP/1.1 307 Temporary Redirect\"", "component": "investigator"}
+{"ts": "2026-10-07T02:20:48.870+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/sentence-transformers/all-MiniLM-L6-v2/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/config_sentence_transformers.json \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-07T02:20:48.921+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/README.md \"HTTP/1.1 307 Temporary Redirect\"", "component": "investigator"}
+{"ts": "2026-10-07T02:20:48.936+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/sentence-transformers/all-MiniLM-L6-v2/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/README.md \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-07T02:20:48.994+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/modules.json \"HTTP/1.1 307 Temporary Redirect\"", "component": "investigator"}
+{"ts": "2026-10-07T02:20:49.005+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/sentence-transformers/all-MiniLM-L6-v2/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/modules.json \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-07T02:20:49.066+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/sentence_bert_config.json \"HTTP/1.1 307 Temporary Redirect\"", "component": "investigator"}
+{"ts": "2026-10-07T02:20:49.079+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/sentence-transformers/all-MiniLM-L6-v2/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/sentence_bert_config.json \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-07T02:20:49.133+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/adapter_config.json \"HTTP/1.1 404 Not Found\"", "component": "investigator"}
+{"ts": "2026-10-07T02:20:49.187+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/config.json \"HTTP/1.1 307 Temporary Redirect\"", "component": "investigator"}
+{"ts": "2026-10-07T02:20:49.199+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/sentence-transformers/all-MiniLM-L6-v2/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/config.json \"HTTP/1.1 200 OK\"", "component": "investigator"}
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 6236.84it/s]
+{"ts": "2026-10-07T02:20:49.361+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/processor_config.json \"HTTP/1.1 404 Not Found\"", "component": "investigator"}
+{"ts": "2026-10-07T02:20:49.411+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/preprocessor_config.json \"HTTP/1.1 404 Not Found\"", "component": "investigator"}
+{"ts": "2026-10-07T02:20:49.464+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/video_preprocessor_config.json \"HTTP/1.1 404 Not Found\"", "component": "investigator"}
+{"ts": "2026-10-07T02:20:49.519+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/preprocessor_config.json \"HTTP/1.1 404 Not Found\"", "component": "investigator"}
+{"ts": "2026-10-07T02:20:49.571+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/tokenizer_config.json \"HTTP/1.1 307 Temporary Redirect\"", "component": "investigator"}
+{"ts": "2026-10-07T02:20:49.584+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/sentence-transformers/all-MiniLM-L6-v2/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/tokenizer_config.json \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-07T02:20:49.640+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/config.json \"HTTP/1.1 307 Temporary Redirect\"", "component": "investigator"}
+{"ts": "2026-10-07T02:20:49.652+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/sentence-transformers/all-MiniLM-L6-v2/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/config.json \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-07T02:20:49.709+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/config.json \"HTTP/1.1 307 Temporary Redirect\"", "component": "investigator"}
+{"ts": "2026-10-07T02:20:49.720+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/sentence-transformers/all-MiniLM-L6-v2/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/config.json \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-07T02:20:49.774+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/tokenizer_config.json \"HTTP/1.1 307 Temporary Redirect\"", "component": "investigator"}
+{"ts": "2026-10-07T02:20:49.787+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/sentence-transformers/all-MiniLM-L6-v2/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/tokenizer_config.json \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-07T02:20:49.845+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET https://huggingface.co/api/models/sentence-transformers/all-MiniLM-L6-v2/tree/main/additional_chat_templates?recursive=false&expand=false \"HTTP/1.1 404 Not Found\"", "component": "investigator"}
+{"ts": "2026-10-07T02:20:49.900+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET https://huggingface.co/api/models/sentence-transformers/all-MiniLM-L6-v2/tree/main?recursive=true&expand=false \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-07T02:20:49.986+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/1_Pooling/config.json \"HTTP/1.1 307 Temporary Redirect\"", "component": "investigator"}
+{"ts": "2026-10-07T02:20:49.996+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/sentence-transformers/all-MiniLM-L6-v2/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/1_Pooling%2Fconfig.json \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-07T02:20:50.051+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/2_Normalize/config.json \"HTTP/1.1 404 Not Found\"", "component": "investigator"}
+{"ts": "2026-10-07T02:20:50.105+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET https://huggingface.co/api/models/sentence-transformers/all-MiniLM-L6-v2 \"HTTP/1.1 200 OK\"", "component": "investigator"}
+
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]
+Batches: 100%|██████████| 1/1 [00:00<00:00,  6.72it/s]
+Batches: 100%|██████████| 1/1 [00:00<00:00,  6.72it/s]
+{"ts": "2026-10-07T02:21:09.317+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-07T02:21:09.350+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=product-catalog start=2026-10-06T02:18:46.664000+00:00 end=2026-10-07T02:20:43.142918+00:00 span_s=86516 refused=False", "component": "investigator"}
+{"ts": "2026-10-07T02:21:09.350+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=metric_baseline subject=sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"product-catalog\",status_code=\"STATUS_CODE_ERROR\"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"product-catalog\"}[5m])) start=2026-10-06T22:16:50.185082+00:00 end=2026-10-07T02:20:43.142918+00:00 span_s=14632 refused=False", "component": "investigator"}
+{"ts": "2026-10-07T02:21:09.352+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=logql_query subject={service=\"product-catalog\"} start=2026-10-07T01:18:46.664000+00:00 end=2026-10-07T02:20:43.142918+00:00 span_s=3716 refused=False", "component": "investigator"}
+{"ts": "2026-10-07T02:21:09.354+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=metric_baseline subject=sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"frontend-proxy\",status_code=\"STATUS_CODE_ERROR\"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"frontend-proxy\"}[5m])) start=2026-10-07T00:16:50.185082+00:00 end=2026-10-07T02:20:43.142918+00:00 span_s=7432 refused=False", "component": "investigator"}
+{"ts": "2026-10-07T02:21:09.355+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=flagd start=2026-10-06T02:18:46.664000+00:00 end=2026-10-07T02:20:43.142918+00:00 span_s=86516 refused=False", "component": "investigator"}
+{"ts": "2026-10-07T02:21:19.558+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-07T02:21:20.527+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-07T02:21:22.274+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-07T02:21:26.403+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-07T02:21:27.189+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-07T02:21:48.140+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-07T02:21:48.155+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=product-catalog start=2026-10-06T02:18:46.664000+00:00 end=2026-10-07T02:20:43.142918+00:00 span_s=86516 refused=False", "component": "investigator"}
+{"ts": "2026-10-07T02:21:48.158+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=trace_query subject=product-catalog start=2026-10-07T01:18:46.664000+00:00 end=2026-10-07T02:20:43.142918+00:00 span_s=3716 refused=False", "component": "investigator"}
+{"ts": "2026-10-07T02:21:48.160+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=logql_query subject={service=\"frontend\"} start=2026-10-07T01:18:46.664000+00:00 end=2026-10-07T02:20:43.142918+00:00 span_s=3716 refused=False", "component": "investigator"}
+{"ts": "2026-10-07T02:21:59.627+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-07T02:22:07.955+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-07T02:22:13.226+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]
+Batches: 100%|██████████| 1/1 [00:00<00:00,  2.55it/s]
+Batches: 100%|██████████| 1/1 [00:00<00:00,  2.55it/s]
+{"ts": "2026-10-07T02:22:51.712+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-07T02:23:31.404+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-07T02:23:50.868+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-07T02:24:13.716+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-07T02:24:13.828+00:00", "level": "INFO", "logger": "faultline.notify", "msg": "no report-ready notification was sent: no notifier was configured", "component": "investigator"}
+{"ts": "2026-10-07T02:24:13.828+00:00", "level": "INFO", "logger": "faultline.notify", "msg": "no awaiting-approval notification was sent: no notifier was configured", "component": "investigator"}

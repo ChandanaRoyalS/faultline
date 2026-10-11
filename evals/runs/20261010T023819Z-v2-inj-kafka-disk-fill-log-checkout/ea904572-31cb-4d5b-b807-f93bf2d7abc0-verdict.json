@@ -1,0 +1,88 @@
+{
+  "incident_id": "ea904572-31cb-4d5b-b807-f93bf2d7abc0",
+  "trajectory_id": "75821622-e336-4e4e-8c25-a43be14523bb",
+  "states": [
+    "triaging",
+    "investigating"
+  ],
+  "blast_radius": [
+    "checkout",
+    "accounting",
+    "cart",
+    "currency",
+    "email",
+    "frontend",
+    "payment",
+    "product-catalog",
+    "shipping",
+    "frontend-proxy"
+  ],
+  "unmeasured_edges": 8,
+  "exclude_origins": [
+    "scenario:scenario:v2-inj-kafka-disk-fill-log-checkout"
+  ],
+  "verdict": {
+    "fault_class": "bad_config",
+    "remediation_class": "config_revert",
+    "service": "kafka",
+    "alternatives": [
+      {
+        "root_cause": "The broker's disk is full, so it cannot persist metadata and refuses to start.",
+        "service": "kafka",
+        "fault_class": "disk_fill",
+        "remediation_class": null,
+        "why_not": "The start-up failure is an access denial on a specific metadata file, not a report of exhausted space."
+      },
+      {
+        "root_cause": "Kafka was deployed with a wrong image or entrypoint that cannot initialise its store.",
+        "service": "kafka",
+        "fault_class": "bad_deploy",
+        "remediation_class": null,
+        "why_not": "The kafka change log was observed over 24h and held nothing, and the failure occurs at the storage write rather than at artifact load."
+      },
+      {
+        "root_cause": "checkout is failing on its own order-publish path and hanging callers.",
+        "service": "checkout",
+        "fault_class": "dependency_latency",
+        "remediation_class": null,
+        "why_not": "checkout is the waiter: flat error ratio, all other dependencies fast, and the thing it waits on is independently observed crash-looping while a second unrelated client reports the same unreachability."
+      }
+    ],
+    "summary": "The Kafka broker is in a crash loop because it cannot write its KRaft metadata into its data directory (permission denied on the bootstrap checkpoint file), so it never binds and its name does not resolve for clients.",
+    "confidence": "medium",
+    "evidence": [
+      "tr_680943bf92ae",
+      "tr_54645917e061",
+      "tr_5236920f96c4",
+      "tr_d7b6de0031b1",
+      "tr_ab452619514f",
+      "tr_fbcf15015fe0"
+    ],
+    "reasoning": "checkout's error ratio never departed from baseline (tr_d7b6de0031b1); the symptom is latency, and every slow checkout trace stalls for 60-110s on the single 'orders publish' span while all other downstreams (cart, currency, payment, product-catalog, shipping, email, flagd) answer in single-digit milliseconds (tr_5236920f96c4). That span's errors name a broker-resolution failure, and accounting, the Kafka consumer, independently reports the same inability to reach or resolve the broker (tr_54645917e061). The broker's own log shows start-up sequences repeating roughly every minute from about onset, each ending in a failure to write its metadata/checkpoint file into its log directory (tr_680943bf92ae) - a process that restarts endlessly never binds, which explains why clients see no host. The failing mechanism is a storage location the broker is not permitted to write, i.e. the data-directory/ownership setting it runs with is itself wrong, not a slow dependency and not a lack of space. Change logs for checkout and kafka were observed and empty (tr_ab452619514f, tr_fbcf15015fe0). checkout and accounting are victims.",
+    "open_questions": [
+      "Why the data directory became unwritable with no recorded change - volume remount, host permission change, or filesystem event.",
+      "Whether the underlying filesystem is also full; the broker cites an access denial rather than lack of space, so disk_fill was not positively excluded.",
+      "Whether checkout's publish timeout/circuit-breaker settings are themselves wrong, turning a broker outage into 90s+ hangs rather than fast failures."
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B1",
+    "tool_calls": 6,
+    "turns": 8,
+    "looked_at": [
+      "metrics:checkout",
+      "traces:checkout",
+      "changes:checkout",
+      "logs:accounting",
+      "logs:kafka",
+      "changes:kafka"
+    ]
+  }
+}

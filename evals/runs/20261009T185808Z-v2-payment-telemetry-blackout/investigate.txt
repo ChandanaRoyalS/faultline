@@ -1,0 +1,9 @@
+incident 2e10b4e9-0e66-4c8c-98b4-22d1c319b248  state triaging  anchor 19:06:16
+triage: 3 services, severity critical, start from payment, 2 unmeasured edge(s) crossed
+
+B2: process_freeze / restart (medium)
+  The payment service's process is frozen (stopped but still holding its listening socket), so it emits no telemetry and callers block until their deadlines.
+  looked at nothing - this is the model's prior
+wrote /Users/chandana/dev/faultline/evals/runs/20261009T185808Z-v2-payment-telemetry-blackout/2e10b4e9-0e66-4c8c-98b4-22d1c319b248-verdict.json
+{"ts": "2026-10-09T19:08:23.681+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-09T19:08:34.157+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}

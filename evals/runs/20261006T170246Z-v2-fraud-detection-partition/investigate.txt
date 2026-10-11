@@ -1,0 +1,9 @@
+incident 11f90583-9c2d-4d8a-8229-5210ab28bf90  state triaging  anchor 17:10:31
+triage: 2 services, severity critical, start from fraud-detection, 1 unmeasured edge(s) crossed
+
+B2: process_freeze / restart (low)
+  The fraud-detection process is stopped/hung — its container is still present but not executing, so it consumes and emits nothing and disappears from traffic entirely.
+  looked at nothing - this is the model's prior
+wrote /Users/chandana/dev/faultline/evals/runs/20261006T170246Z-v2-fraud-detection-partition/11f90583-9c2d-4d8a-8229-5210ab28bf90-verdict.json
+{"ts": "2026-10-06T17:12:38.825+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-06T17:12:46.148+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}

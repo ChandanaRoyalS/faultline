@@ -1,0 +1,9 @@
+incident 5665b169-96e2-4ccc-891e-82a859b17fcd  state triaging  anchor 22:09:16
+triage: 2 services, severity critical, start from fraud-detection, 1 unmeasured edge(s) crossed
+
+B2: process_freeze / restart (low)
+  The fraud-detection process is stopped/frozen — it still holds its socket and Kafka session but executes nothing, so it emits no spans or logs at all and trips the no-traffic alert.
+  looked at nothing - this is the model's prior
+wrote /Users/chandana/dev/faultline/evals/runs/20261007T220142Z-v2-fraud-detection-memory-squeeze/5665b169-96e2-4ccc-891e-82a859b17fcd-verdict.json
+{"ts": "2026-10-07T22:11:37.246+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-07T22:11:46.415+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}

@@ -1,0 +1,167 @@
+{
+  "incident_id": "fe3bf4c9-4903-4898-b035-87aa398824f9",
+  "trajectory_id": "358a826c-fae4-48d9-94ef-39f23c12bc02",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "cart",
+    "checkout",
+    "currency",
+    "email",
+    "frontend",
+    "frontend-proxy",
+    "payment",
+    "product-catalog",
+    "shipping"
+  ],
+  "unmeasured_edges": 8,
+  "exclude_origins": [
+    "scenario:v2-email-wrong-image"
+  ],
+  "verdict": {
+    "root_cause": "The email service builds its listen address with an empty port, producing an invalid TCP bind URI that throws an uncaught exception in the socket-server constructor at the application entrypoint, before any listener exists or any dependency is contacted [tr_c25cfe314adc]. The process dies and is restarted on a roughly one-minute cadence through the end of the window [tr_c25cfe314adc]. Earlier in the same window email served order confirmations with 200s at sub-10ms latency and appeared as a well-formed child span of checkout's POST [tr_c25cfe314adc, tr_be741cb869a4], so the break started mid-window. With no bound listener the email endpoint is withdrawn, and checkout's order-confirmation POST now fails at name resolution inside checkout's own client span \u2014 a ~3ms negative DNS answer with no email server span beneath it [tr_f972e4deaf63]. Checkout alerted first but is not at fault: every other PlaceOrder dependency succeeds in low single-digit milliseconds, the email call is the last and only erroring one [tr_f972e4deaf63], and the only recorded changes are CURRENCY_ADDR flapping on checkout that ended ~22.4h before onset [tr_cb87fc9db97b] with no shift in checkout's error ratio [tr_9e10885affc0].",
+    "service": "email",
+    "fault_class": "bad_config",
+    "remediation_class": "config_revert",
+    "confidence": "medium",
+    "evidence": [
+      "tr_c25cfe314adc",
+      "tr_f972e4deaf63",
+      "tr_be741cb869a4",
+      "tr_cb87fc9db97b",
+      "tr_9e10885affc0"
+    ],
+    "reasoning": "Only email's own startup trace names a mechanism rather than a symptom: a wrong configuration value (empty port) makes the bind URI invalid, and that wrongness is itself what stops the service [tr_c25cfe314adc]. The supervisor already restarts it every minute, so restart does not help; restoring a valid listen address does. Email's healthy serving earlier in the same window [tr_c25cfe314adc, tr_be741cb869a4] dates the break to mid-window, consistent with the 05:11-05:13 alerts. Checkout's symptom follows: an unbound service loses its endpoint, so resolution returns a fast negative answer rather than a timeout or 5xx \u2014 exactly what the traces show [tr_f972e4deaf63]. Alternatives were closed off: no change on email or any checkout dependency [tr_cb87fc9db97b]; checkout's aggregate error ratio matches baseline, so no checkout-wide fault began [tr_9e10885affc0]; the crash is an argument-validation exception, not a resource kill [tr_c25cfe314adc]; and the failing hop lasts milliseconds, excluding a latency cascade [tr_f972e4deaf63].",
+    "open_questions": [
+      "No change record exists for email [tr_cb87fc9db97b], so what emptied the port \u2014 a config push outside the change-log's coverage, failed templating, or an orchestrator environment regression \u2014 is unknown, leaving the revert without an identified target.",
+      "The link from email's failure to bind to checkout's resolution failure is inferred from endpoint withdrawal; no DNS or service-endpoint evidence was gathered, and log truncation hides the exact crash-loop start time [tr_c25cfe314adc].",
+      "Checkout emits zero log lines across the whole window including baseline [tr_93c73572d044], and email has no span metrics in either window [tr_e542e603c968]; these telemetry gaps are unexplained and leave blast radius and the other seven services unexamined."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "Checkout is misconfigured with a wrong email hostname, so its outbound confirmation POST fails DNS resolution while email itself is fine.",
+        "service": "checkout",
+        "fault_class": "bad_config",
+        "remediation_class": "config_revert",
+        "why_not": "Email's own log independently shows it crash-looping on an invalid bind URI in the same window [tr_c25cfe314adc], which explains the vanished endpoint without positing a second fault; and the only recorded checkout env changes concern CURRENCY_ADDR, ending 22.4h before onset [tr_cb87fc9db97b]."
+      },
+      {
+        "root_cause": "An unrecorded bad artifact rollout to email introduced code that constructs the listen address incorrectly, so the running build cannot start.",
+        "service": "email",
+        "fault_class": "bad_deploy",
+        "remediation_class": "rollback",
+        "why_not": "The evidence points at a malformed value fed into the bind call rather than at a changed artifact, and no deployment event for email appears anywhere in the change record [tr_cb87fc9db97b]; this stays live only because email's change coverage may be incomplete."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "v2-currency-freeze / Resolution: The currency process was resumed. Every held order woke together: 110 orders completed in the\nminutes after the resume, each one's conversion having waited up to ten minutes and then taken\ntwo milliseconds, and not one failed - checkout, the frontend and currency have no error tr",
+    "v2-valkey-cart-dependency-latency / What was checked: **The traces, because cart paged first and its callers followed.** Every slow trace touched cart,\nand inside cart the time was in one place. At rest, cart answered a `GetCart` in 0.3ms and its\nstore answered an `HGET` in 0.2ms. Under the fault, in 80 traces drawn, every `HGET`, `",
+    "runbook:class-bad-config / What the change record holds: The variable and a timestamp, and **the new value only** - no change record in this world carries\na prior value, which `world-change-records-have-no-prior-value` sets out.\n\n**What the logs hold is not uniform, and this document had it wrong.** An earlier version said a\nservice po"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 29317,
+    "pulled_tokens": 11257,
+    "pull_rate": 0.2774,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 444,
+        "content_tokens": 446,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 2116,
+        "content_tokens": 2119,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 8825,
+        "content_tokens": 8801,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 8183,
+        "content_tokens": 8185,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 9749,
+        "content_tokens": 9726,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_cb87fc9db97b",
+      "tr_c25cfe314adc"
+    ],
+    "expected_effect": "No action proposed, so no change should be observed. The expected continuing observation is email's one-per-minute startup fatal (invalid TCP bind URI thrown from the socket-server constructor at entrypoint line 102) and checkout's ~3ms DNS-resolution error on its order-confirmation POST, with all other PlaceOrder dependencies still succeeding in low single-digit milliseconds. The next step is investigative, not remedial: retrieve email's current effective environment and the config-push path that is outside the change-log's coverage, so that a revert has a named prior value to restore.",
+    "confirm_within_seconds": 0,
+    "if_wrong": "This abstention is wrong if a prior email configuration turns up that the change-log query did not cover \u2014 e.g. an orchestrator-level env snapshot or a compose/template revision naming the port variable that is now empty. With that in hand, revert_config on email meets its preconditions and should be proposed: the bind failure stops, email's startup fatal line ceases, email server spans reappear as children of checkout's POST, and checkout's email client span returns to 200 at sub-10ms. It is also wrong if email's crash turns out to be a transient process-state artifact rather than a bad value \u2014 evidence for that would be email binding successfully after an unrelated recreate \u2014 but [tr_c25cfe314adc] argues against this: the identical argument-validation exception repeats on a one-minute cadence, so the malformed address is being re-read from a persistent source on every start.",
+    "risk": "The risk of abstaining is prolonged impact: order confirmations continue to be dropped for every checkout while the loop persists. This is bounded \u2014 payment Charge, cart EmptyCart and shipping ship-order all complete before the email call errors [tr_f972e4deaf63], so orders are placed and only the notification step fails. The risk of the alternative, proposing restart_service on email anyway, is worse than inaction: the evidence names a malformed configured value, not corrupt process state, so the container would be recreated into the same crash on the next start, discarding its cache, resetting the restart counter and destroying the one-minute cadence signature that is currently the clearest evidence of the mechanism. Proposing revert_config with no recorded prior value risks restoring email to an unknown or empty environment and breaking a service that is at least diagnosable now.",
+    "blast_radius": "Nobody sees a change, because nothing changes. Who continues to be affected: email itself (no listener), and checkout, whose order-confirmation POST keeps erroring \u2014 checkout is the only observed caller of email [tr_be741cb869a4]. Upstream of checkout, frontend and frontend-proxy carry the traces but show no error status [tr_f972e4deaf63]. Had an action been taken on email, the recreate window would have been visible to checkout only, by the same single inbound edge. Note the unexamined region: checkout emits zero log lines all window [tr_93c73572d044] and email has no span metrics in either window [tr_e542e603c968], so confirmation of any future fix would have to come from email's own logs and from checkout's trace spans, not from metrics."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Critical severity with two independent seeds (checkout and email) alerting two minutes apart and a wide downstream radius; nothing here can be dismissed as a working system. No open incidents to attribute it to and no signal yet favoring a specific fault class."
+  }
+}

@@ -1,0 +1,11 @@
+incident 8f831027-ca8f-469f-be58-0b26ee42c912  state triaging  anchor 09:30:16
+triage: 8 services, severity critical, start from frontend, 7 unmeasured edge(s) crossed
+B0: dependency_latency / restart
+  suspect: largest error-rate delta among alerting services (+0.074)
+  class: no change on any alerting service before onset
+  remediation: table lookup from dependency_latency
+wrote /Users/chandana/dev/faultline/evals/runs/20261008T092446Z-v2-ad-memory-squeeze/8f831027-ca8f-469f-be58-0b26ee42c912-verdict.json
+{"ts": "2026-10-08T09:32:01.100+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=frontend start=2026-10-07T09:30:16.664000+00:00 end=2026-10-08T09:32:01.095431+00:00 span_s=86504 refused=False", "component": "investigator"}
+{"ts": "2026-10-08T09:32:01.101+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=promql_query subject=sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"frontend\",status_code=\"STATUS_CODE_ERROR\"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"frontend\"}[5m])) start=2026-10-08T09:00:16.664000+00:00 end=2026-10-08T09:32:01.095431+00:00 span_s=1904 refused=False", "component": "investigator"}
+{"ts": "2026-10-08T09:32:01.110+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=frontend-proxy start=2026-10-07T09:30:16.664000+00:00 end=2026-10-08T09:32:01.095431+00:00 span_s=86504 refused=False", "component": "investigator"}
+{"ts": "2026-10-08T09:32:01.110+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=promql_query subject=sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"frontend-proxy\",status_code=\"STATUS_CODE_ERROR\"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"frontend-proxy\"}[5m])) start=2026-10-08T09:00:16.664000+00:00 end=2026-10-08T09:32:01.095431+00:00 span_s=1904 refused=False", "component": "investigator"}

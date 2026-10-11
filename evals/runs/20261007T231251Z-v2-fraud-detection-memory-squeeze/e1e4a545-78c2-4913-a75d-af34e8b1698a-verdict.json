@@ -1,0 +1,80 @@
+{
+  "incident_id": "e1e4a545-78c2-4913-a75d-af34e8b1698a",
+  "trajectory_id": "217a2e2c-0981-4ab3-b5d1-ea4c3c3cf094",
+  "states": [
+    "triaging",
+    "investigating"
+  ],
+  "blast_radius": [
+    "fraud-detection",
+    "flagd"
+  ],
+  "unmeasured_edges": 1,
+  "exclude_origins": [
+    "scenario:scenario:v2-fraud-detection-memory-squeeze"
+  ],
+  "verdict": {
+    "fault_class": "resource_exhaustion",
+    "remediation_class": "config_revert",
+    "service": "fraud-detection",
+    "alternatives": [
+      {
+        "root_cause": "A wrong artifact was deployed to fraud-detection and cannot complete startup.",
+        "service": "fraud-detection",
+        "fault_class": "bad_deploy",
+        "remediation_class": null,
+        "why_not": "The change log records only resource_limits edits, no image or version change, and the loop begins after a limit lowering."
+      },
+      {
+        "root_cause": "A configuration value on fraud-detection is itself wrong, breaking startup.",
+        "service": "fraud-detection",
+        "fault_class": "bad_config",
+        "remediation_class": null,
+        "why_not": "The only configuration touched is a memory ceiling; the failure is the process exceeding that ceiling at runtime, not a value naming something wrong."
+      },
+      {
+        "root_cause": "flagd became slow or unreachable and fraud-detection failed waiting on it.",
+        "service": "flagd",
+        "fault_class": "dependency_latency",
+        "remediation_class": null,
+        "why_not": "No flagd changes and no flagd logs at all, and fraud-detection's traces show no slow outbound hop - it dies at startup before serving."
+      }
+    ],
+    "summary": "A lowered 160m memory limit on fraud-detection causes the JVM to be killed for exceeding it, putting the service into a ~60s start-crash loop from 23:13 onward.",
+    "confidence": "high",
+    "evidence": [
+      "tr_43452de6e2c1",
+      "tr_c2ff4bd4f973",
+      "tr_650e9911080b",
+      "tr_992c218df220",
+      "tr_6704b1897443",
+      "tr_ee372c0afd51"
+    ],
+    "reasoning": "The change log (tr_43452de6e2c1) shows platform-automation repeatedly lowering fraud-detection's memory limit to 160m and reverting it, with the last lowering at 23:13 and no revert before onset. The service's own logs (tr_c2ff4bd4f973) show nothing but JVM/agent startup banners repeating roughly every 60 seconds from ~23:16 through 23:21 - a process that starts and dies before doing work, consistent with being killed for exceeding the limit rather than failing requests. Error ratio barely moved (tr_650e9911080b) and many intervals had no defined value, i.e. no traffic, which fits a process that is absent rather than erroring. Traces (tr_ee372c0afd51) show only small, pre-onset, error-free work with no slow dependency hop, so waiting on a dependency is not the mechanism. flagd produced no logs and no changes (tr_992c218df220, tr_6704b1897443), so it is an idle member of the blast radius, not the cause. The limit edit is how it started; exhaustion of the memory it needed is what is happening.",
+    "open_questions": [
+      "No container runtime OOM-kill record or memory-usage metric was inspected to confirm the kill reason directly.",
+      "Whether the 23:13 lowering was reverted after the observation window closed.",
+      "Why platform-automation repeatedly applies and reverts this limit."
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B1",
+    "tool_calls": 6,
+    "turns": 8,
+    "looked_at": [
+      "metrics:fraud-detection",
+      "logs:fraud-detection",
+      "changes:fraud-detection",
+      "logs:flagd",
+      "changes:flagd",
+      "traces:fraud-detection"
+    ]
+  }
+}

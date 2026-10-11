@@ -1,0 +1,4 @@
+injected v2-cart-store-corruption (datastore_corruption) on valkey-cart
+  - valkey-cli on valkey-cart: every hash's 'cart' field set to 0xffffffff, swept every 0.05s (first sweep: 921 keys; loop heartbeat: 1 sweep(s) 0.0s after start)
+  - no change record: the store is healthy and its contents are wrong
+revert with: faultline-inject stop v2-cart-store-corruption

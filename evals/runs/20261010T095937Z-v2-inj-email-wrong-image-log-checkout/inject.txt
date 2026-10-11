@@ -1,0 +1,5 @@
+injected v2-email-wrong-image (bad_deploy) on email
+  - compose: email recreated on ghcr.io/open-telemetry/demo:2.2.0-quote
+  - the image resolves, so the deploy itself succeeds - the fault is what the container does next
+  - override written to /Users/chandana/dev/faultline/.faultline/overrides/v2-email-wrong-image.yml
+revert with: faultline-inject stop v2-email-wrong-image

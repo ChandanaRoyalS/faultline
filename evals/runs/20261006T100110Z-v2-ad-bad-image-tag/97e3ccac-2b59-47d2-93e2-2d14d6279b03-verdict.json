@@ -1,0 +1,165 @@
+{
+  "incident_id": "97e3ccac-2b59-47d2-93e2-2d14d6279b03",
+  "trajectory_id": "0d4bcb21-9fe0-4d15-a77e-5e7ada20f818",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "ad",
+    "cart",
+    "checkout",
+    "frontend",
+    "frontend-proxy",
+    "product-catalog",
+    "product-reviews",
+    "recommendation"
+  ],
+  "unmeasured_edges": 7,
+  "exclude_origins": [
+    "scenario:v2-ad-bad-image-tag"
+  ],
+  "verdict": {
+    "root_cause": "At 10:01:15 platform-automation re-applied the `2.2.0-ad-hotfix.2` image to the ad service \u2014 the third image-reference change in ~30 minutes, the same build rolled out earlier and reverted at ~09:50 [tr_250b3aa9a282]. Ad's own log stream ends with an orderly gRPC/JVM shutdown at ~10:01:14, coincident with that rollout, and emits nothing afterward: no startup, no request handling, no errors [tr_a0f4af5007d5]. The replacement container never came back into service. Frontend's failures follow: the single errored trace runs load-generator \u2192 proxy \u2192 frontend /api/data \u2192 AdService/GetAds, with the ad hop terminal and failing in a fraction of a millisecond \u2014 a refused connection to an absent listener, not a timeout [tr_610a4c1c967a]. Frontend itself has no change of any kind in the window [tr_252a0710865c].",
+    "service": "ad",
+    "fault_class": "bad_deploy",
+    "remediation_class": "rollback",
+    "confidence": "medium",
+    "evidence": [
+      "tr_250b3aa9a282",
+      "tr_a0f4af5007d5",
+      "tr_610a4c1c967a"
+    ],
+    "reasoning": "Timing: the image update at 10:01:15 and ad's graceful final log line at ~10:01:14 coincide, with silence through end of window [tr_250b3aa9a282, tr_a0f4af5007d5] \u2014 a clean retirement of the old process whose replacement never announced itself, not a crash or OOM. Caller shape: the sub-millisecond errored GetAds span rules out a slow-dependency timeout and equally rules out freeze or partition, both of which hang callers to their deadlines [tr_610a4c1c967a]. Exclusion: frontend's change log is empty over 24h and every non-ad downstream leg answers in single-digit ms, so the only errored path is the one touching ad [tr_252a0710865c, tr_610a4c1c967a]. Ad metrics corroborate absence over sickness: 44 of 216 intervals have no defined error ratio because no ad traffic existed in them [tr_08e321578992]. The fix is returning ad to the artifact live during the reverted interval; no config entries exist in the window to revert.",
+    "open_questions": [
+      "Nothing shows whether a new ad container started and crash-looped, failed an image pull, or never started \u2014 no pod events, restart counts or readiness series were collected [tr_08e321578992]; this decides rollback versus unwedging a stuck rollout.",
+      "The gRPC status on the errored GetAds span was inferred from its duration, not read [tr_610a4c1c967a], and frontend logs held no 'AdService' text to corroborate it [tr_f9359c1eaeb5].",
+      "Triage reports 8 services and critical severity, but the evidence explains one route losing one dependency with >90% of frontend calls succeeding [tr_cd97c3d812a8]; the other six services were never dispatched to."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "A new ad container did start on the hotfix image but is wedged \u2014 accepting no connections and writing no logs \u2014 making this a process-level hang rather than a wrong artifact.",
+        "service": "ad",
+        "fault_class": "process_freeze",
+        "remediation_class": "restart",
+        "why_not": "A freeze hangs callers to their deadlines; the errored GetAds span fails in a fraction of a millisecond, which is refusal, not a hang [tr_610a4c1c967a]. Ad's last line is also a deliberate shutdown, not a process that stopped mid-work [tr_a0f4af5007d5]."
+      },
+      {
+        "root_cause": "Ad is running but severed from the network, so callers cannot reach it despite a live process.",
+        "service": "ad",
+        "fault_class": "network_partition",
+        "remediation_class": "reconnect",
+        "why_not": "A partitioned service still logs its own reachability complaints; ad writes nothing at all after 10:01:14, and the silence begins exactly at an image-change timestamp rather than at an independent network event [tr_a0f4af5007d5, tr_250b3aa9a282]."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "v2-product-catalog-freeze / What was observed: The page came 4m15s after requests started hanging: two alerts at once, error rate on\n**frontend-proxy** and on **load-generator**. Neither is a service anyone would fix. One is the\nedge proxy and the other is the synthetic client, and both were reporting what they received\nfrom ",
+    "v2-ad-partition / What was observed: The page came 7m01s after the first request hung, and it was thin: `ServiceHighLatency` on\n**frontend-proxy** and on **load-generator**, nothing else. Neither is a service anyone would fix;\nboth were reporting what they received from below them. A minute later `ServiceNoTraffic` ",
+    "v2-cart-flag-failure / What was observed: The page was one alert, `ServiceHighErrorRate` on **checkout**, 5m16s after the trouble started.\nNothing else fired, then or later, and nothing fired after the fix.\n\nCheckout's error ratio had been zero. It rose from about a minute in and held at 7.1-7.4%. Its\nlatency rose too, f"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 26867,
+    "pulled_tokens": 7322,
+    "pull_rate": 0.2142,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 432,
+        "content_tokens": 434,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1416,
+        "content_tokens": 1419,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 8303,
+        "content_tokens": 8279,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 7629,
+        "content_tokens": 7632,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 9087,
+        "content_tokens": 9064,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "rollback",
+    "action_id": "rollback_image",
+    "target": "ad",
+    "rests_on": [
+      "tr_250b3aa9a282",
+      "tr_a0f4af5007d5",
+      "tr_610a4c1c967a"
+    ],
+    "expected_effect": "Recreating ad at its prior image tag should put a listener back on ad's gRPC port. Observable as: the {service=\"ad\"} log stream resumes with a JVM/gRPC startup line and the usual 'Targeted ad request received' cadence, silent since 10:01:14; ad spans reappear in traces_span_metrics_calls_total instead of leaving undefined intervals; frontend /api/data traces carry a successful AdService/GetAds child rather than a terminal sub-millisecond errored span. Ad startup logs are the primary check, since they distinguish 'container exists' from 'container serving'.",
+    "confirm_within_seconds": 300,
+    "if_wrong": "Falsified if ad logs are still empty five minutes after the recreate \u2014 then the replacement container is failing for a reason independent of the image reference (pull failure, stuck rollout), which no permitted action fixes. Also falsified if ad starts cleanly but frontend's GetAds hop still fails fast, moving the fault to routing/resolution. Also falsified if platform-automation re-applies 2.2.0-ad-hotfix.2 a fourth time, in which case the reconciler must be stopped outside this system.",
+    "risk": "Nothing collected shows whether a replacement ad container crash-looped, failed an image pull, or never started [tr_08e321578992]; if the mechanism is a stuck rollout rather than a bad image, this adds a fourth image change in thirty minutes and extends ad's outage. The prior tag is not proven good \u2014 the hotfix existed for some reason this board does not record \u2014 so rollback may reintroduce the defect it fixed. The failure mode rests on one trace whose gRPC status was inferred from duration, not read.",
+    "blast_radius": "One service recreated. Frontend is ad's only inbound caller in this graph and sees connection resets during the recreate; the affected surface is the /api/data route, where >90% of frontend calls currently succeed, so the change can make a mostly-working route briefly worse."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Critical alerts on frontend and its proxy simultaneously affect the user-facing entry point, which cannot be dismissed. No open incidents to attribute it to, and the simultaneous timing gives no clear signal between a frontend regression and an upstream dependency."
+  }
+}

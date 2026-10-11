@@ -1,0 +1,166 @@
+{
+  "incident_id": "aef54238-7eb1-4a64-bdfa-c0550568f564",
+  "trajectory_id": "5c512e1f-423f-4411-ba02-e8ae2a342c5c",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "frontend",
+    "frontend-proxy",
+    "load-generator"
+  ],
+  "unmeasured_edges": 1,
+  "exclude_origins": [
+    "scenario:v2-product-catalog-partition"
+  ],
+  "verdict": {
+    "root_cause": "Frontend request handlers stall to a fixed ~15s client deadline while emitting nothing themselves. In 8 of 10 sampled traces the frontend span consumes nearly the whole trace as self-time with no child spans, and the ERROR marks sit on the wrapping frontend-proxy ingress and load-generator client spans, whose own self-time is ~0ms [tr_838e5c9acc04]. Frontend's own error ratio stays flat at zero [tr_4bec7214ac16] \u2014 it is not failing requests, it is not answering them \u2014 while the proxy's error ratio steps off a zero-variance baseline at 02:25:46 [tr_4bfa31fa6797]. Durations cluster on one ~15.000s value rather than spreading, a deadline cutoff rather than queueing [tr_838e5c9acc04], and no deploy, config push or flag flip exists for frontend or its one-hop neighbours [tr_6ab4975b4cff, tr_5e7448476208]. Socket still accepting, callers hanging to their deadline, no outbound work attempted, nothing changed: a frozen frontend process, likely a subset of replicas since some ad and /api/cart requests still complete in milliseconds [tr_838e5c9acc04].",
+    "service": "frontend",
+    "fault_class": "process_freeze",
+    "remediation_class": "restart",
+    "confidence": "medium",
+    "evidence": [
+      "tr_838e5c9acc04",
+      "tr_4bfa31fa6797",
+      "tr_4bec7214ac16",
+      "tr_c665ffa355cd",
+      "tr_6ab4975b4cff"
+    ],
+    "reasoning": "The alert started at frontend-proxy, but the proxy only wraps the long frontend span with ~0ms self-time, so time is lost inside the frontend handler [tr_838e5c9acc04]. The stalled spans have no children at all, so no downstream call was ever issued \u2014 that removes dependency_latency as the mechanism, and the cart/ad/Redis calls that do appear finish under 3ms. Those same healthy outbound calls show frontend's network path is intact, separating this from network_partition. The fixed ~15.000s clustering and the step onset from a zero-variance baseline rule out the ramp shape of resource_exhaustion [tr_838e5c9acc04, tr_4bfa31fa6797]. The empty change log removes bad_deploy, bad_config and feature_flag as recorded acts [tr_6ab4975b4cff, tr_5e7448476208]. A process that accepts and then does nothing is a freeze; the fix is restarting the affected instances.",
+    "open_questions": [
+      "Frontend's log silence is weak evidence: the gap covers the whole pre-incident baseline hour and frontend-proxy is equally empty [tr_c665ffa355cd, tr_4020e752193a], so a label mismatch or ingestion outage is as likely as the process writing nothing.",
+      "Frontend CPU, memory, restarts, thread/FD saturation and request rate were never measured [tr_4bec7214ac16]; a pegged CPU or deadlocked thread pool would look identical in traces and would reclassify this as resource_exhaustion.",
+      "Triage flagged one unmeasured edge; if frontend makes an uninstrumented outbound call, 'no child spans' is an instrumentation artefact rather than proof no downstream work was attempted."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "Frontend exhausted a bounded resource (thread pool, connections, CPU) so requests queue unserved until the caller's 15s deadline.",
+        "service": "frontend",
+        "fault_class": "resource_exhaustion",
+        "remediation_class": "restart",
+        "why_not": "Affected spans land on one near-identical ~15.000s value and the proxy error ratio steps rather than ramps [tr_838e5c9acc04, tr_4bfa31fa6797]; saturation normally produces a spread of elevated durations. No frontend saturation metric was collected, so this stays live.",
+        "confidence": "low"
+      },
+      {
+        "root_cause": "Frontend stalls on an uninstrumented downstream dependency that is itself slow, with the call invisible in traces.",
+        "service": "frontend",
+        "fault_class": "dependency_latency",
+        "remediation_class": "none",
+        "why_not": "Every instrumented dependency call in the same traces completes under 3ms and the stalled spans emit no children at all [tr_838e5c9acc04]; this requires assuming the one unmeasured edge hides the whole fault.",
+        "confidence": "low"
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "v2-product-catalog-freeze / What was observed: The page came 4m15s after requests started hanging: two alerts at once, error rate on\n**frontend-proxy** and on **load-generator**. Neither is a service anyone would fix. One is the\nedge proxy and the other is the synthetic client, and both were reporting what they received\nfrom ",
+    "v2-valkey-cart-dependency-latency / What was checked: **The traces, because cart paged first and its callers followed.** Every slow trace touched cart,\nand inside cart the time was in one place. At rest, cart answered a `GetCart` in 0.3ms and its\nstore answered an `HGET` in 0.2ms. Under the fault, in 80 traces drawn, every `HGET`, `",
+    "v2-frontend-cart-misconfig / What was observed: The page was three alerts in the same moment, `ServiceHighErrorRate` on **checkout**, on\n**frontend** and on **frontend-proxy**, 3m17s after the trouble started. Load-generator joined them\na minute later. Frontend's error ratio had been zero. It rose from about a minute in, peake"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 25608,
+    "pulled_tokens": 3866,
+    "pull_rate": 0.1312,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 378,
+        "content_tokens": 380,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1400,
+        "content_tokens": 1403,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 7822,
+        "content_tokens": 7798,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 7402,
+        "content_tokens": 7404,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 8606,
+        "content_tokens": 8583,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "restart",
+    "action_id": "restart_service",
+    "target": "frontend",
+    "rests_on": [
+      "tr_838e5c9acc04",
+      "tr_4bec7214ac16",
+      "tr_4bfa31fa6797",
+      "tr_6ab4975b4cff",
+      "tr_5e7448476208"
+    ],
+    "expected_effect": "Recreating the frontend container should clear whatever in-process state is holding its request handlers. Observable within one or two 5m rate windows: (1) frontend-proxy's span-metrics error ratio falls back to the zero-variance baseline it held for the full pre-incident hour and stops producing the bursts that peaked near 25% [tr_4bfa31fa6797]; (2) new traces for the browser-facing GET routes (user_browse_product, user_get_recommendations, the initial GET of user_add_to_cart) and the checkout POST no longer show frontend spans clustered on ~15.000s of pure self-time with zero children, and instead resemble the healthy legs already seen in the same window (/api/cart, AdService/GetAds, CartService calls in single-digit ms) [tr_838e5c9acc04]; (3) ERROR status stops being marked on the wrapping frontend-proxy/ingress and load-generator client spans. Frontend's own error ratio should remain flat at zero throughout, since it was never the thing emitting errors [tr_4bec7214ac16] \u2014 a jump there after the restart would itself be a bad sign.",
+    "confirm_within_seconds": 420,
+    "if_wrong": "Falsified if, 7 minutes after the recreate, traces still show frontend spans pinned at ~15.000s with no child spans, or frontend-proxy's error ratio has not returned to zero. That would mean the stall is not a one-off frozen process but is being re-induced by ongoing conditions \u2014 the two live alternatives named as open: (a) resource exhaustion (pegged CPU, deadlocked or exhausted thread pool) under steady load-generator traffic, which would reproduce within minutes of the fresh process taking traffic, and which was never measured because frontend CPU/memory/restarts/FDs were not queried [tr_4bec7214ac16]; or (b) an uninstrumented outbound call from frontend, in which case 'no child spans' was an instrumentation artefact and the real stall is downstream of frontend, untouched by this restart [tr_838e5c9acc04]. Also partially unfalsifiable from logs: frontend and frontend-proxy return zero log lines across the whole window including the baseline hour [tr_c665ffa355cd, tr_4020e752193a], so 'frontend starts logging again' cannot be used as a success signal \u2014 confirmation must come from traces and the proxy error ratio only.",
+    "risk": "Not harmless. The restart is irreversible and discards in-process state \u2014 cache only for this world's services, so expect a cold-cache latency bump on frontend's first requests that could briefly look like the symptom returning; do not read the first 60s of elevated latency as failure. If the diagnosis is wrong and the cause is resource exhaustion driven by load, the restart buys a few minutes and then the stall returns, having destroyed the frozen process's state \u2014 the thread dumps, FD counts and memory profile that would have distinguished a deadlock from a freeze are gone, and the next investigator has strictly less to work with. If the cause is an uninstrumented downstream dependency, this restarts a healthy service and leaves the real fault running. There is also a measurement hazard: the 15s cluster is a client-side deadline cutoff, so if only a subset of replicas is frozen and the recreate does not replace that subset, the error ratio may improve partially and be misread as a fix.",
+    "blast_radius": "One service, for the duration of the container recreate. frontend-proxy is the direct inbound caller and will see connection resets or 5xx on in-flight and newly arriving requests while frontend is down; load-generator sits above it and will record those as client-side errors, briefly pushing frontend-proxy's error ratio up before it falls. That transient spike is expected and must not be confused with the incident signal \u2014 judge success on the ratio several minutes after the recreate, not during it. In-flight user-facing requests on the browser page routes and the checkout POST are dropped. No other service in the blast radius is touched directly; the ad and cart backends simply see frontend's traffic pause and resume."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Critical alert on the edge proxy with the load generator simultaneously affected indicates user-facing impact, not an isolated synthetic signal. No open incident covers it, and the alerts alone don't point to a specific fault class."
+  }
+}

@@ -1,0 +1,174 @@
+{
+  "incident_id": "76005189-d052-469a-bacc-eefe95756cc0",
+  "trajectory_id": "f1c90d8b-7da0-4bc4-9ab8-290d4c9822b8",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "ad",
+    "cart",
+    "checkout",
+    "frontend",
+    "frontend-proxy",
+    "product-catalog",
+    "product-reviews",
+    "recommendation"
+  ],
+  "unmeasured_edges": 7,
+  "exclude_origins": [
+    "scenario:v2-ad-bad-image-tag"
+  ],
+  "verdict": {
+    "root_cause": "Frontend fails ~3.4% of calls (peak 8.4%) because one gRPC upstream at 172.18.0.19:9555 is unreachable at the network layer. Frontend's log shows only gRPC status-14 UNAVAILABLE with underlying TCP EHOSTUNREACH against that single address, continuously from 11:39:33 through 12:11:13 and with a connect attempt at 12:09:36 right on the alert time [tr_2fb5ffc9c7e7]. EHOSTUNREACH is no-route-to-host, not a refusal or a timeout, so the mechanism is lost reachability to that endpoint rather than anything frontend computes wrong. Frontend's other downstreams still answer in the same traces [tr_751b4dbe028b], so frontend is not cut off generally \u2014 only from that one peer, which in this deployment is the ad service's gRPC port. No deploy, config edit, or flag flip appears for frontend or any downstream in the preceding 24h [tr_02526dd4aae4], consistent with a connectivity loss rather than a change.",
+    "service": "ad",
+    "fault_class": "network_partition",
+    "remediation_class": "reconnect",
+    "confidence": "medium",
+    "evidence": [
+      "tr_2fb5ffc9c7e7",
+      "tr_472153e4ed14",
+      "tr_751b4dbe028b"
+    ],
+    "reasoning": "Only one specialist found errors of the kind that could produce an error alert: frontend's ratio is 7.2x baseline and sustained for 30+ minutes before the page [tr_472153e4ed14], and its log attributes every one of those errors to transport-layer unreachability of a single fixed address, with application-level causes explicitly excluded [tr_2fb5ffc9c7e7]. EHOSTUNREACH distinguishes this from the look-alikes: a frozen process accepts and hangs, a dead process refuses, and a wrong-address config would not coincide with mid-window change points while the change log is empty [tr_02526dd4aae4]. product-reviews, which the trace specialist flagged as the slowest hop, is cleared as the error source: its error ratio is flat against baseline [tr_b97307137d0b] and its logs are INFO-only with 200 OK upstream LLM calls [tr_909348d8809d] \u2014 it is slow, not failing, and slow hops do not emit status-14. The partial error rate fits one of several frontend fan-out dependencies being gone.",
+    "open_questions": [
+      "No dispatch resolved 172.18.0.19:9555 to a named service; the attribution to ad is inferred from the standard gRPC port and from ad spans appearing in traces, not confirmed by evidence.",
+      "No specialist examined ad directly \u2014 its own logs would distinguish a partition (ad running and complaining) from a crashed or descheduled pod (silence plus an IP that no longer routes).",
+      "The 30-minute-wide trace-level slowness in product-reviews (get_ai_assistant_response at 74% of trace time) is unexplained and may be an independent concurrent issue rather than a consequence of the unreachable peer."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "The ad pod was replaced or terminated and frontend holds a stale endpoint IP, so connections route to an address that no longer exists.",
+        "service": "ad",
+        "fault_class": "bad_deploy",
+        "remediation_class": "restart",
+        "why_not": "Indistinguishable from a partition at the frontend's socket, but the change log records no deploy or rollout for ad or any downstream in 24h [tr_02526dd4aae4], and a pod replacement normally leaves a trace there."
+      },
+      {
+        "root_cause": "product-reviews' LLM call path is slow enough to stall frontend request handlers, and the slowness is the user-visible failure.",
+        "service": "product-reviews",
+        "fault_class": "dependency_latency",
+        "remediation_class": "none",
+        "why_not": "product-reviews shows no error elevation [tr_b97307137d0b] and no error or timeout log lines [tr_909348d8809d], and traces carry no error or timeout status markers [tr_751b4dbe028b] \u2014 latency cannot produce the status-14 EHOSTUNREACH errors that constitute the alert."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "v2-ad-memory-squeeze / What was observed: The page was two alerts in the same moment, `ServiceHighErrorRate` on **frontend-proxy** and\n**frontend**, 5m01s after the trouble started. Three minutes later `ServiceNoTraffic` fired on\n**ad**. Three alerts on three services by the fix, and none after it.\n\nThe frontend's error ",
+    "v2-frontend-cart-misconfig / What was checked: **The error text, because it was the first thing a responder would read.** Checkout's error spans\nand the frontend's log said `shipping quote failure: failed POST to email service: expected 200,\ngot 400`. That names two services, and neither was at fault. It is checkout's own wor",
+    "v2-product-catalog-flag-failure / What was observed: The page was two alerts in the same moment, `ServiceHighErrorRate` on **frontend** and on\n**frontend-proxy**, 5m31s after the trouble started. Nothing else fired, then or later, and nothing\nfired after the fix.\n\nBoth error ratios had been zero. They rose from about two minutes in"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 18937,
+    "pulled_tokens": 10577,
+    "pull_rate": 0.3584,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 433,
+        "content_tokens": 435,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1496,
+        "content_tokens": 1500,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 5582,
+        "content_tokens": 5558,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 4999,
+        "content_tokens": 5002,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 6427,
+        "content_tokens": 6405,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_2fb5ffc9c7e7",
+      "tr_02526dd4aae4",
+      "tr_751b4dbe028b"
+    ],
+    "expected_effect": "No action proposed, so no effect is expected. The condition that would need to change is the frontend log line 'Error: 14 UNAVAILABLE ... connect EHOSTUNREACH 172.18.0.19:9555' ceasing, and the frontend error ratio falling from its ~3.4% incident mean back toward the ~0.47% baseline. Neither will happen on its own from any action this system can currently perform; this requires a human to restore network reachability to that endpoint (e.g. reattaching the peer to the docker network), which the executor does not implement.",
+    "confirm_within_seconds": 0,
+    "if_wrong": "This abstention is wrong if someone produces (a) a dispatch that resolves 172.18.0.19:9555 to a named service in the blast radius, and (b) that service's own logs or container state showing a dead or wedged process rather than a live process behind a broken route. Logs from ad showing it running and serving other peers would confirm a pure partition and keep the abstention correct; silence from ad plus a stale IP would convert this into a restart_service case against ad. Equally, if the frontend error ratio recovers while the EHOSTUNREACH lines continue, the causal chain in the verdict is wrong and the real driver is elsewhere.",
+    "risk": "The risk of abstaining is that the ~3.4% frontend error ratio (peak 8.4%) continues unmitigated for as long as it takes a human to act, and the unexplained product-reviews slowness (get_ai_assistant_response at 74% of trace time) stays uninvestigated. The risk of the alternative \u2014 proposing restart_service on ad anyway \u2014 is worse: no evidence names ad as the owner of 172.18.0.19:9555 (that attribution is inferred from port convention and span presence only), no evidence points at ad's process state, and EHOSTUNREACH is a routing failure that recreating a container does not generally repair. A restart would discard ad's in-process cache, break ad's live callers for the recreate duration, destroy the forensic state that would distinguish partition from crash, and most likely leave the error ratio exactly where it is.",
+    "blast_radius": "Nobody. No change is made; frontend, frontend-proxy, and the six downstream candidates are untouched and the incident remains in its current state pending human action.",
+    "_why_each_permitted_action_fails": {
+      "rollback_image": "Precondition unmet: [tr_02526dd4aae4] records no deploy or image change for frontend or any downstream candidate in the 24h preceding the window.",
+      "revert_config": "Precondition unmet: [tr_02526dd4aae4] records no config or flag change for frontend or any downstream candidate in the window.",
+      "restart_service": "Precondition unmet: [tr_2fb5ffc9c7e7] points at network-layer unreachability (EHOSTUNREACH, no-route-to-host \u2014 not ECONNREFUSED, not a timeout), which is route state, not process state. [tr_751b4dbe028b] shows ad spans still appearing in traces, which argues the peer process is not simply dead. And no result in this brief names which service owns 172.18.0.19:9555, so there is no evidenced target.",
+      "scale_service": "Listed UNAVAILABLE (ADR-0029).",
+      "reconnect_service": "The named fix class, and the one the mechanism actually calls for \u2014 listed UNAVAILABLE, not built into the executor (T6.2).",
+      "restore_store": "Listed UNAVAILABLE and unrelated to this mechanism.",
+      "free_storage": "Listed UNAVAILABLE and unrelated to this mechanism."
+    }
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Critical alerts on frontend and its proxy simultaneously indicate user-facing impact that cannot be dismissed, with no open incident to attribute it to. The seed pair gives no signal on whether the fault is local to the frontend tier or inherited from a downstream dependency, so the fault class is honestly unknown."
+  }
+}

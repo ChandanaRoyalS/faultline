@@ -1,0 +1,175 @@
+{
+  "incident_id": "be25a913-c376-406d-b795-e7d418bc6e7f",
+  "trajectory_id": "bd68211b-c416-4be0-bfb8-9deb6386fdeb",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "ad",
+    "cart",
+    "checkout",
+    "frontend",
+    "frontend-proxy",
+    "product-catalog",
+    "product-reviews",
+    "recommendation"
+  ],
+  "unmeasured_edges": 7,
+  "exclude_origins": [
+    "scenario:v2-product-catalog-flag-failure"
+  ],
+  "verdict": {
+    "root_cause": "product-catalog is deliberately failing a fraction of GetProduct calls because its \"Product Catalog Fail\" feature flag is enabled in the flag store. The failing span is zero-duration and returns a well-formed gRPC status 13 INTERNAL whose detail text names that flag [tr_cc8644aeeb1c][tr_f745fc7ccc25]; frontend is only the caller that rethrows the upstream reply, and the error status propagates up through the recommendations route, frontend-proxy and the load-generator root, which is why frontend and frontend-proxy alerted first. No deployment, config edit or recorded flag change exists for product-catalog or frontend over the full 24h window [tr_23225d4af2d4][tr_9bbde736d53c], which is exactly the signature of a runtime flag flip: the artifact and config files are unchanged, so the change log is empty. The failure is intermittent rather than total (product-catalog error ratio mean ~0.44%, peak ~4.9%; frontend mean ~2.8%, peak ~7.9%, both from a flat-zero baseline) [tr_bf2c731f9222][tr_59d209c02941], consistent with a flag that rejects a sampled subset of requests.",
+    "service": "product-catalog",
+    "fault_class": "feature_flag",
+    "remediation_class": "config_revert",
+    "confidence": "high",
+    "evidence": [
+      "tr_cc8644aeeb1c",
+      "tr_f745fc7ccc25",
+      "tr_23225d4af2d4",
+      "tr_bf2c731f9222",
+      "tr_59d209c02941",
+      "tr_9bbde736d53c",
+      "tr_ff97d6346791"
+    ],
+    "reasoning": "Two independent sources name the same mechanism at the same hop. Traces place the first error status at the product-catalog GetProduct child span, with every ancestor erroring only because of propagation, and with recommendation, cart, ad, checkout and the catalog's own SQL children all healthy [tr_cc8644aeeb1c]. frontend's logs carry the upstream's own detail string attributing the failure to an enabled product-catalog failure flag, with a frontend stack frame that is just the promise wrapper rethrowing a received gRPC reply [tr_f745fc7ccc25]. The zero-duration span and the byte-identical, application-authored status 13 rule out the three competing hang/slowdown shapes: a reply was received over an established connection, so this is not a partition or transport fault; there is no slow-then-abort pattern, so it is not dependency_latency; and product-catalog is clearly running and answering, so it is not a freeze. The empty change log for both services is corroborating rather than contradicting: flag-store flips are precisely the class of change that leaves no deploy or config record, and the specialist's ruling-out of a flag toggle [tr_23225d4af2d4] rests on the assumption that toggles flow through change-history, which the direct observation of the flag's effect in traces and logs overrides. Baselines of exactly zero on both services establish a definite onset inside the window rather than a chronic condition [tr_bf2c731f9222][tr_59d209c02941]. product-catalog's own logs are unavailable for the whole window including the healthy period, so that silence is a collection or labelling gap and not a symptom [tr_ff97d6346791]. The fix is to turn the flag off in the flag store; there is no artifact to roll back and no change entry to revert.",
+    "open_questions": [
+      "Exact onset is unbounded: frontend logs already show the identical error at 14:52:08, the oldest retained line, and the frontend error ratio crossed threshold around 14:56 [tr_f745fc7ccc25][tr_59d209c02941], so the flag may have been enabled before the queried windows opened. Nobody has read the flag store's own audit trail.",
+      "Who or what enabled the flag, and whether it was an intentional exercise, is unestablished - the change log holds nothing for either service [tr_23225d4af2d4][tr_9bbde736d53c] and no flag-store history was queried.",
+      "Why product-catalog emits no log lines at all, even pre-incident [tr_ff97d6346791], is unresolved; until that pipeline or label mismatch is fixed, the culprit's own account of the failure is missing and the flag's presence is inferred only from the gRPC detail text frontend received.",
+      "The flag's sampling behaviour is unconfirmed. Frontend's error ratio (~2.8% mean) is well above product-catalog's (~0.44%), which may reflect fan-out on the recommendations route or differing span denominators; no per-route or per-dependency breakdown was returned [tr_59d209c02941][tr_bf2c731f9222].",
+      "The product-reviews trace with ~14ms self time and no errors [tr_cc8644aeeb1c] is a separate latency contributor that was never investigated; it is not on the error path but has not been shown harmless to users.",
+      "Five of the eight services in the blast radius (ad, cart, checkout, product-reviews, recommendation) were never dispatched against directly; their healthy appearance rests on a 10-trace sample."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "A configuration value shipped with product-catalog (rather than a runtime flag store entry) hard-enables the failure path, making the wrong value itself the mechanism.",
+        "service": "product-catalog",
+        "fault_class": "bad_config",
+        "remediation_class": "config_revert",
+        "why_not": "The failure text names a feature flag by that name and no config edit or deployment is recorded for product-catalog in the full 24h window [tr_23225d4af2d4]; a config-file change would normally leave such a record, whereas a flag-store flip would not. The remediation is nearly identical, so this distinction matters more for attribution than for the fix.",
+        "confidence": "low"
+      },
+      {
+        "root_cause": "A product-catalog build carrying the failure-injection path was rolled out and is serving the zero-duration status 13 replies.",
+        "service": "product-catalog",
+        "fault_class": "bad_deploy",
+        "remediation_class": "rollback",
+        "why_not": "No deployment entry exists for product-catalog across 24 hours [tr_23225d4af2d4], leaving no rollback target, and the error detail attributes the failure to a flag being enabled rather than to code that always fails - the intermittency (~0.44% mean, bursty) fits a sampled flag, not a uniformly broken artifact [tr_bf2c731f9222].",
+        "confidence": "low"
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "v2-ad-bad-image-tag / What was observed: The page was two alerts in the same moment, `ServiceHighErrorRate` on **frontend** and\n**frontend-proxy**, 5m17s after the trouble started. The service the failures would turn out to\nname was not on it.\n\nThe frontend's error ratio had been zero. It was 3% at two minutes, 11% at f",
+    "v2-frontend-cart-misconfig / What was checked: **The error text, because it was the first thing a responder would read.** Checkout's error spans\nand the frontend's log said `shipping quote failure: failed POST to email service: expected 200,\ngot 400`. That names two services, and neither was at fault. It is checkout's own wor",
+    "v2-frontend-cart-misconfig / What was observed: The page was three alerts in the same moment, `ServiceHighErrorRate` on **checkout**, on\n**frontend** and on **frontend-proxy**, 3m17s after the trouble started. Load-generator joined them\na minute later. Frontend's error ratio had been zero. It rose from about a minute in, peake"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 28989,
+    "pulled_tokens": 5461,
+    "pull_rate": 0.1585,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 433,
+        "content_tokens": 435,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1834,
+        "content_tokens": 1837,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 8646,
+        "content_tokens": 8622,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 8354,
+        "content_tokens": 8357,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 9722,
+        "content_tokens": 9699,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_23225d4af2d4",
+      "tr_9bbde736d53c",
+      "tr_ff97d6346791",
+      "tr_cc8644aeeb1c"
+    ],
+    "expected_effect": "No action is proposed, so nothing should change: frontend's error ratio should continue oscillating around ~2.8% mean / ~7.9% peak and product-catalog's around ~0.44% mean / ~4.9% peak, with the byte-identical 'Error: 13 INTERNAL: Error: Product Catalog Fail Feature Flag Enabled' line continuing to appear in {service=\"frontend\"} at its current rate. The correct fix - disabling the 'Product Catalog Fail' flag in the flag store - is outside this system's three executable actions (rollback_image, revert_config, restart_service) and should be routed to whoever owns the flag store, together with a read of that store's audit trail to bound onset and identify who enabled it.",
+    "confirm_within_seconds": 0,
+    "if_wrong": "Two things would overturn this abstention. (1) If a prior configuration for product-catalog turns up in change history - i.e. the flag is in fact carried in the service's environment rather than in an external flag store - then revert_config's preconditions are met and it becomes the right proposal; today the change log is a confirmed-complete empty result for product-catalog over the full 24h window [tr_23225d4af2d4], so there is no prior config to restore and no named change inside the window. (2) If the flag's enabled state is held only in product-catalog's process memory rather than in a store, restart_service would clear it - but nothing in the evidence points at process state, and product-catalog emits no logs at all, before or during the incident [tr_ff97d6346791], so we cannot see its own account of where the flag value comes from. A restart that did not clear the flag would cost a cache flush and a connection reset for every caller and buy nothing.",
+    "risk": "The risk of abstaining is that the injected failure keeps rejecting a sampled subset of GetProduct calls indefinitely; onset is already unbounded earlier than 14:52:08 [tr_f745fc7ccc25] and nobody has read the flag store's audit trail, so this could persist for hours. The counter-risk, had I proposed revert_config or restart_service on product-catalog anyway: revert_config with no recorded prior configuration either no-ops or restores an unknown older environment - including dependency addresses - into a service whose only observed fault is a deliberate flag, and restart_service discards its cache and resets every inbound connection while leaving a flag-store value untouched. Both would be executed against the one service that is currently serving >95% of its requests successfully [tr_bf2c731f9222].",
+    "blast_radius": "Nobody sees a change, because nothing changes. For contrast, had an action been taken on product-catalog, the services that would have noticed are its inbound callers on the exercised paths: frontend (recommendations and browse routes) and recommendation (ListProducts), and through frontend onward to frontend-proxy and the load-generator root [tr_cc8644aeeb1c]. ad, cart, checkout and product-reviews were never dispatched against directly and their health rests on a 10-trace sample, so their exposure is not actually established."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Critical-severity alerts on frontend and its proxy simultaneously, with user-facing impact and several unexamined downstream dependencies, cannot be dismissed. No open incidents to attribute it to and no signal yet favoring a specific fault class."
+  }
+}

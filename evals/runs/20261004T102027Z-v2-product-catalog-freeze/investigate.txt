@@ -1,0 +1,9 @@
+incident df9851d8-1170-411c-aa40-7d864e9171f0  state triaging  anchor 10:25:01
+triage: 5 services, severity critical, start from frontend-proxy, 2 unmeasured edge(s) crossed
+
+B2: feature_flag / config_revert (medium)
+  A feature flag was flipped in flagd, turning on a failing code path that is evaluated by several services at once - fraud-detection errors outright and the checkout/frontend request path degrades, surfacing as errors and latency at frontend-proxy and the load-generator.
+  looked at nothing - this is the model's prior
+wrote /Users/chandana/dev/faultline/evals/runs/20261004T102027Z-v2-product-catalog-freeze/df9851d8-1170-411c-aa40-7d864e9171f0-verdict.json
+{"ts": "2026-10-04T10:27:28.906+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-04T10:27:36.534+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}

@@ -1,0 +1,4 @@
+injected v2-cart-dependency-latency (dependency_latency) on cart
+  - pumba gaiaadm/pumba:0.10.1: 300ms (+/-0ms) delay on cart eth0
+  - sidecar faultline-pumba-v2-cart-dependency-latency holds the rule; it self-reverts after 1h
+revert with: faultline-inject stop v2-cart-dependency-latency

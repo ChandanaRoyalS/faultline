@@ -1,0 +1,94 @@
+{
+  "incident_id": "60c98ecb-425b-4a40-8b4d-47b8bca0f06b",
+  "trajectory_id": "bb8a5cf2-5dbc-4039-a356-a9b22108eaef",
+  "states": [
+    "triaging",
+    "investigating"
+  ],
+  "blast_radius": [
+    "frontend-proxy",
+    "checkout",
+    "frontend",
+    "load-generator",
+    "product-catalog",
+    "recommendation",
+    "ad",
+    "cart",
+    "currency",
+    "email",
+    "flagd",
+    "payment",
+    "product-reviews",
+    "shipping"
+  ],
+  "unmeasured_edges": 15,
+  "exclude_origins": [
+    "scenario:scenario:v2-postgresql-catalog-corruption"
+  ],
+  "verdict": {
+    "fault_class": "datastore_corruption",
+    "remediation_class": "restore_data",
+    "service": "product-catalog",
+    "alternatives": [
+      {
+        "root_cause": "A runtime feature flag enabled a failing product-catalog code path",
+        "service": "flagd",
+        "fault_class": "feature_flag",
+        "remediation_class": null,
+        "why_not": "flagd spans resolve in microseconds and the propagated error names a SQL row-scan decode failure, not a flagged branch; nothing ties a flag to the failing read."
+      },
+      {
+        "root_cause": "A bad product-catalog artifact was rolled out that mishandles product rows",
+        "service": "product-catalog",
+        "fault_class": "bad_deploy",
+        "remediation_class": null,
+        "why_not": "The 24-hour change history for product-catalog is empty, so the running artifact was not replaced."
+      },
+      {
+        "root_cause": "checkout itself fails to assemble orders",
+        "service": "checkout",
+        "fault_class": "bad_config",
+        "remediation_class": null,
+        "why_not": "checkout's error spans are caused by the child product-catalog span erroring first; its other dependencies succeed."
+      }
+    ],
+    "summary": "product-catalog's backing store returns rows it cannot decode (a NULL in a non-nullable product column), so product reads fail and every caller's checkout and recommendation path errors.",
+    "confidence": "medium",
+    "evidence": [
+      "tr_ed4a87d2e3bc",
+      "tr_c52323eec298",
+      "tr_3de04643ac84",
+      "tr_4d360db6ba31",
+      "tr_160d9a4ef8ac"
+    ],
+    "reasoning": "Traces from checkout show the degrading hop is always checkout -> product-catalog, with product-catalog itself returning the error while the rest of the fan-out (cart, currency, payment, shipping, flagd) stays healthy and fast, so the alerting frontend services are only propagating. recommendation's own log captures the upstream gRPC status from product-catalog: the connection and query succeed but a row cannot be scanned/decoded, which is a read-path decode failure with a healthy store rather than latency, exhaustion or a full disk. The change log for product-catalog over 24h is empty and flagd shows no change, which rules against bad_deploy/bad_config and leaves the stored data content itself as the fault.",
+    "open_questions": [
+      "Whether the unreadable rows arrived via a data load/migration or were corrupted in place - no change record exists for product-catalog to date it",
+      "Why product-catalog emitted no log lines of its own in the window, which would have confirmed the error rate and onset from its side",
+      "Why service-level error-ratio metrics for product-catalog, checkout and frontend-proxy showed no sustained departure despite clear per-trace errors - the alert onset at 02:57:46 is not corroborated by the baselines"
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B1",
+    "tool_calls": 9,
+    "turns": 11,
+    "looked_at": [
+      "metrics:product-catalog",
+      "traces:checkout",
+      "logs:product-catalog",
+      "changes:product-catalog",
+      "changes:flagd",
+      "logs:flagd",
+      "metrics:checkout",
+      "metrics:frontend-proxy",
+      "logs:recommendation"
+    ]
+  }
+}

@@ -1,0 +1,179 @@
+{
+  "incident_id": "5b0df4e6-027b-4747-9fcd-439b70eea685",
+  "trajectory_id": "0f70b99d-5107-4b85-9984-9b47815496c3",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "accounting",
+    "checkout",
+    "currency",
+    "email",
+    "flagd",
+    "fraud-detection",
+    "frontend",
+    "payment",
+    "quote",
+    "shipping"
+  ],
+  "unmeasured_edges": 7,
+  "exclude_origins": [
+    "scenario:v2-currency-freeze"
+  ],
+  "verdict": {
+    "root_cause": "fraud-detection stopped doing anything shortly after 16:19 without ever complaining: its log stream ends abruptly at 16:19:42 mid-way through a healthy, monotonically incrementing Kafka consume sequence [tr_c06c3e2e7b18], its spans cease entirely [tr_0d7b36f19ec1], and its error ratio does not rise but instead falls with an increasing share of no-traffic intervals [tr_28722c05a59a] \u2014 the signature of a process that is no longer producing work rather than one that is failing work. No deploy, scale or config change is recorded for fraud-detection, checkout or flagd in the queried window [tr_1cf0b3a5763f][tr_4201adab941e][tr_77d6fdcd2c68], and checkout shows a flat-zero error ratio with continuous datapoints [tr_b2c75b06eb89], so the upstream producer is neither erroring nor the origin. The best-supported mechanism is that the fraud-detection process froze \u2014 still present enough to hold its consumer/socket state but emitting no logs, no spans and no output \u2014 causing the downstream fan-out of alerts at 16:27:31 as dependents waited on work that never completed.",
+    "service": "fraud-detection",
+    "fault_class": "process_freeze",
+    "remediation_class": "restart",
+    "confidence": "low",
+    "evidence": [
+      "tr_c06c3e2e7b18",
+      "tr_0d7b36f19ec1",
+      "tr_28722c05a59a",
+      "tr_b2c75b06eb89",
+      "tr_1cf0b3a5763f"
+    ],
+    "reasoning": "Three independent signals from fraud-detection agree on absence rather than failure: logs stop abruptly at 16:19:42 with no error, no stack trace, no restart banner and no counter reset [tr_c06c3e2e7b18]; traces stop with no error-marked spans and no latency ramp [tr_0d7b36f19ec1]; error ratio declines while no-traffic intervals increase [tr_28722c05a59a]. A crash-loop is excluded by the monotonic counter and absence of lifecycle lines, and a slow-consumer regression by the stable sub-millisecond processing times right up to the cutoff. A network partition would normally leave the service's own log complaining it cannot reach brokers \u2014 fraud-detection instead writes nothing at all, which points to freeze over partition. Checkout is exonerated as origin by its flat-zero error ratio and continuous metric emission [tr_b2c75b06eb89], and the empty change logs [tr_1cf0b3a5763f][tr_4201adab941e] remove deploy and config edits as the triggering act within the queried window. Confidence is low because the change-log windows started at onset rather than before it, checkout produced no logs at all for the entire window so its side of the queue boundary is unverified, and no one inspected the Kafka broker, fraud-detection's resource metrics, or the seven unmeasured edges triage flagged.",
+    "open_questions": [
+      "No dispatch covered the hours before 16:25, so a pre-onset deploy or config change to fraud-detection or the broker remains entirely unexamined \u2014 all three change queries started at onset and ran forward.",
+      "fraud-detection's own resource metrics (memory, threads, GC, file descriptors) and container restart/OOM status were never queried; a freeze from memory pressure or thread-pool exhaustion would look identical in logs and traces to the verdict given here.",
+      "Checkout emitted zero log lines for the whole window including the healthy baseline [tr_26d73e3b2186], so it is unknown whether checkout was still publishing to Kafka after 16:19 \u2014 the trace data cannot answer this because no producer parent spans cross the queue boundary [tr_0d7b36f19ec1].",
+      "The Kafka broker and consumer-group lag were never inspected; a broker-side stall would also silence a healthy consumer.",
+      "Trace ingestion for fraud-detection stops at 15:58:52, roughly twenty minutes before the log cutoff [tr_0d7b36f19ec1]; this discrepancy is unexplained and may indicate a telemetry sampling or pipeline artifact that undermines the trace-based reasoning.",
+      "The seven unmeasured edges from triage, and the five other alerting services (accounting, currency, email, payment, quote, shipping), were never dispatched against \u2014 a shared upstream could explain the simultaneous 16:27:31 fan-out better than fraud-detection alone."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "The Kafka broker or messaging layer stalled, starving fraud-detection of records so it legitimately had nothing to consume and nothing to log.",
+        "service": "kafka",
+        "fault_class": "dependency_latency",
+        "remediation_class": "restart",
+        "why_not": "No dispatch examined the broker at all, so this is unexcluded rather than refuted; it ranks below because a starved-but-live consumer would normally still emit periodic poll, heartbeat or rebalance lines, whereas fraud-detection's output goes to exactly zero [tr_c06c3e2e7b18]. If broker telemetry were pulled and showed a stall, this would displace the primary verdict."
+      },
+      {
+        "root_cause": "fraud-detection lost network reachability to its broker and dependencies, hanging callers while the process itself stayed alive.",
+        "service": "fraud-detection",
+        "fault_class": "network_partition",
+        "remediation_class": "reconnect",
+        "why_not": "A partitioned process almost always logs connection-refused, timeout or broker-unreachable errors; the log sample contains no error lines of any kind before the silence [tr_c06c3e2e7b18]. Total silence fits a frozen process better than a complaining isolated one \u2014 but log shipping could itself be partitioned, which keeps this alive."
+      },
+      {
+        "root_cause": "fraud-detection exhausted memory or another resource and was killed or hung by the runtime.",
+        "service": "fraud-detection",
+        "fault_class": "resource_exhaustion",
+        "remediation_class": "scale",
+        "why_not": "No resource metrics were ever queried, so this is unexamined rather than ruled out; it sits below the freeze verdict only because an OOM kill would typically produce a restart banner and a counter reset, and the consume counter increments monotonically to the final line with no reset [tr_c06c3e2e7b18]. A hang short of a kill would be indistinguishable from the primary verdict on present evidence."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "runbook:class-bad-config / What the change record holds: The variable and a timestamp, and **the new value only** - no change record in this world carries\na prior value, which `world-change-records-have-no-prior-value` sets out.\n\n**What the logs hold is not uniform, and this document had it wrong.** An earlier version said a\nservice po",
+    "v2-shipping-quote-misconfig / What was checked: **The error text, because it was the first thing a responder would read.** Frontend's log and\ncheckout's error span both said the same thing: `shipping quote failure: failed POST to email\nservice: expected 200, got 500`. That sentence names two services. The email service is the ",
+    "v2-fraud-detection-memory-squeeze / What was observed: One alert. `ServiceNoTraffic` on **fraud-detection**, 7m15s after the trouble started. Nothing\nelse fired for the entire incident, and nothing fired after the fix.\n\nThe store was perfect throughout. The frontend, frontend-proxy and the load generator recorded no\nerrors and no cha"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 26356,
+    "pulled_tokens": 4949,
+    "pull_rate": 0.1581,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 433,
+        "content_tokens": 435,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1477,
+        "content_tokens": 1481,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 7970,
+        "content_tokens": 7945,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 7557,
+        "content_tokens": 7559,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 8919,
+        "content_tokens": 8897,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_c06c3e2e7b18",
+      "tr_0d7b36f19ec1",
+      "tr_1cf0b3a5763f"
+    ],
+    "expected_effect": "No action proposed. The restart precondition ('evidence points at process state rather than a change') is not met: the change queries [tr_1cf0b3a5763f] start at 16:25:31 and run forward, so the pre-onset hours where a change would sit were never examined. The traces also contradict the stated onset \u2014 spans stop at 15:58:52, ~20 unexplained minutes before the 16:19:42 log cutoff [tr_0d7b36f19ec1][tr_c06c3e2e7b18] \u2014 undermining the freeze mechanism. Three cheap queries should come first: fraud-detection container/OOM/restart and memory metrics; Kafka consumer-group lag and partition assignment; checkout's producer call-rate series.",
+    "confirm_within_seconds": 0,
+    "if_wrong": "Falsified if consumer-group lag for fraud-detection is rising while its partitions remain assigned to a live-but-silent member \u2014 that confirms a wedged process and should immediately trigger restart_service on fraud-detection. Also wrong if the other alerting services are shown to consume fraud-detection output directly, making it the shared upstream.",
+    "risk": "Abstaining prolongs the outage if the process really is frozen: unprocessed orders accumulate and the services that alerted at 16:27:31 stay blocked. Acting is worse here \u2014 restart_service is irreversible, destroys the wedged process as forensic evidence, forces a group rebalance, and fixes nothing if the stall is broker-side or the producer has gone silent.",
+    "blast_radius": "None from this proposal. A restart, had it been proposed, would reset fraud-detection's container and in-process cache, trigger a Kafka rebalance visible to its consumer group, and be seen by the dependents that alerted at 16:27:31 (accounting, currency, email, payment, quote, shipping) plus checkout and frontend downstream."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "feature_flag",
+    "confidence": "low",
+    "reasoning": "Critical multi-service failure fanning out two minutes after fraud-detection, with flagd flagged as a candidate cause one hop away. Too broad and too severe to dismiss; feature flag change is a cheap first guess."
+  }
+}

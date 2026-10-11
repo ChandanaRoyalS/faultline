@@ -1,0 +1,8 @@
+incident f2f6c428-6399-4f33-9ca7-78786ec4a89c  state triaging  anchor 22:58:46
+triage: 12 services, severity critical, start from checkout, 9 unmeasured edge(s) crossed
+
+B2: bad_deploy / rollback (low)
+  checkout began failing its own request handling immediately after a change to its running artifact, erroring before it could call payment, email or publish orders downstream.
+  looked at nothing - this is the model's prior
+wrote /Users/chandana/dev/faultline/evals/runs/20261010T225435Z-v2-payment-flag-unreachable/f2f6c428-6399-4f33-9ca7-78786ec4a89c-verdict.json
+{"ts": "2026-10-10T23:04:21.423+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}

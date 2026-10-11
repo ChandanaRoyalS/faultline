@@ -1,0 +1,69 @@
+{
+  "incident_id": "4a55f53f-0865-4a0d-befe-b5f0b2fe7d8d",
+  "trajectory_id": "8a4594de-73e0-424b-ace4-b63daa7ae95b",
+  "states": [
+    "triaging"
+  ],
+  "blast_radius": [
+    "load-generator",
+    "flagd",
+    "fraud-detection",
+    "frontend-proxy",
+    "frontend",
+    "ad",
+    "cart",
+    "product-catalog",
+    "product-reviews",
+    "recommendation",
+    "checkout"
+  ],
+  "unmeasured_edges": 13,
+  "exclude_origins": [
+    "scenario:scenario:v2-cart-freeze"
+  ],
+  "verdict": {
+    "fault_class": "resource_exhaustion",
+    "remediation_class": "restart",
+    "service": "flagd",
+    "alternatives": [
+      {
+        "root_cause": "A feature flag was flipped in flagd, enabling a failing code path in fraud-detection and the other flag-reading services.",
+        "service": "flagd",
+        "fault_class": "feature_flag",
+        "remediation_class": null,
+        "why_not": "A flag flip changes behavior in the clients, not flagd's own serving latency; the ServiceHighLatency alert on flagd itself points at flagd being unhealthy rather than merely serving a new value."
+      },
+      {
+        "root_cause": "flagd's flag-definition store returned unreadable/undecodable content, causing evaluation failures across all clients.",
+        "service": "flagd",
+        "fault_class": "datastore_corruption",
+        "remediation_class": null,
+        "why_not": "Corrupt flag definitions would produce fast, clean evaluation errors rather than elevated latency on flagd and its callers."
+      }
+    ],
+    "summary": "flagd became slow serving flag-evaluation requests (its own resources \u2014 CPU/connection/thread capacity \u2014 exhausted), so every service that evaluates flags on the request path (ad, cart, product-reviews, recommendation, fraud-detection) blocked and surfaced errors up through frontend and frontend-proxy to the load-generator.",
+    "confidence": "low",
+    "evidence": [],
+    "reasoning": "The alerting set is almost exactly the set of flagd clients plus the caller chain above them: fraud-detection, ad/cart/product-reviews/recommendation feed frontend, which feeds frontend-proxy, which feeds load-generator. load-generator alerted first only because it is the outermost caller and sees every failure. flagd itself carries a latency warning, which means it is still answering but slowly \u2014 that rules out a freeze or partition (callers would hang with flagd silent) and rules out a pure dependency problem, since flagd is a leaf with no downstream in this graph. A leaf that is up but slow under fan-in load is most often out of some resource (CPU, worker threads, or connection slots). fraud-detection erroring hardest fits a short flag-evaluation deadline being blown.",
+    "open_questions": [
+      "flagd CPU/memory/goroutine and connection counts at onset versus the preceding hour",
+      "flagd's own logs: slow evaluation warnings, GC pauses, or accept-queue overflow",
+      "whether flagd request volume jumped (client retry storm) or stayed flat while latency rose",
+      "whether any flag definition was edited or a new flagd artifact rolled out just before 18:04",
+      "fraud-detection error payloads: deadline-exceeded on the flag call versus an application error on a flagged code path"
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B2",
+    "tool_calls": 0,
+    "attempts": 2,
+    "cited_without_looking": []
+  }
+}

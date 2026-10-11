@@ -1,0 +1,51 @@
+{
+  "incident_id": "a1b8a8df-cc56-4277-9b85-5d54c40bdd11",
+  "trajectory_id": "ab132c31-54bd-457d-8102-f5fc59f32fe9",
+  "states": [
+    "triaging"
+  ],
+  "blast_radius": [
+    "checkout",
+    "fraud-detection",
+    "accounting",
+    "currency",
+    "email",
+    "payment",
+    "quote",
+    "shipping",
+    "cart",
+    "flagd",
+    "frontend",
+    "product-catalog",
+    "frontend-proxy"
+  ],
+  "unmeasured_edges": 10,
+  "exclude_origins": [
+    "scenario:scenario:v2-checkout-currency-misconfig"
+  ],
+  "verdict": {
+    "fault_class": "bad_config",
+    "remediation_class": "config_revert",
+    "service": "checkout",
+    "summary": "suspect: service of the most recent pre-onset change in the window (05:49:12); class: that change was to environment; remediation: table lookup from bad_config",
+    "confidence": "n/a - B0 is a rule, not an estimate"
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B0",
+    "service": "checkout",
+    "fault_class": "bad_config",
+    "fix_class": "config_revert",
+    "why": [
+      "suspect: service of the most recent pre-onset change in the window (05:49:12)",
+      "class: that change was to environment",
+      "remediation: table lookup from bad_config"
+    ]
+  }
+}

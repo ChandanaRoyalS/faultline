@@ -1,0 +1,99 @@
+{
+  "incident_id": "174039f6-3e86-456a-82fb-e2a36de5cc01",
+  "trajectory_id": "54aa734f-08ca-4ca2-b546-fadcb4c9731f",
+  "states": [
+    "triaging",
+    "investigating"
+  ],
+  "blast_radius": [
+    "checkout",
+    "accounting",
+    "email",
+    "fraud-detection",
+    "payment",
+    "cart",
+    "currency",
+    "flagd",
+    "frontend",
+    "product-catalog",
+    "shipping",
+    "frontend-proxy"
+  ],
+  "unmeasured_edges": 9,
+  "exclude_origins": [
+    "scenario:scenario:v2-payment-flag-unreachable"
+  ],
+  "verdict": {
+    "fault_class": "process_freeze",
+    "remediation_class": "restart",
+    "service": "payment",
+    "alternatives": [
+      {
+        "root_cause": "Injected network delay on payment's interface made charges slow enough to exhaust checkout's deadlines.",
+        "service": "payment",
+        "fault_class": "dependency_latency",
+        "remediation_class": null,
+        "why_not": "The traffic-shaping containers in tr_34f3beeb1ba3 were all attached and removed between 00:04 and 01:14, hours before onset, and latency would still leave payment logging and emitting spans, which it does not after 22:31:36."
+      },
+      {
+        "root_cause": "checkout itself regressed on a CURRENCY_ADDR environment change and failed its own orchestration.",
+        "service": "checkout",
+        "fault_class": "bad_config",
+        "remediation_class": null,
+        "why_not": "All CURRENCY_ADDR edits in tr_1aa3b1ec77e0 were applied and reverted in the 05:20-06:48 range, and currency spans inside checkout traces stay sub-millisecond (tr_3fd6b25585e0); nothing changed on checkout near onset."
+      },
+      {
+        "root_cause": "A shared messaging or downstream outage stopped order processing for accounting and fraud-detection.",
+        "service": "fraud-detection",
+        "fault_class": "network_partition",
+        "remediation_class": null,
+        "why_not": "fraud-detection consumed records normally right up to 22:31:35 and logged no connectivity complaints (tr_cc0c1e827cd6); its silence is explained by checkout no longer publishing orders, making it a victim rather than the origin."
+      }
+    ],
+    "summary": "The payment service's process stopped serving at ~22:31:36 \u2014 it emitted no further logs, spans or metrics while its callers kept calling \u2014 so checkout's Charge calls hung to their deadlines and failed, propagating errors to frontend/email/accounting/fraud-detection.",
+    "confidence": "medium",
+    "evidence": [
+      "tr_a84246b73270",
+      "tr_54dbf8a797cb",
+      "tr_677bdd9cde19",
+      "tr_e387b5261b41",
+      "tr_34f3beeb1ba3",
+      "tr_e8eb62cce34c",
+      "tr_cc0c1e827cd6",
+      "tr_21e7f243b643"
+    ],
+    "reasoning": "checkout is the first alerter but its own spans show it as a fan-out orchestrator; its error ratio departs from an exactly-zero baseline at 22:33:46 (tr_a84246b73270). Looking down the call path, payment's last log line is at ~22:31:36 and its newest traced spans are from ~22:31:13 (tr_54dbf8a797cb, tr_677bdd9cde19), with no error-ratio samples at all in the incident window (tr_e387b5261b41) \u2014 the service simply stops producing telemetry while load continues. The other dependencies in the same critical path are healthy and still talking: cart logs continuously to 22:40 (tr_e8eb62cce34c) and product-catalog shows a flat zero error ratio (tr_21e7f243b643), so a shared infrastructure fault is unlikely. fraud-detection's consumption stops at the same moment (tr_cc0c1e827cd6), which follows from checkout no longer publishing completed orders rather than from a fault of its own. Payment's change log holds only traffic-shaping attach/remove pairs that ended many hours earlier and were reverted (tr_34f3beeb1ba3), so no artifact or config change explains the onset. Silent process plus hanging callers plus an empty change window is the freeze signature; a partitioned payment would still be writing complaints that it cannot reach anything, and a full disk or corrupt store would produce explicit write/read failures in its own log.",
+    "open_questions": [
+      "Whether payment's socket still accepted connections (true freeze) versus the container exiting \u2014 the data shows absence of telemetry but not the socket state.",
+      "The exact failure status checkout saw on Charge (deadline exceeded vs connection refused) was not retrieved; checkout emitted no log lines in the window at all.",
+      "Why payment's error-ratio series had no samples even in the baseline window, which leaves its pre-incident health unverified by metrics.",
+      "What stopped the process \u2014 OOM kill, SIGSTOP, or a stuck runtime \u2014 no host-level resource evidence was collected."
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B1",
+    "tool_calls": 12,
+    "turns": 14,
+    "looked_at": [
+      "metrics:checkout",
+      "traces:checkout",
+      "logs:payment",
+      "logs:checkout",
+      "changes:checkout",
+      "metrics:payment",
+      "traces:payment",
+      "logs:fraud-detection",
+      "logs:currency",
+      "logs:cart",
+      "changes:payment",
+      "metrics:product-catalog"
+    ]
+  }
+}

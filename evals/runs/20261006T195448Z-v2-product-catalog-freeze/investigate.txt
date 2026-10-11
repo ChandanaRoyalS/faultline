@@ -1,0 +1,45 @@
+incident 5bbd157d-a66a-491e-aae5-acf5e8fe4ee2  state triaging  anchor 19:58:31
+triage: 9 services, severity critical, start from frontend-proxy, 7 unmeasured edge(s) crossed
+
+B1 FAILED: B1 could not choose an action: schema validation failed twice (1 validation error for B1Action
+verdict
+  Extra inputs are not permitted [type=extra_forbidden, input_value={'service': 'product-cata... with the tools used.']}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden)
+the trajectory holds every tool call it made before the failure
+  11 tool calls over 11 turns
+    metrics:frontend  Establish the error profile at the first non-edge service to see whether frontend is failing itself or propagating from a downstream dependency.
+    traces:frontend  Frontend error ratio is flat, so its alert is likely latency; traces should show which downstream call is hanging or erroring.
+    logs:product-catalog  Hanging routes (browse product, recommendations, checkout) all depend on product-catalog while cart and product-reviews routes are fine; check whether product-catalog is silent, complaining of unreachable network, or erroring.
+    traces:product-catalog  Determine whether product-catalog spans stop/hang at onset (freeze) or whether it is simply a quiet service still serving requests.
+    changes:product-catalog  Check whether a deploy/config change precedes the point where product-catalog stops serving, to separate a freeze from a bad artifact or config.
+    logs:frontend  See whether frontend's own log names which downstream call is timing out during the hanging requests, and confirm frontend itself is alive and logging.
+    logs:recommendation  Failing routes (browse, recommendations, checkout) all share product-catalog while cart/reviews routes succeed; recommendation's log should say whether its product-catalog calls are hanging to deadline.
+    logs:checkout  Checkout calls product-catalog; its log should name a deadline/timeout against product-catalog, confirming the hang originates there rather than in frontend.
+    metrics:product-catalog  Check whether product-catalog's call volume/error ratio shows it serving requests after ~19:54 or going silent, distinguishing a frozen/partitioned dependency from a normal one.
+    traces:checkout  Confirm the hang localizes at the product-catalog hop by seeing whether checkout's GetProduct call to product-catalog stalls to deadline while its other dependencies return fast.
+    changes:frontend  Rule out a frontend-side deploy/config change as the cause of the uniform 15s hangs before attributing to product-catalog.
+wrote /Users/chandana/dev/faultline/evals/runs/20261006T195448Z-v2-product-catalog-freeze/5bbd157d-a66a-491e-aae5-acf5e8fe4ee2-verdict.json
+{"ts": "2026-10-06T20:01:26.086+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-06T20:01:26.103+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=metric_baseline subject=sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"frontend\",status_code=\"STATUS_CODE_ERROR\"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"frontend\"}[5m])) start=2026-10-06T18:55:39.791950+00:00 end=2026-10-06T20:01:23.536050+00:00 span_s=3943 refused=False", "component": "investigator"}
+{"ts": "2026-10-06T20:01:29.013+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-06T20:01:29.014+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=trace_query subject=frontend start=2026-10-06T19:28:31.664000+00:00 end=2026-10-06T20:01:23.536050+00:00 span_s=1971 refused=False", "component": "investigator"}
+{"ts": "2026-10-06T20:01:37.609+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-06T20:01:37.613+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=logql_query subject={service=\"product-catalog\"} start=2026-10-06T19:28:31.664000+00:00 end=2026-10-06T20:01:23.536050+00:00 span_s=1971 refused=False", "component": "investigator"}
+{"ts": "2026-10-06T20:01:42.119+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-06T20:01:42.121+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=trace_query subject=product-catalog start=2026-10-06T19:28:31.664000+00:00 end=2026-10-06T20:01:23.536050+00:00 span_s=1971 refused=False", "component": "investigator"}
+{"ts": "2026-10-06T20:01:51.956+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-06T20:01:51.969+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=product-catalog start=2026-10-05T19:58:31.664000+00:00 end=2026-10-06T20:01:23.536050+00:00 span_s=86571 refused=False", "component": "investigator"}
+{"ts": "2026-10-06T20:02:03.294+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-06T20:02:03.298+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=logql_query subject={service=\"frontend\"} start=2026-10-06T19:28:31.664000+00:00 end=2026-10-06T20:01:23.536050+00:00 span_s=1971 refused=False", "component": "investigator"}
+{"ts": "2026-10-06T20:02:27.282+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-06T20:02:27.289+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=logql_query subject={service=\"recommendation\"} start=2026-10-06T19:28:31.664000+00:00 end=2026-10-06T20:01:23.536050+00:00 span_s=1971 refused=False", "component": "investigator"}
+{"ts": "2026-10-06T20:02:50.937+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-06T20:02:50.951+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=logql_query subject={service=\"checkout\"} start=2026-10-06T19:28:31.664000+00:00 end=2026-10-06T20:01:23.536050+00:00 span_s=1971 refused=False", "component": "investigator"}
+{"ts": "2026-10-06T20:03:10.655+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-06T20:03:10.660+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=metric_baseline subject=sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"product-catalog\",status_code=\"STATUS_CODE_ERROR\"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"product-catalog\"}[5m])) start=2026-10-06T18:55:39.791950+00:00 end=2026-10-06T20:01:23.536050+00:00 span_s=3943 refused=False", "component": "investigator"}
+{"ts": "2026-10-06T20:03:35.295+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-06T20:03:35.301+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=trace_query subject=checkout start=2026-10-06T19:28:31.664000+00:00 end=2026-10-06T20:01:23.536050+00:00 span_s=1971 refused=False", "component": "investigator"}
+{"ts": "2026-10-06T20:03:54.618+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-06T20:03:54.643+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=frontend start=2026-10-05T19:58:31.664000+00:00 end=2026-10-06T20:01:23.536050+00:00 span_s=86571 refused=False", "component": "investigator"}
+{"ts": "2026-10-06T20:04:51.567+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-06T20:05:11.429+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}

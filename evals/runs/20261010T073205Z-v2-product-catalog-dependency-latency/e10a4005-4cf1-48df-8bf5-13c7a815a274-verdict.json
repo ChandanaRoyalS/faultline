@@ -1,0 +1,80 @@
+{
+  "incident_id": "e10a4005-4cf1-48df-8bf5-13c7a815a274",
+  "trajectory_id": "a73dfe03-db73-4a7c-9004-df3998ba03f0",
+  "states": [
+    "triaging",
+    "investigating"
+  ],
+  "blast_radius": [
+    "checkout",
+    "frontend",
+    "frontend-proxy",
+    "load-generator",
+    "product-catalog",
+    "recommendation",
+    "ad",
+    "cart",
+    "currency",
+    "email",
+    "flagd",
+    "payment",
+    "product-reviews",
+    "shipping"
+  ],
+  "unmeasured_edges": 15,
+  "exclude_origins": [
+    "scenario:scenario:v2-product-catalog-dependency-latency"
+  ],
+  "verdict": {
+    "fault_class": "dependency_latency",
+    "remediation_class": "config_revert",
+    "service": "product-catalog",
+    "alternatives": [
+      {
+        "root_cause": "product-catalog's datastore itself became slow or saturated",
+        "service": "product-catalog",
+        "fault_class": "resource_exhaustion",
+        "remediation_class": null,
+        "why_not": "The slow query time appears and disappears exactly with attach/detach of the network-shaping container, and the ~300ms increment also appears on the caller-side gRPC hop, which points at the network path rather than the store"
+      },
+      {
+        "root_cause": "frontend regressed and spends extra time per product call",
+        "service": "frontend",
+        "fault_class": "bad_deploy",
+        "remediation_class": null,
+        "why_not": "frontend's extra self-time is the client half of the shaped network hop, and it vanishes in traces recorded while the shaping container was detached"
+      }
+    ],
+    "summary": "A traffic-shaping sidecar attached to product-catalog's network namespace injected ~300ms of egress delay, making product-catalog's database queries take ~600ms and stalling every caller in the request path.",
+    "confidence": "high",
+    "evidence": [
+      "tr_1d339ac0dc74",
+      "tr_2daeb217571e",
+      "tr_41e941b024f8",
+      "tr_bed22205e803"
+    ],
+    "reasoning": "product-catalog shows zero error ratio in both windows (tr_41e941b024f8) and checkout likewise shows no error departure (tr_bed22205e803), so the incident is latency, not failure. Traces (tr_2daeb217571e) show the dominant self-time sitting in product-catalog's sql.conn.query at ~600ms per call, with each frontend/checkout GetProduct hop adding ~300ms of its own self-time - a symmetric per-hop delay on product-catalog's network path; traces after 07:14 fall back to sub-millisecond queries. The change log (tr_1d339ac0dc74) shows a traffic-shaping container with eth0 delay=300ms attached at 07:08, removed at 07:14, and re-attached at 07:32, immediately preceding onset at 07:36. Checkout, frontend, frontend-proxy, recommendation and load-generator alerted because they wait on product-catalog, and fan-out of GetProduct calls multiplies the delay into multi-second checkouts.",
+    "open_questions": [
+      "Why platform-automation attached the shaping container twice and whether it was intentional fault injection or an automation defect",
+      "Whether any callers actually breached deadlines and returned errors to users, since the error-ratio series examined stayed flat"
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B1",
+    "tool_calls": 4,
+    "turns": 6,
+    "looked_at": [
+      "metrics:product-catalog",
+      "traces:product-catalog",
+      "changes:product-catalog",
+      "metrics:checkout"
+    ]
+  }
+}

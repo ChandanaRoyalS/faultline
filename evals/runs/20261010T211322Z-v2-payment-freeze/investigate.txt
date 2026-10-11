@@ -1,0 +1,51 @@
+incident d52596f2-60f6-4609-9b51-5c7672cf77cb  state triaging  anchor 21:20:46
+triage: 7 services, severity critical, start from email, 4 unmeasured edge(s) crossed
+
+B1: process_freeze / restart (medium)
+  The payment service's process stopped doing work while its socket still accepted connections, so checkout's Charge calls hung to their deadlines and the whole order path (checkout, email, accounting, fraud-detection) went quiet.
+  13 tool calls over 15 turns
+    metrics:accounting  Confirm the error onset shape in the first alerting service before tracing upstream
+    metrics:checkout  Checkout is the common upstream of accounting, email, payment, fraud-detection; see if its errors precede theirs
+    logs:accounting  Accounting shows no traffic at all; check whether it logs anything (freeze vs partition vs errors)
+    metrics:payment  Determine whether payment actually errors or merely loses traffic, to distinguish a real failure from a stopped flow
+    logs:payment  See whether payment is silent (freeze) or logging failures at onset, and what dependency it names
+    logs:checkout  Checkout feeds all four alerting services; see whether it stops or logs a hang/error against a dependency around 21:13-21:21
+    changes:checkout  Check whether checkout had a deploy or config change near onset that would stop it calling payment/email/kafka
+    traces:checkout  Checkout logs are empty while its span metrics continue; check span durations/errors to see if calls are hanging to deadline
+    changes:flagd  flagd is in the blast radius; see whether a flag-store change or any artifact/config change exists near onset
+    logs:flagd  Check whether flagd is silent (freeze) or logging unreachability (partition) around the time downstreams go quiet
+    traces:frontend  Look for post-onset spans that hang and identify which downstream hop they wait on
+    changes:payment  Rule out a deploy/config/limit edit on payment that would explain its stall
+    traces:payment  Confirm payment's own spans are absent/deferred while callers hang, distinguishing a frozen process from slow in-service work
+wrote /Users/chandana/dev/faultline/evals/runs/20261010T211322Z-v2-payment-freeze/d52596f2-60f6-4609-9b51-5c7672cf77cb-verdict.json
+{"ts": "2026-10-10T21:22:40.231+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-10T21:22:40.248+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=metric_baseline subject=sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"accounting\",status_code=\"STATUS_CODE_ERROR\"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"accounting\"}[5m])) start=2026-10-10T20:18:55.319268+00:00 end=2026-10-10T21:22:38.008732+00:00 span_s=3822 refused=False", "component": "investigator"}
+{"ts": "2026-10-10T21:22:44.452+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-10T21:22:44.455+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=metric_baseline subject=sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"checkout\",status_code=\"STATUS_CODE_ERROR\"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"checkout\"}[5m])) start=2026-10-10T20:18:55.319268+00:00 end=2026-10-10T21:22:38.008732+00:00 span_s=3822 refused=False", "component": "investigator"}
+{"ts": "2026-10-10T21:22:50.038+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-10T21:22:50.044+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=logql_query subject={service=\"accounting\"} start=2026-10-10T20:50:46.664000+00:00 end=2026-10-10T21:22:38.008732+00:00 span_s=1911 refused=False", "component": "investigator"}
+{"ts": "2026-10-10T21:22:59.185+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-10T21:22:59.186+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=metric_baseline subject=sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"payment\",status_code=\"STATUS_CODE_ERROR\"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"payment\"}[5m])) start=2026-10-10T20:18:55.319268+00:00 end=2026-10-10T21:22:38.008732+00:00 span_s=3822 refused=False", "component": "investigator"}
+{"ts": "2026-10-10T21:23:15.203+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-10T21:23:17.132+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-10T21:23:17.135+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=logql_query subject={service=\"payment\"} start=2026-10-10T20:50:46.664000+00:00 end=2026-10-10T21:22:38.008732+00:00 span_s=1911 refused=False", "component": "investigator"}
+{"ts": "2026-10-10T21:23:23.076+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-10T21:23:23.090+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=logql_query subject={service=\"checkout\"} start=2026-10-10T20:50:46.664000+00:00 end=2026-10-10T21:22:38.008732+00:00 span_s=1911 refused=False", "component": "investigator"}
+{"ts": "2026-10-10T21:23:44.789+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-10T21:23:46.584+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-10T21:23:46.589+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=checkout start=2026-10-09T21:20:46.664000+00:00 end=2026-10-10T21:22:38.008732+00:00 span_s=86511 refused=False", "component": "investigator"}
+{"ts": "2026-10-10T21:23:58.810+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-10T21:23:58.820+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=trace_query subject=checkout start=2026-10-10T20:50:46.664000+00:00 end=2026-10-10T21:22:38.008732+00:00 span_s=1911 refused=False", "component": "investigator"}
+{"ts": "2026-10-10T21:24:17.294+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-10T21:24:17.312+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=flagd start=2026-10-09T21:20:46.664000+00:00 end=2026-10-10T21:22:38.008732+00:00 span_s=86511 refused=False", "component": "investigator"}
+{"ts": "2026-10-10T21:24:33.444+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-10T21:24:33.450+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=logql_query subject={service=\"flagd\"} start=2026-10-10T20:50:46.664000+00:00 end=2026-10-10T21:22:38.008732+00:00 span_s=1911 refused=False", "component": "investigator"}
+{"ts": "2026-10-10T21:24:42.348+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-10T21:24:42.351+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=trace_query subject=frontend start=2026-10-10T20:50:46.664000+00:00 end=2026-10-10T21:22:38.008732+00:00 span_s=1911 refused=False", "component": "investigator"}
+{"ts": "2026-10-10T21:24:56.157+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-10T21:24:56.181+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=payment start=2026-10-09T21:20:46.664000+00:00 end=2026-10-10T21:22:38.008732+00:00 span_s=86511 refused=False", "component": "investigator"}
+{"ts": "2026-10-10T21:25:07.471+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-10T21:25:07.478+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=trace_query subject=payment start=2026-10-10T20:50:46.664000+00:00 end=2026-10-10T21:22:38.008732+00:00 span_s=1911 refused=False", "component": "investigator"}
+{"ts": "2026-10-10T21:25:22.217+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-10T21:25:43.038+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-10T21:25:54.075+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}

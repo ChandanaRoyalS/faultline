@@ -1,0 +1,4 @@
+injected v2-shipping-quote-misconfig (bad_config) on shipping
+  - compose: shipping recreated with QUOTE_ADDR=http://quote-gone:8090
+  - override written to /Users/chandana/dev/faultline/.faultline/overrides/v2-shipping-quote-misconfig.yml
+revert with: faultline-inject stop v2-shipping-quote-misconfig

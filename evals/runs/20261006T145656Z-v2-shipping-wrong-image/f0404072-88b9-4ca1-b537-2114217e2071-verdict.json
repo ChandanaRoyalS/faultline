@@ -1,0 +1,71 @@
+{
+  "incident_id": "f0404072-88b9-4ca1-b537-2114217e2071",
+  "trajectory_id": "5e9cc189-1c68-4a86-8eaf-5f686917c2e0",
+  "states": [
+    "triaging"
+  ],
+  "blast_radius": [
+    "checkout",
+    "accounting",
+    "email",
+    "fraud-detection",
+    "payment",
+    "quote",
+    "shipping",
+    "cart",
+    "currency",
+    "flagd",
+    "frontend",
+    "product-catalog",
+    "frontend-proxy"
+  ],
+  "unmeasured_edges": 10,
+  "exclude_origins": [
+    "scenario:scenario:v2-shipping-wrong-image"
+  ],
+  "verdict": {
+    "fault_class": "bad_deploy",
+    "remediation_class": "rollback",
+    "service": "checkout",
+    "alternatives": [
+      {
+        "root_cause": "A configuration value in checkout (wrong dependency address, port, or credential) makes every order attempt fail immediately.",
+        "service": "checkout",
+        "fault_class": "bad_config",
+        "remediation_class": null,
+        "why_not": "A single wrong endpoint would usually still let checkout reach its earlier dependencies and fail partway, leaving some downstream traffic; here all exclusive callees go fully silent, which fits a process that never serves a request at all."
+      },
+      {
+        "root_cause": "A flag flipped in flagd drove the failing code path, breaking fraud-detection and the order flow.",
+        "service": "flagd",
+        "fault_class": "feature_flag",
+        "remediation_class": null,
+        "why_not": "checkout is not shown as a flagd consumer in this topology, and other flagd clients (cart, ad, recommendation, product-reviews) did not alert; fraud-detection alerted four minutes after checkout, so it looks like a consequence rather than a shared cause."
+      }
+    ],
+    "summary": "The checkout service itself began failing on every request immediately at onset (likely a bad artifact/version rolled out that cannot serve orders), so it never issued calls to its exclusive downstream dependencies.",
+    "confidence": "medium",
+    "evidence": [],
+    "reasoning": "checkout alerted first and alone with a high error rate; four minutes later every service that only checkout calls (payment, email, shipping, quote, and the kafka-fed accounting) went to zero traffic, while shared dependencies that frontend/recommendation also call (cart, product-catalog, currency) stayed healthy and did not alert. That pattern - caller erroring, exclusive callees starved, shared callees fine - places the fault inside checkout rather than beneath it. The absence of a checkout latency alert argues against waiting on a slow dependency: requests are failing fast, which fits a build that cannot start or an artifact that errors on every order path. fraud-detection's later error/latency alerts are consistent with a downstream consumer starved of order events or tripping on flag evaluation, not with it being the origin, since it alerted after checkout.",
+    "open_questions": [
+      "checkout's deploy/change history around 15:00 - image tag and rollout time",
+      "checkout pod restart counts and container exit codes / crashloop state",
+      "the actual error text and status codes checkout returns, and at what stage of the order flow they occur",
+      "whether checkout emits any outbound spans at all to cart/product-catalog/currency during the incident",
+      "flagd availability and recent flag changes, to explain fraud-detection's independent error rate"
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B2",
+    "tool_calls": 0,
+    "attempts": 2,
+    "cited_without_looking": []
+  }
+}

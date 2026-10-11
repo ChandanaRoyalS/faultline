@@ -1,0 +1,98 @@
+{
+  "incident_id": "1ad6a018-6b9f-41d8-93b0-970c9b961ddd",
+  "trajectory_id": "d52695bb-3cf5-4161-8bdf-b51703300e36",
+  "states": [
+    "triaging",
+    "investigating"
+  ],
+  "blast_radius": [
+    "checkout",
+    "frontend",
+    "frontend-proxy",
+    "load-generator",
+    "ad",
+    "cart",
+    "currency",
+    "email",
+    "payment",
+    "product-catalog",
+    "product-reviews",
+    "recommendation",
+    "shipping"
+  ],
+  "unmeasured_edges": 13,
+  "exclude_origins": [
+    "scenario:scenario:v2-cart-bad-image-tag"
+  ],
+  "verdict": {
+    "fault_class": "bad_deploy",
+    "remediation_class": "rollback",
+    "service": "cart",
+    "alternatives": [
+      {
+        "root_cause": "cart was cut off from the network so callers could not reach it",
+        "service": "cart",
+        "fault_class": "network_partition",
+        "remediation_class": null,
+        "why_not": "A partitioned cart would still be running and would log its own failures to reach valkey or flagd; instead its log ends with a clean shutdown and nothing follows, and a deliberate image change is recorded at that exact moment."
+      },
+      {
+        "root_cause": "cart's process froze while its socket still accepted connections",
+        "service": "cart",
+        "fault_class": "process_freeze",
+        "remediation_class": null,
+        "why_not": "A freeze makes callers hang to their deadlines; frontend instead gets immediate connection-refused/no-route errors, which means nothing is listening at the address."
+      },
+      {
+        "root_cause": "cart was killed for exceeding a lowered memory limit after the redeploy",
+        "service": "cart",
+        "fault_class": "resource_exhaustion",
+        "remediation_class": null,
+        "why_not": "The only recorded changes are image reference flips with no limit edit, and the shutdown in cart's log reads as orderly rather than an abrupt kill."
+      },
+      {
+        "root_cause": "checkout is the broken service since it alerted first",
+        "service": "checkout",
+        "fault_class": "bad_deploy",
+        "remediation_class": null,
+        "why_not": "Checkout's error ratio shows no sustained departure from baseline and it has no changes implicated; its failures are reported by frontend as cart-dial failures originating downstream."
+      }
+    ],
+    "summary": "cart was redeployed onto the hotfix image reference at 09:07 and the resulting pod never came back up, so its gRPC endpoint became unreachable and every checkout that needs the cart failed.",
+    "confidence": "medium",
+    "evidence": [
+      "tr_53325d9eb994",
+      "tr_ab2b69f24598",
+      "tr_2043acfc7c7d",
+      "tr_7062e1bce6fd",
+      "tr_18864cfcfbe1",
+      "tr_97f04d619d0c"
+    ],
+    "reasoning": "Frontend's errors are all failures to reach the cart address on port 7070 (unreachable host / zero addresses), which is a caller-side symptom of cart not being there, not of frontend itself (tr_2043acfc7c7d). Cart's own log ends with an orderly application shutdown just before 09:07:18 and nothing afterwards (tr_ab2b69f24598), matching a pod that was replaced and did not return. The change log shows platform-automation repeatedly flipping cart's image reference to a hotfix tag and reverting it, with the final flip at 09:07:18 immediately after that shutdown (tr_53325d9eb994); the earlier flips at 08:29/08:49 line up with the earlier frontend cart-dial errors around 08:50, so the same artifact change has produced the same outage twice. Checkout itself shows no sustained error departure (tr_18864cfcfbe1) and is silent in logs (tr_7062e1bce6fd); its pre-onset traces are healthy with cart hops in the sub-millisecond range (tr_97f04d619d0c), so checkout and frontend alerted because they call cart, not because they broke.",
+    "open_questions": [
+      "No post-09:07 cart metrics or traces were examined, so whether the new image crash-loops, fails to start, or is killed for exceeding a limit is not settled.",
+      "No log line from the new cart container was observed at all, leaving open whether it ever started and emitted a startup failure.",
+      "Whether the hotfix image tag is genuinely the wrong artifact or whether a correct artifact fails for an environmental reason was not determined."
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B1",
+    "tool_calls": 6,
+    "turns": 8,
+    "looked_at": [
+      "metrics:checkout",
+      "traces:checkout",
+      "logs:checkout",
+      "logs:frontend",
+      "logs:cart",
+      "changes:cart"
+    ]
+  }
+}

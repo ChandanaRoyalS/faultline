@@ -1,0 +1,9 @@
+incident f0404072-88b9-4ca1-b537-2114217e2071  state triaging  anchor 15:00:31
+triage: 13 services, severity critical, start from checkout, 10 unmeasured edge(s) crossed
+
+B2: bad_deploy / rollback (medium)
+  The checkout service itself began failing on every request immediately at onset (likely a bad artifact/version rolled out that cannot serve orders), so it never issued calls to its exclusive downstream dependencies.
+  looked at nothing - this is the model's prior
+wrote /Users/chandana/dev/faultline/evals/runs/20261006T145656Z-v2-shipping-wrong-image/f0404072-88b9-4ca1-b537-2114217e2071-verdict.json
+{"ts": "2026-10-06T15:06:46.549+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-06T15:06:56.088+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}

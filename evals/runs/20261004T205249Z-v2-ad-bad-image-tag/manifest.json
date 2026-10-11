@@ -1,0 +1,533 @@
+{
+  "run_id": "20261004T205249Z-v2-ad-bad-image-tag",
+  "scenario_id": "v2-ad-bad-image-tag",
+  "split": "dev",
+  "scenario_fingerprint": "3ad9d1181ee96cf56e967536b44ef04f6ad8da350bae1c8c9a16dfafc89920f9",
+  "started_at": "2026-10-04T20:52:49.283714+00:00",
+  "demo": false,
+  "recorder": {
+    "tool": "evalharness.run",
+    "git_sha": "a1a08bacc32e83a5d33be749a1d147d14d180e71",
+    "git_dirty": true
+  },
+  "models": {
+    "changes": "claude-opus-5",
+    "logs": "claude-opus-5",
+    "metrics": "claude-opus-5",
+    "planner": "claude-opus-5",
+    "scribe": "claude-opus-5",
+    "synthesizer": "claude-opus-5",
+    "traces": "claude-opus-5"
+  },
+  "efforts": {
+    "default": "high"
+  },
+  "budget": {
+    "max_tool_calls_per_specialist": 4,
+    "max_tokens": 120000,
+    "wall_clock_seconds": 600,
+    "max_dispatch_rounds": 2,
+    "briefing_tokens": 4000,
+    "max_usd": 2.0,
+    "usd_per_mtok_in": 5.0,
+    "usd_per_mtok_out": 25.0,
+    "per_specialist_tool_calls": {}
+  },
+  "world_lock": {
+    "acquired": true,
+    "pid": 22055,
+    "host": "chandanas-MacBook-Air.local",
+    "since": "2026-10-04T20:52:49.438543+00:00",
+    "reason": "faultline-eval v2-ad-bad-image-tag",
+    "token": "22055-1791147169.43844"
+  },
+  "preflight": {
+    "checked": true,
+    "model": "claude-opus-5",
+    "ok": true,
+    "detail": "20 token(s) billed",
+    "skipped_because": ""
+  },
+  "baseline_gate": {
+    "passed": true,
+    "world": "v2",
+    "firing_alerts": [],
+    "p95_over_ceiling_ms": {},
+    "p95_excursions": {},
+    "ingest_accepting": true,
+    "consumer_idle_ms": 2585,
+    "pipeline_down": [],
+    "silent_services": [
+      "kafka"
+    ],
+    "unexpected_silent": [],
+    "latency_invisible": [],
+    "services_reporting": 19,
+    "youngest_container": [
+      "cart",
+      1919
+    ],
+    "active_injections": "no active injections",
+    "open_incidents": [],
+    "settling_incidents": [],
+    "settle_seconds_remaining": 0,
+    "headroom": {
+      "container": "kafka",
+      "percent_now": 39.23,
+      "limit_mb": 1024.0,
+      "expected_run_hours": 0.3475,
+      "runs_remaining": 1,
+      "uptime_seconds": 492927,
+      "growth_mb_per_hour": 1.3,
+      "growth_mb": 0.5,
+      "projected_percent": 39.27,
+      "threshold_percent": 89.96,
+      "guard_percent": 90.0,
+      "fits": true
+    },
+    "refusals": []
+  },
+  "world_continuity": {
+    "kafka_uptime_seconds": 492927,
+    "kafka_uptime_seconds_previous_run": 491722,
+    "previous_run_id": "20261004T203243Z-v2-product-catalog-freeze",
+    "kafka_restarted_since_previous_run": false,
+    "cause": "continuous - same kafka instance as the previous run",
+    "note": "A sweep spanning a restart did not run every scenario against the same kafka instance. That is a resource level, not a code or config change - no digest moves and the runs describe the same world (T7.33)."
+  },
+  "freeze": {
+    "frozen_for": "dev 20261004T205249Z-v2-ad-bad-image-tag",
+    "runtime_version": "faultline/0.0.1+prompts:9ce16b66bbcc",
+    "prompts": {
+      "constants": [
+        "PLANNER_SYSTEM",
+        "PROPOSER_SYSTEM",
+        "SCRIBE_SYSTEM",
+        "SPECIALIST_SYSTEM",
+        "SYNTHESIZER_SYSTEM",
+        "TRIAGER_SYSTEM"
+      ],
+      "sha256": "be4a0e27319aac2433bfb8f0e719065747cf10703bf1c5b82f78a1a612a1805c",
+      "chars": 15822
+    },
+    "corpus": {
+      "rows": 200,
+      "sha256": "738e834925e06e445e0ad1366ca7c20e984d306a10b55fb058df841db81646b0",
+      "body_sha256": "8d75e8acc4b10903608970b317369b0982f4df51e641644c45f8cf5cd1c26198",
+      "documents": [
+        "runbook:action-restart-service",
+        "runbook:action-revert-config",
+        "runbook:action-rollback-image",
+        "runbook:action-scale-unavailable",
+        "runbook:alert-high-error-rate",
+        "runbook:class-bad-config",
+        "runbook:class-bad-deploy",
+        "runbook:class-datastore-corruption",
+        "runbook:class-dependency-latency",
+        "runbook:class-disk-fill",
+        "runbook:class-feature-flag",
+        "runbook:class-network-partition",
+        "runbook:class-process-freeze",
+        "runbook:class-resource-exhaustion",
+        "scenario:v2-accounting-bad-credential",
+        "scenario:v2-ad-bad-image-tag",
+        "scenario:v2-ad-flag-failure",
+        "scenario:v2-ad-memory-squeeze",
+        "scenario:v2-ad-partition",
+        "scenario:v2-cart-bad-image-tag",
+        "scenario:v2-cart-dependency-latency",
+        "scenario:v2-cart-flag-failure",
+        "scenario:v2-cart-freeze",
+        "scenario:v2-cart-store-corruption",
+        "scenario:v2-currency-freeze",
+        "scenario:v2-fraud-detection-flag-queue-lag",
+        "scenario:v2-fraud-detection-memory-squeeze",
+        "scenario:v2-fraud-detection-partition",
+        "scenario:v2-frontend-cart-misconfig",
+        "scenario:v2-inj-cart-flag-failure-log-checkout",
+        "scenario:v2-inj-kafka-disk-fill-log-checkout",
+        "scenario:v2-inj-payment-dependency-latency-log-checkout",
+        "scenario:v2-kafka-disk-fill",
+        "scenario:v2-payment-dependency-latency",
+        "scenario:v2-payment-memory-squeeze",
+        "scenario:v2-payment-telemetry-blackout",
+        "scenario:v2-postgresql-catalog-corruption",
+        "scenario:v2-product-catalog-flag-failure",
+        "scenario:v2-product-catalog-freeze",
+        "scenario:v2-product-catalog-partition",
+        "scenario:v2-shipping-quote-misconfig",
+        "scenario:v2-shipping-wrong-image",
+        "scenario:v2-valkey-cart-dependency-latency"
+      ],
+      "holdout_chunks": 0
+    },
+    "model_map": {
+      "models": {
+        "changes": "claude-opus-5",
+        "logs": "claude-opus-5",
+        "metrics": "claude-opus-5",
+        "planner": "claude-opus-5",
+        "proposer": "claude-opus-5",
+        "scribe": "claude-opus-5",
+        "synthesizer": "claude-opus-5",
+        "traces": "claude-opus-5",
+        "triage": "claude-opus-5"
+      },
+      "effort_default": "high",
+      "role_efforts": {}
+    },
+    "budget": {
+      "max_tool_calls_per_specialist": 4,
+      "max_tokens": 120000,
+      "wall_clock_seconds": 600,
+      "max_dispatch_rounds": 2,
+      "briefing_tokens": 4000,
+      "max_usd": 2.0,
+      "usd_per_mtok_in": 5.0,
+      "usd_per_mtok_out": 25.0
+    },
+    "tool_layer": {
+      "git_sha": "a1a08bacc32e83a5d33be749a1d147d14d180e71",
+      "git_dirty": true
+    },
+    "judge": {
+      "model": null,
+      "prompt_sha256": "244108af996ad2a5138f6632a297941dd26643d806c73dfa9e24bc7d51392b54",
+      "allow_shared_lineage": false
+    },
+    "world": {
+      "compose_digest": "5a2bc6d912f922a03874ab2824d9362541362386fbcab7e0c2f99aa760f567df",
+      "observability_digest": "7d6097ab0f00132d57993804ee4f4d9eff1abedfb71a273bdd7e553ef887637b",
+      "ffs_stub_source_digest": "8defed3104c42adffb16b77e85396e1796f2681652d0771b99d3632358c37fde",
+      "otel_demo_image_digest": "ghcr.io/open-telemetry/demo@sha256:1adaf3b33fbf4d42e5a1fa68fec1ea1b645d50471881179bd7be0a0ce2656706",
+      "capability_version": "cap:91279a09",
+      "host_platform": "Darwin/arm64",
+      "host_overrides": [
+        "dev-tempo-otlp.override.yml"
+      ],
+      "unverifiable_fields": []
+    }
+  },
+  "baseline": null,
+  "ablation": [],
+  "ablation_config": {},
+  "exclusion_policy": "own",
+  "exclude_origins": [
+    "scenario:v2-ad-bad-image-tag"
+  ],
+  "repeat_count": 1,
+  "tier": "manual",
+  "seed_policy": "unseeded: non-deterministic model, live world",
+  "world": "v2",
+  "sweep": {
+    "id": "trial-headline-f-v2",
+    "slot": 3,
+    "of": 3,
+    "pass": 1
+  },
+  "comparability": {
+    "generation": "5a2bc6d912f9",
+    "provenance": "observed",
+    "previous_run": "20261004T203243Z-v2-product-catalog-freeze",
+    "previous_generation": "5a2bc6d912f9",
+    "previous_provenance": "observed",
+    "new_generation": false
+  },
+  "injected_at": "2026-10-04T20:52:53.557213+00:00",
+  "incident_id": "aed96ccc-8aec-45c4-b83c-9308b0af777c",
+  "investigate_exit_code": 0,
+  "investigate_attempts": [
+    {
+      "attempt": 1,
+      "waited_seconds": 0,
+      "exit_code": 0,
+      "transient_signal": null
+    }
+  ],
+  "reverted_at": "2026-10-04T21:03:41.459435+00:00",
+  "recovery": {
+    "passed": false,
+    "world": "v2",
+    "firing_alerts": [
+      "ServiceHighLatency/load-generator",
+      "ServiceHighLatency/product-reviews",
+      "ServiceHighLatency/frontend-proxy"
+    ],
+    "p95_over_ceiling_ms": {},
+    "p95_excursions": {},
+    "ingest_accepting": true,
+    "consumer_idle_ms": 2550,
+    "pipeline_down": [],
+    "silent_services": [
+      "kafka"
+    ],
+    "unexpected_silent": [],
+    "latency_invisible": [],
+    "services_reporting": 19,
+    "youngest_container": [
+      "ad",
+      438
+    ],
+    "active_injections": "no active injections",
+    "open_incidents": [],
+    "settling_incidents": [],
+    "settle_seconds_remaining": 0,
+    "headroom": {
+      "container": "kafka",
+      "percent_now": 40.65,
+      "limit_mb": 1024.0,
+      "expected_run_hours": 0.8083,
+      "runs_remaining": null,
+      "uptime_seconds": 494016,
+      "growth_mb_per_hour": 1.3,
+      "growth_mb": 1.1,
+      "projected_percent": 40.75,
+      "threshold_percent": 89.9,
+      "guard_percent": 90.0,
+      "fits": true
+    },
+    "refusals": [
+      "3 alert(s) firing"
+    ],
+    "caller_reachability": {
+      "service": "ad",
+      "window_seconds": 120,
+      "callers": {
+        "flagd": null,
+        "frontend": null
+      },
+      "note": "observational (Q32); nothing refuses on this"
+    }
+  },
+  "unexpected_fields": {},
+  "score": {
+    "run_id": "20261004T205249Z-v2-ad-bad-image-tag",
+    "scenario_id": "v2-ad-bad-image-tag",
+    "trajectory_id": "ca883746-f2d4-44a8-b714-d5dd2521c6fb",
+    "runtime_version": "faultline/0.0.1+prompts:9ce16b66bbcc",
+    "budget": {
+      "max_tool_calls_per_specialist": 4,
+      "max_tokens": 120000,
+      "wall_clock_seconds": 600,
+      "max_dispatch_rounds": 2,
+      "briefing_tokens": 4000,
+      "max_usd": 2.0,
+      "usd_per_mtok_in": 5.0,
+      "usd_per_mtok_out": 25.0,
+      "per_specialist_tool_calls": {}
+    },
+    "reached_a_class": true,
+    "reachability": {
+      "answers_idle_or_absent": [
+        "runtime",
+        "logs"
+      ],
+      "derived_from": "the bundle's own captures (T7.5)",
+      "none_can_answer": false,
+      "runtime_series": 102,
+      "target_log_lines": 172
+    },
+    "service_visibility": {
+      "target": "ad",
+      "presence": "in_graph",
+      "nameable": true,
+      "reason": null
+    },
+    "triage": {
+      "recall": 0.75,
+      "precision": 0.375,
+      "matched": [
+        "ad",
+        "frontend",
+        "frontend-proxy"
+      ],
+      "missed_alerted_not_predicted": [
+        "load-generator"
+      ],
+      "predicted_not_alerted": [
+        "cart",
+        "checkout",
+        "product-catalog",
+        "product-reviews",
+        "recommendation"
+      ],
+      "excluded_began_after_revert": [],
+      "unmeasured_edges_crossed": 7,
+      "n_alerted": 4,
+      "n_predicted": 8
+    },
+    "fault_class": {
+      "truth": "bad_deploy",
+      "returned": "bad_deploy",
+      "correct": true,
+      "correct_by_alternative": false,
+      "also_correct": [],
+      "abstained": false,
+      "dispute": null
+    },
+    "fix_class": {
+      "truth": "rollback",
+      "returned": "rollback",
+      "correct": true,
+      "correct_by_alternative": false,
+      "also_correct": [],
+      "abstained": false,
+      "dispute": null
+    },
+    "service": {
+      "truth": "ad",
+      "returned": "ad",
+      "correct": true,
+      "correct_by_alternative": false,
+      "also_correct": [],
+      "abstained": false,
+      "dispute": null
+    },
+    "ranked_class": {
+      "truth": "bad_deploy",
+      "ranked": [
+        "bad_deploy",
+        "resource_exhaustion",
+        "bad_config"
+      ],
+      "depth": 3,
+      "top_1": true,
+      "top_3": true,
+      "gained_by_ranking": false
+    },
+    "ranked_service": {
+      "truth": "ad",
+      "ranked": [
+        "ad"
+      ],
+      "depth": 1,
+      "top_1": true,
+      "top_3": true,
+      "gained_by_ranking": false
+    },
+    "categories": {
+      "flagged": [],
+      "n_flagged": 0,
+      "failed_alone": [],
+      "n_failed_alone": 0,
+      "contradictions": [],
+      "n_contradictions": 0,
+      "budget_exhausted": false,
+      "budget_exhausted_reason": null,
+      "narrative_refused": false,
+      "narrative_refused_reason": null
+    },
+    "tokens_in": 62926,
+    "tokens_out": 15253,
+    "cost_usd": 0.696,
+    "models": {
+      "changes": "claude-opus-5",
+      "logs": "claude-opus-5",
+      "metrics": "claude-opus-5",
+      "planner": "claude-opus-5",
+      "scribe": "claude-opus-5",
+      "synthesizer": "claude-opus-5",
+      "traces": "claude-opus-5"
+    }
+  },
+  "finished_at": "2026-10-04T21:11:05.472201+00:00",
+  "leave_one_out": {
+    "retrievals": 2,
+    "excluding": 2,
+    "filtered": {
+      "1": 5,
+      "16": 5
+    },
+    "silent": [],
+    "unassessable": [],
+    "missing_own": [],
+    "enforced": true
+  },
+  "metrics": {
+    "latency": {
+      "investigation_ms": 205412,
+      "investigation_seconds": 205.4,
+      "tool_ms": 1026,
+      "model_ms": 250355,
+      "retrieval_ms": 7515,
+      "steps": 20,
+      "within_gate4_threshold": false
+    },
+    "tool_calls": {
+      "total": 6,
+      "valid": 6,
+      "errored": 0,
+      "empty": 1,
+      "truncated": 1,
+      "redundant": 0,
+      "validity_rate": 1.0,
+      "redundancy_rate": 0.0
+    },
+    "context": {
+      "briefings": 5,
+      "over_budget": 3,
+      "overflow_rate": 0.6,
+      "dropped_sections": 2,
+      "largest_estimated_tokens": 7937,
+      "budget": 4000
+    },
+    "citations": {
+      "violations": 0,
+      "regenerated": false,
+      "escalated": false
+    }
+  },
+  "judge": {
+    "scenario_id": "v2-ad-bad-image-tag",
+    "run_id": "20261004T205249Z-v2-ad-bad-image-tag",
+    "agent_model": "claude-opus-5",
+    "judge_model": "claude-haiku-4-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "scored": true,
+    "not_scored_because": null,
+    "root_cause_agreement": "same_mechanism",
+    "agreement_reason": "Both narratives identify the same root cause: an image reference update to a tag that was never published, causing the ad service container to fail to start and the running process to stop.",
+    "dead_ends_closed": [
+      "frontend's own error rate as cause",
+      "frontend-side change",
+      "ad's error ratio showing ad was fine",
+      "flag reader errors"
+    ],
+    "dead_ends_missed": [
+      "pod or container-state evidence to distinguish pull-failure from restart-loop from never-scheduled"
+    ],
+    "traps": [
+      {
+        "trap": "frontend's aggregate error ratio was down, not up",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "ad's error ratio query appeared calm (no departure flagged)",
+        "outcome": "took"
+      },
+      {
+        "trap": "ad had been running on the hotfix tag before (not brand new code)",
+        "outcome": "avoided explicitly"
+      }
+    ],
+    "notes": "Agent narrative correctly identifies the mechanism but acknowledges it took a trap (the ad error ratio query that missed the incident window by 18 hours) and leaves a significant gap: no investigation of pod/container state to confirm the image pull actually failed rather than other failure modes.",
+    "tokens_in": 7558,
+    "tokens_out": 330
+  },
+  "first_correct": {
+    "measured": true,
+    "reached": true,
+    "index": 29,
+    "depth": 30,
+    "elapsed_ms": 108480,
+    "role": "synthesizer",
+    "kind": "verdict",
+    "reason": "Entry 29 commits to the mechanism: a deploy pushed an image-reference update to an unpublished ad-hotfix tag, the running container was stopped (orderly JVM shutdown), the replacement artifact never came up because it doesn't exist in the registry, and frontend's ad requests failed at the connection level because ad was absent, not unhealthy.",
+    "judge_model": "claude-haiku-4-5",
+    "agent_model": "claude-opus-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "truncated": false
+  }
+}

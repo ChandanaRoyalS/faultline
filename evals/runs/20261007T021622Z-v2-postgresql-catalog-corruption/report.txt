@@ -1,0 +1,41 @@
+run 20261007T021622Z-v2-postgresql-catalog-corruption   scenario v2-postgresql-catalog-corruption
+trajectory cc91e4ac-b3a3-4c39-a499-5ba57482fd67   runtime faultline/0.0.1+prompts:9ce16b66bbcc
+
+TRIAGE (blast radius vs alerts_over_window)
+  recall    0.77  (10/13 alerted services predicted)
+  precision 0.71  (10/14 predicted services alerted)
+  reported as a pair and never combined - ADR-0017's under-reach question rides on recall alone
+  missed (alerted, not predicted): accounting, fraud-detection, quote
+  extra  (predicted, not alerted): ad, cart, flagd, product-reviews
+  unmeasured edges crossed: 15 - membership reached through one is not evidence at the same strength
+
+VERDICT
+  reachability NO evidence class can answer 'was the target idle or absent' - runtime series 0, target logs 5. Reported, not forgiven: an abstention here still counts exactly as one.
+  fault class datastore_corruption vs datastore_corruption - correct
+  fix class   restore_data vs restore_data - correct
+  service     product-catalog vs postgresql - WRONG
+    target visibility: postgresql is in the catalog but not in the dependency graph, so no blast radius could contain it - The database behind accounting, product-catalog and product-reviews, each of which holds client spans with `db.system` postgresql (docs/evidence/t7.2-topology/q122-presence.txt, part C1). No span of its own.. Reported, not forgiven: this counts exactly as a miss.
+  ranked class top1 hit, top3 hit, depth 3  gained by ranking: no
+    ranked: datastore_corruption > bad_deploy > bad_config
+  ranked service top1 miss, top3 miss, depth 1  (the verdict ranked 3, all naming one service)
+  coverage: reached a class
+
+REPORTED SEPARATELY (never averaged into the above)
+  flagged verdicts        0
+  specialists failed alone 0
+  contradiction firings   0 (check retired)
+  budget exhausted        no
+  narrative refused       no
+
+COST  in 74678 / out 17722 tokens   $0.8164
+MODELS {'changes': 'claude-opus-5', 'logs': 'claude-opus-5', 'metrics': 'claude-opus-5', 'planner': 'claude-opus-5', 'scribe': 'claude-opus-5', 'synthesizer': 'claude-opus-5', 'traces': 'claude-opus-5'}
+BUDGET {'max_tool_calls_per_specialist': 4, 'max_tokens': 120000, 'wall_clock_seconds': 600, 'max_dispatch_rounds': 2, 'briefing_tokens': 4000, 'max_usd': 2.0, 'usd_per_mtok_in': 5.0, 'usd_per_mtok_out': 25.0, 'per_specialist_tool_calls': {}}
+
+n=1. A single run is an observation, not a rate (CLAUDE.md rule 6).
+
+METRIC PANEL (T4.3) - reported beside accuracy, never averaged into it
+  latency        210.6s (OVER G4's 3-minute per-run comparison) tools 0.7s  models 284.4s (summed, not a critical path)  retrieval 8.0s  steps 24
+  tool calls     8 total, 8 valid, 0 errored, 1 redundant  validity 1.00  redundancy 0.12
+    a query that ran and found nothing is valid - an empty result is evidence (ADR-0019); 4 empty, 1 truncated
+  context budget 5 briefing(s), 3 over budget (0.60), 2 section(s) dropped, largest 10429 est. tokens against a 4000 cap
+  citations      0 violation(s), regenerated false, escalated false

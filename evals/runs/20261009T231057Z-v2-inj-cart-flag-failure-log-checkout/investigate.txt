@@ -1,0 +1,9 @@
+incident 169d7e8b-dbb3-4a68-a89c-79a3cbdd30b0  state triaging  anchor 23:16:16
+triage: 9 services, severity critical, start from checkout, 8 unmeasured edge(s) crossed
+B0: dependency_latency / restart
+  suspect: largest error-rate delta among alerting services (+0.078)
+  class: no change on any alerting service before onset
+  remediation: table lookup from dependency_latency
+wrote /Users/chandana/dev/faultline/evals/runs/20261009T231057Z-v2-inj-cart-flag-failure-log-checkout/169d7e8b-dbb3-4a68-a89c-79a3cbdd30b0-verdict.json
+{"ts": "2026-10-09T23:18:11.933+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=checkout start=2026-10-08T23:16:16.664000+00:00 end=2026-10-09T23:18:11.926790+00:00 span_s=86515 refused=False", "component": "investigator"}
+{"ts": "2026-10-09T23:18:11.934+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=promql_query subject=sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"checkout\",status_code=\"STATUS_CODE_ERROR\"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"checkout\"}[5m])) start=2026-10-09T22:46:16.664000+00:00 end=2026-10-09T23:18:11.926790+00:00 span_s=1915 refused=False", "component": "investigator"}

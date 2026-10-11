@@ -1,0 +1,22 @@
+incident e10a4005-4cf1-48df-8bf5-13c7a815a274  state triaging  anchor 07:36:31
+triage: 14 services, severity warning, start from checkout, 15 unmeasured edge(s) crossed
+
+B1: dependency_latency / config_revert (high)
+  A traffic-shaping sidecar attached to product-catalog's network namespace injected ~300ms of egress delay, making product-catalog's database queries take ~600ms and stalling every caller in the request path.
+  4 tool calls over 6 turns
+    metrics:product-catalog  product-catalog is deep in the graph and alerting; check its error ratio shape vs baseline to see if it is the origin rather than a caller.
+    traces:product-catalog  error ratio was flat zero, so check whether product-catalog spans are slow (latency) rather than failing.
+    changes:product-catalog  see whether a deploy/config change on product-catalog coincides with onset at 07:36
+    metrics:checkout  confirm checkout's error onset aligns with the 07:32 delay injection on product-catalog
+wrote /Users/chandana/dev/faultline/evals/runs/20261010T073205Z-v2-product-catalog-dependency-latency/e10a4005-4cf1-48df-8bf5-13c7a815a274-verdict.json
+{"ts": "2026-10-10T07:38:27.774+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-10T07:38:27.800+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=metric_baseline subject=sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"product-catalog\",status_code=\"STATUS_CODE_ERROR\"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"product-catalog\"}[5m])) start=2026-10-10T06:34:37.793873+00:00 end=2026-10-10T07:38:25.534127+00:00 span_s=3827 refused=False", "component": "investigator"}
+{"ts": "2026-10-10T07:38:30.974+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-10T07:38:30.977+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=trace_query subject=product-catalog start=2026-10-10T07:06:31.664000+00:00 end=2026-10-10T07:38:25.534127+00:00 span_s=1913 refused=False", "component": "investigator"}
+{"ts": "2026-10-10T07:38:37.826+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-10T07:38:37.831+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=product-catalog start=2026-10-09T07:36:31.664000+00:00 end=2026-10-10T07:38:25.534127+00:00 span_s=86513 refused=False", "component": "investigator"}
+{"ts": "2026-10-10T07:38:44.027+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-10T07:38:44.031+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=metric_baseline subject=sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"checkout\",status_code=\"STATUS_CODE_ERROR\"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"checkout\"}[5m])) start=2026-10-10T06:34:37.793873+00:00 end=2026-10-10T07:38:25.534127+00:00 span_s=3827 refused=False", "component": "investigator"}
+{"ts": "2026-10-10T07:38:48.856+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-10T07:39:01.333+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-10T07:39:09.115+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}

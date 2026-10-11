@@ -1,0 +1,63 @@
+{
+  "incident_id": "df9851d8-1170-411c-aa40-7d864e9171f0",
+  "trajectory_id": "4ff54ef7-0d75-4cdb-8aeb-dadfc8172dd8",
+  "states": [
+    "triaging"
+  ],
+  "blast_radius": [
+    "frontend-proxy",
+    "load-generator",
+    "fraud-detection",
+    "flagd",
+    "frontend"
+  ],
+  "unmeasured_edges": 2,
+  "exclude_origins": [
+    "scenario:scenario:v2-product-catalog-freeze"
+  ],
+  "verdict": {
+    "fault_class": "feature_flag",
+    "remediation_class": "config_revert",
+    "service": "flagd",
+    "alternatives": [
+      {
+        "root_cause": "A downstream of checkout (kafka/broker or payment path) became slow, so frontend requests timed out and fraud-detection's consumer backed up.",
+        "service": "checkout",
+        "fault_class": "dependency_latency",
+        "remediation_class": null,
+        "why_not": "checkout itself never alerted, and fraud-detection's only edge in this graph is flagd, so a checkout-side slowdown does not cleanly explain its error burst."
+      },
+      {
+        "root_cause": "flagd became slow or unreachable, so every service that blocks on flag evaluation stalled.",
+        "service": "flagd",
+        "fault_class": "dependency_latency",
+        "remediation_class": null,
+        "why_not": "cart, ad, recommendation and product-reviews all depend on flagd too and none of them alerted, which argues for a specific flag value rather than flagd being degraded."
+      }
+    ],
+    "summary": "A feature flag was flipped in flagd, turning on a failing code path that is evaluated by several services at once - fraud-detection errors outright and the checkout/frontend request path degrades, surfacing as errors and latency at frontend-proxy and the load-generator.",
+    "confidence": "medium",
+    "evidence": [],
+    "reasoning": "The blast radius is the giveaway: frontend-proxy, frontend, load-generator, fraud-detection and flagd. fraud-detection has exactly one dependency in this graph - flagd - so an error burst there with no datastore or peer of its own points at a flag evaluation rather than an upstream call. At the same time the user-facing edge (load-generator -> frontend-proxy -> frontend) lights up with both errors and latency, which is the classic shape of a flag that degrades a shared path being consumed by both the checkout path and fraud-detection. A flag flip explains why multiple unrelated services break simultaneously with no artifact or config file change, and why flagd itself is in the traversal set but never alerts - flagd is healthy, it is serving a bad value. Onset is simultaneous across the edge rather than ramping, which argues against resource exhaustion or a slow dependency building up.",
+    "open_questions": [
+      "flagd flag-change audit log around 10:25 - which flag changed and to what value",
+      "fraud-detection error messages: flag-evaluation/consumer failures versus connection errors to a broker",
+      "whether checkout and ad show elevated error/latency without crossing their alert thresholds",
+      "whether any deploy or config rollout landed in the 10:15-10:25 window (expected: none)",
+      "frontend-proxy error codes - 5xx passed through from frontend versus proxy-generated timeouts"
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B2",
+    "tool_calls": 0,
+    "attempts": 2,
+    "cited_without_looking": []
+  }
+}

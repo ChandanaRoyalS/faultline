@@ -1,0 +1,99 @@
+{
+  "run_id": "20261010T033620Z-v2-checkout-currency-misconfig",
+  "scenario_id": "v2-checkout-currency-misconfig",
+  "split": "holdout",
+  "scenario_fingerprint": "702078eaf6cb852c8442505db78a6472d098e520045c5985e1f6c89acdec14dd",
+  "started_at": "2026-10-10T03:36:20.223695+00:00",
+  "demo": false,
+  "recorder": {
+    "tool": "evalharness.run",
+    "git_sha": "5950947919a764716712d9b1ad4346ef133560fb",
+    "git_dirty": true
+  },
+  "models": {
+    "changes": "claude-opus-5",
+    "logs": "claude-opus-5",
+    "metrics": "claude-opus-5",
+    "planner": "claude-opus-5",
+    "scribe": "claude-opus-5",
+    "synthesizer": "claude-opus-5",
+    "traces": "claude-opus-5"
+  },
+  "efforts": {
+    "default": "high"
+  },
+  "budget": {
+    "max_tool_calls_per_specialist": 4,
+    "max_tokens": 120000,
+    "wall_clock_seconds": 600,
+    "max_dispatch_rounds": 2,
+    "briefing_tokens": 4000,
+    "max_usd": 2.0,
+    "usd_per_mtok_in": 5.0,
+    "usd_per_mtok_out": 25.0,
+    "per_specialist_tool_calls": {}
+  },
+  "world_lock": {
+    "acquired": true,
+    "pid": 95549,
+    "host": "chandanas-MacBook-Air.local",
+    "since": "2026-10-10T03:36:20.493946+00:00",
+    "reason": "faultline-eval v2-checkout-currency-misconfig",
+    "token": "95549-1791603380.493763"
+  },
+  "preflight": {
+    "checked": true,
+    "model": "claude-opus-5",
+    "ok": true,
+    "detail": "20 token(s) billed",
+    "skipped_because": ""
+  },
+  "baseline_gate": {
+    "passed": false,
+    "world": "v2",
+    "firing_alerts": [
+      "ServiceHighLatency/load-generator"
+    ],
+    "p95_over_ceiling_ms": {},
+    "p95_excursions": {},
+    "ingest_accepting": true,
+    "consumer_idle_ms": 803,
+    "pipeline_down": [],
+    "silent_services": [],
+    "unexpected_silent": [],
+    "latency_invisible": [],
+    "services_reporting": 18,
+    "youngest_container": [
+      "checkout",
+      2831
+    ],
+    "active_injections": "no active injections",
+    "open_incidents": [
+      "bef29d0a-7b6b-44ea-8e5e-ca660a70e511"
+    ],
+    "settling_incidents": [],
+    "settle_seconds_remaining": 0,
+    "headroom": {
+      "container": "kafka",
+      "percent_now": 49.96,
+      "limit_mb": 1024.0,
+      "expected_run_hours": 6.95,
+      "runs_remaining": 20,
+      "uptime_seconds": 2858,
+      "growth_mb_per_hour": 1.3,
+      "growth_mb": 9.0,
+      "projected_percent": 50.84,
+      "threshold_percent": 89.12,
+      "guard_percent": 90.0,
+      "fits": true
+    },
+    "refusals": [
+      "1 alert(s) firing",
+      "1 non-terminal incident(s) in the store: bef29d0a-7b6b-44ea-8e5e-ca660a70e511 - a new alert would correlate into one rather than opening its own"
+    ]
+  },
+  "refused": {
+    "reason": "baseline gate refused",
+    "at": "2026-10-10T03:36:30.208611+00:00"
+  }
+}

@@ -1,0 +1,51 @@
+{
+  "incident_id": "bdd60af5-99f5-4c0a-9102-74bae8a6dfad",
+  "trajectory_id": "c8448d54-6838-4824-8f25-e47e877e3107",
+  "states": [
+    "triaging"
+  ],
+  "blast_radius": [
+    "checkout",
+    "accounting",
+    "email",
+    "payment",
+    "quote",
+    "shipping",
+    "fraud-detection",
+    "frontend-proxy",
+    "cart",
+    "currency",
+    "flagd",
+    "frontend",
+    "product-catalog"
+  ],
+  "unmeasured_edges": 10,
+  "exclude_origins": [
+    "scenario:scenario:v2-shipping-wrong-image"
+  ],
+  "verdict": {
+    "fault_class": "bad_deploy",
+    "remediation_class": "rollback",
+    "service": "shipping",
+    "summary": "suspect: service of the most recent pre-onset change in the window (14:16:21); class: that change was to image; remediation: table lookup from bad_deploy",
+    "confidence": "n/a - B0 is a rule, not an estimate"
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B0",
+    "service": "shipping",
+    "fault_class": "bad_deploy",
+    "fix_class": "rollback",
+    "why": [
+      "suspect: service of the most recent pre-onset change in the window (14:16:21)",
+      "class: that change was to image",
+      "remediation: table lookup from bad_deploy"
+    ]
+  }
+}

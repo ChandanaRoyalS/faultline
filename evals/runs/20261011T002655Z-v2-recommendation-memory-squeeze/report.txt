@@ -1,0 +1,40 @@
+run 20261011T002655Z-v2-recommendation-memory-squeeze   scenario v2-recommendation-memory-squeeze
+trajectory 4521b624-7f04-4f4f-82e5-2b18f88f46a5   runtime faultline/0.0.1+prompts:9ce16b66bbcc
+
+TRIAGE (blast radius vs alerts_over_window)
+  recall    1.00  (3/3 alerted services predicted)
+  precision 0.38  (3/8 predicted services alerted)
+  reported as a pair and never combined - ADR-0017's under-reach question rides on recall alone
+  missed (alerted, not predicted): none
+  extra  (predicted, not alerted): ad, cart, checkout, product-catalog, product-reviews
+  unmeasured edges crossed: 7 - membership reached through one is not evidence at the same strength
+
+VERDICT
+  reachability answerable by: runtime, logs
+  fault class resource_exhaustion vs resource_exhaustion - correct
+  fix class   config_revert vs config_revert - correct
+  service     recommendation vs recommendation - correct
+  ranked class top1 hit, top3 hit, depth 3  gained by ranking: no
+    ranked: resource_exhaustion > network_partition > process_freeze
+  ranked service top1 hit, top3 hit, depth 1  (the verdict ranked 3, all naming one service)
+  coverage: reached a class
+
+REPORTED SEPARATELY (never averaged into the above)
+  flagged verdicts        1  planner produced no valid findings: dispatch service 'frontend, ad, cart, checkout, product-catalog, product-reviews, recommendation' names more than one service. A dispatch is one specialist asking one question about one service; to cover three services, make three dispatches. Legal values: accounting, ad, cart, checkout, currency, email, flagd, flagd-ui, fraud-detection, frontend, frontend-proxy, image-provider, kafka, llm, load-generator, payment, postgresql, product-catalog, product-reviews, quote, recommendation, shipping, valkey-cart.
+  specialists failed alone 1  planner: dispatch service 'frontend, ad, cart, checkout, product-catalog, product-reviews, recommendation' names more than one service. A dispatch is one specialist asking one question about one service; to cover three services, make three dispatches. Legal values: accounting, ad, cart, checkout, currency, email, flagd, flagd-ui, fraud-detection, frontend, frontend-proxy, image-provider, kafka, llm, load-generator, payment, postgresql, product-catalog, product-reviews, quote, recommendation, shipping, valkey-cart.
+  contradiction firings   0 (check retired)
+  budget exhausted        no
+  narrative refused       no
+
+COST  in 64201 / out 14198 tokens   $0.6760
+MODELS {'changes': 'claude-opus-5', 'logs': 'claude-opus-5', 'metrics': 'claude-opus-5', 'planner': 'claude-opus-5', 'scribe': 'claude-opus-5', 'synthesizer': 'claude-opus-5', 'traces': 'claude-opus-5'}
+BUDGET {'max_tool_calls_per_specialist': 4, 'max_tokens': 120000, 'wall_clock_seconds': 600, 'max_dispatch_rounds': 2, 'briefing_tokens': 4000, 'max_usd': 2.0, 'usd_per_mtok_in': 5.0, 'usd_per_mtok_out': 25.0, 'per_specialist_tool_calls': {}}
+
+n=1. A single run is an observation, not a rate (CLAUDE.md rule 6).
+
+METRIC PANEL (T4.3) - reported beside accuracy, never averaged into it
+  latency        255.7s (OVER G4's 3-minute per-run comparison) tools 0.9s  models 275.0s (summed, not a critical path)  retrieval 5.7s  steps 20
+  tool calls     6 total, 6 valid, 0 errored, 0 redundant  validity 1.00  redundancy 0.00
+    a query that ran and found nothing is valid - an empty result is evidence (ADR-0019); 1 empty, 2 truncated
+  context budget 5 briefing(s), 3 over budget (0.60), 2 section(s) dropped, largest 8345 est. tokens against a 4000 cap
+  citations      0 violation(s), regenerated false, escalated false

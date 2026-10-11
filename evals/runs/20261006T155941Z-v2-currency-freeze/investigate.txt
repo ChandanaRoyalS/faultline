@@ -1,0 +1,9 @@
+incident a0695d75-4221-42b5-a761-e086aeaabc08  state triaging  anchor 16:05:31
+triage: 12 services, severity critical, start from fraud-detection, 8 unmeasured edge(s) crossed
+
+B2: process_freeze / restart (low)
+  flagd stopped responding to flag-evaluation requests (process alive but serving nothing), so every service that blocks on a flag lookup — fraud-detection first, then checkout — hung or errored, and checkout stopped issuing any downstream calls.
+  looked at nothing - this is the model's prior
+wrote /Users/chandana/dev/faultline/evals/runs/20261006T155941Z-v2-currency-freeze/a0695d75-4221-42b5-a761-e086aeaabc08-verdict.json
+{"ts": "2026-10-06T16:10:02.508+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-06T16:10:13.002+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}

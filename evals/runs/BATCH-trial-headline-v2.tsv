@@ -1,0 +1,28 @@
+slot	pass	scenario	arm	outcome	attempts	rerun	tally_usd
+1	dev	v2-cart-bad-image-tag	F	gate refused	6	0	0.00
+2	dev	v2-cart-bad-image-tag	B0	gate refused	6	0	0.00
+3	dev	v2-cart-bad-image-tag	B1	gate refused	6	0	0.00
+4	dev	v2-cart-bad-image-tag	B2	gate refused	6	0	0.00
+5	dev	v2-product-catalog-freeze	B0	gate refused	6	0	0.00
+6	dev	v2-product-catalog-freeze	B1	gate refused	6	0	0.00
+7	dev	v2-product-catalog-freeze	B2	gate refused	6	0	0.00
+8	dev	v2-product-catalog-freeze	F	gate refused	6	0	0.00
+9	dev	v2-ad-bad-image-tag	B1	gate refused	6	0	0.00
+10	dev	v2-ad-bad-image-tag	B2	gate refused	6	0	0.01
+11	dev	v2-ad-bad-image-tag	F	gate refused	6	0	0.01
+12	dev	v2-ad-bad-image-tag	B0	gate refused	6	0	0.01
+1	dev	v2-cart-bad-image-tag	F	world lock	3	1	0.01
+2	dev	v2-cart-bad-image-tag	B0	gate refused	6	1	0.01
+3	dev	v2-cart-bad-image-tag	B1	gate refused	6	1	0.01
+1	dev	v2-cart-bad-image-tag	F	invalid	1	0	0.90
+2	dev	v2-cart-bad-image-tag	B0	scored	1	0	0.90
+3	dev	v2-cart-bad-image-tag	B1	scored	1	0	1.52
+4	dev	v2-cart-bad-image-tag	B2	scored	1	0	1.57
+5	dev	v2-product-catalog-freeze	B0	scored	2	0	1.57
+6	dev	v2-product-catalog-freeze	B1	scored	1	0	3.96
+7	dev	v2-product-catalog-freeze	B2	scored	1	0	4.01
+8	dev	v2-product-catalog-freeze	F	discarded	1	0	4.21
+9	dev	v2-ad-bad-image-tag	B1	scored	2	0	4.97
+10	dev	v2-ad-bad-image-tag	B2	scored	3	0	5.01
+11	dev	v2-ad-bad-image-tag	F	invalid	1	0	5.97
+12	dev	v2-ad-bad-image-tag	B0	scored	1	0	5.97

@@ -1,0 +1,66 @@
+{
+  "incident_id": "073a2ae0-7cb7-4aa3-a79b-59d96a475bd5",
+  "trajectory_id": "87ad99cd-c488-4025-9792-1a036097fdc1",
+  "states": [
+    "triaging"
+  ],
+  "blast_radius": [
+    "frontend",
+    "frontend-proxy",
+    "ad",
+    "cart",
+    "checkout",
+    "product-catalog",
+    "product-reviews",
+    "recommendation"
+  ],
+  "unmeasured_edges": 7,
+  "exclude_origins": [
+    "scenario:scenario:v2-ad-memory-squeeze"
+  ],
+  "verdict": {
+    "fault_class": "bad_config",
+    "remediation_class": "config_revert",
+    "service": "frontend",
+    "alternatives": [
+      {
+        "root_cause": "A new frontend build was rolled out that cannot serve requests correctly (wrong image or broken version).",
+        "service": "frontend",
+        "fault_class": "bad_deploy",
+        "remediation_class": null,
+        "why_not": "A build that cannot start would usually show as crashlooping/unavailable at the proxy rather than a steady high error rate from a running frontend, but this is nearly as likely as bad config and would need the change log to separate."
+      },
+      {
+        "root_cause": "One of frontend's downstreams (e.g. product-catalog, cart or checkout) became slow and frontend exhausted request deadlines.",
+        "service": "product-catalog",
+        "fault_class": "dependency_latency",
+        "remediation_class": null,
+        "why_not": "No downstream service alerted at all, and the symptom is error rate at the edge rather than the latency/saturation pattern a slow dependency usually also raises on itself."
+      }
+    ],
+    "summary": "The frontend itself is returning errors on most requests - most plausibly a wrong configuration value (e.g. a downstream endpoint address/port or required env var) that makes nearly every request fail fast, with frontend-proxy merely reflecting its upstream's errors.",
+    "confidence": "low",
+    "evidence": [],
+    "reasoning": "Only frontend and frontend-proxy alert, and they alert at the same second; frontend-proxy is purely the edge caller of frontend, so it is the noticer, not the breaker. The wider blast radius list is just graph traversal from frontend and is not evidence that ad, cart, checkout, product-catalog, product-reviews or recommendation are unhealthy - none of them alerted, which argues against a downstream dependency being slow or erroring (that would normally light up the failing dependency too, or at least show as latency rather than a clean high error rate). A high error rate rather than hung callers rules out process_freeze and network_partition. That leaves a fault local to frontend that makes requests fail immediately: a wrong config value (bad upstream address, port, or missing required setting) is the most common shape, with a bad artifact a close second.",
+    "open_questions": [
+      "frontend's own error logs: are the failures connection refused/DNS to a specific dependency address, 5xx from a dependency, or panics/startup errors?",
+      "Did frontend's deployed image digest or config map change shortly before 08:45:16?",
+      "Latency distribution at frontend - fast failures (config/deploy) vs deadline-length hangs (dependency latency)?",
+      "Per-dependency success rates from frontend's client-side metrics, to see whether one downstream is silently failing without alerting",
+      "frontend pod memory/CPU/restart counts and FD/connection pool saturation"
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B2",
+    "tool_calls": 0,
+    "attempts": 2,
+    "cited_without_looking": []
+  }
+}

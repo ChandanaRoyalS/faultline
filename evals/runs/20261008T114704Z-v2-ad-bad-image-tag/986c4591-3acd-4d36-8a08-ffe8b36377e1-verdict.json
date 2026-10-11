@@ -1,0 +1,66 @@
+{
+  "incident_id": "986c4591-3acd-4d36-8a08-ffe8b36377e1",
+  "trajectory_id": "2ffa67ef-8a00-450e-9337-01ea9bc382f0",
+  "states": [
+    "triaging"
+  ],
+  "blast_radius": [
+    "frontend",
+    "frontend-proxy",
+    "ad",
+    "cart",
+    "checkout",
+    "product-catalog",
+    "product-reviews",
+    "recommendation"
+  ],
+  "unmeasured_edges": 7,
+  "exclude_origins": [
+    "scenario:scenario:v2-ad-bad-image-tag"
+  ],
+  "verdict": {
+    "fault_class": "bad_deploy",
+    "remediation_class": "rollback",
+    "service": "frontend",
+    "alternatives": [
+      {
+        "root_cause": "A wrong configuration value in frontend (bad downstream address, port, or credential) makes every outbound call fail immediately.",
+        "service": "frontend",
+        "fault_class": "bad_config",
+        "remediation_class": null,
+        "why_not": "Would look nearly identical from here; demoted only because a config-value error usually breaks one dependency edge and leaves parts of the page working, whereas the whole frontend appears to be erroring at once. Needs the change log to separate from a bad deploy."
+      },
+      {
+        "root_cause": "frontend exhausted its connection pool or memory under load and began rejecting requests.",
+        "service": "frontend",
+        "fault_class": "resource_exhaustion",
+        "remediation_class": null,
+        "why_not": "Exhaustion normally ramps - latency climbs before errors do - rather than both alerts firing critical in the same second, and no downstream service shows the load pattern that would drive it."
+      }
+    ],
+    "summary": "The frontend is serving errors on its own account - most likely a newly rolled artifact that fails at request time - and frontend-proxy is simply surfacing those 5xx to the edge.",
+    "confidence": "low",
+    "evidence": [],
+    "reasoning": "Only frontend and frontend-proxy alert, and they alert in the same second. frontend-proxy sits directly in front of frontend and has no other dependency, so it is the noticer, not the breaker. Every service frontend calls (ad, cart, checkout, product-catalog, product-reviews, recommendation) is inside the blast radius purely by graph traversal and none of them is alerting - if a downstream had broken or gone slow, I would expect that service or its other callers (e.g. checkout, recommendation sharing product-catalog) to light up too. That localizes the fault to frontend itself. The symptom is a high error rate rather than hanging callers or latency, which argues for requests being actively rejected or failing in-process rather than waiting on a dependency, a frozen process, or a partition. An abrupt step to critical error rate at a single instant is the signature of a newly running artifact that cannot serve correctly. flagd is a shared dependency of ad, cart, recommendation and product-reviews but not of frontend, so a flag flip would show up in those services first.",
+    "open_questions": [
+      "Deployment/change history for frontend in the 15 minutes before 11:52:16 - new image tag or rollout event?",
+      "frontend's own error logs: startup failures, panics, or per-request 5xx with a specific handler/route?",
+      "Whether frontend's errors are self-generated or wrapped errors from a downstream call (status codes and spans on the outbound edges to product-catalog/cart/checkout)",
+      "Latency distribution at frontend - flat and fast failures (deploy/config) vs. piled up at a timeout boundary (dependency latency)",
+      "Resource metrics for frontend pods - OOMKills, restart counts, container readiness"
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B2",
+    "tool_calls": 0,
+    "attempts": 1,
+    "cited_without_looking": []
+  }
+}

@@ -1,0 +1,25 @@
+incident e6d482c9-8556-4027-92be-b4a1b8e1cc21  state triaging  anchor 08:40:31
+triage: 9 services, severity critical, start from checkout, 8 unmeasured edge(s) crossed
+
+B1: bad_deploy / rollback (high)
+  The email service's image reference was pointed at the wrong artifact (a quote-service image), which cannot start — it crash-loops on an invalid listen URI — so checkout's order-confirmation calls fail.
+  5 tool calls over 7 turns
+    metrics:checkout  Establish the error pattern and onset timing on the first alerting service
+    logs:checkout  See what checkout's errors say — which dependency fails or times out
+    changes:checkout  Verify independently whether any config/deploy change actually occurred on checkout in the window
+    logs:email  The second alerting service — see whether email is erroring, hanging, or silent
+    changes:email  Confirm whether a config change on email emptied its listen port, versus a deploy of a different artifact
+wrote /Users/chandana/dev/faultline/evals/runs/20261010T083554Z-v2-inj-email-wrong-image-log-checkout/e6d482c9-8556-4027-92be-b4a1b8e1cc21-verdict.json
+{"ts": "2026-10-10T08:45:33.558+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-10T08:45:33.583+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=metric_baseline subject=sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"checkout\",status_code=\"STATUS_CODE_ERROR\"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"checkout\"}[5m])) start=2026-10-10T07:35:32.517538+00:00 end=2026-10-10T08:45:30.810462+00:00 span_s=4198 refused=False", "component": "investigator"}
+{"ts": "2026-10-10T08:45:36.026+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-10T08:45:36.028+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=logql_query subject={service=\"checkout\"} start=2026-10-10T08:10:31.664000+00:00 end=2026-10-10T08:45:30.810462+00:00 span_s=2099 refused=False", "component": "investigator"}
+{"ts": "2026-10-10T08:45:38.169+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-10T08:45:38.172+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=checkout start=2026-10-09T08:40:31.664000+00:00 end=2026-10-10T08:45:30.810462+00:00 span_s=86699 refused=False", "component": "investigator"}
+{"ts": "2026-10-10T08:45:40.870+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-10T08:45:40.874+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=logql_query subject={service=\"email\"} start=2026-10-10T08:10:31.664000+00:00 end=2026-10-10T08:45:30.810462+00:00 span_s=2099 refused=False", "component": "investigator"}
+{"ts": "2026-10-10T08:45:43.638+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-10T08:45:43.641+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=email start=2026-10-09T08:40:31.664000+00:00 end=2026-10-10T08:45:30.810462+00:00 span_s=86699 refused=False", "component": "investigator"}
+{"ts": "2026-10-10T08:45:47.816+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-10T08:46:02.217+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-10T08:46:11.529+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}

@@ -1,0 +1,166 @@
+{
+  "incident_id": "aed96ccc-8aec-45c4-b83c-9308b0af777c",
+  "trajectory_id": "ca883746-f2d4-44a8-b714-d5dd2521c6fb",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "ad",
+    "cart",
+    "checkout",
+    "frontend",
+    "frontend-proxy",
+    "product-catalog",
+    "product-reviews",
+    "recommendation"
+  ],
+  "unmeasured_edges": 7,
+  "exclude_origins": [
+    "scenario:v2-ad-bad-image-tag"
+  ],
+  "verdict": {
+    "root_cause": "At 20:52:55 platform-automation pushed an image-reference update on the ad service to an ad-hotfix tag [tr_451a0f2a493a], and one second earlier the running ad JVM logged a complete, orderly gRPC shutdown and then went permanently silent \u2014 no startup, bind or listen lines ever follow through window close [tr_ee1f8a8e0866]. The replacement artifact never came up. Frontend traces show the consequence: the lone error chain terminates at frontend's outbound gRPC call to ad GetAds, a childless leaf failing in ~1ms, i.e. a connection-level refusal rather than ad-side logic or a timeout [tr_a84d740b0da4]. Frontend has no change of its own to blame [tr_d029746e7b7d]. The artifact running on ad is not one that serves traffic.",
+    "service": "ad",
+    "fault_class": "bad_deploy",
+    "remediation_class": "rollback",
+    "confidence": "medium",
+    "evidence": [
+      "tr_451a0f2a493a",
+      "tr_ee1f8a8e0866",
+      "tr_a84d740b0da4",
+      "tr_d029746e7b7d"
+    ],
+    "reasoning": "The image flip at 20:52:55 and ad's graceful shutdown at 20:52:54 coincide to the second, and nothing restarts afterward [tr_451a0f2a493a, tr_ee1f8a8e0866]. The caller-side trace confirms no ad process accepted the call \u2014 no server child span \u2014 and the ~1ms failure distinguishes this from process_freeze and network_partition, which hang callers, and from dependency_latency, since all sampled traces finish in 4-47ms [tr_a84d740b0da4]. The orderly shutdown with no OOM, heap or panic lines rules out resource exhaustion [tr_ee1f8a8e0866]. Ad's flat error ratio [tr_a851199a2db8] is consistent rather than contrary: a process that is gone emits no spans, so the ratio cannot move. Reverting to the pre-hotfix reference that ran cleanly for the preceding ~8.9 hours is the fix [tr_451a0f2a493a].",
+    "open_questions": [
+      "No pod or container-state evidence was gathered: ImagePullBackOff, CrashLoopBackOff, or never-scheduled all produce this symptom and were not distinguished.",
+      "The ad metrics query covered a window ending ~18 hours before onset [tr_a851199a2db8], so its 'ad is not the origin' conclusion is not actually measured against the incident.",
+      "The ~5 minute gap between ad's shutdown at 20:52:54 and the 20:58:01 onset is unexplained, and the breadth of the 8-service blast radius is unaccounted for by the single error path found."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "The ad pod was terminated by eviction or scale-down and never rescheduled for lack of cluster capacity, leaving zero serving replicas.",
+        "service": "ad",
+        "fault_class": "resource_exhaustion",
+        "remediation_class": "scale",
+        "why_not": "The shutdown lands within one second of a recorded image change on the same service, which explains the termination without invoking cluster pressure; stays live only because scheduler state was never inspected."
+      },
+      {
+        "root_cause": "The hotfix build starts but binds or advertises a wrong address/port, so connections are refused by a nominally running service.",
+        "service": "ad",
+        "fault_class": "bad_config",
+        "remediation_class": "config_revert",
+        "why_not": "A started process would log startup and bind lines; ad produced no output at all after 20:52:54, and the change log records only image references, no config pushes [tr_ee1f8a8e0866, tr_451a0f2a493a]."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "v2-ad-memory-squeeze / What was observed: The page was two alerts in the same moment, `ServiceHighErrorRate` on **frontend-proxy** and\n**frontend**, 5m01s after the trouble started. Three minutes later `ServiceNoTraffic` fired on\n**ad**. Three alerts on three services by the fix, and none after it.\n\nThe frontend's error ",
+    "v2-frontend-cart-misconfig / What was checked: **The error text, because it was the first thing a responder would read.** Checkout's error spans\nand the frontend's log said `shipping quote failure: failed POST to email service: expected 200,\ngot 400`. That names two services, and neither was at fault. It is checkout's own wor",
+    "v2-product-catalog-flag-failure / What was observed: The page was two alerts in the same moment, `ServiceHighErrorRate` on **frontend** and on\n**frontend-proxy**, 5m31s after the trouble started. Nothing else fired, then or later, and nothing\nfired after the fix.\n\nBoth error ratios had been zero. They rose from about two minutes in"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 23450,
+    "pulled_tokens": 7730,
+    "pull_rate": 0.2479,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 433,
+        "content_tokens": 435,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1416,
+        "content_tokens": 1420,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 7155,
+        "content_tokens": 7131,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 6509,
+        "content_tokens": 6511,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 7937,
+        "content_tokens": 7914,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "rollback",
+    "action_id": "rollback_image",
+    "target": "ad",
+    "rests_on": [
+      "tr_451a0f2a493a",
+      "tr_ee1f8a8e0866",
+      "tr_a84d740b0da4"
+    ],
+    "expected_effect": "Redeploying ad at the pre-hotfix image reference it ran before the 20:52:55 update should bring a serving process back. Observable as: (1) the `{service=\"ad\"}` Loki stream resuming with JVM startup / gRPC bind-and-listen lines followed by the routine 'ad request received' traffic lines that stopped at 20:52:40 \u2014 the stream has been completely silent since 20:52:54; (2) frontend traces to ad GetAds acquiring a server-side child span from ad instead of terminating as a childless ~1ms leaf, and that error span class disappearing from sampled frontend traces; (3) frontend's per-dependency ad call error count returning to zero. The first of these is the primary check: if ad logs never resume, nothing else matters.",
+    "confirm_within_seconds": 300,
+    "if_wrong": "Falsified if, five minutes after the recreate, the ad log stream is still empty of any startup/bind/listen line \u2014 that means the container is not starting for a reason independent of which tag is referenced (never scheduled, host resource exhaustion, registry unreachable for both tags), and the artifact-choice diagnosis is wrong. Also falsified if ad comes up and serves but the incident's alerts across the other seven services persist: the brief's own open questions flag that a single frontend\u2192ad error path does not account for an 8-service blast radius, nor for the ~5 minute gap between the 20:52:54 shutdown and the 20:58:01 onset, so there may be a second, unobserved mechanism this action does not touch. A third falsifier specific to this evidence: the change log shows five applies and four reverts of this same tag by platform-automation over ~10 hours, so if the hotfix tag reappears on ad within minutes of the rollback, the controller is reconciling against us and the fix will not hold regardless of whether it was correct.",
+    "risk": "If the real failure is pod/container-state rather than artifact choice \u2014 ImagePullBackOff, a resource-starved host, or a never-scheduled workload \u2014 this recreate spends the outage window on a no-op and delays the correct diagnosis; no pod or container-state evidence was gathered at all, which is the weakest point in this proposal. If the hotfix tag was shipped to fix a real ad-service defect, reverting reintroduces that defect once ad is serving again. And because platform-automation has been flapping this tag all day, a manual rollback may contend with the controller and produce a further restart cycle on ad, turning a static outage into an oscillating one.",
+    "blast_radius": "ad only for the recreate itself. frontend is ad's inbound caller in this graph and is already seeing hard connection-level refusals on GetAds, so it absorbs no new harm from the recreate window; frontend-proxy and load-generator see it transitively through frontend. cart, checkout, product-catalog, product-reviews and recommendation have no edge to ad in the sampled traces and should see nothing \u2014 if they do change state when ad is recreated, that itself is evidence the dependency picture in this brief is incomplete."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Critical alerts on frontend and its proxy simultaneously affect the user-facing entry point, which cannot be dismissed. No open incidents to attribute it to, and the alerts alone don't distinguish a frontend deploy from a downstream dependency problem."
+  }
+}

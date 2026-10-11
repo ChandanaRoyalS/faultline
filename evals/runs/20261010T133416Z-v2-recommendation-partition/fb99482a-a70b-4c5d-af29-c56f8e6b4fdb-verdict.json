@@ -1,0 +1,64 @@
+{
+  "incident_id": "fb99482a-a70b-4c5d-af29-c56f8e6b4fdb",
+  "trajectory_id": "fdaf5ed2-368a-490c-8d47-57ac7209a436",
+  "states": [
+    "triaging"
+  ],
+  "blast_radius": [
+    "frontend-proxy",
+    "recommendation",
+    "load-generator",
+    "flagd",
+    "frontend",
+    "product-catalog"
+  ],
+  "unmeasured_edges": 4,
+  "exclude_origins": [
+    "scenario:scenario:v2-recommendation-partition"
+  ],
+  "verdict": {
+    "fault_class": "process_freeze",
+    "remediation_class": "restart",
+    "service": "recommendation",
+    "alternatives": [
+      {
+        "root_cause": "recommendation was cut off from the network and could reach neither flagd nor product-catalog, hanging its handlers.",
+        "service": "recommendation",
+        "fault_class": "network_partition",
+        "remediation_class": null,
+        "why_not": "A partitioned-but-running service still logs its own connection failures and usually still emits some telemetry; ServiceNoTraffic implies complete silence, and only recommendation is affected rather than a shared network path."
+      },
+      {
+        "root_cause": "recommendation exhausted its thread/memory budget and stopped serving while remaining up.",
+        "service": "recommendation",
+        "fault_class": "resource_exhaustion",
+        "remediation_class": null,
+        "why_not": "Exhaustion normally shows a ramp of rising latency and partial errors before traffic goes to zero, not an instantaneous flatline coincident with the first alert."
+      }
+    ],
+    "summary": "The recommendation service's process was frozen (stopped but still holding its listening socket), so it emitted no telemetry and callers hung until their deadlines.",
+    "confidence": "medium",
+    "evidence": [],
+    "reasoning": "ServiceNoTraffic on recommendation fires at the same instant as frontend-proxy high latency: recommendation stopped producing any spans/requests at all, while its caller chain (frontend -> frontend-proxy -> load-generator) got slower rather than erroring fast. That combination - total telemetry silence from one service plus deadline-length hangs propagating upstream to the caller and the load generator a minute later - is the signature of a frozen process whose socket still accepts connections. A crash or bad deploy would normally produce connection refused/5xx and fast failures upstream, not latency. The blast radius (flagd, product-catalog) is just recommendation's downstream fan-out pulled in by traversal; neither of them alerted, and if product-catalog or flagd were slow, checkout, cart, ad and product-reviews would also be suffering, which they are not.",
+    "open_questions": [
+      "Did recommendation write any log lines at all during the window, or is it completely silent?",
+      "Do frontend's calls to recommendation show timeouts at the client deadline versus connection refused?",
+      "Are product-catalog and flagd latency/error rates normal for their other callers (checkout, cart, ad, product-reviews)?",
+      "Container state for recommendation: running but unresponsive, OOM-throttled, SIGSTOP, or GC/deadlock pause?",
+      "Any CPU-throttling or memory-limit events on the recommendation pod just before 13:41:31?"
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B2",
+    "tool_calls": 0,
+    "attempts": 2,
+    "cited_without_looking": []
+  }
+}

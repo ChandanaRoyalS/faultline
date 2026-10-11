@@ -1,0 +1,9 @@
+incident b20d26e8-9468-4407-b90f-b59d4595ae8e  state triaging  anchor 19:54:16
+triage: 3 services, severity critical, start from payment, 2 unmeasured edge(s) crossed
+B0: bad_config / config_revert
+  suspect: service of the most recent pre-onset change in the window (19:47:55)
+  class: that change was to environment
+  remediation: table lookup from bad_config
+wrote /Users/chandana/dev/faultline/evals/runs/20261009T194748Z-v2-payment-telemetry-blackout/b20d26e8-9468-4407-b90f-b59d4595ae8e-verdict.json
+{"ts": "2026-10-09T19:56:06.226+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=payment start=2026-10-08T19:54:16.664000+00:00 end=2026-10-09T19:56:06.221895+00:00 span_s=86509 refused=False", "component": "investigator"}
+{"ts": "2026-10-09T19:56:06.228+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=promql_query subject=sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"payment\",status_code=\"STATUS_CODE_ERROR\"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"payment\"}[5m])) start=2026-10-09T19:24:16.664000+00:00 end=2026-10-09T19:56:06.221895+00:00 span_s=1909 refused=False", "component": "investigator"}

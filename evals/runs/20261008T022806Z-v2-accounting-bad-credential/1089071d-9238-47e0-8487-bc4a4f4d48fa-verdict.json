@@ -1,0 +1,73 @@
+{
+  "incident_id": "1089071d-9238-47e0-8487-bc4a4f4d48fa",
+  "trajectory_id": "fd356fb1-f345-411e-980a-b53fc0becee7",
+  "states": [
+    "triaging",
+    "investigating"
+  ],
+  "blast_radius": [
+    "accounting"
+  ],
+  "unmeasured_edges": 0,
+  "exclude_origins": [
+    "scenario:scenario:v2-accounting-bad-credential"
+  ],
+  "verdict": {
+    "fault_class": "bad_config",
+    "remediation_class": "config_revert",
+    "service": "accounting",
+    "alternatives": [
+      {
+        "root_cause": "The postgresql datastore itself became unhealthy or unreachable to accounting.",
+        "service": "postgresql",
+        "fault_class": "network_partition",
+        "remediation_class": null,
+        "why_not": "The database answered the connection attempt and returned a specific authentication rejection, so the network path and the server are both fine (tr_cf08c12d8cc8)."
+      },
+      {
+        "root_cause": "A bad artifact was rolled out to accounting that cannot talk to its store.",
+        "service": "accounting",
+        "fault_class": "bad_deploy",
+        "remediation_class": null,
+        "why_not": "The only recorded change was an environment value update, not an image or version change (tr_7de1a0ddd284), and the failure is a credential rejection rather than a startup or version fault."
+      },
+      {
+        "root_cause": "Accounting exhausted its database connection pool under load.",
+        "service": "accounting",
+        "fault_class": "resource_exhaustion",
+        "remediation_class": null,
+        "why_not": "Connections fail at the authentication step rather than on pool wait or timeout, and the baseline error ratio was zero immediately before the config change (tr_4b6208d28a5f, tr_cf08c12d8cc8)."
+      }
+    ],
+    "summary": "A change to accounting's DB_CONNECTION_STRING environment value supplied credentials the database rejects, so every database write fails authentication.",
+    "confidence": "high",
+    "evidence": [
+      "tr_4b6208d28a5f",
+      "tr_7de1a0ddd284",
+      "tr_cf08c12d8cc8"
+    ],
+    "reasoning": "Error ratio for accounting was exactly zero in the quiet baseline and crossed the alert threshold at 02:29 (tr_4b6208d28a5f), about one minute after platform-automation updated the DB_CONNECTION_STRING environment value on accounting at 02:28 (tr_7de1a0ddd284). The service's own log shows the failure arising at connection-open time inside the Postgres driver's authentication path, with a FATAL authentication state for the configured user (tr_cf08c12d8cc8), meaning the datastore is reachable and responsive and is actively refusing the supplied credential. That makes the wrongness of the configured value itself the failure, not an artifact change, not slowness, and not a store that cannot be decoded. Blast radius is confined to accounting, consistent with a per-service configuration value rather than a shared dependency outage.",
+    "open_questions": [
+      "Whether the password in the new connection string is stale/wrong or whether the database-side role was rotated independently.",
+      "Why the automation applied this value - the change record shows no prior value, so it is unclear if this was a first-time injection or an overwrite.",
+      "Whether any orders consumed during the window were lost rather than retried, since errors were intermittent (peak ratio well below 1.0)."
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B1",
+    "tool_calls": 3,
+    "turns": 5,
+    "looked_at": [
+      "metrics:accounting",
+      "changes:accounting",
+      "logs:accounting"
+    ]
+  }
+}

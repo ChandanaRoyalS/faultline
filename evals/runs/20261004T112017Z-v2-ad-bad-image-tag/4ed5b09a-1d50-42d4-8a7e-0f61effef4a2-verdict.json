@@ -1,0 +1,73 @@
+{
+  "incident_id": "4ed5b09a-1d50-42d4-8a7e-0f61effef4a2",
+  "trajectory_id": "fa913b88-3c9d-4e4e-b3fd-b180b864d557",
+  "states": [
+    "triaging"
+  ],
+  "blast_radius": [
+    "email",
+    "frontend-proxy",
+    "load-generator",
+    "checkout",
+    "frontend",
+    "product-reviews",
+    "ad",
+    "cart",
+    "currency",
+    "flagd",
+    "payment",
+    "product-catalog",
+    "recommendation",
+    "shipping"
+  ],
+  "unmeasured_edges": 14,
+  "exclude_origins": [
+    "scenario:scenario:v2-ad-bad-image-tag"
+  ],
+  "verdict": {
+    "fault_class": "resource_exhaustion",
+    "remediation_class": "restart",
+    "service": "email",
+    "alternatives": [
+      {
+        "root_cause": "The email process was stopped (SIGSTOP/GC pause/VM freeze) while its socket kept accepting, so checkout hung to its deadline.",
+        "service": "email",
+        "fault_class": "process_freeze",
+        "remediation_class": null,
+        "why_not": "A full freeze usually shows as callers timing out uniformly at the deadline with zero telemetry from email; the staggered, warning-level latency alerts look more like degradation than a dead stop, but this is hard to separate without email's own logs."
+      },
+      {
+        "root_cause": "flagd became slow, degrading every service that evaluates flags on the request path, including product-reviews.",
+        "service": "flagd",
+        "fault_class": "dependency_latency",
+        "remediation_class": null,
+        "why_not": "email does not depend on flagd yet alerted first, and flagd's other consumers (ad, cart, recommendation, fraud-detection) never alerted."
+      }
+    ],
+    "summary": "The email service itself became slow (request handling backed up on an exhausted thread/connection pool), and its latency propagated back through checkout, frontend and frontend-proxy to the load generator.",
+    "confidence": "low",
+    "evidence": [],
+    "reasoning": "email alerts first and is a leaf in the catalog - it calls nothing, so its slowness cannot be inherited from a downstream dependency; the fault is local to email. The later alerts follow the call graph exactly backwards: checkout -> email, frontend -> checkout, frontend-proxy -> frontend, load-generator -> frontend-proxy, each roughly a minute apart, which is the signature of callers waiting on a slow callee rather than independent failures. The symptom is latency rather than hard errors, which points at a saturated resource inside email (thread/connection pool, CPU, or an unbounded send queue) rather than a crash or a wrong artifact. product-reviews alerting late is most likely contention/queueing at the frontend fan-out; if flagd were the culprit, ad, cart and recommendation would have alerted too, and they did not.",
+    "open_questions": [
+      "email's CPU, heap, thread-pool and connection-pool utilization at 11:23",
+      "Whether email was still emitting logs/spans during the window (freeze vs. saturation)",
+      "Request-duration histogram inside email vs. checkout's client-side timeout to email",
+      "Any deploy or config change to email shortly before 11:23",
+      "Why product-reviews alerted at 11:25 - own latency or frontend-side queueing",
+      "flagd response times for ad/cart/recommendation to rule out a shared flag-store slowdown"
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B2",
+    "tool_calls": 0,
+    "attempts": 2,
+    "cited_without_looking": []
+  }
+}

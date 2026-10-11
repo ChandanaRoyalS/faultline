@@ -1,0 +1,168 @@
+{
+  "incident_id": "1adb8130-d3cf-49b8-81af-126c38ba4866",
+  "trajectory_id": "726fa472-0b45-45ae-8190-6c1e63458d2e",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "cart",
+    "checkout",
+    "currency",
+    "email",
+    "frontend",
+    "frontend-proxy",
+    "payment",
+    "product-catalog",
+    "shipping"
+  ],
+  "unmeasured_edges": 8,
+  "exclude_origins": [
+    "scenario:v2-inj-email-wrong-image-log-checkout"
+  ],
+  "verdict": {
+    "root_cause": "A platform-automation control loop wrote a wrong image reference onto the email deployment \u2014 a quote-service variant tag \u2014 with the last application landing about five minutes before onset and leaving the reference set [tr_621b266e7b0b]. The artifact now running cannot start: its entrypoint builds a TCP socket server from a bind URI with an empty port component, raising an uncaught InvalidArgumentException before any listener exists, with a supervisor restarting it every ~60s from 09:31 to 09:35 [tr_cdd568d9d36a]. Email was serving order confirmations with HTTP 200s earlier in the same window [tr_cdd568d9d36a], so this is a start failure of the newly applied artifact. With no ready endpoint, checkout's outbound order-confirmation POST fails fast (2.5\u201312.6ms) on name resolution with no email-side child span, while every other checkout dependency edge completes cleanly [tr_81c94f12a016]. Checkout alerted but is not at fault: its change log holds only CURRENCY_ADDR mutations ending 2.7h earlier [tr_424028379093] and its error ratio never leaves its baseline envelope [tr_b8e7edfcd85b].",
+    "service": "email",
+    "fault_class": "bad_deploy",
+    "remediation_class": "rollback",
+    "confidence": "high",
+    "evidence": [
+      "tr_cdd568d9d36a",
+      "tr_621b266e7b0b",
+      "tr_81c94f12a016",
+      "tr_424028379093",
+      "tr_bebfc7f3f24d"
+    ],
+    "reasoning": "Email's own log shows an identical deterministic fatal exception at socket-server construction across five consecutive restarts, with no successful bind and no dependency contacted beforehand [tr_cdd568d9d36a] \u2014 the running artifact cannot start, which is bad_deploy rather than slowness or exhaustion. The change record puts a wrong-artifact image reference on email five minutes before onset, tagged for another service's build, with no config, DNS or registration edit anywhere in the window [tr_621b266e7b0b]; the empty-port bind URI is therefore best read as the wrong binary expecting a different startup contract, not an edited config value. Checkout's symptoms follow from this: the sole errored span in every sampled trace is its outbound email POST, failing at the resolver in milliseconds with no email-side span, while cart, product-catalog, currency, shipping, payment and flagd all complete healthily [tr_81c94f12a016]. The rival story blaming a checkout EMAIL_ADDR rollout comes only from two INFO lines authored by an automated poster that cite inconsistent ticket ids [tr_bebfc7f3f24d] and is contradicted by checkout's actual change record [tr_424028379093].",
+    "open_questions": [
+      "Whether the empty-port bind URI comes from the wrong image's startup contract or from an email-side environment value never captured by the change log \u2014 no config read on email was performed.",
+      "Why checkout's email hostname fails DNS resolution specifically: an unready endpoint behind a headless service is the assumed mechanism, but no DNS or endpoint/pod-readiness evidence was gathered.",
+      "Whether the platform-automation loop is still active and would overwrite a manual rollback; nothing probed the controller itself, and email's span metrics are empty in both windows [tr_84a3b6e6db97] so recovery cannot be verified from that source."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "email's listen-address value is itself wrong (empty port), independent of which image is running, and the bind failure is a pure misconfiguration.",
+        "service": "email",
+        "fault_class": "bad_config",
+        "remediation_class": "config_revert",
+        "why_not": "No configuration or environment change on email appears in the full-window change record \u2014 only image-reference mutations [tr_621b266e7b0b] \u2014 so the wrong value most plausibly arrives with the wrong artifact rather than from an edit."
+      },
+      {
+        "root_cause": "A checkout config rollout moved EMAIL_ADDR to a relay hostname that does not resolve, breaking order confirmations from the caller side.",
+        "service": "checkout",
+        "fault_class": "bad_config",
+        "remediation_class": "config_revert",
+        "why_not": "Its only support is untrusted bot-authored narrative with mismatched ticket ids [tr_bebfc7f3f24d]; checkout's real change record contains no EMAIL_ADDR edit [tr_424028379093], and it leaves email's crash loop [tr_cdd568d9d36a] entirely unexplained."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "v2-currency-freeze / Resolution: The currency process was resumed. Every held order woke together: 110 orders completed in the\nminutes after the resume, each one's conversion having waited up to ten minutes and then taken\ntwo milliseconds, and not one failed - checkout, the frontend and currency have no error tr",
+    "v2-frontend-cart-misconfig / What was checked: **The error text, because it was the first thing a responder would read.** Checkout's error spans\nand the frontend's log said `shipping quote failure: failed POST to email service: expected 200,\ngot 400`. That names two services, and neither was at fault. It is checkout's own wor",
+    "v2-inj-payment-dependency-latency-log-checkout / What was checked: **Checkout, because it paged.** Every slow trace had the same shape: `PlaceOrder` about 310ms, and\ninside it one call, `oteldemo.PaymentService/Charge`, at about 301ms - and beneath that call\npayment's own server span, `grpc.oteldemo.PaymentService/Charge`, at **0.3ms**. The cart"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 29524,
+    "pulled_tokens": 7307,
+    "pull_rate": 0.1984,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 444,
+        "content_tokens": 446,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 2091,
+        "content_tokens": 2094,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 8971,
+        "content_tokens": 8948,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 8182,
+        "content_tokens": 8184,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 9836,
+        "content_tokens": 9813,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "rollback",
+    "action_id": "rollback_image",
+    "target": "email",
+    "rests_on": [
+      "tr_621b266e7b0b",
+      "tr_cdd568d9d36a",
+      "tr_81c94f12a016"
+    ],
+    "expected_effect": "Email starts and stays started on its pre-change image: in Loki {service=\"email\"} the identical empty-port InvalidArgumentException stops recurring at ~60s intervals, and the 08:30-style serving lines return (\"Order confirmation email sent to...\" with POST /send_order_confirmation 200 at single-digit ms). In Tempo, checkout's outbound email POST loses its error marker and gains an email-side child span. Email's span-metrics series is empty in both windows [tr_84a3b6e6db97], so Prometheus cannot confirm; logs and checkout traces are the only usable signals.",
+    "confirm_within_seconds": 300,
+    "if_wrong": "Falsified if the same empty-port exception reappears on the next restart after recreate (then the bad bind URI is an email-side env value, not the image, and revert_config on email is the right action). Also falsified if email binds cleanly but checkout's email POST still fails fast on DNS with no child span (resolver/registration problem no permitted action addresses). Re-check at ~20 minutes: if the quote-variant image is reapplied and email crashes again, the platform-automation loop is overwriting the rollback and must be stopped outside this system.",
+    "risk": "The prior image reference is recorded as cleared/None rather than an explicit tag; if the executor resolves that to an empty image, email could end up down with no image instead of crash-looping, and not self-recover. If the empty port is environment-sourced, this changes nothing and consumes the window for a config read on email. A rollback that holds for ten minutes and then regresses could cause the incident to be closed early.",
+    "blast_radius": "One service, email. Its only inbound caller in evidence is checkout, whose email POST already fails at DNS with no child span and whose PlaceOrder completes regardless, so checkout sees no regression during recreate. frontend and frontend-proxy sit above checkout and should see nothing."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Critical-severity alerts on two distinct services three minutes apart with a wide downstream radius; nothing here can be dismissed as a working system and no open incident covers it."
+  }
+}

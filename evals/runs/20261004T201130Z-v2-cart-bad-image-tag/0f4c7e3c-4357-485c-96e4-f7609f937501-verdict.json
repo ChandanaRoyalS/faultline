@@ -1,0 +1,170 @@
+{
+  "incident_id": "0f4c7e3c-4357-485c-96e4-f7609f937501",
+  "trajectory_id": "0b1f611b-61da-468d-94c3-4b575220d783",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "ad",
+    "cart",
+    "checkout",
+    "currency",
+    "email",
+    "frontend",
+    "frontend-proxy",
+    "load-generator",
+    "payment",
+    "product-catalog",
+    "product-reviews",
+    "recommendation",
+    "shipping"
+  ],
+  "unmeasured_edges": 13,
+  "exclude_origins": [
+    "scenario:v2-cart-bad-image-tag"
+  ],
+  "verdict": {
+    "root_cause": "Cart stopped accepting connections at ~20:11\u201320:12, about a minute after platform-automation re-applied the 2.2.0-cart-hotfix.2 image reference to cart at 20:11:36 [tr_04f673f444a3]. frontend's only errors in the window are client-side gRPC transport failures dialing cart at 172.18.0.19:7070 \u2014 dial i/o timeouts near 20:12 escalating to host-unreachable with no connection ever established by 20:15:41 [tr_1fa4a1dbfeac] \u2014 the signature of a container that is no longer running. checkout, which calls cart on the PlaceOrder path, moves from a flat-zero error ratio over 32 baseline samples to intermittent errors first crossing at 20:13 [tr_4a0878a49e1e], while its pre-incident traces show cart and all other dependencies healthy in single-digit milliseconds [tr_9b5a1302dfd3], and checkout itself has no recorded change [tr_080fa64db1c4]. The failing mechanism is the artifact now deployed on cart.",
+    "service": "cart",
+    "fault_class": "bad_deploy",
+    "remediation_class": "rollback",
+    "confidence": "medium",
+    "evidence": [
+      "tr_1fa4a1dbfeac",
+      "tr_04f673f444a3",
+      "tr_4a0878a49e1e"
+    ],
+    "reasoning": "frontend's log lines are propagated downstream transport errors naming a single resolved IP:port identified as the cart call in checkout, with frontend-internal bugs, DNS, TLS/auth and application-level cart errors each excluded [tr_1fa4a1dbfeac] \u2014 so frontend and checkout are noticers, not culprits. Cart's only temporally adjacent change is the 20:11:36 image update, the earlier flapping having ended ~10.7h prior [tr_04f673f444a3], and onset in checkout (20:13) and frontend (20:12:18) follows it by about a minute [tr_4a0878a49e1e, tr_1fa4a1dbfeac]. Failure at TCP connect means nothing is answering on cart's socket, which excludes process_freeze (whose socket still accepts). Checkout's partial, spiky error ratio fits only cart-touching paths failing [tr_f945f892d2b9]. Checkout's empty log stream is uniformly empty back through baseline and therefore a pipeline gap, not a signal [tr_b7763f45ca3a].",
+    "open_questions": [
+      "No dispatch queried cart directly \u2014 its logs, container state and restart counts were never retrieved, so the deploy-to-failure link is inferred entirely from caller-side evidence plus a change record.",
+      "The applied tag is the same one rolled forward and back five times earlier that day [tr_04f673f444a3]; the underlying digest is unknown, and whether cart failed to start or was cut off at the network layer is unsettled since host-unreachable fits both.",
+      "No per-dependency error breakdown exists for checkout [tr_4a0878a49e1e, tr_f945f892d2b9], and 9 of the 13 blast-radius services were never examined."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "Cart is running normally but severed from the pod network, so callers' dials time out and then report host-unreachable.",
+        "service": "cart",
+        "fault_class": "network_partition",
+        "remediation_class": "reconnect",
+        "why_not": "Explains caller symptoms equally well, but nothing ties a connectivity loss to an image update on that same service a minute earlier; the distinguishing signal \u2014 cart's own log complaining it cannot reach anything \u2014 was never collected."
+      },
+      {
+        "root_cause": "The hotfix image on cart is repeatedly killed for exceeding a memory or connection limit, so its socket disappears intermittently.",
+        "service": "cart",
+        "fault_class": "resource_exhaustion",
+        "remediation_class": "rollback",
+        "why_not": "No cart-side resource telemetry was gathered at all, and the escalation from timeout to steady host-unreachable by 20:17 looks like a sustained absence rather than the flapping a kill-loop would produce."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "v2-inj-payment-dependency-latency-log-checkout / What was observed: The page came 5m20s after onset and it was one line: `ServiceHighLatency` on **checkout**. Nothing\nelse fired before it, beside it or after it - no error-rate alert anywhere, no service gone quiet.\n\nCheckout's 95th percentile stepped from 16 to 18ms at rest to 267ms at T+2, 313 a",
+    "v2-frontend-cart-misconfig / What was checked: **The error text, because it was the first thing a responder would read.** Checkout's error spans\nand the frontend's log said `shipping quote failure: failed POST to email service: expected 200,\ngot 400`. That names two services, and neither was at fault. It is checkout's own wor",
+    "v2-payment-dependency-latency / What was observed: The page was one alert, `ServiceHighLatency` on **checkout**, 5m35s after the trouble started.\nNothing else fired, then or later, and nothing fired after the fix. Nothing errored: every error\nratio on the world stayed at zero for the whole incident.\n\nCheckout's p95 had been 35 to"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 27999,
+    "pulled_tokens": 6892,
+    "pull_rate": 0.1975,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 481,
+        "content_tokens": 482,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1859,
+        "content_tokens": 1861,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 8496,
+        "content_tokens": 8472,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 7831,
+        "content_tokens": 7834,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 9332,
+        "content_tokens": 9310,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "rollback",
+    "action_id": "rollback_image",
+    "target": "cart",
+    "rests_on": [
+      "tr_04f673f444a3",
+      "tr_1fa4a1dbfeac",
+      "tr_4a0878a49e1e"
+    ],
+    "expected_effect": "Cart accepts TCP connections on :7070 again. Observable two ways: frontend's gRPC client errors naming 172.18.0.19:7070 (dial i/o timeout, then host-unreachable, currently several per second) cease entirely; and checkout's span error ratio returns to the flat zero it held over 32 baseline samples before 20:13, allowing one 5m rate window to drain. A brief burst of resets during container recreate is expected and is not failure.",
+    "confirm_within_seconds": 420,
+    "if_wrong": "Falsified if, ~7 minutes after recreate, frontend still logs host-unreachable to 172.18.0.19:7070 and checkout's error ratio stays non-zero. That would mean the artifact is not the mechanism \u2014 cart may be running but detached at the network layer (no one ever queried cart's container state, logs, or restart count), or the 20:11:36 record's prior image is literally 'None' so the rollback redeployed the same digest. Neither is fixable by an available action (reconnect_service is unavailable); next step is querying cart directly, not acting again.",
+    "risk": "If cart was healthy and the break is network-level, this discards a working container's cache for nothing. The hotfix tag may have been fixing a real defect, which the rollback reintroduces; the tag has flapped five times today, so the prior tag is not known-good, and platform-automation may re-apply the hotfix within minutes and undo this. Chosen over restart_service because the evidence names a change, not process state, and because it is reversible.",
+    "blast_radius": "cart directly; its inbound callers see resets during recreate \u2014 checkout on the PlaceOrder path and frontend on cart retrieval, hence frontend-proxy and load-generator user journeys. No other service's dependencies move."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "dependency_latency",
+    "confidence": "low",
+    "reasoning": "Critical, simultaneous alerts across checkout, frontend, and the proxy with load-generator following cannot be dismissed, and no open incident covers them. The shared-path pattern hints at a downstream dependency of checkout/frontend, but that is only a prior for ordering dispatches."
+  }
+}

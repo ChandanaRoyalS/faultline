@@ -1,0 +1,69 @@
+{
+  "incident_id": "cd82ad3d-108e-40df-8657-4b8caaaf4df8",
+  "trajectory_id": "b11d95bd-8265-471b-8bff-009e192c2ea6",
+  "states": [
+    "triaging"
+  ],
+  "blast_radius": [
+    "checkout",
+    "fraud-detection",
+    "cart",
+    "currency",
+    "email",
+    "flagd",
+    "frontend",
+    "payment",
+    "product-catalog",
+    "shipping",
+    "frontend-proxy"
+  ],
+  "unmeasured_edges": 9,
+  "exclude_origins": [
+    "scenario:scenario:v2-checkout-currency-misconfig"
+  ],
+  "verdict": {
+    "fault_class": "process_freeze",
+    "remediation_class": "restart",
+    "service": "flagd",
+    "alternatives": [
+      {
+        "root_cause": "A bad checkout deploy shipped an artifact that fails on the order path, with fraud-detection erroring downstream on the malformed/absent order stream.",
+        "service": "checkout",
+        "fault_class": "bad_deploy",
+        "remediation_class": null,
+        "why_not": "checkout alerted first, which fits, but there is no edge from checkout to fraud-detection in this graph, so it does not explain fraud-detection's own errors and latency two minutes later without invoking an off-graph queue."
+      },
+      {
+        "root_cause": "A feature flag was flipped in flagd and the flagged code path in fraud-detection fails.",
+        "service": "fraud-detection",
+        "fault_class": "feature_flag",
+        "remediation_class": null,
+        "why_not": "A flag flip scoped to fraud-detection would not make checkout error first and harder, and would not normally raise fraud-detection latency as well as errors."
+      }
+    ],
+    "summary": "flagd, the flag-evaluation service shared by fraud-detection and by checkout's cart dependency, stopped serving (its socket still accepts but it answers nothing), so callers hung to their deadlines and then failed.",
+    "confidence": "low",
+    "evidence": [],
+    "reasoning": "checkout and fraud-detection share no caller/callee edge in this graph \u2014 checkout never calls fraud-detection, and fraud-detection calls only flagd. The one node reachable from both is flagd (fraud-detection -> flagd directly, checkout -> cart -> flagd). A fault in flagd explains two otherwise unrelated services alerting within two minutes while nothing between them alerts. fraud-detection's profile \u2014 errors plus a latency warning a minute later \u2014 is the signature of a caller blocking on an unresponsive dependency until its deadline, which points at a frozen rather than a cleanly failing flagd; a hard crash would give fast connection-refused errors with no latency rise. flagd itself does not alert, consistent with a process that is still bound to its port and emitting nothing. The weak point in this story is checkout: it alerted first and with errors only, no latency alert, which a hung dependency would normally also produce.",
+    "open_questions": [
+      "flagd's own logs and whether it emitted anything at all after 06:43",
+      "Whether checkout's errors are flag-evaluation/cart timeouts or something internal to checkout",
+      "cart's error and latency series \u2014 did it degrade without crossing alert thresholds, and does it cache flag values?",
+      "Whether fraud-detection's errors are deadline-exceeded on flagd calls or decode/business errors",
+      "Any deploy, restart or OOM event on flagd just before 06:43"
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B2",
+    "tool_calls": 0,
+    "attempts": 2,
+    "cited_without_looking": []
+  }
+}

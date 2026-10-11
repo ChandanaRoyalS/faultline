@@ -1,0 +1,9 @@
+incident 36743cda-ade5-4ca7-b123-e6fb90cda1b7  state triaging  anchor 03:39:46
+triage: 9 services, severity critical, start from frontend-proxy, 7 unmeasured edge(s) crossed
+
+B2: process_freeze / restart (low)
+  product-catalog stopped serving while its socket stayed open, so frontend requests hung to their deadlines and surfaced as latency and 5xx at frontend-proxy/load-generator.
+  looked at nothing - this is the model's prior
+wrote /Users/chandana/dev/faultline/evals/runs/20261009T033518Z-v2-product-catalog-partition/36743cda-ade5-4ca7-b123-e6fb90cda1b7-verdict.json
+{"ts": "2026-10-09T03:41:53.838+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-09T03:42:01.146+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}

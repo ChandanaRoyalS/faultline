@@ -1,0 +1,9 @@
+incident 00b0c62c-2ec1-4fda-b65f-7a7fd91702aa  state triaging  anchor 14:00:16
+triage: 9 services, severity warning, start from checkout, 8 unmeasured edge(s) crossed
+
+B2: resource_exhaustion / restart (low)
+  checkout itself became resource-starved (CPU/thread-pool/connection saturation in its own process), so requests queued inside checkout and its latency rose while none of its dependencies degraded
+  looked at nothing - this is the model's prior
+wrote /Users/chandana/dev/faultline/evals/runs/20261008T135453Z-v2-payment-dependency-latency/00b0c62c-2ec1-4fda-b65f-7a7fd91702aa-verdict.json
+{"ts": "2026-10-08T14:02:33.071+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-08T14:02:50.542+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}

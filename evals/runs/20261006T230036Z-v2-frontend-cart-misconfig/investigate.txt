@@ -1,0 +1,9 @@
+incident d43fbfe5-31fb-456f-9371-3f4c45f1fb7c  state triaging  anchor 23:03:46
+triage: 13 services, severity critical, start from frontend, 13 unmeasured edge(s) crossed
+
+B2: feature_flag / config_revert (low)
+  A failure flag on product-catalog's GetProduct path was flipped on in flagd, making product-catalog return errors to its callers, which surfaced as frontend/frontend-proxy and checkout error rates.
+  looked at nothing - this is the model's prior
+wrote /Users/chandana/dev/faultline/evals/runs/20261006T230036Z-v2-frontend-cart-misconfig/d43fbfe5-31fb-456f-9371-3f4c45f1fb7c-verdict.json
+{"ts": "2026-10-06T23:05:54.703+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-06T23:06:02.818+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}

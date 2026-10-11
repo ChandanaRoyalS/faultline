@@ -1,0 +1,67 @@
+{
+  "incident_id": "00b0c62c-2ec1-4fda-b65f-7a7fd91702aa",
+  "trajectory_id": "ef1563d7-7fc6-4b31-b6a0-d848a8c6bf29",
+  "states": [
+    "triaging"
+  ],
+  "blast_radius": [
+    "checkout",
+    "cart",
+    "currency",
+    "email",
+    "frontend",
+    "payment",
+    "product-catalog",
+    "shipping",
+    "frontend-proxy"
+  ],
+  "unmeasured_edges": 8,
+  "exclude_origins": [
+    "scenario:scenario:v2-payment-dependency-latency"
+  ],
+  "verdict": {
+    "fault_class": "resource_exhaustion",
+    "remediation_class": "restart",
+    "service": "checkout",
+    "alternatives": [
+      {
+        "root_cause": "A downstream dependency of checkout (most likely cart or payment) slowed, and checkout's latency is just the wait propagating to the caller",
+        "service": "cart",
+        "fault_class": "dependency_latency",
+        "remediation_class": null,
+        "why_not": "No downstream service alerted; a dependency slow enough to push checkout over a latency threshold would usually breach its own latency SLO and appear in the alerting set, and frontend also calls cart but did not alert."
+      },
+      {
+        "root_cause": "A flagd-driven flag flip enabled a slow code path reached through checkout's dependencies",
+        "service": "flagd",
+        "fault_class": "feature_flag",
+        "remediation_class": null,
+        "why_not": "checkout does not talk to flagd in this topology, and the flagd consumers that do (ad, cart, recommendation, product-reviews, fraud-detection) show no symptoms."
+      }
+    ],
+    "summary": "checkout itself became resource-starved (CPU/thread-pool/connection saturation in its own process), so requests queued inside checkout and its latency rose while none of its dependencies degraded",
+    "confidence": "low",
+    "evidence": [],
+    "reasoning": "Only checkout alerts, and it alerts for latency rather than errors. The blast radius is just checkout's own fan-out plus its callers (frontend, frontend-proxy), which is what graph traversal produces from a single alerting node and does not by itself implicate any downstream. If one of checkout's dependencies (product-catalog, currency, cart, payment, shipping, email) had become slow, that dependency would normally trip its own latency alert and the caller set would be wider than just checkout's. Latency-only, confined to the service that owns the work, points at saturation inside checkout - exhausted worker threads/connection pool or memory pressure with GC thrash - where requests wait on internal queues rather than on a remote call.",
+    "open_questions": [
+      "checkout container CPU throttling, RSS vs limit, and GC pause time around 14:00",
+      "checkout's outbound span durations per dependency - is the added time inside checkout or in a remote call?",
+      "worker-thread / gRPC connection pool utilization and queue depth in checkout",
+      "request rate into checkout at onset - is this load-driven saturation or a step change with flat traffic?",
+      "whether cart's backing store (valkey-cart, absent from graph) or kafka publish from checkout was slow, since neither would alert"
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B2",
+    "tool_calls": 0,
+    "attempts": 2,
+    "cited_without_looking": []
+  }
+}

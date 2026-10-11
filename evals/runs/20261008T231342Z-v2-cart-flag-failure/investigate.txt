@@ -1,0 +1,28 @@
+incident 1ade34ed-dd9f-4e5c-a44d-688c087a9113  state triaging  anchor 23:18:46
+triage: 9 services, severity critical, start from checkout, 8 unmeasured edge(s) crossed
+
+B1: feature_flag / config_revert (medium)
+  A runtime feature flag gating cart's EmptyCart path was flipped on, making cart fail its cart-store connection only on that operation and surfacing errors to checkout; no deploy or config change exists on either service.
+  6 tool calls over 8 turns
+    metrics:checkout  Confirm the error onset shape and timing on the alerting service before tracing upstream dependencies.
+    traces:checkout  Error ratio is flat, so the symptom may be latency/hangs; traces will show which downstream call is slow or erroring.
+    changes:cart  Check whether any deploy or config change on cart explains the redis connection failure; an empty result supports a flag flip.
+    logs:cart  See whether cart logs show a flag-driven failure path versus genuine redis/valkey connectivity or resource problems.
+    metrics:cart  Confirm cart's error ratio departed from baseline at the incident onset, anchoring timing of the flag-gated failure.
+    changes:checkout  Rule out a deploy/config change on the alerting service itself that could explain the failing EmptyCart path.
+wrote /Users/chandana/dev/faultline/evals/runs/20261008T231342Z-v2-cart-flag-failure/1ade34ed-dd9f-4e5c-a44d-688c087a9113-verdict.json
+{"ts": "2026-10-08T23:20:41.315+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-08T23:20:41.340+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=metric_baseline subject=sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"checkout\",status_code=\"STATUS_CODE_ERROR\"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"checkout\"}[5m])) start=2026-10-08T22:16:54.666133+00:00 end=2026-10-08T23:20:38.661867+00:00 span_s=3823 refused=False", "component": "investigator"}
+{"ts": "2026-10-08T23:20:43.629+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-08T23:20:43.630+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=trace_query subject=checkout start=2026-10-08T22:48:46.664000+00:00 end=2026-10-08T23:20:38.661867+00:00 span_s=1911 refused=False", "component": "investigator"}
+{"ts": "2026-10-08T23:20:48.576+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-08T23:20:48.591+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=cart start=2026-10-07T23:18:46.664000+00:00 end=2026-10-08T23:20:38.661867+00:00 span_s=86511 refused=False", "component": "investigator"}
+{"ts": "2026-10-08T23:20:52.515+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-08T23:20:52.519+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=logql_query subject={service=\"cart\"} start=2026-10-08T22:48:46.664000+00:00 end=2026-10-08T23:20:38.661867+00:00 span_s=1911 refused=False", "component": "investigator"}
+{"ts": "2026-10-08T23:20:56.416+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-08T23:20:56.424+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=metric_baseline subject=sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"cart\",status_code=\"STATUS_CODE_ERROR\"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"cart\"}[5m])) start=2026-10-08T22:16:54.666133+00:00 end=2026-10-08T23:20:38.661867+00:00 span_s=3823 refused=False", "component": "investigator"}
+{"ts": "2026-10-08T23:21:05.765+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-08T23:21:05.785+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=checkout start=2026-10-07T23:18:46.664000+00:00 end=2026-10-08T23:20:38.661867+00:00 span_s=86511 refused=False", "component": "investigator"}
+{"ts": "2026-10-08T23:21:13.163+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-08T23:21:27.191+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-08T23:21:36.262+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}

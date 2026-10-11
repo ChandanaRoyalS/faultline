@@ -1,0 +1,9 @@
+incident 12fa926c-f1f8-4d22-9d6a-28f88a1f7fa3  state triaging  anchor 03:17:46
+triage: 14 services, severity critical, start from recommendation, 15 unmeasured edge(s) crossed
+
+B2: feature_flag / config_revert (medium)
+  A feature flag toggled in flagd put product-catalog into its failure path, so product lookup calls began returning errors that propagated to recommendation and then to all its callers.
+  looked at nothing - this is the model's prior
+wrote /Users/chandana/dev/faultline/evals/runs/20261007T031512Z-v2-postgresql-catalog-corruption/12fa926c-f1f8-4d22-9d6a-28f88a1f7fa3-verdict.json
+{"ts": "2026-10-07T03:20:43.090+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-07T03:20:53.284+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}

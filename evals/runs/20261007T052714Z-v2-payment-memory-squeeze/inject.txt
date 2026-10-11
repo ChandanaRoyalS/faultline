@@ -1,0 +1,3 @@
+injected v2-payment-memory-squeeze (resource_exhaustion) on payment
+  - docker update: payment memory limit 140M -> 80m (swap capped at the same value)
+revert with: faultline-inject stop v2-payment-memory-squeeze

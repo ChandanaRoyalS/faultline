@@ -1,0 +1,3 @@
+injected v2-fraud-detection-memory-squeeze (resource_exhaustion) on fraud-detection
+  - docker update: fraud-detection memory limit 500M -> 160m (swap capped at the same value)
+revert with: faultline-inject stop v2-fraud-detection-memory-squeeze

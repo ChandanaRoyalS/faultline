@@ -1,0 +1,9 @@
+incident 80225523-277a-4110-aa31-2749653b62ee  state triaging  anchor 21:06:16
+triage: 4 services, severity critical, start from ad, 3 unmeasured edge(s) crossed
+B0: dependency_latency / restart
+  suspect: largest error-rate delta among alerting services (+0.063)
+  class: no change on any alerting service before onset
+  remediation: table lookup from dependency_latency
+wrote /Users/chandana/dev/faultline/evals/runs/20261009T210007Z-v2-ad-flag-failure/80225523-277a-4110-aa31-2749653b62ee-verdict.json
+{"ts": "2026-10-09T21:08:21.696+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=ad start=2026-10-08T21:06:16.664000+00:00 end=2026-10-09T21:08:21.691304+00:00 span_s=86525 refused=False", "component": "investigator"}
+{"ts": "2026-10-09T21:08:21.697+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=promql_query subject=sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"ad\",status_code=\"STATUS_CODE_ERROR\"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"ad\"}[5m])) start=2026-10-09T20:36:16.664000+00:00 end=2026-10-09T21:08:21.691304+00:00 span_s=1925 refused=False", "component": "investigator"}

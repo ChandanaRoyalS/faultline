@@ -1,0 +1,9 @@
+incident fb99482a-a70b-4c5d-af29-c56f8e6b4fdb  state triaging  anchor 13:41:31
+triage: 6 services, severity critical, start from frontend-proxy, 4 unmeasured edge(s) crossed
+
+B2: process_freeze / restart (medium)
+  The recommendation service's process was frozen (stopped but still holding its listening socket), so it emitted no telemetry and callers hung until their deadlines.
+  looked at nothing - this is the model's prior
+wrote /Users/chandana/dev/faultline/evals/runs/20261010T133416Z-v2-recommendation-partition/fb99482a-a70b-4c5d-af29-c56f8e6b4fdb-verdict.json
+{"ts": "2026-10-10T13:43:47.280+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-10T13:43:55.543+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}

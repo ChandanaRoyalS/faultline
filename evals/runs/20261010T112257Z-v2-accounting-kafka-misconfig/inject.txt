@@ -1,0 +1,4 @@
+injected v2-accounting-kafka-misconfig (bad_config) on accounting
+  - compose: accounting recreated with KAFKA_ADDR=kafka:9094
+  - override written to /Users/chandana/dev/faultline/.faultline/overrides/v2-accounting-kafka-misconfig.yml
+revert with: faultline-inject stop v2-accounting-kafka-misconfig

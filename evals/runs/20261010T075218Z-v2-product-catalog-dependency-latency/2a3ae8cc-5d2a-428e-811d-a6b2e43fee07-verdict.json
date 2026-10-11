@@ -1,0 +1,72 @@
+{
+  "incident_id": "2a3ae8cc-5d2a-428e-811d-a6b2e43fee07",
+  "trajectory_id": "918b4199-de6c-4f02-bc92-baa346c63aae",
+  "states": [
+    "triaging"
+  ],
+  "blast_radius": [
+    "checkout",
+    "frontend",
+    "frontend-proxy",
+    "load-generator",
+    "product-catalog",
+    "recommendation",
+    "ad",
+    "cart",
+    "currency",
+    "email",
+    "flagd",
+    "payment",
+    "product-reviews",
+    "shipping"
+  ],
+  "unmeasured_edges": 15,
+  "exclude_origins": [
+    "scenario:scenario:v2-product-catalog-dependency-latency"
+  ],
+  "verdict": {
+    "fault_class": "resource_exhaustion",
+    "remediation_class": "restart",
+    "service": "product-catalog",
+    "alternatives": [
+      {
+        "root_cause": "A cache/memory leak in recommendation caused it to fan out far more product-catalog calls, saturating the catalog",
+        "service": "recommendation",
+        "fault_class": "resource_exhaustion",
+        "remediation_class": null,
+        "why_not": "recommendation is not a dependency of checkout, yet checkout alerted too - the shared factor across all alerting callers is product-catalog itself, not recommendation."
+      },
+      {
+        "root_cause": "A flagd-driven flag flipped a failing/slow code path that product-catalog or its callers execute",
+        "service": "flagd",
+        "fault_class": "feature_flag",
+        "remediation_class": null,
+        "why_not": "product-catalog has no edge to flagd here, and the flagd-dependent services that did not alert (ad, cart, product-reviews, fraud-detection) argue against a flag-store-wide change."
+      }
+    ],
+    "summary": "product-catalog became slow under its own resource pressure (CPU/thread/connection saturation), and every caller that waits on it inherited the latency",
+    "confidence": "low",
+    "evidence": [],
+    "reasoning": "The alerting set is exactly product-catalog plus everything that sits upstream of it: frontend, recommendation and checkout all call product-catalog directly, frontend-proxy fronts frontend, and load-generator is the synthetic client at the top. Services that do not depend on product-catalog (ad, cart, currency, payment, shipping, email, product-reviews) are only in the blast radius by graph traversal, not alerting. That makes product-catalog the deepest alerting node and the common ancestor of all the others. product-catalog has no outgoing edges in this graph, so it cannot have inherited the latency from a downstream call - the slowness originates inside it. The symptom is latency rather than hard errors, which fits saturation (CPU burn, exhausted worker pool or connection pool) rather than a crash-looping artifact or a full disk, both of which would surface as refusals rather than slow successes.",
+    "open_questions": [
+      "product-catalog CPU, memory and GC metrics around 07:56 - is it pegged or climbing?",
+      "product-catalog's own request duration vs. its callers' - does the latency start inside its handlers?",
+      "In-flight request count / worker pool and DB connection pool saturation for product-catalog",
+      "Whether product-catalog actually reads a flagd flag (e.g. productCatalogFailure) even though no edge is drawn in this catalog",
+      "Request rate into product-catalog - did a caller such as recommendation start amplifying traffic (cache miss storm) rather than product-catalog degrading on steady load?"
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B2",
+    "tool_calls": 0,
+    "attempts": 2,
+    "cited_without_looking": []
+  }
+}

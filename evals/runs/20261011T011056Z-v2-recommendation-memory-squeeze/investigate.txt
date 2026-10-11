@@ -1,0 +1,19 @@
+incident c9106285-17d1-4381-aa15-529b5c7a63f9  state triaging  anchor 01:15:46
+triage: 8 services, severity critical, start from frontend, 7 unmeasured edge(s) crossed
+
+B1: resource_exhaustion / config_revert (high)
+  A memory limit lowered to 16m on recommendation at 01:11 caused the process to be killed for exceeding it, so it stopped listening and callers got connection refused from ~01:15 onward.
+  3 tool calls over 5 turns
+    logs:frontend  See what the first alerting service reports - errors vs timeouts - to point toward which dependency is implicated.
+    logs:recommendation  Check whether recommendation is the refused dependency (port 9001) and what its own log says before it stopped listening
+    changes:recommendation  See whether a deploy/config/limit change to recommendation precedes its silence and the connection refusals on port 9001
+wrote /Users/chandana/dev/faultline/evals/runs/20261011T011056Z-v2-recommendation-memory-squeeze/c9106285-17d1-4381-aa15-529b5c7a63f9-verdict.json
+{"ts": "2026-10-11T01:18:35.375+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-11T01:18:35.397+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=logql_query subject={service=\"frontend\"} start=2026-10-11T00:45:46.664000+00:00 end=2026-10-11T01:18:32.270592+00:00 span_s=1965 refused=False", "component": "investigator"}
+{"ts": "2026-10-11T01:18:41.373+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-11T01:18:41.383+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=logql_query subject={service=\"recommendation\"} start=2026-10-11T00:45:46.664000+00:00 end=2026-10-11T01:18:32.270592+00:00 span_s=1965 refused=False", "component": "investigator"}
+{"ts": "2026-10-11T01:18:47.937+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-11T01:18:47.948+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=recommendation start=2026-10-10T01:15:46.664000+00:00 end=2026-10-11T01:18:32.270592+00:00 span_s=86565 refused=False", "component": "investigator"}
+{"ts": "2026-10-11T01:18:52.143+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-11T01:19:04.459+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-11T01:19:12.873+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}

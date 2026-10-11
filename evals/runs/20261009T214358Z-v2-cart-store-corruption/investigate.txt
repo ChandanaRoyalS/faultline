@@ -1,0 +1,9 @@
+incident c66471ec-2fca-4110-b7e6-37106ed83deb  state triaging  anchor 21:54:16
+triage: 9 services, severity critical, start from checkout, 8 unmeasured edge(s) crossed
+B0: dependency_latency / restart
+  suspect: largest error-rate delta among alerting services (+0.079)
+  class: no change on any alerting service before onset
+  remediation: table lookup from dependency_latency
+wrote /Users/chandana/dev/faultline/evals/runs/20261009T214358Z-v2-cart-store-corruption/c66471ec-2fca-4110-b7e6-37106ed83deb-verdict.json
+{"ts": "2026-10-09T21:56:12.971+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=checkout start=2026-10-08T21:54:16.664000+00:00 end=2026-10-09T21:56:12.960986+00:00 span_s=86516 refused=False", "component": "investigator"}
+{"ts": "2026-10-09T21:56:12.973+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=promql_query subject=sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"checkout\",status_code=\"STATUS_CODE_ERROR\"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"checkout\"}[5m])) start=2026-10-09T21:24:16.664000+00:00 end=2026-10-09T21:56:12.960986+00:00 span_s=1916 refused=False", "component": "investigator"}

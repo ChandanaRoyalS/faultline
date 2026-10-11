@@ -1,0 +1,153 @@
+{
+  "incident_id": "38fb7975-c3fc-496f-9cf4-df14890d18d8",
+  "trajectory_id": "525858b3-dc40-4506-8ab4-8814dee2d2e1",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "ad",
+    "cart",
+    "checkout",
+    "frontend",
+    "frontend-proxy",
+    "product-catalog",
+    "product-reviews",
+    "recommendation"
+  ],
+  "unmeasured_edges": 7,
+  "exclude_origins": [
+    "scenario:v2-ad-bad-image-tag"
+  ],
+  "verdict": {
+    "root_cause": "Frontend's errors are all gRPC status 14 UNAVAILABLE at the connect step against a single peer, 172.18.0.19:9555, the ad service's gRPC endpoint [tr_ca960af99ea5]. Ad served normally until 12:47:40, then executed an orderly server shutdown at 12:47:52 and logged nothing afterwards, with no restart in-window [tr_9b0e0b1abb98]. One second later, at 12:47:53, platform-automation applied an image-reference update on ad \u2014 the latest of 15 set/revert oscillations over ~3.2 hours [tr_be45184f233b]. The rollout stopped the running ad pod and no replacement listener ever bound 9555, so callers get connection-refused and later host-unreachable [tr_ca960af99ea5]. The deployed artifact state on ad yields no serving process; frontend's visible errors are the downstream echo.",
+    "service": "ad",
+    "fault_class": "bad_deploy",
+    "remediation_class": "rollback",
+    "confidence": "medium",
+    "evidence": [
+      "tr_ca960af99ea5",
+      "tr_9b0e0b1abb98",
+      "tr_be45184f233b"
+    ],
+    "reasoning": "Frontend has no change record [tr_252b3a8e2a94], a flat error ratio [tr_5ae9ff4a4b3b], and no error-bearing or ad-touching spans in its sample [tr_301f0494f76d] \u2014 the failing calls never create a downstream span because no connection is established. Frontend's log pins the failure to one IP:port at connect, excluding DNS, timeouts and multi-backend degradation [tr_ca960af99ea5]. Ad's clean externally-initiated teardown at 12:47:52 followed by silence [tr_9b0e0b1abb98] matches the 12:47:53 image rollout [tr_be45184f233b], and ad's metrics show flat errors with far more zero-traffic intervals [tr_594655c96ff3] \u2014 a service absent, not sick. Connection-refused rules out dependency_latency and process_freeze; the fix is to pin ad to an image reference that actually starts and binds 9555.",
+    "open_questions": [
+      "No dispatch verified that 172.18.0.19:9555 is the ad pod; attribution rests on port convention and timing.",
+      "Unsettled whether the hotfix image fails to start or the automation leaves the reference empty so nothing is scheduled \u2014 no pod lifecycle, image-pull or restart-count evidence was gathered.",
+      "frontend-proxy alerted simultaneously but was never queried, and five other blast-radius services were never dispatched on."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "The ad pod was stopped and never rescheduled, leaving its port unbound regardless of which image was referenced.",
+        "service": "ad",
+        "fault_class": "process_freeze",
+        "remediation_class": "restart",
+        "why_not": "A freeze keeps the socket accepting and hangs callers; frontend sees connection-refused then host-unreachable, meaning nothing is listening and the address is gone [tr_ca960af99ea5]."
+      },
+      {
+        "root_cause": "The automation's image reference oscillation left ad pointed at an empty/invalid value, which is itself the wrong configuration.",
+        "service": "ad",
+        "fault_class": "bad_config",
+        "remediation_class": "config_revert",
+        "why_not": "An image reference is the running-artifact selector, so a wrong one is bad_deploy; no non-image config entries appear in ad's change log [tr_be45184f233b]."
+      }
+    ]
+  },
+  "flags": [
+    "scribe produced no valid findings: schema validation failed twice (Expecting ',' delimiter: line 1 column 1296 (char 1295))"
+  ],
+  "retrieved": [],
+  "failed_dispatches": [
+    [
+      "scribe",
+      "schema validation failed twice (Expecting ',' delimiter: line 1 column 1296 (char 1295))"
+    ]
+  ],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 18524,
+    "pulled_tokens": 7938,
+    "pull_rate": 0.3,
+    "dropped_sections": 1,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 135,
+        "content_tokens": 136,
+        "budget": 4000,
+        "kept": [
+          "incident"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1491,
+        "content_tokens": 1493,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 8076,
+        "content_tokens": 8080,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 8822,
+        "content_tokens": 8799,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_be45184f233b",
+      "tr_9b0e0b1abb98",
+      "tr_ca960af99ea5"
+    ],
+    "expected_effect": "No action proposed. Nothing changes: frontend should continue to log gRPC status 14 UNAVAILABLE against 172.18.0.19:9555 at the same continuous rate seen at 12:55:22-12:55:26 [tr_ca960af99ea5], and ad should continue to emit no log lines after its 12:47:52 orderly shutdown [tr_9b0e0b1abb98], until either the automation's next oscillation re-applies an image or a human stops the loop. If ad spontaneously starts logging request handling again within ~10-20 minutes, that is the oscillation cycle, not a fix.",
+    "confirm_within_seconds": 900,
+    "if_wrong": "Abstention is wrong if a dispatch confirms (a) 172.18.0.19:9555 is in fact the ad pod rather than inferred from port convention, and (b) pod-lifecycle / image-pull / restart-count evidence shows the hotfix.2 image was pulled and crash-looped or was never scheduled. Either of those settles which of rollback_image or restart_service actually addresses the mechanism, and the proposal should be re-made. It is also wrong if change history is re-read and shows a concrete non-empty prior image tag for ad immediately before 12:47:53, since the recorded prior value here is 'None' [tr_be45184f233b].",
+    "risk": "The risk of abstaining is that ad stays down and ad-slot requests from frontend keep failing for the duration of the deliberation; this is bounded because ad carries sparse traffic and frontend's aggregate error ratio is not in sustained departure from baseline. The risk of the alternative, acting now, is larger: rollback_image on ad would restore the image reference recorded immediately before 12:47:53, and that recorded prior value is 'None' [tr_be45184f233b] \u2014 the rollback would deploy ad with no image reference and guarantee no listener on 9555, converting a possibly self-healing oscillation into a definite outage. The same evidence explicitly rules out the premise that a newly shipped build is the trigger, since the identical tag was set and reverted 15 times over ~3.2 hours. restart_service is also excluded: its precondition requires the evidence to point at process state rather than a change, and here the shutdown at 12:47:52 is immediately followed by an automation-applied image update at 12:47:53 [tr_9b0e0b1abb98, tr_be45184f233b] \u2014 a change, not a process fault \u2014 and any recreated container would be torn down again by the next oscillation within 10-20 minutes. The actual fix, halting the platform-automation set/revert loop, is not in this system's action list.",
+    "blast_radius": "No one, because nothing is changed. Had rollback_image or restart_service been proposed, the target would be ad alone; frontend is the named inbound caller and would see its existing gRPC connect failures continue or briefly change shape during container recreation, and frontend-proxy \u2014 which alerted simultaneously and was never queried \u2014 would be the second observer. cart, checkout, product-catalog, product-reviews and recommendation are in the blast radius but were never dispatched on and have no evidenced edge to ad.",
+    "target_note": ""
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Critical alerts hitting both the frontend and its proxy simultaneously affect the full user-facing path and cannot be dismissed. No open incident covers it, and the simultaneous onset could be a frontend fault or an upstream dependency, so no fault class is favored yet."
+  }
+}

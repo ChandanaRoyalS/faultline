@@ -1,0 +1,176 @@
+{
+  "incident_id": "87156f47-2f2c-4bf1-bdd8-2cfca4fa747e",
+  "trajectory_id": "6cb87c34-e288-4d33-a6c3-e9f30d3f48b6",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "ad",
+    "cart",
+    "checkout",
+    "frontend",
+    "frontend-proxy",
+    "product-catalog",
+    "product-reviews",
+    "recommendation"
+  ],
+  "unmeasured_edges": 7,
+  "exclude_origins": [
+    "scenario:v2-ad-bad-image-tag"
+  ],
+  "verdict": {
+    "root_cause": "The ad service is not running the artifact it should be. Platform-automation churned ad's image reference five times in the 51 minutes before onset \u2014 three applications of ghcr.io/open-telemetry/demo:2.2.0-ad-hotfix.2 and two reverts, the last application at 10:25:05 [tr_765348808ebd] \u2014 and ad's own log ends at ~10:25:04 with an orderly gRPC/JVM shutdown, then nothing at all: no startup banner, no further request lines [tr_61be572c8a85]. The container was recreated onto the hotfix image and did not come back. From the caller side, frontend's single errored trace path terminates at its own AdService GetAds client span, a childless leaf failing in ~0.2ms \u2014 an RPC refused at or before ad produced a span [tr_3debc72cec5a] \u2014 which explains frontend's partial ~4% mean / ~8.9% peak error ratio on one route [tr_a556759caeaa]. Neither frontend nor product-catalog has any recorded change in the window [tr_7dd5c4871cd1][tr_251454706271].",
+    "service": "ad",
+    "fault_class": "bad_deploy",
+    "remediation_class": "rollback",
+    "confidence": "medium",
+    "evidence": [
+      "tr_765348808ebd",
+      "tr_61be572c8a85",
+      "tr_3debc72cec5a",
+      "tr_a556759caeaa",
+      "tr_7dd5c4871cd1"
+    ],
+    "reasoning": "Three lines converge on ad's artifact. Change history names ad as the only service with any recorded change, all image moves, all clustered immediately before onset, with the final action an application rather than a revert [tr_765348808ebd]. Ad's own log shows normal handling up to ~10:25:00, a graceful shutdown at ~10:25:04 within a second of that image apply, then silence with no restart banner and no OOM signature [tr_61be572c8a85] \u2014 the 'container that never starts' shape, which also accounts for its sparse span-metric coverage. The caller's trace fails fast rather than hanging, with no ad server span beneath the client span [tr_3debc72cec5a]; that fast-fail separates this from process_freeze and network_partition, both of which hang callers at ~0% errors with p95 off the histogram. No config or flag edits appear for ad at all, and the change log is not empty, so bad_config and feature_flag do not fit [tr_765348808ebd]. Product-catalog is cleared twice: its span-metric series is absent in both incident and baseline windows (predating the incident) and its spans in frontend traces all succeed [tr_7529fa721568][tr_3debc72cec5a]. Rollback_image on ad both removes the hotfix artifact and restores a running process; the executor's drift check will see a container that is not running.",
+    "open_questions": [
+      "The gRPC status code on the failing GetAds span was not recoverable [tr_3debc72cec5a], so 'unavailable/refused' is inferred from leaf shape and sub-millisecond duration, not read directly.",
+      "No container-state or image-pull evidence was gathered: whether ad is stopped, crashlooping, or failing to pull is unsettled, and the change record carries no prior value, so the rollback target needs confirming against the declared compose definition.",
+      "Frontend and product-catalog change history was queried only from onset forward [tr_7dd5c4871cd1][tr_251454706271], so a pre-onset change on either is not excluded; frontend's metric baseline window was also empty [tr_a556759caeaa]."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "Ad's process is stopped or otherwise dead for a non-artifact reason and simply needs recreating.",
+        "service": "ad",
+        "fault_class": "process_freeze",
+        "remediation_class": "restart",
+        "why_not": "A freeze accepts connections and hangs callers; the frontend's GetAds span fails in ~0.2ms with no hang anywhere in the sampled traces [tr_3debc72cec5a], and ad logged an orderly shutdown rather than falling silent mid-work [tr_61be572c8a85]. An image apply one second before the shutdown also gives the stop a cause."
+      },
+      {
+        "root_cause": "The hotfix image starts but fails on the GetAds hot path, rather than failing to start at all.",
+        "service": "ad",
+        "fault_class": "bad_deploy",
+        "remediation_class": "rollback",
+        "why_not": "Same class and same fix, so it does not change the action; it is demoted only because no startup banner or post-shutdown log line appears [tr_61be572c8a85], which favours the never-starts shape. Worth noting because it changes what to expect on redeploy."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "runbook:class-bad-config / What the change record holds: The variable and a timestamp, and **the new value only** - no change record in this world carries\na prior value, which `world-change-records-have-no-prior-value` sets out.\n\n**What the logs hold is not uniform, and this document had it wrong.** An earlier version said a\nservice po",
+    "v2-product-catalog-flag-failure / What was checked: **The page names the edge, not a cause.** Frontend-proxy only forwards what frontend returns, and\nfrontend is the application the shoppers talk to. Both were reporting failures from somewhere\nbelow them.\n\n**The frontend's log, which named the cause in its own words.** From the fi",
+    "v2-product-catalog-freeze / Root cause: The product-catalog process was suspended. The container existed and kept its port. The\nkernel went on accepting connections into its backlog. But nothing in the process ran, so no\nrequest was ever read or answered. Every caller waited until its own deadline. The browse\npath hung"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 67712,
+    "pulled_tokens": 8100,
+    "pull_rate": 0.1068,
+    "dropped_sections": 0,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 7687,
+        "content_tokens": 7692,
+        "budget": 10000000,
+        "kept": [
+          "incident",
+          "past-incidents",
+          "push-allowlist",
+          "push-runbooks"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 9099,
+        "content_tokens": 9105,
+        "budget": 10000000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents",
+          "push-allowlist",
+          "push-runbooks"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 17201,
+        "content_tokens": 17208,
+        "budget": 10000000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board",
+          "past-incidents",
+          "push-allowlist",
+          "push-runbooks"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 16427,
+        "content_tokens": 16433,
+        "budget": 10000000,
+        "kept": [
+          "conclusion",
+          "evidence-board",
+          "push-allowlist",
+          "push-runbooks",
+          "push-past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 17298,
+        "content_tokens": 17304,
+        "budget": 10000000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board",
+          "push-runbooks",
+          "push-past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "rollback",
+    "action_id": "rollback_image",
+    "target": "ad",
+    "rests_on": [
+      "tr_765348808ebd",
+      "tr_61be572c8a85",
+      "tr_3debc72cec5a",
+      "tr_a556759caeaa"
+    ],
+    "expected_effect": "Recreating ad at its declared (pre-hotfix) image should bring the container back up. Observable in three places: (1) ad's log stream resumes with a gRPC server startup/listening banner within ~60s of the recreate and then normal per-request lines (`{service=\"ad\"}` in Loki, which has been empty since ~10:25:04); (2) ad's span-metrics series regains defined samples continuously rather than sparsely \u2014 `rate(traces_span_metrics_calls_total{service_name=\"ad\"}[5m])` defined across consecutive scrapes; (3) frontend's error ratio on the /api/data route returns to ~0 once the 5m rate window drains, i.e. the ~4.2% mean / 8.9% peak seen in tr_a556759caeaa falls off, and new frontend traces show AdService GetAds client spans with a matching ad server span child instead of a ~0.2ms childless error leaf. Precondition is met as the executor evaluates it: an image change on ad is recorded inside the window (last application 10:25:05) and the container is demonstrably not running, which is drift against the declared definition even before the tag is compared.",
+    "confirm_within_seconds": 600,
+    "if_wrong": "Falsified if, after the recreate, ad's log shows a startup banner followed by another orderly or abrupt shutdown within minutes (crashloop), or shows no banner at all (image pull failure / container never starts) \u2014 in which case the declared definition itself carries the bad artifact and the fix is outside a rollback. Also falsified if ad comes up cleanly and frontend's /api/data error ratio stays at ~4% with GetAds still a sub-millisecond childless error leaf, which would mean the refusal is not ad's absence but something between frontend and ad. A third falsifier worth watching: platform-automation re-applies ghcr.io/open-telemetry/demo:2.2.0-ad-hotfix.2 again after the rollback (a sixth change record on ad), meaning the flapping loop is the real fault and this action is cosmetic.",
+    "risk": "The rollback target was never read directly \u2014 no change record in this world carries a prior value, and no container-state or image-pull evidence was gathered \u2014 so the 'previous' image is whatever the declared compose definition names. If that declaration is itself the hotfix, this recreates ad onto the same artifact and buys nothing while costing a container restart. If ad was stopped deliberately by the automation loop rather than broken by the image, the recreate will be undone by the next automation pass and may re-trigger the churn. The gRPC status on the failing GetAds span was never recovered, so 'refused because ad is down' is inferred from leaf shape and ~0.2ms duration; if the real cause is upstream of ad, this restarts a healthy-image service for nothing. The action is reversible, but the recreate discards ad's in-process state (cache only here).",
+    "blast_radius": "ad only, directly. frontend is ad's inbound caller and will see connection resets on GetAds for the duration of the recreate \u2014 expect a short spike above the current ~8.9% peak on the /api/data route before it falls. That propagates upward through frontend-proxy ingress/egress and is visible to load-generator, exactly along the error path in tr_3debc72cec5a. cart, checkout, product-catalog, product-reviews and recommendation are untouched: they appear in the same traces without error markers and do not depend on ad. Nothing in the blast radius sees a configuration or dependency-address change, since this action moves only the image."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "low",
+    "reasoning": "Critical alerts on frontend and its proxy simultaneously with no open incident to fold into; this is the hub-and-edge shape that any downstream failure produces and cannot be dismissed. Fault class is not discernible from alert timing alone, so leaving it unknown."
+  }
+}

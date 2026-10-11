@@ -1,0 +1,60 @@
+{
+  "incident_id": "079a1a85-8d02-4928-b868-c31519cf991d",
+  "trajectory_id": "0540e805-261a-4007-be0a-cc34892e4bf4",
+  "states": [
+    "triaging"
+  ],
+  "blast_radius": [
+    "fraud-detection",
+    "flagd"
+  ],
+  "unmeasured_edges": 1,
+  "exclude_origins": [
+    "scenario:scenario:v2-fraud-detection-flag-queue-lag"
+  ],
+  "verdict": {
+    "fault_class": "feature_flag",
+    "remediation_class": "config_revert",
+    "service": "fraud-detection",
+    "alternatives": [
+      {
+        "root_cause": "fraud-detection exhausted memory or threads and slowed under GC or queueing pressure.",
+        "service": "fraud-detection",
+        "fault_class": "resource_exhaustion",
+        "remediation_class": null,
+        "why_not": "Plausible from latency alone, but resource exhaustion usually escalates into errors or restarts rather than a lone sustained latency warning, and nothing in the radius hints at saturation."
+      },
+      {
+        "root_cause": "flagd became slow to answer evaluations, and fraud-detection blocked on it.",
+        "service": "flagd",
+        "fault_class": "dependency_latency",
+        "remediation_class": null,
+        "why_not": "flagd has four other callers in the graph and none of them alerted, so the slowness is not in flagd itself."
+      }
+    ],
+    "summary": "A feature flag governing fraud-detection's evaluation path was flipped on in flagd, pushing requests onto a slow code path and raising fraud-detection latency.",
+    "confidence": "low",
+    "evidence": [],
+    "reasoning": "Only fraud-detection alerts, and the blast radius contains just fraud-detection and its single dependency flagd. If flagd itself were slow, broken, or unreachable, the other four flag consumers (ad, recommendation, cart, product-reviews) would be degrading too - they are not, so flagd as an infrastructure component is healthy and is in the radius only as a graph neighbour. That leaves something specific to fraud-detection, and the one thing that can change fraud-detection's behaviour without touching its artifact or its config file is the value of a flag it reads from flagd. Pure latency (warning, not errors) fits a flagged slow path rather than a crash, a full disk, or an unreadable store. Remediation is to revert the flag value to its prior setting.",
+    "open_questions": [
+      "flagd flag-change audit for flags scoped to fraud-detection around 00:03:46",
+      "fraud-detection latency histogram shape - uniform shift vs. a bimodal split consistent with a flag-gated branch",
+      "fraud-detection container memory/CPU and GC metrics to rule out resource exhaustion",
+      "flagd's own evaluation latency and whether other flagd consumers saw any change at all",
+      "deploy/change history for fraud-detection in the hour before onset"
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B2",
+    "tool_calls": 0,
+    "attempts": 2,
+    "cited_without_looking": []
+  }
+}

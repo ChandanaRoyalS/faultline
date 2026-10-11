@@ -1,0 +1,9 @@
+incident 7bcd7b7e-9fb5-40cd-b414-b25fd1d5a3c3  state triaging  anchor 12:58:16
+triage: 10 services, severity critical, start from shipping, 9 unmeasured edge(s) crossed
+
+B2: dependency_latency / restart (low)
+  The quote service became slow/unresponsive, so shipping's calls to it piled up and timed out, surfacing as shipping errors and then checkout errors.
+  looked at nothing - this is the model's prior
+wrote /Users/chandana/dev/faultline/evals/runs/20261008T125435Z-v2-shipping-quote-misconfig/7bcd7b7e-9fb5-40cd-b414-b25fd1d5a3c3-verdict.json
+{"ts": "2026-10-08T13:01:30.136+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-08T13:01:37.763+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}

@@ -1,0 +1,66 @@
+{
+  "incident_id": "f47b5401-1c68-4bfb-87fd-477516ef2e40",
+  "trajectory_id": "f863d347-a044-43d9-a0cc-89aa88450272",
+  "states": [
+    "triaging"
+  ],
+  "blast_radius": [
+    "accounting",
+    "email",
+    "fraud-detection",
+    "frontend-proxy",
+    "payment",
+    "checkout",
+    "flagd",
+    "frontend"
+  ],
+  "unmeasured_edges": 5,
+  "exclude_origins": [
+    "scenario:scenario:v2-payment-freeze"
+  ],
+  "verdict": {
+    "fault_class": "process_freeze",
+    "remediation_class": "restart",
+    "service": "flagd",
+    "alternatives": [
+      {
+        "root_cause": "A feature flag was flipped in flagd, enabling a failing code path in fraud-detection and a cart/checkout failure path that aborts orders.",
+        "service": "flagd",
+        "fault_class": "feature_flag",
+        "remediation_class": null,
+        "why_not": "A flipped flag usually produces fast, loud errors in the affected services rather than the hang signature here \u2014 frontend-proxy would more likely show error rate than latency, and payment/email would see reduced but non-zero traffic rather than a clean drop to zero at the same instant."
+      },
+      {
+        "root_cause": "checkout froze, so its callees received no requests and frontend-proxy requests hung to their deadlines.",
+        "service": "checkout",
+        "fault_class": "process_freeze",
+        "remediation_class": null,
+        "why_not": "Explains the no-traffic trio and the proxy latency but leaves fraud-detection's critical error rate unaccounted for \u2014 fraud-detection does not call checkout, and losing its input stream would show as no traffic, not errors."
+      }
+    ],
+    "summary": "flagd became unresponsive (process alive but serving no evaluations), so every service that resolves flags through it \u2014 fraud-detection directly, and cart/checkout on the order path \u2014 stalled or errored, cutting off all traffic to payment, email and accounting.",
+    "confidence": "low",
+    "evidence": [],
+    "reasoning": "The alerting set splits into two symptom families that only one node in the graph explains at once. payment, email and accounting all go to zero traffic simultaneously \u2014 none of them call each other; what they share is that they are fed by checkout (payment, email) and by checkout's order events (accounting, which is off-graph but downstream of checkout). That means checkout stopped completing orders, and it stopped by hanging rather than erroring, since its callers show latency (frontend-proxy warning) and its callees show absence of traffic rather than failures. Separately, fraud-detection \u2014 whose only in-graph dependency is flagd \u2014 is the one service reporting a hard error rate, with its own latency warning following a minute later. flagd is the single common ancestor: fraud-detection calls it directly, and checkout reaches it transitively through cart. A frozen flagd gives exactly this shape: callers block to their deadlines (frontend-proxy latency, fraud-detection latency and deadline-exceeded errors), work never reaches the tail of the order pipeline (no traffic at payment, email, accounting), and flagd itself raises nothing, which is why it never appears in the alert list despite sitting in the blast radius. A fault inside checkout alone would leave fraud-detection quiet, not erroring; a fault inside fraud-detection alone would not touch the order path.",
+    "open_questions": [
+      "Does flagd emit any log lines or health-check responses during the window, or does it go completely silent?",
+      "Are fraud-detection's errors deadline/context-exceeded against flagd, or application-level errors from a specific flag's code path?",
+      "Do cart and checkout show rising p99 against flagd evaluation calls at 21:51:46, and do checkout spans terminate before the payment call?",
+      "Did any flag value change in the flagd store at onset, and was there any deploy or config change to flagd?",
+      "Is the kafka order topic empty from onset, confirming checkout never published rather than accounting failing to consume?"
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B2",
+    "tool_calls": 0,
+    "attempts": 2,
+    "cited_without_looking": []
+  }
+}

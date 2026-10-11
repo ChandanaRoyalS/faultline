@@ -1,0 +1,162 @@
+{
+  "incident_id": "ca1667fb-1bab-4744-bd87-0412ecb41efd",
+  "trajectory_id": "9d61569e-bff2-4383-8b12-2455ba6f9948",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "flagd",
+    "fraud-detection"
+  ],
+  "unmeasured_edges": 1,
+  "exclude_origins": [
+    "scenario:v2-fraud-detection-partition"
+  ],
+  "verdict": {
+    "root_cause": "fraud-detection is not failing requests; it is failing to reach its telemetry collector. From 17:04 onward it logs java.net.UnknownHostException for host 'otel-collector' on a fixed ~60s cadence, with one instance attributed to temporary name-resolution failure and a pause around 17:12-17:20 when resolution apparently worked [tr_e6c992444e81]. The traces are entirely OkHttp/OTel exporter frames with no application classes [tr_cd23ed25ab17]. The process keeps consuming order records past the alert time and its span error ratio (~0.4% mean, ~3% max) is an order of magnitude below its own baseline [tr_cd23ed25ab17][tr_e14805e67815][tr_3fa6a9b23618], and no change is recorded for fraud-detection or flagd [tr_bddf69fee5c9][tr_f56ce30cef2d]. The service is alive and complaining it cannot reach something: a connectivity/name-resolution break to otel-collector, whose visible symptom is a hole in fraud-detection's metrics.",
+    "service": "fraud-detection",
+    "fault_class": "network_partition",
+    "remediation_class": "reconnect",
+    "confidence": "medium",
+    "evidence": [
+      "tr_e6c992444e81",
+      "tr_cd23ed25ab17",
+      "tr_e14805e67815",
+      "tr_bddf69fee5c9"
+    ],
+    "reasoning": "Application health is confirmed three ways: normal sequential record consumption with no app errors [tr_cd23ed25ab17], error ratio far below baseline with fraud-detection explicitly ruled out as error origin [tr_e14805e67815], and a 6-hour sample with no sustained departure [tr_3fa6a9b23618]. The only persistent fault is a DNS-layer unknown-host failure on a retry cadence rather than per request, which rules out business logic and per-request failure, and aborts before any connection attempt, ruling out a refusing/resetting collector [tr_e6c992444e81]. The service logs rather than falls silent, so not a freeze; the host resolved intermittently mid-window and no config or deploy is recorded [tr_bddf69fee5c9], so not a statically wrong value. The fix is restoring resolution/reachability, and there is nothing recorded to roll back.",
+    "open_questions": [
+      "What actually tripped the 17:26:31 critical alert is unestablished \u2014 no error spike, throughput collapse or restart was seen; the exporter-induced metrics gap is only a hypothesis.",
+      "Blast radius of the DNS failure is unmeasured: no other service was checked for the same unknown-host error, and otel-collector itself was never queried, so the culprit could be the collector or cluster DNS.",
+      "All change-history windows start at onset and run forward, so the hours before 17:26:31 were never queried [tr_cd87ab1bf25f]; flagd was only ever checked in the change log, never in logs or metrics."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "The otel-collector workload is gone or unhealthy, so its DNS name no longer resolves for any exporter.",
+        "service": "otel-collector",
+        "fault_class": "network_partition",
+        "remediation_class": "reconnect",
+        "why_not": "Entirely plausible and indistinguishable from the caller's side, but no dispatch ever touched otel-collector or any second service, so nothing supports it by result id."
+      },
+      {
+        "root_cause": "fraud-detection's OTLP exporter endpoint names a collector host that does not exist in this environment.",
+        "service": "fraud-detection",
+        "fault_class": "bad_config",
+        "remediation_class": "config_revert",
+        "why_not": "A permanently wrong hostname would fail continuously; resolution succeeded for roughly eight minutes mid-window and the first ~8 minutes were clean [tr_e6c992444e81], which fits intermittent resolution rather than a wrong value."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "v2-inj-kafka-disk-fill-log-checkout / What was observed: The page came 5m31s after onset: `ServiceHighLatency` on **checkout**. A minute later\n`ServiceHighErrorRate` on checkout and on **fraud-detection** together; at T+2m from the page\n`ServiceHighLatency` on fraud-detection and `ServiceNoTraffic` on **accounting**. Five alerts on\nthr",
+    "v2-frontend-cart-misconfig / What was checked: **The error text, because it was the first thing a responder would read.** Checkout's error spans\nand the frontend's log said `shipping quote failure: failed POST to email service: expected 200,\ngot 400`. That names two services, and neither was at fault. It is checkout's own wor",
+    "v2-fraud-detection-memory-squeeze / What was observed: One alert. `ServiceNoTraffic` on **fraud-detection**, 7m15s after the trouble started. Nothing\nelse fired for the entire incident, and nothing fired after the fix.\n\nThe store was perfect throughout. The frontend, frontend-proxy and the load generator recorded no\nerrors and no cha"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 24952,
+    "pulled_tokens": 3354,
+    "pull_rate": 0.1185,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 381,
+        "content_tokens": 383,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1419,
+        "content_tokens": 1422,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 7657,
+        "content_tokens": 7633,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 7106,
+        "content_tokens": 7108,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 8389,
+        "content_tokens": 8367,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_e6c992444e81",
+      "tr_cd23ed25ab17",
+      "tr_bddf69fee5c9",
+      "tr_f56ce30cef2d",
+      "tr_e14805e67815"
+    ],
+    "expected_effect": "No action proposed, so no change should be observed. The expected continuing observation is the status quo: fraud-detection keeps consuming order records and emitting logs, its span error ratio stays at roughly 0.4% mean / 3% max, and java.net.UnknownHostException for host 'otel-collector' keeps appearing on a ~60s cadence in Loki until someone restores name resolution or network attachment between fraud-detection and otel-collector \u2014 an act outside this system's executor.",
+    "confirm_within_seconds": 0,
+    "if_wrong": "This abstention is wrong if the UnknownHostException is in fact caused by stale DNS state held inside the fraud-detection JVM or its container's resolver cache rather than by a cluster-DNS or collector-side break \u2014 in that case a container recreate would clear it and the per-minute exception line would stop within a couple of minutes. Two observations would show that: (a) another service in the same network resolving 'otel-collector' successfully during the same minutes, which would localise the fault to fraud-detection's own process/namespace, or (b) otel-collector being confirmed present and healthy. Neither was gathered \u2014 no other service was checked for the same unknown-host error and otel-collector was never queried. Equally, this abstention would be wrong in the other direction if the 17:26:31 critical alert turns out to be driven by something other than the metrics gap; the alert's actual trigger is unestablished, so no permitted action is known to address it.",
+    "risk": "The risk of abstaining is that the telemetry gap persists and fraud-detection remains unobservable, so a later real failure in it would be invisible to metrics-based alerting; responders must treat its dashboards as untrustworthy until the exporter path is restored. The risk of the alternative I am declining \u2014 restart_service on fraud-detection \u2014 is concrete: its precondition ('the evidence points at process state rather than at a change') is not met, since the evidence names an unknown-host/name-resolution failure that occurs before any connection attempt [tr_e6c992444e81] and places the fault in the DNS or collector side, not in process state. A restart would discard in-process state, drop the Kafka consumer mid-stream for the recreate, and most likely leave the exporter failing on the same cadence, while destroying the one clean observation window we have of the fault. rollback_image and revert_config are not merely unwise but impossible: both require a prior image tag or configuration in change history, and the change log is empty for fraud-detection and for flagd across the entire queried window [tr_bddf69fee5c9][tr_f56ce30cef2d].",
+    "blast_radius": "Nobody. No change is made, so no caller of fraud-detection sees anything. The consequence to communicate is informational: fraud-detection's metrics are expected to stay incomplete, and anyone relying on its Prometheus series \u2014 including whoever owns the 17:26:31 alert \u2014 should read its logs instead, where the service is demonstrably still consuming orders [tr_cd23ed25ab17]. The correct fix, restoring the fraud-detection-to-otel-collector network path, falls in the reconnect class, which this executor does not implement, so it needs a human on the cluster."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "feature_flag",
+    "confidence": "low",
+    "reasoning": "A critical alert on fraud-detection is not dismissible, and no open incident covers it. Its only upstream candidate is flagd, so a flag evaluation issue is the cheap prior, though evidence is absent."
+  }
+}

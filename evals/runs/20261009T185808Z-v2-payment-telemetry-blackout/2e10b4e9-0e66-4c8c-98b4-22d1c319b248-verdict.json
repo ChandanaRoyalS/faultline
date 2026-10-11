@@ -1,0 +1,60 @@
+{
+  "incident_id": "2e10b4e9-0e66-4c8c-98b4-22d1c319b248",
+  "trajectory_id": "3c38c196-4db6-44cb-8867-7a97c027f87d",
+  "states": [
+    "triaging"
+  ],
+  "blast_radius": [
+    "payment",
+    "checkout",
+    "frontend"
+  ],
+  "unmeasured_edges": 2,
+  "exclude_origins": [
+    "scenario:scenario:v2-payment-telemetry-blackout"
+  ],
+  "verdict": {
+    "fault_class": "process_freeze",
+    "remediation_class": "restart",
+    "service": "payment",
+    "alternatives": [
+      {
+        "root_cause": "payment was cut off from the network, so it cannot be reached or reach anything",
+        "service": "payment",
+        "fault_class": "network_partition",
+        "remediation_class": null,
+        "why_not": "Presents identically to callers, but payment has no downstream dependencies here, so a partitioned-but-running payment would still log inbound-connection failures or health-check noise rather than going completely silent."
+      },
+      {
+        "root_cause": "A bad deploy shipped an artifact of payment that cannot start or serve",
+        "service": "payment",
+        "fault_class": "bad_deploy",
+        "remediation_class": null,
+        "why_not": "A non-starting artifact gives checkout connection-refused errors and visible restart/crash-loop signals, not a clean no-traffic silence with hanging callers."
+      }
+    ],
+    "summary": "The payment service's process is frozen (stopped but still holding its listening socket), so it emits no telemetry and callers block until their deadlines.",
+    "confidence": "medium",
+    "evidence": [],
+    "reasoning": "The only alert is ServiceNoTraffic on payment \u2014 a total absence of emitted spans/requests rather than errors or elevated latency. A crash-looping or failed deploy would normally surface as connection-refused errors in checkout and restart/startup logs; here the signature is silence from the leaf service while its callers (checkout, then frontend) are drawn into the blast radius by hanging rather than failing fast. That pattern \u2014 socket still accepting, process producing nothing \u2014 is the signature of a frozen process. Payment is a leaf with no downstream dependencies in this graph, so dependency_latency is not available as an explanation.",
+    "open_questions": [
+      "Does payment write anything at all to its own log during the window (silence => freeze; 'cannot reach' errors => partition)?",
+      "Do checkout's calls to payment time out at the deadline, or fail immediately with connection refused/reset?",
+      "Is the payment container still running (uptime, no restarts) and what is its CPU/thread state \u2014 e.g. SIGSTOP, GC pause, or deadlock?",
+      "Any recent deploy, image change, or config change to payment just before 19:06?"
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B2",
+    "tool_calls": 0,
+    "attempts": 2,
+    "cited_without_looking": []
+  }
+}

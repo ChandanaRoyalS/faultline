@@ -1,0 +1,68 @@
+{
+  "incident_id": "ae0ca8b4-8fb8-46f6-8f7d-2d22a142f0ee",
+  "trajectory_id": "787574cf-2739-4d8a-8c3b-7c2e79a41c75",
+  "states": [
+    "triaging"
+  ],
+  "blast_radius": [
+    "checkout",
+    "accounting",
+    "cart",
+    "currency",
+    "email",
+    "frontend",
+    "payment",
+    "product-catalog",
+    "shipping",
+    "frontend-proxy"
+  ],
+  "unmeasured_edges": 8,
+  "exclude_origins": [
+    "scenario:scenario:v2-kafka-disk-fill"
+  ],
+  "verdict": {
+    "fault_class": "resource_exhaustion",
+    "remediation_class": "restart",
+    "service": "checkout",
+    "alternatives": [
+      {
+        "root_cause": "A checkout dependency (payment, cart/valkey, or email) became slow, and checkout failed because it waited on it.",
+        "service": "payment",
+        "fault_class": "dependency_latency",
+        "remediation_class": null,
+        "why_not": "No downstream service raised any alert, and a dependency slow enough to time out checkout would normally show its own latency or error signal; still plausible if the dependency is unmonitored or if the slow hop is the cart's valkey store, which is absent from the graph."
+      },
+      {
+        "root_cause": "A bad checkout release or a wrong config value (timeout, pool size, broker address) shipped just before onset.",
+        "service": "checkout",
+        "fault_class": "bad_deploy",
+        "remediation_class": null,
+        "why_not": "A broken artifact usually fails fast and loudly at startup rather than producing a minute of elevated latency before errors; the latency-then-error ramp fits saturation better."
+      }
+    ],
+    "summary": "checkout exhausted an internal resource (connection/thread pool backing its many downstream calls), so requests queued until they timed out and order publication to Kafka stopped, starving accounting of traffic.",
+    "confidence": "low",
+    "evidence": [],
+    "reasoning": "The alert sequence is latency first, errors a minute later, then a downstream consumer going silent. That is the classic saturation shape: work arrives faster than it can be drained, queues grow, callers see slow then failed requests. checkout is the fan-out node here (product-catalog, currency, cart, email, payment, shipping), so it holds the most concurrent state and is the first to run out of workers or connections. Crucially, none of checkout's six dependencies alerted - no latency, no error-rate, no no-traffic alert on any of them - which argues the slowness originated inside checkout rather than being inherited from a slow or frozen dependency. accounting is absent from the call graph and alerts only on no-traffic, which fits an asynchronous order-event consumer downstream of checkout via Kafka: it broke because checkout stopped emitting orders, not on its own. I would not blame accounting, and frontend/frontend-proxy appear in the blast radius only by traversal.",
+    "open_questions": [
+      "checkout's goroutine/thread, heap and connection-pool metrics around 00:51 - is there a saturation ramp preceding the first latency alert?",
+      "Per-dependency client latency histograms from checkout: did one callee's p99 move before checkout's own, which would flip this to dependency_latency?",
+      "Whether checkout's Kafka producer was erroring or blocking - a blocked producer send would both slow checkout and silence accounting, which is a distinct mechanism",
+      "Checkout deployment and config change history in the hour before onset (image tag, pool sizes, timeouts)",
+      "Request-rate trend into checkout: was there a traffic surge, which would make this capacity rather than a leak"
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B2",
+    "tool_calls": 0,
+    "attempts": 2,
+    "cited_without_looking": []
+  }
+}

@@ -1,0 +1,51 @@
+{
+  "incident_id": "d417432c-938c-4c84-a013-e1230a650c65",
+  "trajectory_id": "521334e2-ba40-4b5f-a1cd-e4a76ca70fd8",
+  "states": [
+    "triaging"
+  ],
+  "blast_radius": [
+    "frontend",
+    "frontend-proxy",
+    "ad",
+    "cart",
+    "checkout",
+    "product-catalog",
+    "product-reviews",
+    "recommendation"
+  ],
+  "unmeasured_edges": 7,
+  "exclude_origins": [
+    "scenario:scenario:v2-product-catalog-flag-failure"
+  ],
+  "verdict": {
+    "fault_class": "bad_deploy",
+    "remediation_class": "rollback",
+    "service": "frontend",
+    "alternatives": [],
+    "summary": "The frontend service began failing on its own \u2014 most likely a newly rolled-out frontend artifact that errors on request handling \u2014 and frontend-proxy merely surfaces those errors to clients.",
+    "confidence": "low",
+    "evidence": [],
+    "reasoning": "Only frontend and frontend-proxy alert, and they alert in the same second; frontend-proxy's sole dependency is frontend, so it is the noticer, not the breaker. None of frontend's downstreams (product-catalog, cart, checkout, ad, recommendation, product-reviews) alert, so the failure is not propagating up from a dependency \u2014 the listed blast radius is just graph traversal, not independently sick services. A simultaneous jump straight to a high error rate (rather than creeping latency or saturation) in the one service at the edge points at the running artifact itself: a bad frontend build or image that fails requests as soon as it takes traffic. Frontend does not talk to flagd in this catalog, which argues against a flag flip.",
+    "open_questions": [
+      "Was there a frontend deploy/image change in the minutes before 14:58:16?",
+      "Are the frontend errors 5xx from frontend's own handlers, or upstream-timeout/connect errors to a dependency?",
+      "Do frontend's own logs show startup/initialization failures, panics, or config-parse errors?",
+      "Latency distribution of frontend's calls to product-catalog/cart/checkout during the window \u2014 flat or elevated?",
+      "Frontend pod restart counts, OOMKills, and memory/FD saturation at onset"
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B2",
+    "tool_calls": 0,
+    "attempts": 1,
+    "cited_without_looking": []
+  }
+}

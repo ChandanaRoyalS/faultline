@@ -1,0 +1,4 @@
+injected v2-checkout-currency-misconfig (bad_config) on checkout
+  - compose: checkout recreated with CURRENCY_ADDR=currencyservice:7001
+  - override written to /Users/chandana/dev/faultline/.faultline/overrides/v2-checkout-currency-misconfig.yml
+revert with: faultline-inject stop v2-checkout-currency-misconfig

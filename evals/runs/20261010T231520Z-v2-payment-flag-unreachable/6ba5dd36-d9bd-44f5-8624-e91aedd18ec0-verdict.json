@@ -1,0 +1,172 @@
+{
+  "incident_id": "6ba5dd36-d9bd-44f5-8624-e91aedd18ec0",
+  "trajectory_id": "bf0e9f58-b5a8-4718-a167-28e21fd9bb88",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "accounting",
+    "cart",
+    "checkout",
+    "currency",
+    "email",
+    "flagd",
+    "fraud-detection",
+    "frontend",
+    "frontend-proxy",
+    "payment",
+    "product-catalog",
+    "shipping"
+  ],
+  "unmeasured_edges": 9,
+  "exclude_origins": [
+    "scenario:v2-payment-flag-unreachable"
+  ],
+  "verdict": {
+    "root_cause": "Payment went silent mid-window (~23:15) on a normal info-level transaction completion, with no shutdown, crash, or re-bind record afterwards and unchanged process identity and service version [tr_041fbef7b9d5]. About four minutes later every sampled checkout trace fails in PaymentService/Charge with gRPC Unavailable name-resolution, ~0.0ms duration and 0% of trace time, meaning the client never opened a connection [tr_f4248832d4ea]. That is the signature of a payment process that stopped doing work while not exiting cleanly: it drops out of discovery and callers fail fast on resolution. Checkout is the alerter, not the culprit \u2014 its other dependencies (cart/Redis, currency, catalog, shipping, flagd) are clean in the same traces [tr_f4248832d4ea], and its aggregate error ratio shows no new excursion [tr_c73ae4c5dcef].",
+    "service": "payment",
+    "fault_class": "process_freeze",
+    "remediation_class": "restart",
+    "confidence": "medium",
+    "evidence": [
+      "tr_041fbef7b9d5",
+      "tr_f4248832d4ea",
+      "tr_c73ae4c5dcef",
+      "tr_352f01e4dff7",
+      "tr_08b3cdb0176e"
+    ],
+    "reasoning": "Traces localise the failure to exactly one hop \u2014 checkout's Charge call \u2014 and the zero-duration name-resolution error rules out a slow backend or client timeout [tr_f4248832d4ea]. Payment's own logs stop at a healthy transaction and show no crash, restart or version change, so the instance neither died loudly nor was replaced [tr_041fbef7b9d5]. Change records are exculpatory for the configuration hypotheses: payment's traffic-shaping sidecar was removed ~22h before onset leaving no delay in effect [tr_352f01e4dff7], and checkout's CURRENCY_ADDR flapping ended 16.5h before onset and touches currency, not payment, while currency spans are error-free [tr_08b3cdb0176e, tr_f4248832d4ea]. Checkout's metrics show no new service-wide error spike, consistent with checkout merely relaying a downstream failure [tr_c73ae4c5dcef].",
+    "open_questions": [
+      "No payment-side evidence distinguishes a frozen process from a payment instance severed from the network: payment logs were truncated and the final minutes contain no lines at all, so we never saw whether payment itself complained about unreachable peers [tr_041fbef7b9d5].",
+      "Payment's span-metrics series is empty across both incident and baseline windows, so request rate and latency for payment were never measured and its liveness cannot be confirmed independently [tr_2cea50f0ea84].",
+      "Checkout emitted zero log lines across the entire window, so its client-side view of resolution failures is unverified outside traces [tr_77a8b350df33].",
+      "No dispatch examined service discovery / DNS itself, which is the alternative source of a name-resolution failure with zero addresses."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "Payment is running but cut off from the network/service registry, so its endpoints are withdrawn and checkout's resolver returns no addresses.",
+        "service": "payment",
+        "fault_class": "network_partition",
+        "remediation_class": "reconnect",
+        "why_not": "Indistinguishable from a freeze on the caller side, but a partitioned-yet-running payment would normally still log its own failures to reach dependencies; the retained log lines end on a clean success with nothing after [tr_041fbef7b9d5]. Weakly demoted \u2014 log truncation means absence here is not strong proof."
+      },
+      {
+        "root_cause": "Service discovery or DNS for the payment name is broken, so checkout resolves zero addresses while payment itself is healthy.",
+        "service": "payment",
+        "fault_class": "bad_config",
+        "remediation_class": "config_revert",
+        "why_not": "No change record touches payment's name, port or registration \u2014 every payment change is a sidecar attach/remove [tr_352f01e4dff7] \u2014 and payment's own logs stopping at the same time is better explained by payment than by a resolver fault that would leave payment chattering normally [tr_041fbef7b9d5]."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "v2-currency-freeze / Resolution: The currency process was resumed. Every held order woke together: 110 orders completed in the\nminutes after the resume, each one's conversion having waited up to ten minutes and then taken\ntwo milliseconds, and not one failed - checkout, the frontend and currency have no error tr",
+    "v2-payment-dependency-latency / What was checked: **Checkout's traces, the service on the page.** Every order was slow in one place. In 76 traces\ndrawn under the fault, `PlaceOrder` took 329 to 373ms where it had taken 27 to 79. Beneath it the\ncart read, the product lookups, the currency conversions, the shipping quote, the ship",
+    "v2-currency-freeze / Root cause: The currency process was suspended. The container existed and kept its port; the kernel went on\naccepting connections into its backlog; but nothing in the process ran, so no request was read or\nanswered. Only checkout calls currency, twice an order, after the cart read and the ca"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 30858,
+    "pulled_tokens": 7119,
+    "pull_rate": 0.1875,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 468,
+        "content_tokens": 470,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 2005,
+        "content_tokens": 2008,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 9473,
+        "content_tokens": 9448,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 8651,
+        "content_tokens": 8653,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 10261,
+        "content_tokens": 10238,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "restart",
+    "action_id": "restart_service",
+    "target": "payment",
+    "rests_on": [
+      "tr_041fbef7b9d5",
+      "tr_f4248832d4ea",
+      "tr_352f01e4dff7"
+    ],
+    "expected_effect": "Recreating payment's container should restore a live, discoverable payment process. Two observations should follow: (1) in Tempo, new checkout PlaceOrder traces stop carrying an errored PaymentService/Charge child with gRPC Unavailable / name-resolution and ~0.0ms duration, and instead show a Charge span with non-trivial duration and OK status; (2) in Loki, {service=\"payment\"} resumes emitting lines \u2014 first process startup/bind records (absent before, per tr_041fbef7b9d5), then the info-severity, trace-correlated transaction-completion records from the payment-logger scope that stopped at ~23:15. Secondary, weaker: checkout/frontend/frontend-proxy spans stop propagating the card-charge failure to the load generator. Checkout's aggregate error ratio is not a useful confirmation signal here \u2014 tr_c73ae4c5dcef shows it bursty and unchanged, so do not judge on it.",
+    "confirm_within_seconds": 300,
+    "if_wrong": "If, 5 minutes after the recreate, sampled checkout traces still show PaymentService/Charge failing at ~0.0ms with Unavailable/name-resolution and zero addresses, the fault is not payment's process state \u2014 it is name resolution or service discovery itself (never dispatched in this investigation), or an environment-level network severance that container recreate did not undo. A second falsifier: payment emits fresh startup and transaction lines in Loki (so the process is demonstrably alive and logging) while callers still get zero addresses \u2014 that isolates the fault squarely in discovery/DNS, not in payment. Note the asymmetry: payment has no span-metrics series at all in either window (tr_2cea50f0ea84), so payment-side liveness cannot be confirmed from metrics; confirmation rests entirely on traces from checkout and on payment's own log stream resuming.",
+    "risk": "Not none. If payment was in fact alive and the failure is in DNS/service discovery, this takes down a working process for the duration of the recreate, converting a resolution failure into a real outage window, and destroys the frozen process's state \u2014 thread dumps, socket table, in-process evidence \u2014 which is the only thing that could have distinguished a freeze from a network severance. Any in-flight charges at the moment of recreate are lost, and in-process cache is discarded (rebuild cost on first requests). The restart is also irreversible: if the freeze was caused by something that re-manifests, we will have erased the one clean specimen of it.",
+    "blast_radius": "payment itself, for the length of the container recreate. Its direct caller checkout sees connection reset / continued Unavailable during that interval; the failure already propagates checkout -> frontend -> frontend-proxy -> load-generator per tr_f4248832d4ea, so those three see it too, and user-visible checkout remains failing until payment re-registers. The order-completion consumers in the blast radius \u2014 fraud-detection, accounting, email \u2014 see no new orders during the window and a resumption after. cart, currency, product-catalog, shipping and flagd are untouched and were already clean in the same traces."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Critical multi-service failure starting at checkout and spreading to fraud-detection, payment, accounting and email within minutes; no open incident covers it. Origin is unclear between a checkout deploy and a shared dependency, so the fault class stays unknown."
+  }
+}

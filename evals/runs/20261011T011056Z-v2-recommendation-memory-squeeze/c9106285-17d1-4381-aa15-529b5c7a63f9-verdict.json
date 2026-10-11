@@ -1,0 +1,80 @@
+{
+  "incident_id": "c9106285-17d1-4381-aa15-529b5c7a63f9",
+  "trajectory_id": "391bf2dc-5275-4412-872f-9e70765ad470",
+  "states": [
+    "triaging",
+    "investigating"
+  ],
+  "blast_radius": [
+    "frontend",
+    "frontend-proxy",
+    "ad",
+    "cart",
+    "checkout",
+    "product-catalog",
+    "product-reviews",
+    "recommendation"
+  ],
+  "unmeasured_edges": 7,
+  "exclude_origins": [
+    "scenario:scenario:v2-recommendation-memory-squeeze"
+  ],
+  "verdict": {
+    "fault_class": "resource_exhaustion",
+    "remediation_class": "config_revert",
+    "service": "recommendation",
+    "alternatives": [
+      {
+        "root_cause": "recommendation's configuration points callers at a wrong port/address causing refusals",
+        "service": "recommendation",
+        "fault_class": "bad_config",
+        "remediation_class": null,
+        "why_not": "The only recorded changes are memory limit edits, not address/port values, and the refusals correlate in time with limit lowerings and clear on reverts."
+      },
+      {
+        "root_cause": "recommendation's process is frozen while its socket still accepts",
+        "service": "recommendation",
+        "fault_class": "process_freeze",
+        "remediation_class": null,
+        "why_not": "A freeze makes callers hang to their deadlines; frontend instead sees immediate connection refused, meaning nothing is listening."
+      },
+      {
+        "root_cause": "frontend itself broke and generated the errors",
+        "service": "frontend",
+        "fault_class": "bad_deploy",
+        "remediation_class": null,
+        "why_not": "frontend's errors are all outbound gRPC UNAVAILABLE toward one upstream endpoint, and no frontend change was implicated; it is the caller noticing the dependency's absence."
+      }
+    ],
+    "summary": "A memory limit lowered to 16m on recommendation at 01:11 caused the process to be killed for exceeding it, so it stopped listening and callers got connection refused from ~01:15 onward.",
+    "confidence": "high",
+    "evidence": [
+      "tr_f809df783cf9",
+      "tr_5919b91b3295",
+      "tr_16b21798a2f5"
+    ],
+    "reasoning": "frontend (first alerting) shows only connection-refused failures toward a single upstream endpoint on port 9001, which indicates a dead listener rather than a slow one, so frontend and frontend-proxy are noticing, not breaking. recommendation's own log stops entirely shortly after 01:10 with no error or shutdown message, consistent with the process being killed rather than failing requests. The change log shows a repeating pattern of the memory limit being lowered to 16m and reverted, with the final lowering at 01:11:01 not reverted, immediately preceding onset at 01:15:46; earlier lowerings line up with earlier refusal bursts in frontend's log around 00:51. The edit is how it started; the failing mechanism is the process exceeding its memory allowance and being killed, i.e. resource exhaustion. Remediation is to revert the lowered limit so the process can run again.",
+    "open_questions": [
+      "No direct OOM-kill or restart record was retrieved for recommendation; the kill is inferred from the silent log, the refused connections and the limit change timing.",
+      "It was not confirmed that 172.18.0.27:9001 is recommendation's address rather than another downstream in the blast radius.",
+      "Whether cart/checkout/product-catalog symptoms are purely secondary was not checked directly."
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B1",
+    "tool_calls": 3,
+    "turns": 5,
+    "looked_at": [
+      "logs:frontend",
+      "logs:recommendation",
+      "changes:recommendation"
+    ]
+  }
+}

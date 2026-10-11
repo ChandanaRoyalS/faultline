@@ -1,0 +1,93 @@
+{
+  "incident_id": "661906de-e9e8-4f2c-885d-4383677fe64e",
+  "trajectory_id": "69ef23ec-9d89-424a-a1ce-ac5e8da4a3d7",
+  "states": [
+    "triaging",
+    "investigating"
+  ],
+  "blast_radius": [
+    "checkout",
+    "frontend",
+    "frontend-proxy",
+    "load-generator",
+    "ad",
+    "cart",
+    "currency",
+    "email",
+    "payment",
+    "product-catalog",
+    "product-reviews",
+    "recommendation",
+    "shipping"
+  ],
+  "unmeasured_edges": 13,
+  "exclude_origins": [
+    "scenario:scenario:v2-cart-bad-image-tag"
+  ],
+  "verdict": {
+    "fault_class": "bad_deploy",
+    "remediation_class": "rollback",
+    "service": "cart",
+    "alternatives": [
+      {
+        "root_cause": "Cart's process froze while its socket still accepted, hanging callers.",
+        "service": "cart",
+        "fault_class": "process_freeze",
+        "remediation_class": null,
+        "why_not": "Callers get immediate connection/host-unreachable and zero-address resolution errors rather than hanging to deadlines (tr_456efddfeeda), and cart logged an orderly shutdown rather than simply going silent (tr_817f9cc6dfdc)."
+      },
+      {
+        "root_cause": "Cart was cut off from the network by a partition.",
+        "service": "cart",
+        "fault_class": "network_partition",
+        "remediation_class": null,
+        "why_not": "A partitioned-but-running cart would keep logging complaints that it cannot reach its own dependencies; instead cart stopped logging entirely after a clean shutdown coincident with an image change (tr_817f9cc6dfdc, tr_2a4e53f10c99)."
+      },
+      {
+        "root_cause": "Checkout itself broke on the PlaceOrder path.",
+        "service": "checkout",
+        "fault_class": "dependency_latency",
+        "remediation_class": null,
+        "why_not": "Checkout has no changes and no sustained error departure, and frontend's errors name the cart endpoint specifically rather than slow checkout work (tr_fcc2b656c545, tr_3bf273e5c4cc, tr_456efddfeeda)."
+      }
+    ],
+    "summary": "Cart was repeatedly pointed at a hotfix image that does not come up; at 01:55 the running cart process shut down and the new artifact never started serving, so cart's address became unreachable and checkout/frontend failed on every cart call.",
+    "confidence": "medium",
+    "evidence": [
+      "tr_2a4e53f10c99",
+      "tr_817f9cc6dfdc",
+      "tr_456efddfeeda",
+      "tr_f4b637f62239",
+      "tr_fcc2b656c545",
+      "tr_3bf273e5c4cc"
+    ],
+    "reasoning": "Checkout alerted first but has no changes of its own (tr_fcc2b656c545), no logs in the window (tr_149983e1980b) and no sustained error-ratio departure (tr_3bf273e5c4cc); its traces show healthy, fast dependency spans before onset (tr_f4b637f62239). Frontend's own log shows its failures are connection failures to one downstream address on port 7070 - the cart gRPC endpoint - with no route to host / host unreachable / zero resolved addresses (tr_456efddfeeda), which is a caller symptom, not a frontend fault. Cart's log runs normally until it records an orderly application shutdown just after 01:55 and then stops (tr_817f9cc6dfdc), and the change log shows an image reference flipped onto the same hotfix tag and reverted three times, with the final flip onto that tag at 01:55:19 - exactly coincident with the shutdown and immediately before onset (tr_2a4e53f10c99). A running artifact that is not the one that should be running and that does not come back up is bad_deploy; the dependent blast radius (checkout, frontend, frontend-proxy, load-generator) follows from cart being absent on the checkout path.",
+    "open_questions": [
+      "Cart's logs after the 01:55 shutdown were not inspected for a crash-loop or startup failure of the hotfix image, so I did not directly confirm the new container failed to start rather than being stopped and never rescheduled.",
+      "Whether the hotfix image fails for an internal reason (e.g. a bad limit or missing config baked in) was not established.",
+      "Checkout's error-ratio metric did not show a sustained departure in the queried window, so the quantitative onset signature on checkout is unconfirmed."
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B1",
+    "tool_calls": 8,
+    "turns": 10,
+    "looked_at": [
+      "logs:checkout",
+      "traces:checkout",
+      "metrics:checkout",
+      "metrics:frontend",
+      "changes:checkout",
+      "logs:frontend",
+      "logs:cart",
+      "changes:cart"
+    ]
+  }
+}

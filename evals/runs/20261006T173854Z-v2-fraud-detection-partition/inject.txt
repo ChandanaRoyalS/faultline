@@ -1,0 +1,4 @@
+injected v2-fraud-detection-partition (network_partition) on fraud-detection
+  - docker network disconnect: fraud-detection cut from opentelemetry-demo (aliases captured: fraud-detection, fraud-detection)
+  - callers will hang, not fail; the target keeps running and logs that it cannot reach anything; expect ~6 min from reconnect to quiet
+revert with: faultline-inject stop v2-fraud-detection-partition

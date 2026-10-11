@@ -1,0 +1,48 @@
+{
+  "incident_id": "222e2130-6a06-40bf-b324-270fc98db4b6",
+  "trajectory_id": "3cbefb50-7ed3-4cf8-96aa-f00d0c3aef73",
+  "states": [
+    "triaging"
+  ],
+  "blast_radius": [
+    "frontend-proxy",
+    "load-generator",
+    "flagd",
+    "fraud-detection",
+    "ad",
+    "cart",
+    "product-reviews",
+    "recommendation",
+    "checkout",
+    "frontend"
+  ],
+  "unmeasured_edges": 11,
+  "exclude_origins": [
+    "scenario:scenario:v2-cart-freeze"
+  ],
+  "verdict": {
+    "fault_class": "dependency_latency",
+    "remediation_class": "restart",
+    "service": "fraud-detection",
+    "summary": "suspect: largest error-rate delta among alerting services (+0.987); class: no change on any alerting service before onset; remediation: table lookup from dependency_latency",
+    "confidence": "n/a - B0 is a rule, not an estimate"
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B0",
+    "service": "fraud-detection",
+    "fault_class": "dependency_latency",
+    "fix_class": "restart",
+    "why": [
+      "suspect: largest error-rate delta among alerting services (+0.987)",
+      "class: no change on any alerting service before onset",
+      "remediation: table lookup from dependency_latency"
+    ]
+  }
+}

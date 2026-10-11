@@ -1,0 +1,165 @@
+{
+  "incident_id": "ca387cf3-e013-415b-8e67-4214bc29ae0a",
+  "trajectory_id": "65dd292e-cdd8-4631-bf1d-ede1589f08d3",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "frontend",
+    "frontend-proxy",
+    "load-generator"
+  ],
+  "unmeasured_edges": 1,
+  "exclude_origins": [
+    "scenario:v2-product-catalog-freeze"
+  ],
+  "verdict": {
+    "root_cause": "At 20:11:36 UTC platform-automation set cart's image reference to the 2.2.0-cart-hotfix.2 tag [tr_c1755292fd68]. Within a minute cart's endpoints stopped accepting connections and then vanished from service discovery: frontend logs a dial timeout to a concrete cart IP:port at ~20:12:18 and later name resolution returning zero addresses [tr_6cd2e801b1b2]. Cart itself emitted no error signal \u2014 error ratio stayed near baseline with 24 intervals of no span traffic at all, i.e. nothing was serving [tr_54634ff874e2]. The automation reverted the image at 20:20:51 [tr_c1755292fd68] and cart is logging normal cart-store operations by 20:38 [tr_30aff810f573]. The error bursts at frontend and frontend-proxy, with clean baselines and onset ~20:13, are bracketed by that update/revert pair [tr_0af772a00d1e][tr_67e6575efc29]. The running artifact on cart was briefly the wrong one and did not come up healthy; the caller-side errors are propagation [tr_bb55f0743c5a].",
+    "service": "cart",
+    "fault_class": "bad_deploy",
+    "remediation_class": "rollback",
+    "confidence": "medium",
+    "evidence": [
+      "tr_c1755292fd68",
+      "tr_6cd2e801b1b2",
+      "tr_54634ff874e2",
+      "tr_30aff810f573",
+      "tr_0af772a00d1e",
+      "tr_67e6575efc29"
+    ],
+    "reasoning": "Frontend's change log is empty [tr_bb55f0743c5a] and every retained frontend error stack ends at the gRPC client boundary carrying an upstream Unavailable from cart [tr_6cd2e801b1b2], so frontend and frontend-proxy are noticing, not causing. Cart is the named dependency and the only service with a change adjacent to onset. The mechanism is not application errors from cart \u2014 its error ratio never departs from baseline [tr_54634ff874e2] \u2014 but endpoints that refuse connections and then disappear from discovery [tr_6cd2e801b1b2], the signature of replicas replaced by an artifact that never became ready; the 24 no-traffic intervals corroborate [tr_54634ff874e2]. Timing is tight both ways: image set 20:11:36, first transport failures 20:12:18, metric change point ~20:13 [tr_0af772a00d1e][tr_67e6575efc29], revert 20:20:51, last retained frontend errors ~20:22, cart healthy by 20:38 [tr_30aff810f573]. The wrong artifact running is what broke the path, so bad_deploy and rollback \u2014 with the durable fix being to stop the automation loop that has applied and reverted this tag five times [tr_c1755292fd68].",
+    "open_questions": [
+      "Cart's logs for 20:11-20:23 were truncated away [tr_30aff810f573], so the artifact's actual failure mode (crash on start, failed readiness, kill) is unobserved; the image-to-endpoint-loss link is inferred from timing and caller symptoms.",
+      "No pod availability, restart count, or CPU/memory data was fetched for cart [tr_54634ff874e2]; an OOM or crash-loop on the new image would look identical from the caller.",
+      "frontend-proxy shows a second threshold crossing ~20:35, after the revert and after frontend's retained errors stop [tr_67e6575efc29]; no per-route or per-upstream dimension was available to explain it, and one unmeasured edge was never crossed."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "The hotfix image started but was killed for exceeding a memory or CPU limit, so cart replicas churned out of service discovery.",
+        "service": "cart",
+        "fault_class": "resource_exhaustion",
+        "remediation_class": "rollback",
+        "why_not": "No resource-limit or scaling change exists in cart's change log [tr_c1755292fd68] and no saturation or restart metric was retrieved [tr_54634ff874e2]; even if true it only refines how the wrong artifact died."
+      },
+      {
+        "root_cause": "A service-discovery or network-layer disruption independent of the deploy cut frontend off from cart's endpoints.",
+        "service": "cart",
+        "fault_class": "network_partition",
+        "remediation_class": "reconnect",
+        "why_not": "The earliest errors resolve a concrete cart IP and port before timing out, so discovery was intact at onset [tr_6cd2e801b1b2], and the outage begins and ends within minutes of the image set and revert [tr_c1755292fd68] \u2014 coincidence that tight is implausible."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "v2-ad-bad-image-tag / What was observed: The page was two alerts in the same moment, `ServiceHighErrorRate` on **frontend** and\n**frontend-proxy**, 5m17s after the trouble started. The service the failures would turn out to\nname was not on it.\n\nThe frontend's error ratio had been zero. It was 3% at two minutes, 11% at f",
+    "v2-ad-memory-squeeze / What was checked: **The page names callers.** Frontend-proxy forwards what the frontend returns, and the load\ngenerator is the synthetic shoppers counting their own failures. The frontend was the one service\nmaking calls that failed, and the order path was not among them.\n\n**The frontend's error t",
+    "v2-product-catalog-flag-failure / What was observed: The page was two alerts in the same moment, `ServiceHighErrorRate` on **frontend** and on\n**frontend-proxy**, 5m31s after the trouble started. Nothing else fired, then or later, and nothing\nfired after the fix.\n\nBoth error ratios had been zero. They rose from about two minutes in"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 28407,
+    "pulled_tokens": 4066,
+    "pull_rate": 0.1252,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 378,
+        "content_tokens": 380,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1666,
+        "content_tokens": 1669,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 8776,
+        "content_tokens": 8752,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 8053,
+        "content_tokens": 8055,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 9534,
+        "content_tokens": 9511,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_c1755292fd68",
+      "tr_bb55f0743c5a",
+      "tr_30aff810f573",
+      "tr_6cd2e801b1b2"
+    ],
+    "expected_effect": "No action is proposed, so no change should be observed. The expected trajectory without intervention is the one already in evidence: cart's image was reverted by platform-automation at 20:20:51 [tr_c1755292fd68] and cart was logging normal ValkeyCartStore operations continuously through 20:39:02 [tr_30aff810f573]. Frontend and frontend-proxy error ratios should therefore decay to their flat-zero baselines on their own as retries drain, measurable on the same span-metrics error-ratio queries already used for both services.",
+    "confirm_within_seconds": 900,
+    "if_wrong": "Abstention is falsified if frontend or frontend-proxy error ratio is still above the 5% threshold 15 minutes from now, or if frontend logs resume the 'cart failure ... Unavailable / no addresses' path after 20:39. That would mean the revert did not actually restore cart and an active fix is needed \u2014 but the fix would belong on cart, which is not a legal target here, so the correct follow-up is to re-scope the blast radius to include cart rather than to act on frontend. A second, narrower falsifier: frontend-proxy's ~20:35 crossing [tr_67e6575efc29] recurring after cart is confirmed healthy would indicate a distinct, unexplained proxy-side fault that no evidence here characterises and no permitted action is known to address.",
+    "risk": "The risk of abstaining is leaving an unexplained second frontend-proxy threshold crossing at ~20:35 unaddressed; it postdates the revert and has no per-route or per-upstream dimension to explain it [tr_67e6575efc29], so if it is a real independent fault, waiting costs time. The risk of the alternative \u2014 acting anyway \u2014 is larger: the only legal targets are frontend, frontend-proxy and load-generator, and the diagnosis places the fault on cart. rollback_image on frontend fails its precondition outright, because frontend's change history is empty for the whole queried period [tr_bb55f0743c5a], so there is no prior tag and no in-window change to revert to; that action would be a blind container recreate of a healthy service. restart_service on frontend or frontend-proxy is also unjustified: the evidence points at a change on a dependency, not at process state on the target, and it is irreversible, discards in-process cache, and would cause a fresh connection-reset burst in the exact signal we are trying to watch recover.",
+    "blast_radius": "None from this proposal, since nothing is executed. For contrast, had an action been taken: load-generator and every external caller traverse frontend-proxy to frontend, so recreating either container would reset in-flight connections for all synthetic and real traffic in this world and would contaminate the frontend and frontend-proxy error-ratio series used to confirm recovery, making the post-revert decay unreadable.",
+    "notes": "Two independent reasons to abstain, either sufficient. (1) Target legality: the mechanism is a bad image on cart [tr_c1755292fd68], and caller-side errors at frontend and frontend-proxy are propagation of cart's Unavailable/no-endpoints condition [tr_6cd2e801b1b2]. cart is not among the services this brief declares legal. No permitted action on a legal target addresses the mechanism. (2) The condition is already remediated: the offending image was reverted at 20:20:51 and cart is serving normally by 20:38 [tr_c1755292fd68][tr_30aff810f573]. Acting now would remediate a fault that no longer exists. Verdict confidence is only medium and three material gaps remain open \u2014 cart's 20:11-20:23 logs truncated, no pod/restart/CPU/memory data for cart [tr_54634ff874e2], and the unexplained ~20:35 proxy crossing \u2014 which independently argue against committing an irreversible action. Recommended non-action follow-up, outside what this system may do: fetch cart restart count and pod availability for 20:11-20:23, and a per-upstream error breakdown for frontend-proxy around 20:35; also investigate the automation loop that applied and reverted this same tag five times [tr_c1755292fd68], since the recurrence, not the single deploy, is the durable defect."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Critical alert at the frontend-proxy edge with the load generator alerting simultaneously indicates user-facing impact, not a lone warning-latency blip. No open incident covers it, and the proxy-to-frontend edge is the natural first place to look."
+  }
+}

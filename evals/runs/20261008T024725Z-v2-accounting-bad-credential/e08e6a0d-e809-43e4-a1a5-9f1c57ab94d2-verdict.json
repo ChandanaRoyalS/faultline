@@ -1,0 +1,58 @@
+{
+  "incident_id": "e08e6a0d-e809-43e4-a1a5-9f1c57ab94d2",
+  "trajectory_id": "82b54ff1-ba68-4cfb-870e-7f3ad39a160f",
+  "states": [
+    "triaging"
+  ],
+  "blast_radius": [
+    "accounting"
+  ],
+  "unmeasured_edges": 0,
+  "exclude_origins": [
+    "scenario:scenario:v2-accounting-bad-credential"
+  ],
+  "verdict": {
+    "fault_class": "datastore_corruption",
+    "remediation_class": "restore_data",
+    "service": "accounting",
+    "alternatives": [
+      {
+        "root_cause": "A new accounting build or wrong image was rolled out and fails on startup or on every request.",
+        "service": "accounting",
+        "fault_class": "bad_deploy",
+        "remediation_class": null,
+        "why_not": "Plausible and would look the same from a single error-rate alert, but a non-starting artifact usually shows as crashloop/unavailability rather than a steady high error rate; demoted only slightly \u2014 a change-log check would settle it."
+      },
+      {
+        "root_cause": "A wrong value in accounting's config (database DSN, credential, or Kafka broker address) points it at something it cannot use.",
+        "service": "accounting",
+        "fault_class": "bad_config",
+        "remediation_class": null,
+        "why_not": "Would typically surface as connection-refused/auth errors at startup across all operations; the absence of any neighboring-service symptom fits, but corruption better explains errors on a store that is otherwise reachable and healthy."
+      }
+    ],
+    "summary": "accounting's backing store (postgresql) is reachable but the records/messages it reads back cannot be decoded, so every read path throws and the service reports a high error rate.",
+    "confidence": "low",
+    "evidence": [],
+    "reasoning": "The blast radius is exactly one service and accounting has no inbound edges in the graph, so nothing downstream or upstream is implicated \u2014 the failure is internal to accounting rather than propagated. The alert is a hard error rate, not latency, which rules out the hang-shaped classes (process_freeze, network_partition, dependency_latency): those would show callers timing out, and accounting would be silent rather than loudly erroring. accounting is a consumer/persistence service (Kafka \u2192 postgresql), and the classic shape of 'connection fine, every read/decode fails' in such a service is corrupt or schema-mismatched stored/queued data producing deserialization errors on every message. That gives immediate, sustained, self-contained errors with no latency signature, which matches what little we see. Confidence is low: a bad artifact or a wrong DSN/credential in config would look nearly identical from one alert line.",
+    "open_questions": [
+      "accounting's own error logs \u2014 are they parse/deserialize/decode exceptions, or connection/auth refusals, or OOM kills?",
+      "Was there a deploy, image change, or schema/Avro-Protobuf contract change to accounting or its producers just before 02:51:16?",
+      "postgresql health and disk usage, and whether other postgres clients are unaffected",
+      "Kafka consumer lag and whether the failures are per-message (poison record) or total"
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B2",
+    "tool_calls": 0,
+    "attempts": 2,
+    "cited_without_looking": []
+  }
+}

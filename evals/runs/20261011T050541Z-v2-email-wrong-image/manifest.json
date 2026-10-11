@@ -1,0 +1,540 @@
+{
+  "run_id": "20261011T050541Z-v2-email-wrong-image",
+  "scenario_id": "v2-email-wrong-image",
+  "split": "holdout",
+  "scenario_fingerprint": "b86f81dd56438f9d234001b2afe31a4ffac6aab449251b54ab3aa2797cd499e3",
+  "started_at": "2026-10-11T05:05:41.758538+00:00",
+  "demo": false,
+  "recorder": {
+    "tool": "evalharness.run",
+    "git_sha": "5950947919a764716712d9b1ad4346ef133560fb",
+    "git_dirty": true
+  },
+  "models": {
+    "changes": "claude-opus-5",
+    "logs": "claude-opus-5",
+    "metrics": "claude-opus-5",
+    "planner": "claude-opus-5",
+    "scribe": "claude-opus-5",
+    "synthesizer": "claude-opus-5",
+    "traces": "claude-opus-5"
+  },
+  "efforts": {
+    "default": "high"
+  },
+  "budget": {
+    "max_tool_calls_per_specialist": 4,
+    "max_tokens": 120000,
+    "wall_clock_seconds": 600,
+    "max_dispatch_rounds": 2,
+    "briefing_tokens": 4000,
+    "max_usd": 2.0,
+    "usd_per_mtok_in": 5.0,
+    "usd_per_mtok_out": 25.0,
+    "per_specialist_tool_calls": {}
+  },
+  "world_lock": {
+    "acquired": true,
+    "pid": 17756,
+    "host": "chandanas-MacBook-Air.local",
+    "since": "2026-10-11T05:05:41.985794+00:00",
+    "reason": "faultline-eval v2-email-wrong-image",
+    "token": "17756-1791695141.985699"
+  },
+  "preflight": {
+    "checked": true,
+    "model": "claude-opus-5",
+    "ok": true,
+    "detail": "20 token(s) billed",
+    "skipped_because": ""
+  },
+  "baseline_gate": {
+    "passed": true,
+    "world": "v2",
+    "firing_alerts": [],
+    "p95_over_ceiling_ms": {},
+    "p95_excursions": {},
+    "ingest_accepting": true,
+    "consumer_idle_ms": 1289,
+    "pipeline_down": [],
+    "silent_services": [],
+    "unexpected_silent": [],
+    "latency_invisible": [],
+    "services_reporting": 18,
+    "youngest_container": [
+      "email",
+      759
+    ],
+    "active_injections": "no active injections",
+    "open_incidents": [],
+    "settling_incidents": [],
+    "settle_seconds_remaining": 0,
+    "headroom": {
+      "container": "kafka",
+      "percent_now": 42.23,
+      "limit_mb": 1024.0,
+      "expected_run_hours": 0.3475,
+      "runs_remaining": 1,
+      "uptime_seconds": 94614,
+      "growth_mb_per_hour": 1.3,
+      "growth_mb": 0.5,
+      "projected_percent": 42.27,
+      "threshold_percent": 89.96,
+      "guard_percent": 90.0,
+      "fits": true
+    },
+    "refusals": []
+  },
+  "world_continuity": {
+    "kafka_uptime_seconds": 94614,
+    "kafka_uptime_seconds_previous_run": 93250,
+    "previous_run_id": "20261011T044257Z-v2-email-wrong-image",
+    "kafka_restarted_since_previous_run": false,
+    "cause": "continuous - same kafka instance as the previous run",
+    "note": "A sweep spanning a restart did not run every scenario against the same kafka instance. That is a resource level, not a code or config change - no digest moves and the runs describe the same world (T7.33)."
+  },
+  "freeze": {
+    "frozen_for": "holdout 20261011T050541Z-v2-email-wrong-image",
+    "runtime_version": "faultline/0.0.1+prompts:9ce16b66bbcc",
+    "prompts": {
+      "constants": [
+        "PLANNER_SYSTEM",
+        "PROPOSER_SYSTEM",
+        "SCRIBE_SYSTEM",
+        "SPECIALIST_SYSTEM",
+        "SYNTHESIZER_SYSTEM",
+        "TRIAGER_SYSTEM"
+      ],
+      "sha256": "be4a0e27319aac2433bfb8f0e719065747cf10703bf1c5b82f78a1a612a1805c",
+      "chars": 15822
+    },
+    "corpus": {
+      "rows": 200,
+      "sha256": "738e834925e06e445e0ad1366ca7c20e984d306a10b55fb058df841db81646b0",
+      "body_sha256": "8d75e8acc4b10903608970b317369b0982f4df51e641644c45f8cf5cd1c26198",
+      "documents": [
+        "runbook:action-restart-service",
+        "runbook:action-revert-config",
+        "runbook:action-rollback-image",
+        "runbook:action-scale-unavailable",
+        "runbook:alert-high-error-rate",
+        "runbook:class-bad-config",
+        "runbook:class-bad-deploy",
+        "runbook:class-datastore-corruption",
+        "runbook:class-dependency-latency",
+        "runbook:class-disk-fill",
+        "runbook:class-feature-flag",
+        "runbook:class-network-partition",
+        "runbook:class-process-freeze",
+        "runbook:class-resource-exhaustion",
+        "scenario:v2-accounting-bad-credential",
+        "scenario:v2-ad-bad-image-tag",
+        "scenario:v2-ad-flag-failure",
+        "scenario:v2-ad-memory-squeeze",
+        "scenario:v2-ad-partition",
+        "scenario:v2-cart-bad-image-tag",
+        "scenario:v2-cart-dependency-latency",
+        "scenario:v2-cart-flag-failure",
+        "scenario:v2-cart-freeze",
+        "scenario:v2-cart-store-corruption",
+        "scenario:v2-currency-freeze",
+        "scenario:v2-fraud-detection-flag-queue-lag",
+        "scenario:v2-fraud-detection-memory-squeeze",
+        "scenario:v2-fraud-detection-partition",
+        "scenario:v2-frontend-cart-misconfig",
+        "scenario:v2-inj-cart-flag-failure-log-checkout",
+        "scenario:v2-inj-kafka-disk-fill-log-checkout",
+        "scenario:v2-inj-payment-dependency-latency-log-checkout",
+        "scenario:v2-kafka-disk-fill",
+        "scenario:v2-payment-dependency-latency",
+        "scenario:v2-payment-memory-squeeze",
+        "scenario:v2-payment-telemetry-blackout",
+        "scenario:v2-postgresql-catalog-corruption",
+        "scenario:v2-product-catalog-flag-failure",
+        "scenario:v2-product-catalog-freeze",
+        "scenario:v2-product-catalog-partition",
+        "scenario:v2-shipping-quote-misconfig",
+        "scenario:v2-shipping-wrong-image",
+        "scenario:v2-valkey-cart-dependency-latency"
+      ],
+      "holdout_chunks": 0
+    },
+    "model_map": {
+      "models": {
+        "changes": "claude-opus-5",
+        "logs": "claude-opus-5",
+        "metrics": "claude-opus-5",
+        "planner": "claude-opus-5",
+        "proposer": "claude-opus-5",
+        "scribe": "claude-opus-5",
+        "synthesizer": "claude-opus-5",
+        "traces": "claude-opus-5",
+        "triage": "claude-opus-5"
+      },
+      "effort_default": "high",
+      "role_efforts": {}
+    },
+    "budget": {
+      "max_tool_calls_per_specialist": 4,
+      "max_tokens": 120000,
+      "wall_clock_seconds": 600,
+      "max_dispatch_rounds": 2,
+      "briefing_tokens": 4000,
+      "max_usd": 2.0,
+      "usd_per_mtok_in": 5.0,
+      "usd_per_mtok_out": 25.0
+    },
+    "tool_layer": {
+      "git_sha": "5950947919a764716712d9b1ad4346ef133560fb",
+      "git_dirty": true
+    },
+    "judge": {
+      "model": null,
+      "prompt_sha256": "244108af996ad2a5138f6632a297941dd26643d806c73dfa9e24bc7d51392b54",
+      "allow_shared_lineage": false
+    },
+    "world": {
+      "compose_digest": "5a2bc6d912f922a03874ab2824d9362541362386fbcab7e0c2f99aa760f567df",
+      "observability_digest": "7d6097ab0f00132d57993804ee4f4d9eff1abedfb71a273bdd7e553ef887637b",
+      "ffs_stub_source_digest": "8defed3104c42adffb16b77e85396e1796f2681652d0771b99d3632358c37fde",
+      "otel_demo_image_digest": "ghcr.io/open-telemetry/demo@sha256:1adaf3b33fbf4d42e5a1fa68fec1ea1b645d50471881179bd7be0a0ce2656706",
+      "capability_version": "cap:91279a09",
+      "host_platform": "Darwin/arm64",
+      "host_overrides": [
+        "dev-tempo-otlp.override.yml"
+      ],
+      "unverifiable_fields": []
+    }
+  },
+  "baseline": null,
+  "ablation": [],
+  "ablation_config": {},
+  "exclusion_policy": "own",
+  "exclude_origins": [
+    "scenario:v2-email-wrong-image"
+  ],
+  "repeat_count": 1,
+  "tier": "manual",
+  "seed_policy": "unseeded: non-deterministic model, live world",
+  "world": "v2",
+  "sweep": {
+    "id": "headline-v2",
+    "slot": 156,
+    "of": 156,
+    "pass": 2
+  },
+  "comparability": {
+    "generation": "5a2bc6d912f9",
+    "provenance": "observed",
+    "previous_run": "20261011T044257Z-v2-email-wrong-image",
+    "previous_generation": "5a2bc6d912f9",
+    "previous_provenance": "observed",
+    "new_generation": false
+  },
+  "injected_at": "2026-10-11T05:05:46.442033+00:00",
+  "incident_id": "fe3bf4c9-4903-4898-b035-87aa398824f9",
+  "investigate_exit_code": 0,
+  "investigate_attempts": [
+    {
+      "attempt": 1,
+      "waited_seconds": 0,
+      "exit_code": 0,
+      "transient_signal": null
+    }
+  ],
+  "reverted_at": "2026-10-11T05:19:39.061902+00:00",
+  "recovery": {
+    "passed": true,
+    "world": "v2",
+    "firing_alerts": [],
+    "p95_over_ceiling_ms": {},
+    "p95_excursions": {},
+    "ingest_accepting": true,
+    "consumer_idle_ms": 4679,
+    "pipeline_down": [],
+    "silent_services": [],
+    "unexpected_silent": [],
+    "latency_invisible": [],
+    "services_reporting": 18,
+    "youngest_container": [
+      "email",
+      328
+    ],
+    "active_injections": "no active injections",
+    "open_incidents": [],
+    "settling_incidents": [],
+    "settle_seconds_remaining": 0,
+    "headroom": {
+      "container": "kafka",
+      "percent_now": 42.3,
+      "limit_mb": 1024.0,
+      "expected_run_hours": 0.8083,
+      "runs_remaining": null,
+      "uptime_seconds": 95778,
+      "growth_mb_per_hour": 1.3,
+      "growth_mb": 1.1,
+      "projected_percent": 42.4,
+      "threshold_percent": 89.9,
+      "guard_percent": 90.0,
+      "fits": true
+    },
+    "refusals": [],
+    "caller_reachability": {
+      "service": "email",
+      "window_seconds": 120,
+      "callers": {
+        "checkout": null
+      },
+      "note": "observational (Q32); nothing refuses on this"
+    }
+  },
+  "unexpected_fields": {},
+  "score": {
+    "run_id": "20261011T050541Z-v2-email-wrong-image",
+    "scenario_id": "v2-email-wrong-image",
+    "trajectory_id": "358a826c-fae4-48d9-94ef-39f23c12bc02",
+    "runtime_version": "faultline/0.0.1+prompts:9ce16b66bbcc",
+    "budget": {
+      "max_tool_calls_per_specialist": 4,
+      "max_tokens": 120000,
+      "wall_clock_seconds": 600,
+      "max_dispatch_rounds": 2,
+      "briefing_tokens": 4000,
+      "max_usd": 2.0,
+      "usd_per_mtok_in": 5.0,
+      "usd_per_mtok_out": 25.0,
+      "per_specialist_tool_calls": {}
+    },
+    "reached_a_class": true,
+    "reachability": {
+      "answers_idle_or_absent": [
+        "logs"
+      ],
+      "derived_from": "the bundle's own captures (T7.5)",
+      "none_can_answer": false,
+      "runtime_series": 0,
+      "target_log_lines": 296
+    },
+    "service_visibility": {
+      "target": "email",
+      "presence": "in_graph",
+      "nameable": true,
+      "reason": null
+    },
+    "triage": {
+      "recall": 1.0,
+      "precision": 0.2222222222222222,
+      "matched": [
+        "checkout",
+        "email"
+      ],
+      "missed_alerted_not_predicted": [],
+      "predicted_not_alerted": [
+        "cart",
+        "currency",
+        "frontend",
+        "frontend-proxy",
+        "payment",
+        "product-catalog",
+        "shipping"
+      ],
+      "excluded_began_after_revert": [],
+      "unmeasured_edges_crossed": 8,
+      "n_alerted": 2,
+      "n_predicted": 9
+    },
+    "fault_class": {
+      "truth": "bad_deploy",
+      "returned": "bad_config",
+      "correct": false,
+      "correct_by_alternative": false,
+      "also_correct": [],
+      "abstained": false,
+      "dispute": null
+    },
+    "fix_class": {
+      "truth": "rollback",
+      "returned": "config_revert",
+      "correct": false,
+      "correct_by_alternative": false,
+      "also_correct": [],
+      "abstained": false,
+      "dispute": null
+    },
+    "service": {
+      "truth": "email",
+      "returned": "email",
+      "correct": true,
+      "correct_by_alternative": false,
+      "also_correct": [],
+      "abstained": false,
+      "dispute": null
+    },
+    "ranked_class": {
+      "truth": "bad_deploy",
+      "ranked": [
+        "bad_config",
+        "bad_deploy"
+      ],
+      "depth": 2,
+      "top_1": false,
+      "top_3": true,
+      "gained_by_ranking": true
+    },
+    "ranked_service": {
+      "truth": "email",
+      "ranked": [
+        "email",
+        "checkout"
+      ],
+      "depth": 2,
+      "top_1": true,
+      "top_3": true,
+      "gained_by_ranking": false
+    },
+    "categories": {
+      "flagged": [],
+      "n_flagged": 0,
+      "failed_alone": [],
+      "n_failed_alone": 0,
+      "contradictions": [],
+      "n_contradictions": 0,
+      "budget_exhausted": false,
+      "budget_exhausted_reason": null,
+      "narrative_refused": false,
+      "narrative_refused_reason": null
+    },
+    "tokens_in": 80093,
+    "tokens_out": 15535,
+    "cost_usd": 0.7888,
+    "models": {
+      "changes": "claude-opus-5",
+      "logs": "claude-opus-5",
+      "metrics": "claude-opus-5",
+      "planner": "claude-opus-5",
+      "scribe": "claude-opus-5",
+      "synthesizer": "claude-opus-5",
+      "traces": "claude-opus-5"
+    }
+  },
+  "finished_at": "2026-10-11T05:25:10.418859+00:00",
+  "leave_one_out": {
+    "retrievals": 2,
+    "excluding": 2,
+    "filtered": {
+      "1": 0,
+      "18": 0
+    },
+    "silent": [
+      {
+        "seq": 1,
+        "exclude_origins": [
+          "scenario:v2-email-wrong-image"
+        ]
+      },
+      {
+        "seq": 18,
+        "exclude_origins": [
+          "scenario:v2-email-wrong-image"
+        ]
+      }
+    ],
+    "unassessable": [],
+    "missing_own": [],
+    "enforced": true,
+    "asserted_by_absence": {
+      "own_origin": "scenario:v2-email-wrong-image",
+      "absent_by_design": "a holdout scenario's artifacts never enter any corpus (ADR-0008 axis 1)",
+      "chunks_of_own_origin": 0
+    }
+  },
+  "metrics": {
+    "latency": {
+      "investigation_ms": 234786,
+      "investigation_seconds": 234.8,
+      "tool_ms": 821,
+      "model_ms": 302087,
+      "retrieval_ms": 6312,
+      "steps": 22,
+      "within_gate4_threshold": false
+    },
+    "tool_calls": {
+      "total": 7,
+      "valid": 7,
+      "errored": 0,
+      "empty": 2,
+      "truncated": 3,
+      "redundant": 0,
+      "validity_rate": 1.0,
+      "redundancy_rate": 0.0
+    },
+    "context": {
+      "briefings": 5,
+      "over_budget": 3,
+      "overflow_rate": 0.6,
+      "dropped_sections": 2,
+      "largest_estimated_tokens": 9749,
+      "budget": 4000
+    },
+    "citations": {
+      "violations": 0,
+      "regenerated": false,
+      "escalated": false
+    }
+  },
+  "judge": {
+    "scenario_id": "v2-email-wrong-image",
+    "run_id": "20261011T050541Z-v2-email-wrong-image",
+    "agent_model": "claude-opus-5",
+    "judge_model": "claude-haiku-4-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "scored": true,
+    "not_scored_because": null,
+    "root_cause_agreement": "different",
+    "agreement_reason": "The recorded narrative identifies a wrong container image deployed to email (quote service's image), while the agent narrative concludes an empty port in email's configuration, missing the image swap entirely.",
+    "dead_ends_closed": [
+      "checkout service-wide spike",
+      "saturation and pool exhaustion",
+      "clock skew on quote host",
+      "email's metric absence before incident"
+    ],
+    "dead_ends_missed": [
+      "whether email was short of memory",
+      "flag readers' routine reconnect",
+      "what changed in the deploy record"
+    ],
+    "traps": [
+      {
+        "trap": "checkout logs returning nothing read as crash loop",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "email's healthy spans from before the break mean email was working",
+        "outcome": "took"
+      },
+      {
+        "trap": "empty port configuration regression as root cause",
+        "outcome": "took"
+      }
+    ],
+    "notes": "The agent correctly traced the symptom chain (empty port \u2192 failed bind \u2192 no listener \u2192 resolution failure \u2192 checkout errors) but never consulted the change record that would have revealed the wrong image was deployed, leaving the actual root cause (container image swap) unidentified and proposing a configuration mystery as the cause instead.",
+    "tokens_in": 5303,
+    "tokens_out": 334
+  },
+  "first_correct": {
+    "measured": true,
+    "reached": true,
+    "index": 36,
+    "depth": 37,
+    "elapsed_ms": 128106,
+    "role": "synthesizer",
+    "kind": "verdict",
+    "reason": "Entry 36 commits to the mechanism: email's process crashes on startup due to an invalid listen address (empty port in TCP URI) thrown from the socket-server constructor, causing it to crash-loop and never bind a listener, which makes checkout's DNS resolution fail when trying to call email.",
+    "judge_model": "claude-haiku-4-5",
+    "agent_model": "claude-opus-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "truncated": false
+  }
+}

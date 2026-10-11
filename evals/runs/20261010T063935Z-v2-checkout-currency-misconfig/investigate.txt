@@ -1,0 +1,9 @@
+incident cd82ad3d-108e-40df-8657-4b8caaaf4df8  state triaging  anchor 06:43:16
+triage: 11 services, severity critical, start from checkout, 9 unmeasured edge(s) crossed
+
+B2: process_freeze / restart (low)
+  flagd, the flag-evaluation service shared by fraud-detection and by checkout's cart dependency, stopped serving (its socket still accepts but it answers nothing), so callers hung to their deadlines and then failed.
+  looked at nothing - this is the model's prior
+wrote /Users/chandana/dev/faultline/evals/runs/20261010T063935Z-v2-checkout-currency-misconfig/cd82ad3d-108e-40df-8657-4b8caaaf4df8-verdict.json
+{"ts": "2026-10-10T06:47:48.510+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-10T06:47:57.218+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}

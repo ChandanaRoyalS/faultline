@@ -1,0 +1,96 @@
+{
+  "run_id": "20261006T092208Z-v2-ad-bad-image-tag",
+  "scenario_id": "v2-ad-bad-image-tag",
+  "split": "dev",
+  "scenario_fingerprint": "3ad9d1181ee96cf56e967536b44ef04f6ad8da350bae1c8c9a16dfafc89920f9",
+  "started_at": "2026-10-06T09:22:08.310710+00:00",
+  "demo": false,
+  "recorder": {
+    "tool": "evalharness.run",
+    "git_sha": "d11f0d6dfd2aa6a2042423f13f8523fe4aba1784",
+    "git_dirty": true
+  },
+  "models": {
+    "changes": "claude-opus-5",
+    "logs": "claude-opus-5",
+    "metrics": "claude-opus-5",
+    "planner": "claude-opus-5",
+    "scribe": "claude-opus-5",
+    "synthesizer": "claude-opus-5",
+    "traces": "claude-opus-5"
+  },
+  "efforts": {
+    "default": "high"
+  },
+  "budget": {
+    "max_tool_calls_per_specialist": 4,
+    "max_tokens": 120000,
+    "wall_clock_seconds": 600,
+    "max_dispatch_rounds": 2,
+    "briefing_tokens": 4000,
+    "max_usd": 2.0,
+    "usd_per_mtok_in": 5.0,
+    "usd_per_mtok_out": 25.0,
+    "per_specialist_tool_calls": {}
+  },
+  "world_lock": {
+    "acquired": true,
+    "pid": 35478,
+    "host": "chandanas-MacBook-Air.local",
+    "since": "2026-10-06T09:22:08.444768+00:00",
+    "reason": "faultline-eval v2-ad-bad-image-tag",
+    "token": "35478-1791278528.444691"
+  },
+  "preflight": {
+    "checked": true,
+    "model": "claude-opus-5",
+    "ok": true,
+    "detail": "20 token(s) billed",
+    "skipped_because": ""
+  },
+  "baseline_gate": {
+    "passed": false,
+    "world": "v2",
+    "firing_alerts": [],
+    "p95_over_ceiling_ms": {},
+    "p95_excursions": {},
+    "ingest_accepting": true,
+    "consumer_idle_ms": 2813,
+    "pipeline_down": [],
+    "silent_services": [],
+    "unexpected_silent": [],
+    "latency_invisible": [],
+    "services_reporting": 18,
+    "youngest_container": [
+      "accounting",
+      1838
+    ],
+    "active_injections": "no active injections",
+    "open_incidents": [
+      "5c4aa08c-9edf-479f-9cda-e88e6bc3b836"
+    ],
+    "settling_incidents": [],
+    "settle_seconds_remaining": 0,
+    "headroom": {
+      "container": "kafka",
+      "percent_now": 54.7,
+      "limit_mb": 1024.0,
+      "expected_run_hours": 2.78,
+      "runs_remaining": 8,
+      "uptime_seconds": 1854,
+      "growth_mb_per_hour": 1.3,
+      "growth_mb": 3.6,
+      "projected_percent": 55.05,
+      "threshold_percent": 89.65,
+      "guard_percent": 90.0,
+      "fits": true
+    },
+    "refusals": [
+      "1 non-terminal incident(s) in the store: 5c4aa08c-9edf-479f-9cda-e88e6bc3b836 - a new alert would correlate into one rather than opening its own"
+    ]
+  },
+  "refused": {
+    "reason": "baseline gate refused",
+    "at": "2026-10-06T09:22:13.971524+00:00"
+  }
+}

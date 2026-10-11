@@ -1,0 +1,8 @@
+incident 986c4591-3acd-4d36-8a08-ffe8b36377e1  state triaging  anchor 11:52:16
+triage: 8 services, severity critical, start from frontend, 7 unmeasured edge(s) crossed
+
+B2: bad_deploy / rollback (low)
+  The frontend is serving errors on its own account - most likely a newly rolled artifact that fails at request time - and frontend-proxy is simply surfacing those 5xx to the edge.
+  looked at nothing - this is the model's prior
+wrote /Users/chandana/dev/faultline/evals/runs/20261008T114704Z-v2-ad-bad-image-tag/986c4591-3acd-4d36-8a08-ffe8b36377e1-verdict.json
+{"ts": "2026-10-08T11:54:25.493+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}

@@ -1,0 +1,66 @@
+{
+  "incident_id": "4e7322f7-88ae-4992-9b76-879388f215d7",
+  "trajectory_id": "8aade9b5-35d8-40a4-b88d-2c281e729974",
+  "states": [
+    "triaging"
+  ],
+  "blast_radius": [
+    "frontend",
+    "frontend-proxy",
+    "ad",
+    "cart",
+    "checkout",
+    "product-catalog",
+    "product-reviews",
+    "recommendation"
+  ],
+  "unmeasured_edges": 7,
+  "exclude_origins": [
+    "scenario:scenario:v2-recommendation-memory-squeeze"
+  ],
+  "verdict": {
+    "fault_class": "resource_exhaustion",
+    "remediation_class": "restart",
+    "service": "frontend",
+    "alternatives": [
+      {
+        "root_cause": "A bad frontend deploy or a wrong config value (upstream address, port, timeout) shipped just before onset, making every request fail.",
+        "service": "frontend",
+        "fault_class": "bad_deploy",
+        "remediation_class": null,
+        "why_not": "A broken artifact usually fails to start or fails instantly and cleanly, and the report gives no deploy marker at onset; it remains the strongest competitor but is demoted for lack of any change signal."
+      },
+      {
+        "root_cause": "product-catalog degraded and frontend, which calls it on every page, surfaced the errors.",
+        "service": "product-catalog",
+        "fault_class": "dependency_latency",
+        "remediation_class": null,
+        "why_not": "checkout and recommendation also call product-catalog and neither alerted, and product-catalog raised nothing itself; the failure would not be confined to frontend's edge."
+      }
+    ],
+    "summary": "The frontend service itself broke \u2014 it began returning errors on essentially all request paths (not one dependency's path), most likely because it exhausted a local resource (heap/goroutines/outbound connection pool) and could no longer serve or complete upstream calls.",
+    "confidence": "low",
+    "evidence": [],
+    "reasoning": "Only frontend and frontend-proxy alert, and they alert at the same second; frontend-proxy is purely a pass-through for frontend, so it is the noticer, not the broken thing. The listed blast radius is exactly the depth-2 downstream closure of frontend-proxy (frontend plus all of frontend's direct callees plus product-catalog via recommendation), which is what a traversal tool emits when the blamed node is frontend \u2014 none of checkout's own dependencies (currency, email, payment, shipping) appear, so no deeper backend is implicated. If a shared backend had failed we would expect its own alert or at least its direct callers (checkout, recommendation) to alert too; if flagd had failed, the flag-reading services (ad, cart, recommendation, product-reviews) would be the error source and checkout/product-catalog would be untouched. That leaves a fault local to frontend. High error rate rather than hangs points away from freeze/partition, and a resource ceiling in the aggregating tier (it fans out to six dependencies per page render, so it is the natural place to run out of connections, memory or threads) is the most common shape of this failure.",
+    "open_questions": [
+      "frontend container memory/CPU usage, OOMKill and restart counts at 00:05",
+      "frontend error bodies/status codes: are they 5xx from its own handler or upstream-timeout errors?",
+      "Per-dependency error and latency breakdown from frontend's client spans \u2014 uniform across ad/cart/checkout/product-catalog or concentrated on one?",
+      "Whether frontend's running image/config changed shortly before 00:05:46",
+      "flagd evaluation logs and whether any flag was flipped at onset"
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B2",
+    "tool_calls": 0,
+    "attempts": 2,
+    "cited_without_looking": []
+  }
+}

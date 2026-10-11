@@ -1,0 +1,59 @@
+{
+  "incident_id": "5bbd157d-a66a-491e-aae5-acf5e8fe4ee2",
+  "trajectory_id": "0b7b7c5c-81d1-4ce8-bf7e-96f6961d2f42",
+  "states": [
+    "triaging",
+    "investigating"
+  ],
+  "blast_radius": [
+    "load-generator",
+    "frontend-proxy",
+    "frontend",
+    "ad",
+    "cart",
+    "checkout",
+    "product-catalog",
+    "product-reviews",
+    "recommendation"
+  ],
+  "unmeasured_edges": 7,
+  "exclude_origins": [
+    "scenario:scenario:v2-product-catalog-freeze"
+  ],
+  "verdict": {
+    "fault_class": null,
+    "remediation_class": null,
+    "service": null,
+    "alternatives": [],
+    "summary": "",
+    "confidence": null,
+    "evidence": [],
+    "reasoning": "",
+    "open_questions": []
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": "B1 could not choose an action: schema validation failed twice (1 validation error for B1Action\nverdict\n  Extra inputs are not permitted [type=extra_forbidden, input_value={'service': 'product-cata... with the tools used.']}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden)",
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B1",
+    "tool_calls": 11,
+    "turns": 11,
+    "looked_at": [
+      "metrics:frontend",
+      "traces:frontend",
+      "logs:product-catalog",
+      "traces:product-catalog",
+      "changes:product-catalog",
+      "logs:frontend",
+      "logs:recommendation",
+      "logs:checkout",
+      "metrics:product-catalog",
+      "traces:checkout",
+      "changes:frontend"
+    ]
+  }
+}

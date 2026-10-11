@@ -1,0 +1,9 @@
+incident 518f19d8-a3ee-4e6c-9e28-a871e24565ed  state triaging  anchor 04:48:46
+triage: 9 services, severity critical, start from checkout, 8 unmeasured edge(s) crossed
+
+B2: process_freeze / restart (low)
+  The email service's process stopped serving while its listener still accepted connections, so checkout's calls to it hung to deadline and failed, and email itself emitted no telemetry at all.
+  looked at nothing - this is the model's prior
+wrote /Users/chandana/dev/faultline/evals/runs/20261011T044257Z-v2-email-wrong-image/518f19d8-a3ee-4e6c-9e28-a871e24565ed-verdict.json
+{"ts": "2026-10-11T04:52:54.396+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-11T04:53:02.571+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
