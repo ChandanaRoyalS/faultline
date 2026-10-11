@@ -463,6 +463,10 @@ def test_exactly_one_run_in_the_archive_meets_the_budget_reread() -> None:
         if evaldb.outlived_its_budget(json.loads(p.read_text()))
     ]
 
-    assert overran == ["20260910T002657Z-ad-memory-squeeze"], (
-        f"the budget-overrun rule now catches {len(overran)} runs: {overran}"
-    )
+    # **Two, since the headline run (2026-10-11).** Slot 127 recorded 624 s against 600 s: one
+    # long model call carried it over the deadline Q33 checks only between calls. The queue has
+    # heard (Q129), the run reads `invalid`, and the holdout headline lost a scenario to it.
+    assert overran == [
+        "20260910T002657Z-ad-memory-squeeze",
+        "20261010T092524Z-v2-inj-email-wrong-image-log-checkout",
+    ], f"the budget-overrun rule now catches {len(overran)} runs: {overran}"

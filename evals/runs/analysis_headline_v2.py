@@ -48,11 +48,23 @@ def arm_of(manifest: dict) -> str:
     return "F" if not base else str(base).upper()
 
 
+def outlived_its_budget(manifest: dict) -> bool:
+    """Q33's reading, as `evalharness.evaldb.outlived_its_budget` makes it: a scored run whose
+    investigation ran longer than the wall clock its own manifest declares is `invalid`. The
+    first cut of this script did not apply it and counted slot 127 (624 s against 600 s) as
+    scored; `HEADLINE-2026-10-11-v2.md` §7 and Addendum 6 record the correction."""
+    latency = ((manifest.get("metrics") or {}).get("latency") or {}).get("investigation_seconds")
+    declared = (manifest.get("budget") or {}).get("wall_clock_seconds")
+    if latency is None or not declared:
+        return False
+    return float(latency) > float(declared)
+
+
 def outcome_of(manifest: dict) -> str:
     for mark in ("refused", "discarded", "invalid"):
         if manifest.get(mark):
             return mark
-    return "scored"
+    return "invalid" if outlived_its_budget(manifest) else "scored"
 
 
 def severity_of(run_dir: Path) -> str | None:
@@ -88,6 +100,8 @@ def read(root: Path) -> list[dict]:
 
 
 def scored_by_slot(runs: list[dict]) -> dict[int, dict]:
+    """The one usable run of each slot. An `invalid` run is a run that happened and may not be
+    used (Q33); it is listed under *Removed* with its reason, never scored."""
     chosen: dict[int, dict] = {}
     for run in runs:
         if run["outcome"] != "scored":
@@ -302,8 +316,8 @@ def readme_block(root: Path) -> str:
     out += lines[2:]
     if removed:
         out.append(
-            "Removed under *a scenario that will not run* (both tries failed on at least one "
-            "arm): " + ", ".join(f"`{s}`" for s in removed) + "."
+            "Removed, an arm without a usable run (both tries failed, or the one run is "
+            "`invalid` under Q33): " + ", ".join(f"`{s}`" for s in removed) + "."
         )
         out.append("")
     out.append("<!-- headline-v2:end -->")
@@ -334,7 +348,15 @@ def main(root: Path) -> None:
             for r in runs
             if r["scenario"] == s and r["outcome"] == "discarded"
         )
-        out.append(f"- `{s}`: scored arms {arms or 'none'}; discards {dict(reasons)}")
+        invalid = [
+            f"{r['arm']} slot {r['slot']} ({r['dir'].name})"
+            for r in runs
+            if r["scenario"] == s and r["outcome"] == "invalid"
+        ]
+        out.append(
+            f"- `{s}`: scored arms {arms or 'none'}; discards {dict(reasons)}; "
+            f"invalid {invalid or 'none'}"
+        )
     out.append("")
 
     out += arm_table(table, holdout, "The headline: holdout", rng)

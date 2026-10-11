@@ -78,9 +78,10 @@ def _is_holdout(stamp: str) -> bool:
         "productcatalog-dependency-latency",
         "recommendation-memory-squeeze",
     )
-    return any(
-        d.name.startswith(stamp) and d.name.endswith(names) for d in RUNS.iterdir() if d.is_dir()
-    )
+    # The v1 holdout exactly: `<stamp>-<name>`. The v2 world's `v2-email-wrong-image` and
+    # `v2-recommendation-memory-squeeze` end with the same names and are a different holdout on a
+    # different world (the headline run, 2026-10-11); a suffix match counted them here.
+    return any((RUNS / f"{stamp}-{name}").is_dir() for name in names)
 
 
 def test_an_observed_world_beats_a_reconstructed_one() -> None:
