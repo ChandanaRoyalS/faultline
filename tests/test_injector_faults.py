@@ -1445,7 +1445,7 @@ def test_disk_fill_refuses_a_directory_that_is_not_a_mount_point(
         )
 
 
-def test_disk_fill_restore_removes_the_file_and_restarts_consumers(
+def test_disk_fill_restore_recreates_the_service_and_restarts_consumers(
     settings: InjectorSettings,
 ) -> None:
     runner = FakeRunner(stdout={"{{.Id}}": "abc\n"})
@@ -1457,22 +1457,22 @@ def test_disk_fill_restore_removes_the_file_and_restarts_consumers(
             restart_after=["accounting"],
         )
     )
-    assert runner.called("exec", "kafka", "rm", "-f", "/tmp/kafka-logs/f.fill")
+    assert runner.called("up", "-d", "--no-build", "--no-deps", "--force-recreate", "kafka")
     assert runner.called("restart", "accounting")
+    assert any("recreated kafka" in c for c in changes)
     assert any("accounting" in c for c in changes)
 
 
-def test_disk_fill_restore_recreates_when_the_file_cannot_be_removed(
-    settings: InjectorSettings,
-) -> None:
-    runner = FakeRunner(stdout={"{{.Id}}": "abc\n"}, returncodes={"rm -f": 1})
-    changes = DiskFillFault(DockerCli(runner), ComposeCli(runner, settings)).restore(
+def test_disk_fill_restore_never_tries_to_remove_the_file(settings: InjectorSettings) -> None:
+    """Q114: an in-place restart of kafka never comes back, so `rm` cannot be the first move."""
+    runner = FakeRunner(stdout={"{{.Id}}": "abc\n"})
+    DiskFillFault(DockerCli(runner), ComposeCli(runner, settings)).restore(
         DiskFillRestore(
             container="kafka", service="kafka", fill_file="/tmp/kafka-logs/f.fill", restart_after=[]
         )
     )
-    assert runner.called("up", "-d", "--no-build", "--no-deps", "--force-recreate", "kafka")
-    assert any("recreated" in c for c in changes)
+    assert not runner.called("exec", "kafka", "rm", "-f", "/tmp/kafka-logs/f.fill")
+    assert not runner.called("restart", "kafka")
 
 
 def test_all_five_new_classes_record_no_change() -> None:

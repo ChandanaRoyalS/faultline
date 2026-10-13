@@ -1093,9 +1093,18 @@ class DiskFillFault(Fault):
     A broker whose log directory cannot be written halts and crashloops against it. The
     directory is read off the running container - A8 filled a path the target never used, to
     the byte, because the path was assumed - and the fill is a single `dd` that stops at *no
-    space left*. Restore removes the file; if the container is crashlooping too fast for exec
-    to land, the fallback recreates the service (discarding the fill), then restarts whatever
-    stopped consuming, because this world's consumers do not reconnect on their own (T7.27).
+    space left*. Restore recreates the service, which discards the filled directory, then
+    restarts whatever stopped consuming, because this world's consumers do not reconnect on
+    their own (T7.27).
+
+    Restore does not try to delete the file first. It did until 2026-10-13: `rm` the fill, and
+    recreate only when exec could not land on the crashlooping container. Q114 is why the `rm`
+    branch cannot work on this world: kafka's log directory is a tmpfs that an in-place restart
+    remounts empty and unwritable by the broker's user, so a broker that has halted on a full
+    directory never comes back from the file's removal - only a recreate gives it a writable
+    directory. Every recording before 2026-10-13 took the recreate branch because `rm` never
+    landed; T7.3's slot 31 was the first time it did, and kafka restarted 64 times until it
+    was recreated by hand.
     """
 
     fault_class = FaultClass.DISK_FILL
@@ -1166,16 +1175,12 @@ class DiskFillFault(Fault):
         if not self._docker.container_exists(state.container):
             return [f"{state.container} is gone; the fill went with it"]
         changes: list[str] = []
-        removed = self._docker.exec(state.container, ["rm", "-f", state.fill_file], check=False)
-        if removed.returncode == 0:
-            changes.append(f"{state.container}: removed {state.fill_file}")
-        else:
-            # Crashlooping too fast for exec to land: recreate the service, discarding the fill.
-            self._compose.recreate(state.service)
-            changes.append(
-                f"could not reach {state.container} to delete the fill; recreated {state.service}, "
-                "which discards the filled directory"
-            )
+        # Always recreate; never `rm` the fill and hope. See the class docstring and Q114.
+        self._compose.recreate(state.service)
+        changes.append(
+            f"recreated {state.service}, which discards the filled directory and {state.fill_file} "
+            "with it (an in-place restart would never come back: Q114)"
+        )
         for consumer in state.restart_after:
             self._docker.restart(consumer)
         if state.restart_after:
