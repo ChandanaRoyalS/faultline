@@ -4617,6 +4617,23 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-10-13: T7.3's batch, blocks 1 and 2 so far - 30 scored, one scenario removed, and Q114's
+`rm` branch taken for the first time.***
+
+- **Block 1 (slots 1-20)**: 19 scored, 2 discarded - slot 15 (E7 `v2-cart-store-corruption`) twice,
+  both times because the incident had already resolved when the investigation started (the
+  alert held about a minute); under the registered rule the scenario leaves every configuration,
+  so the comparison is on 10. Tally $22.83. The orchestrator exited on a Redis socket timeout
+  after the block's last incident and was restarted before block 2.
+- **Block 2 (slots 21-40)**: stopped twice by the world check. First before slot 22, quote's clock
+  (Q121) at 10,070 s and not reset by the runner's restart, because the Mac slept through the
+  rechecks - fixed by a manual restart with the Mac awake, and the batch now runs under
+  `caffeinate -i`. Then before slot 32, kafka restarting (Q114): slot 31's `v2-kafka-disk-fill`
+  revert deleted the fill and restarted the broker in place, the branch Q114 said would never
+  come back, and it did not - 64 restarts on the `AccessDeniedException` line. Recreated by hand;
+  the restore now always recreates (DEVIATIONS, Q114). Slots 22-31 scored; tally $32.85.
+- **Next**: slots 32-40, then blocks 3-5. $0 in this commit.
+
 ***2026-10-11: the second go on T7.3's batch - 99 runs, the queue committed, the nights
 registered.***
 
