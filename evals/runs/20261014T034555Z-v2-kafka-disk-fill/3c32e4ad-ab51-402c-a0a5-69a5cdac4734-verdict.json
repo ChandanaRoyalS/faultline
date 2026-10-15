@@ -1,0 +1,173 @@
+{
+  "incident_id": "3c32e4ad-ab51-402c-a0a5-69a5cdac4734",
+  "trajectory_id": "00d645ce-f05a-49be-a60c-deff805330e1",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "accounting",
+    "cart",
+    "checkout",
+    "currency",
+    "email",
+    "flagd",
+    "fraud-detection",
+    "frontend",
+    "frontend-proxy",
+    "payment",
+    "product-catalog",
+    "shipping"
+  ],
+  "unmeasured_edges": 9,
+  "exclude_origins": [
+    "scenario:v2-kafka-disk-fill"
+  ],
+  "verdict": {
+    "root_cause": "The Kafka broker tier that checkout publishes to and that fraud-detection and accounting consume from became unreachable to all its clients shortly before 03:51. Checkout's failing traces carry their only error, and essentially all of the 90-100s trace duration, on the 'orders publish' Kafka producer span, with messages indicating an open circuit breaker and a client unable to resolve or reach any broker, while every synchronous downstream completed clean in single-digit milliseconds [tr_2ec5bf2571f1]. Accounting independently confirms from the consumer side: only librdkafka errors reporting both brokers down, with DNS failures for kafka:9092 and connection-refused on the resolved address, the process alive and retrying once a second [tr_9f9b92f621c4]. Fraud-detection consumed steadily then went abruptly silent at ~03:45:58 with no errors of its own before its ratio stepped at 03:50:46 [tr_d9de5df438bd][tr_6c3761e36cc7]. No change was recorded against checkout or fraud-detection [tr_7da8dfecbc65][tr_fcc1c236213b]. Three services fail on the one thing they share; the mechanism is loss of connectivity to the broker endpoint, not a fault inside any application service.",
+    "service": "kafka",
+    "fault_class": "network_partition",
+    "remediation_class": "reconnect",
+    "confidence": "medium",
+    "evidence": [
+      "tr_2ec5bf2571f1",
+      "tr_9f9b92f621c4",
+      "tr_d9de5df438bd",
+      "tr_6c3761e36cc7",
+      "tr_b043ffff2d0d"
+    ],
+    "reasoning": "Checkout is not internally broken: order assembly and all RPC children finish in milliseconds, and the sole error span is the Kafka producer that owns the trace duration; the proxy and load-generator ERRORs are 15s timeout caps while the publish is still outstanding, placing the origin below checkout [tr_2ec5bf2571f1]. Checkout's partial error ratio (~1.6% mean, 6.7% peak, single change point 03:50:46 against a zero baseline) fits only the order-placing subset touching the publish path failing [tr_b043ffff2d0d]. Accounting names the failing layer explicitly as Kafka client network threads, both brokers, resolution failures plus active connection refusals on 9092 \u2014 refusal rather than silent hang is what demotes a broker process freeze [tr_9f9b92f621c4]. Fraud-detection's healthy monotonic consumption up to an abrupt stop, absence of its own errors, and a trailing error step mark it as a starved consumer rather than the origin [tr_d9de5df438bd][tr_6c3761e36cc7].",
+    "open_questions": [
+      "No dispatch examined the Kafka broker itself \u2014 its process state, logs, disk, or resource usage \u2014 so what made it stop accepting is unestablished (crash, eviction, disk fill, or a network/DNS-layer cut are all still open).",
+      "The change log was queried only for checkout and fraud-detection; a change against the broker or its infrastructure was never searched for.",
+      "Checkout emitted zero log lines over the whole window [tr_21a073a85754]; whether checkout's own process is also unhealthy or only its log shipping is broken was not settled.",
+      "Fraud-detection showed a prior ~16-minute logging gap around 02:52-03:09 that is unexplained and may indicate an earlier, separate instability."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "The Kafka broker process is frozen or dead while its service endpoint remains, and all three clients simply fail against it.",
+        "service": "kafka",
+        "fault_class": "process_freeze",
+        "remediation_class": "restart",
+        "why_not": "Accounting observes active TCP connection-refused on the resolved broker address, not hangs to deadline; a frozen process with an accepting socket would leave callers waiting silently instead of being refused [tr_9f9b92f621c4]."
+      },
+      {
+        "root_cause": "Fraud-detection itself failed \u2014 its process stopped at ~03:45:58 \u2014 and the broker symptoms are incidental.",
+        "service": "fraud-detection",
+        "fault_class": "process_freeze",
+        "remediation_class": "restart",
+        "why_not": "It cannot explain checkout's publish-span failure or accounting's broker-connection errors, and its error step trails checkout's onset; its own metrics rule it out as the upstream trigger [tr_6c3761e36cc7][tr_2ec5bf2571f1]."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "v2-inj-kafka-disk-fill-log-checkout / What was observed: The page came 5m31s after onset: `ServiceHighLatency` on **checkout**. A minute later\n`ServiceHighErrorRate` on checkout and on **fraud-detection** together; at T+2m from the page\n`ServiceHighLatency` on fraud-detection and `ServiceNoTraffic` on **accounting**. Five alerts on\nthr",
+    "v2-accounting-bad-credential / What was observed: The page was a single alert, `ServiceHighErrorRate` on **accounting**, 3m16s after the trouble\nstarted. Nothing else fired then, and nothing else fired afterwards. Its error ratio had read\nzero before the incident. It rose from about a minute in, climbed, and settled at **exactly",
+    "v2-shipping-quote-misconfig / What was observed: The page was one alert, `ServiceHighErrorRate` on **shipping**, 3m19s after the trouble started.\nA minute later **checkout** paged on error rate too. Both error ratios had been zero and both rose\nfrom about a minute in. Shipping's climbed to **100%** about five minutes in: every "
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 30234,
+    "pulled_tokens": 10294,
+    "pull_rate": 0.254,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 480,
+        "content_tokens": 482,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1530,
+        "content_tokens": 1533,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 9330,
+        "content_tokens": 9306,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 8686,
+        "content_tokens": 8689,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 10208,
+        "content_tokens": 10185,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_9f9b92f621c4",
+      "tr_2ec5bf2571f1",
+      "tr_7da8dfecbc65",
+      "tr_fcc1c236213b"
+    ],
+    "expected_effect": "No action is proposed, so nothing should change. The mechanism named by the verdict is loss of connectivity to the Kafka broker endpoint: accounting's librdkafka reports both brokers down with DNS failure on kafka:9092 and connection-refused on the resolved address [tr_9f9b92f621c4], and checkout's only error sits on the 'orders publish' producer span with an open-circuit-breaker and no-broker-reachable message while every synchronous downstream returns clean in single-digit milliseconds [tr_2ec5bf2571f1]. The action that addresses that mechanism is reconnect_service, which the brief lists as UNAVAILABLE (not built; the executor performs only rollback_image, revert_config and restart_service). The fault also lives on the broker, which is not a service in the permitted blast radius, so no legal target exists for it. Escalate to an operator who can inspect and restore the broker container and its network attachment.",
+    "confirm_within_seconds": 0,
+    "if_wrong": "This abstention is wrong if the broker is in fact reachable and the three services are independently broken inside their own processes \u2014 in which case the evidence should have shown at least one of them succeeding against Kafka while another failed, and instead all three fail on the single shared dependency and only there. It is also wrong if someone establishes that one of the permitted actions reaches the mechanism: e.g. if a change against the broker or its network config turns up in a change-log query that was never run (only checkout [tr_7da8dfecbc65] and fraud-detection [tr_fcc1c236213b] were queried), a revert_config on an in-radius service whose broker address was edited could then qualify. Nothing in the present evidence meets any action's preconditions.",
+    "risk": "The risk of abstaining is that the outage continues: checkout keeps stalling ~90-100s on publish and shedding a minority of orders, accounting keeps retrying once a second, and fraud-detection stays silent until a human intervenes. The risk I am refusing to take is larger. restart_service on checkout, fraud-detection or accounting would discard in-process state and recreate a container whose only fault is that its dependency is gone; the restarted process would come up and fail on the same unreachable kafka:9092, converting a partial failure into a full one during the recreate and destroying the one piece of live evidence (accounting's running retry loop) that pins the fault to the transport layer. rollback_image and revert_config both require a recorded prior change, and the change log is empty for the two services queried, so proposing either would be acting on a change that does not exist.",
+    "blast_radius": "Nobody sees a change, because nothing is being changed. The incident's existing radius is unaffected: checkout and its callers frontend and frontend-proxy continue to see 15s proxy timeouts on the stalled publish path, and accounting and fraud-detection continue to consume nothing. Had I proposed a restart of checkout, frontend and frontend-proxy would additionally have seen connection resets for the duration of the recreate."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Critical multi-service failure spreading from checkout to fraud-detection and accounting within two minutes, with no open incident to attribute it to. Nothing in the alerts points to a specific cause yet, so this needs evidence."
+  }
+}

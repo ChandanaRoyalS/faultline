@@ -1,0 +1,172 @@
+{
+  "incident_id": "a64ca012-26ea-474a-ad94-90dd3fbfc2bb",
+  "trajectory_id": "763e9ddc-a9d0-46d5-88b3-ec51bc458f7f",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "frontend",
+    "frontend-proxy",
+    "load-generator"
+  ],
+  "unmeasured_edges": 1,
+  "exclude_origins": [
+    "scenario:v2-product-catalog-freeze"
+  ],
+  "verdict": {
+    "root_cause": "The browse-product path through frontend hangs to a ~15s client/gateway deadline because the backend that path calls accepts the connection and never answers. Frontend itself is healthy: its other routes (cart, product-reviews, index) complete in milliseconds with full child-span chains through the same instance in the same window, and its own error ratio is flat zero while it keeps emitting spans. On the failing traces the frontend root span carries the whole ~15s as self-time with zero child spans \u2014 the downstream call was opened and never completed, so no span for the callee was ever written. Errors appear only one hop up at the proxy and load-generator, which is the hang-and-cascade shape of a stopped process on a hub dependency, not an error propagated from below. No change, deploy or flag edit sits anywhere near onset (nearest is ~22.4h prior and net-zero), which fits a fault that leaves no change record. The callee on the browse-product path \u2014 the product catalog service \u2014 is the service I am blaming.",
+    "service": "product-catalog",
+    "fault_class": "process_freeze",
+    "remediation_class": "restart",
+    "confidence": "low",
+    "evidence": [
+      "tr_6344d08e88d5",
+      "tr_3b2cfa752b21",
+      "tr_e04d6d85203c",
+      "tr_b6fa89c7b1fb"
+    ],
+    "reasoning": "Traces are the only discriminating evidence [tr_6344d08e88d5]: route-scoped stalls terminating exactly at 15.00s, all duration as frontend self-time, no child span emitted, parent proxy/load-generator spans marked error. That pattern is a caller waiting out its deadline on a peer that accepts and never replies, not a slow or erroring dependency (a slow dependency would still produce a child span; an erroring one would fail fast). Frontend is exculpated by zero error-status spans with continuous sample coverage [tr_3b2cfa752b21, tr_80d5938f2d29] and by its other routes being fast and complete. The proxy is exculpated: its error ratio fell versus baseline with no sustained departure, and its ingress/egress spans carry near-zero self-time, so it only propagates the timeout [tr_e04d6d85203c, tr_6344d08e88d5]. The change log shows no proximate change and net-zero config drift, which rules out bad_deploy/bad_config/feature_flag as the mechanism here [tr_b6fa89c7b1fb]. Confidence is low because the culprit was never directly dispatched on: no specialist queried the browse-product backend's logs, metrics or change history, and the one distinguishing test between a freeze and a partition \u2014 whether the culprit's own log is silent or complains it cannot reach anything \u2014 was never run.",
+    "open_questions": [
+      "Which service does frontend's browse-product handler actually call? It was inferred from route topology, never confirmed by a dispatch on the callee.",
+      "Does the suspected callee's own log contain repeating telemetry-export failures (network_partition) or nothing at all (process_freeze)? This was never queried and is the only test that separates the two.",
+      "Are the suspected callee's span metrics absent during the window, and did ServiceNoTraffic fire on it? Unmeasured.",
+      "The empty Loki results for frontend and frontend-proxy [tr_80babfbaf32c, tr_151abc31d0c5] look like a collection-side gap covering the whole window; whether logging is broken world-wide is unresolved and it weakens any argument from log silence.",
+      "Frontend request rate and p95 latency were never returned [tr_80d5938f2d29], so the throughput collapse that should accompany a hang is unconfirmed."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "The browse-product backend is running but severed from its network, so frontend's calls are dropped rather than refused and hang identically.",
+        "service": "product-catalog",
+        "fault_class": "network_partition",
+        "remediation_class": "reconnect",
+        "why_not": "Indistinguishable from a freeze on the evidence gathered \u2014 demoted only because no culprit-side log was read to find the characteristic export-failure line, and reconnect_service is unperformable by this executor. If that log shows unreachability complaints, this becomes the verdict."
+      },
+      {
+        "root_cause": "A delay injected into the callee's network namespace stretches the browse-product call past the 15s gateway deadline.",
+        "service": "product-catalog",
+        "fault_class": "dependency_latency",
+        "remediation_class": "restart",
+        "why_not": "Delayed calls still complete and still emit a child span; here no downstream span was ever opened and the stall pins exactly at the 15s boundary, which reads as a hang to deadline rather than accumulated delay."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "v2-ad-bad-image-tag / What was observed: The page was two alerts in the same moment, `ServiceHighErrorRate` on **frontend** and\n**frontend-proxy**, 5m17s after the trouble started. The service the failures would turn out to\nname was not on it.\n\nThe frontend's error ratio had been zero. It was 3% at two minutes, 11% at f",
+    "v2-valkey-cart-dependency-latency / What was checked: **The traces, because cart paged first and its callers followed.** Every slow trace touched cart,\nand inside cart the time was in one place. At rest, cart answered a `GetCart` in 0.3ms and its\nstore answered an `HGET` in 0.2ms. Under the fault, in 80 traces drawn, every `HGET`, `",
+    "v2-frontend-cart-misconfig / What was observed: The page was three alerts in the same moment, `ServiceHighErrorRate` on **checkout**, on\n**frontend** and on **frontend-proxy**, 3m17s after the trouble started. Load-generator joined them\na minute later. Frontend's error ratio had been zero. It rose from about a minute in, peake"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 64092,
+    "pulled_tokens": 3628,
+    "pull_rate": 0.0536,
+    "dropped_sections": 0,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 7632,
+        "content_tokens": 7637,
+        "budget": 10000000,
+        "kept": [
+          "incident",
+          "past-incidents",
+          "push-allowlist",
+          "push-runbooks"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 8780,
+        "content_tokens": 8786,
+        "budget": 10000000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents",
+          "push-allowlist",
+          "push-runbooks"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 16026,
+        "content_tokens": 16032,
+        "budget": 10000000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board",
+          "past-incidents",
+          "push-allowlist",
+          "push-runbooks"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 15481,
+        "content_tokens": 15487,
+        "budget": 10000000,
+        "kept": [
+          "conclusion",
+          "evidence-board",
+          "push-allowlist",
+          "push-runbooks",
+          "push-past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 16173,
+        "content_tokens": 16179,
+        "budget": 10000000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board",
+          "push-runbooks",
+          "push-past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_6344d08e88d5",
+      "tr_3b2cfa752b21",
+      "tr_b6fa89c7b1fb",
+      "tr_80babfbaf32c"
+    ],
+    "expected_effect": "No action is proposed, so no change in metrics or logs should be expected. The next useful step is investigative, not remedial: query the suspected callee's own log stream and its span-metric series for the window. A repeating once-per-minute telemetry-export deadline-exceeded line would mean network_partition (reconnect, which this executor cannot perform); complete log silence plus absent span metrics plus a ServiceNoTraffic firing on it would support process_freeze and a restart of that service. Either way the target of any eventual action is the product catalog service, which is not in this incident's blast radius and therefore not a legal target here.",
+    "confirm_within_seconds": 0,
+    "if_wrong": "This abstention is wrong if the hang actually originates inside frontend's own browse-product handler rather than in an unanswered downstream call \u2014 in which case restart_service on frontend would clear it. The evidence that would show that: a frontend p95/request-rate series showing throughput collapse confined to frontend with no corresponding silence on any downstream service, or a trace in which the frontend root span's 15s self-time is accompanied by in-process spans (render/resolve) rather than by zero children. Neither was measured; frontend request rate and p95 were never returned [tr_80d5938f2d29], so the throughput-collapse signature of a hang is unconfirmed on frontend itself.",
+    "risk": "The risk of acting here is concrete, which is why I am not. Restarting frontend on the strength of a low-confidence verdict that explicitly blames a different service would discard frontend's in-process cache and reset every in-flight connection for an instance whose own error ratio is flat zero [tr_3b2cfa752b21] and whose cart, product-reviews and index routes complete in milliseconds with full child-span chains [tr_6344d08e88d5]. restart_service is irreversible. If the freeze really is downstream, the restart changes nothing, the browse-product path still hangs to ~15s, and the incident has now consumed an approval and degraded a healthy service. Rollback and config_revert fail their preconditions outright: no deploy or image change exists in the window and the only config edits are two net-zero set-then-revert pairs ending ~22.4h before onset [tr_b6fa89c7b1fb]. reconnect_service, the action that would fix the competing network_partition hypothesis, is listed UNAVAILABLE \u2014 the executor does not perform it.",
+    "blast_radius": "Nobody, since nothing is executed. Had I proposed restarting frontend: frontend-proxy, which fronts it, and load-generator behind that, would see connection resets for the recreate duration \u2014 both are already alerted, so a reset burst there would be hard to distinguish from the ongoing fault and would muddy the signal. The three currently-healthy routes (cart, product-reviews, index) would briefly fail for users who are presently being served fine. Note also that the log silence I lean on is weak evidence: the empty Loki results for frontend and frontend-proxy [tr_80babfbaf32c] cover the whole window and look collection-side, so no argument from log silence \u2014 in either direction \u2014 is safe until logging is confirmed healthy world-wide."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "low",
+    "reasoning": "Critical alerts on frontend-proxy with load-generator are not dismissible as noise, and frontend is an unexamined candidate cause one hop in. No open incident matches, and the alert set alone does not favor any mechanism."
+  }
+}

@@ -1,0 +1,3 @@
+reverted v2-kafka-disk-fill
+  - recreated kafka, which discards the filled directory and /tmp/kafka-logs/faultline-v2-kafka-disk-fill.fill with it (an in-place restart would never come back: Q114)
+  - restarted accounting, fraud-detection, checkout (they do not reconnect on their own); expect ~4 min of duplicate-key errors on any that kept uncommitted offsets

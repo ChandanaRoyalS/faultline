@@ -1,0 +1,181 @@
+{
+  "incident_id": "a2829852-cf22-468e-bf8e-1cb42ba6cfb4",
+  "trajectory_id": "75e2e9bb-a5f6-4681-a46a-3bfeb31d30bb",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "ad",
+    "cart",
+    "checkout",
+    "currency",
+    "email",
+    "flagd",
+    "frontend",
+    "frontend-proxy",
+    "load-generator",
+    "payment",
+    "product-catalog",
+    "product-reviews",
+    "recommendation",
+    "shipping"
+  ],
+  "unmeasured_edges": 14,
+  "exclude_origins": [
+    "scenario:v2-valkey-cart-dependency-latency"
+  ],
+  "verdict": {
+    "root_cause": "Every cart request pays a fixed ~300 ms per command issued to its Valkey cart store: AddItem makes three sequential store calls (HGET/HMSET/EXPIRE) and lands at ~901-906 ms, GetCart makes one and lands at ~300-303 ms, while cart's own handler self-time is a fraction of a millisecond [tr_3802202f2784]. The per-command cost is uniform across different command semantics and across every sampled trace, the signature of an injected fixed network delay on the cart<->Valkey path rather than organic queueing. Nothing fails: cart and checkout error ratios are flat zero over 128 samples in incident and baseline [tr_6bcdc2aaf99e][tr_e358164dfd34], cart logs ordinary info-level store operations at normal cadence with no connection, timeout, OOM or parse diagnostics [tr_0fa62ef7350b], and no change is recorded for cart in 24 h [tr_0e9c09a06405]. The frontend, frontend-proxy, load-generator and checkout alerts are callers waiting on cart. Cart's own call to flagd completed in ~1.6 ms in the same window [tr_3802202f2784], which argues the shaping sits on the Valkey cart-store container's interface rather than cart's, since a delay in cart's namespace would also tax that egress. The fix is to recreate the container whose network namespace holds the delay.",
+    "service": "valkey-cart",
+    "fault_class": "dependency_latency",
+    "remediation_class": "restart",
+    "confidence": "medium",
+    "evidence": [
+      "tr_3802202f2784",
+      "tr_0fa62ef7350b",
+      "tr_6bcdc2aaf99e",
+      "tr_e358164dfd34",
+      "tr_0e9c09a06405"
+    ],
+    "reasoning": "Traces localise all elapsed time to cart's Valkey child spans with near-constant per-command cost irrespective of command type, which excludes an expensive operation or organic queueing and matches an injected fixed delay [tr_3802202f2784]. Zero error ratio on cart and checkout across incident and baseline makes this a pure-latency incident, consistent with delay as a mechanism where calls still succeed [tr_6bcdc2aaf99e][tr_e358164dfd34]. Cart's logs are clean and continuous, excluding crashloop, store disconnection, OOM and decode failure [tr_0fa62ef7350b]. The empty change log excludes bad_deploy and bad_config for cart [tr_0e9c09a06405]; a netem-style delay leaves no change record. The fast flagd path in the same window points the shaped interface at the store side, not cart's own namespace [tr_3802202f2784].",
+    "open_questions": [
+      "No direct evidence was gathered from the Valkey cart-store container itself - no logs, metrics or change history - so whether the delay sits on its interface or on cart's is inferred from the single fast flagd trace.",
+      "No p95 latency or request-rate series was retrieved for cart or checkout, so onset time and magnitude over the window are unmeasured [tr_6bcdc2aaf99e][tr_da71743adda0].",
+      "Cart's logs are truncated between ~00:04:34 and ~00:36:05, leaving the mid-window interior unobserved [tr_0fa62ef7350b].",
+      "Two traces show ~300 ms of unexplained self-time outside Valkey spans (cart AddItem, frontend api-route), not accounted for by the store hypothesis [tr_3802202f2784]."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "The delay is attached to cart's own container network namespace, taxing its egress to the Valkey store.",
+        "service": "cart",
+        "fault_class": "dependency_latency",
+        "remediation_class": "restart",
+        "why_not": "Cart's flagd ResolveBoolean call completed in ~1.6 ms in the same window, which a shaper on cart's own interface should also have delayed [tr_3802202f2784]; otherwise this hypothesis fits identically and remains close behind."
+      },
+      {
+        "root_cause": "A runtime flag flipped in the flag store enabled a slow cart-store code path, leaving no change record.",
+        "service": "cart",
+        "fault_class": "feature_flag",
+        "remediation_class": "config_revert",
+        "why_not": "Flag-driven faults in this world present as fast errors with span status naming the flag; here error ratio is exactly zero and the time is spent inside Valkey command spans of uniform duration [tr_3802202f2784][tr_6bcdc2aaf99e]."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "v2-cart-dependency-latency / What was observed: The page was four alerts in the same moment, `ServiceHighLatency` on **cart**, **frontend**,\n**frontend-proxy** and **load-generator**, 4m50s after the trouble started. A minute later\n`ServiceHighLatency` fired on **checkout**. Five alerts on five services by the fix, all of them",
+    "v2-frontend-cart-misconfig / What was checked: **The error text, because it was the first thing a responder would read.** Checkout's error spans\nand the frontend's log said `shipping quote failure: failed POST to email service: expected 200,\ngot 400`. That names two services, and neither was at fault. It is checkout's own wor",
+    "v2-cart-bad-image-tag / Resolution: Cart was rolled back to the published `2.2.0-cart` image. It was connected to its store within a\nsecond and listening two seconds after the fix, and it was serving cart reads about a minute later,\nas its callers found it again; a new set of runtime series began with it. The quiet"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 63879,
+    "pulled_tokens": 6596,
+    "pull_rate": 0.0936,
+    "dropped_sections": 0,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 7739,
+        "content_tokens": 7743,
+        "budget": 10000000,
+        "kept": [
+          "incident",
+          "past-incidents",
+          "push-allowlist",
+          "push-runbooks"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 8862,
+        "content_tokens": 8868,
+        "budget": 10000000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents",
+          "push-allowlist",
+          "push-runbooks"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 15848,
+        "content_tokens": 15855,
+        "budget": 10000000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board",
+          "past-incidents",
+          "push-allowlist",
+          "push-runbooks"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 15312,
+        "content_tokens": 15317,
+        "budget": 10000000,
+        "kept": [
+          "conclusion",
+          "evidence-board",
+          "push-allowlist",
+          "push-runbooks",
+          "push-past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 16118,
+        "content_tokens": 16123,
+        "budget": 10000000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board",
+          "push-runbooks",
+          "push-past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_3802202f2784",
+      "tr_0e9c09a06405"
+    ],
+    "expected_effect": "None - no action proposed. Cart AddItem should stay at ~901-906 ms and GetCart at ~300-303 ms with zero errors until the container whose namespace holds the delay is recreated by someone able to target it.",
+    "confirm_within_seconds": 0,
+    "if_wrong": "The verdict places the qdisc on the Valkey cart-store container, which is not in the blast radius and so is not a legal target; restart_service on cart would recreate the wrong namespace and leave the delay. Falsified if a trace shows cart's egress to a non-Valkey peer also paying ~300 ms (contradicting the ~1.6 ms cart->flagd call), which would put the shaper in cart's namespace and make restart_service on cart correct; or if the Valkey container becomes a permitted target, in which case propose restart_service on it at once.",
+    "risk": "Abstaining leaves the ~300 ms per-command delay in place and the five latency alerts lit until a human acts out of band. Acting instead - restart_service on cart - is irreversible, discards cart's in-process cache, and on a medium-confidence single-trace inference would drop in-flight requests while fixing nothing.",
+    "blast_radius": "Nobody, since nothing changes. Had cart been restarted, its callers frontend, frontend-proxy and checkout (and load-generator behind them) would see connection resets during the recreate."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "low",
+    "reasoning": "Five services alerting simultaneously along the checkout/frontend path is not a single quiet latency warning, and no incident is open to fold it into. The synchronous onset across seeds gives no directional hint yet, so the fault class stays unknown pending evidence."
+  }
+}

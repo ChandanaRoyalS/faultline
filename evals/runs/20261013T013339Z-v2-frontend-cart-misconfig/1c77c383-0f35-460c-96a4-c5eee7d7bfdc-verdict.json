@@ -1,0 +1,178 @@
+{
+  "incident_id": "1c77c383-0f35-460c-96a4-c5eee7d7bfdc",
+  "trajectory_id": "c4660d8c-e6ce-4135-88a8-9c941f2ffad7",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "ad",
+    "cart",
+    "checkout",
+    "currency",
+    "email",
+    "frontend",
+    "frontend-proxy",
+    "load-generator",
+    "payment",
+    "product-catalog",
+    "product-reviews",
+    "recommendation",
+    "shipping"
+  ],
+  "unmeasured_edges": 13,
+  "exclude_origins": [
+    "scenario:v2-frontend-cart-misconfig"
+  ],
+  "verdict": {
+    "root_cause": "Checkout's PlaceOrder requests fail on the outbound shipping get-quote call; the error text surfaced in checkout's traces attributes the quote failure to a non-200 (400) response from an email-service call made on the quote path [tr_53f95f690a9b]. Email's own logs show only order-confirmation traffic, all 200, from a single upstream client, with no quote path served at all [tr_2abd7e054e38]. The most consistent reading is that the quote path is calling the email service at a wrong address/endpoint (or with a wrong payload for the endpoint it names), so the request never reaches the handler email actually serves and comes back 400 \u2014 a wrong configured value is itself the failure mechanism. The failures are fast, not slow [tr_53f95f690a9b], with a clean zero-error baseline and a discrete change point at 01:35:16Z [tr_af564839b03e], and no deploy, config edit or flag flip is recorded for checkout, shipping or email [tr_b293df6ab5ea][tr_155c0516bcbe][tr_964ee2f0534d]. I blame shipping because it is the service that owns the failing quote path and makes the bad email call.",
+    "service": "shipping",
+    "fault_class": "bad_config",
+    "remediation_class": "config_revert",
+    "confidence": "low",
+    "evidence": [
+      "tr_53f95f690a9b",
+      "tr_2abd7e054e38",
+      "tr_af564839b03e",
+      "tr_155c0516bcbe",
+      "tr_964ee2f0534d",
+      "tr_b293df6ab5ea"
+    ],
+    "reasoning": "Traces anchor the error on checkout's client span for shipping's quote endpoint while shipping's server span is fast and unerrored, so the fault is in what shipping does on that hop rather than in checkout's logic or in latency anywhere [tr_53f95f690a9b]. The root error message names a 400 from an email call on the quote path, and email's logs show it serving only /send_order_confirmation successfully from one client \u2014 so the quote-path call is either not arriving at email or arriving at an endpoint email does not serve [tr_2abd7e054e38]. That mismatch between the address/endpoint being called and the service actually listening is the signature of a wrong configured value, not exhaustion, not slowness, and not a corrupted store. Metrics confirm a clean break from a zero baseline at 01:35:16Z with bursty rather than ramping errors, which argues against progressive resource exhaustion [tr_af564839b03e]. No change record exists for any of the three services, so the wrong value was either set outside the logged window or never logged [tr_b293df6ab5ea][tr_155c0516bcbe][tr_964ee2f0534d].",
+    "open_questions": [
+      "No specialist ever queried shipping's logs, metrics or traces directly \u2014 the entire case against shipping rests on checkout-side trace text, and shipping's own account of why it calls email on a quote path is unread.",
+      "The 400 is reported only inside a checkout error string; the actual request URL, payload and response body of the shipping-to-email call were never observed, so whether the misconfiguration is an address, an endpoint, or a malformed payload is unsettled.",
+      "Email's log result was truncated between ~01:07:53 and 01:32:19 and stops at 01:33:44, before the 01:35:16Z change point \u2014 rejected or 4xx quote requests could exist in the unreturned span [tr_2abd7e054e38].",
+      "Checkout emitted zero log lines across the window, with service failure, broken log shipping, and a label rename all still live explanations [tr_09a87e0757e1].",
+      "No change record exists anywhere, so the triggering act is unidentified; the change log may simply not cover this mutation, which leaves config_revert without a concrete target."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "Shipping's get-quote path calls the email service on an endpoint email does not serve and treats the resulting 400 as fatal; the defect is in shipping's code rather than a configured value.",
+        "service": "shipping",
+        "fault_class": "bad_deploy",
+        "remediation_class": "rollback",
+        "why_not": "The change log shows no shipping deploy in the full 24h window and the error baseline was flat zero until 01:35:16Z, so there is no release boundary to correlate with onset [tr_155c0516bcbe][tr_af564839b03e]."
+      },
+      {
+        "root_cause": "The email service is rejecting the quote-path request with a 400 due to its own validation or routing defect, and shipping is correctly reporting that rejection.",
+        "service": "email",
+        "fault_class": "bad_config",
+        "remediation_class": "config_revert",
+        "why_not": "Email's logs record no quote-path request of any kind and no non-200 response in the window, so there is no evidence email received and rejected anything [tr_2abd7e054e38]; email also emits no span metrics under its label, leaving it largely unobserved [tr_485523473454]."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "v2-cart-flag-failure / What was observed: The page was one alert, `ServiceHighErrorRate` on **checkout**, 5m16s after the trouble started.\nNothing else fired, then or later, and nothing fired after the fix.\n\nCheckout's error ratio had been zero. It rose from about a minute in and held at 7.1-7.4%. Its\nlatency rose too, f",
+    "v2-inj-payment-dependency-latency-log-checkout / What was observed: The page came 5m20s after onset and it was one line: `ServiceHighLatency` on **checkout**. Nothing\nelse fired before it, beside it or after it - no error-rate alert anywhere, no service gone quiet.\n\nCheckout's 95th percentile stepped from 16 to 18ms at rest to 267ms at T+2, 313 a",
+    "v2-cart-store-corruption / What was observed: The page came 6m16s after the first failed request, and it was one line: `ServiceHighErrorRate` on\n**checkout**. Nothing before it, nothing beside it - no latency alert anywhere, no service gone\nquiet - and nothing after it. One alert on one service by the fix.\n\nThen, under two m"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 28787,
+    "pulled_tokens": 6265,
+    "pull_rate": 0.1787,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 486,
+        "content_tokens": 487,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1808,
+        "content_tokens": 1810,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 8684,
+        "content_tokens": 8660,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 8188,
+        "content_tokens": 8190,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 9621,
+        "content_tokens": 9598,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_155c0516bcbe",
+      "tr_b293df6ab5ea",
+      "tr_964ee2f0534d",
+      "tr_2abd7e054e38",
+      "tr_53f95f690a9b"
+    ],
+    "expected_effect": "No action is proposed, so no change in any metric is expected. Checkout's error ratio should continue at the post-01:35:16Z level (mean ~3.3%, peaks to 50%) and PlaceOrder traces should keep failing on the outbound shipping get-quote hop until someone reads shipping's own logs/traces and the actual request URL, payload and response body of the shipping-to-email call.",
+    "confirm_within_seconds": 0,
+    "if_wrong": "This abstention is wrong if a shipping configuration record (prior env/endpoint value) does in fact exist in a change source nobody queried at the right scope \u2014 the checkout query ran at radius 'seed'/0 hops [tr_b293df6ab5ea] and the shipping query returned empty [tr_155c0516bcbe]. A direct read of shipping's config, or shipping's own logs showing the outbound email URL, would settle it and could justify revert_config within minutes. It is also wrong if the email log truncation (01:07:53\u201301:32:19, nothing after 01:33:44) [tr_2abd7e054e38] is hiding 4xx quote-path requests that would relocate the fault into email.",
+    "risk": "The risk of abstaining is continued customer-visible checkout failure for as long as the investigation takes \u2014 roughly 3-50% of PlaceOrder requests failing fast. The risk of acting instead is concrete: revert_config requires a prior configuration recorded in change history, and the change log is empty for shipping [tr_155c0516bcbe], email [tr_964ee2f0534d] and checkout [tr_b293df6ab5ea], so there is no recorded prior value to restore \u2014 the executor would either no-op or recreate shipping with whatever the stored baseline is, which is an unvalidated container recreate on the one service carrying the quote path. rollback_image fails the same precondition (no deploy or image change named in the window). restart_service is wrong on its face: the evidence names a wrong configured address/endpoint, which is not process state, and a restart would reload the same bad value while discarding nothing that matters.",
+    "blast_radius": "Unchanged by this proposal. Had an action been taken on shipping, its inbound caller checkout \u2014 and through it frontend, frontend-proxy and load-generator \u2014 would see connection resets during the recreate, and if the reverted value were a dependency address, email would see its inbound traffic shift. All four of those are already alerted seeds, so a failed remediation would be indistinguishable from the ongoing incident and would muddy the signal.",
+    "_note": "Verdict confidence is low and three of its own open questions (shipping never queried directly; the 400's URL/payload/body never observed; email's log gap across the change point) each independently block the diagnosis that revert_config would act on. Recommended next step, outside this system's permitted actions: query shipping's logs and traces directly for the outbound email call."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Simultaneous critical alerts across checkout, frontend, and the proxy indicate a real user-facing failure, not a single quiet latency warning. No open incidents to attribute it to, and the alert pattern alone doesn't distinguish a bad deploy from a failing downstream dependency."
+  }
+}

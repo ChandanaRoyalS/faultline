@@ -1,0 +1,176 @@
+{
+  "incident_id": "547bdf3d-5a34-4d8a-a361-a8e51cb64d1d",
+  "trajectory_id": "921bb501-1b0a-4299-b539-80607754a511",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "ad",
+    "cart",
+    "checkout",
+    "frontend",
+    "frontend-proxy",
+    "load-generator",
+    "product-catalog",
+    "product-reviews",
+    "recommendation"
+  ],
+  "unmeasured_edges": 7,
+  "exclude_origins": [
+    "scenario:v2-ad-memory-squeeze"
+  ],
+  "verdict": {
+    "root_cause": "At 23:58:50Z, about four minutes before the first user-visible alert, platform-automation lowered the ad service's container memory limit to 144m and \u2014 unlike the eight previous lower/revert cycles that day \u2014 never reverted it [tr_8c7dc623349c]. Under that ceiling the ad JVM cannot stay resident: its own logs switch from normal targeted-ad serving in the early window to a repeated JVM/container startup sequence at least seven times between ~00:01 and ~00:05, with only some attempts reaching the application 'service starting' line and no exception, stack trace or clean-shutdown message anywhere \u2014 the signature of a process being killed from outside rather than failing in application code [tr_6785098d00e9]. The consequence at the ad service's own edge is absent traffic, not failed traffic: 12 incident-window samples of the error ratio are undefined against 0 in baseline, while the ratio of requests it did serve is flat versus baseline [tr_bdafb4a5d489]. Frontend is the alerting victim, not the culprit: its error ratio rose roughly 60-fold [tr_3c0f35f12602] and the single error trace in the window terminates at frontend/grpc.oteldemo.AdService/GetAds, a sub-millisecond failure with no server-side ad span beneath it \u2014 a connection refused against a dead/restarting listener, propagating up through the api route, proxy and load-generator [tr_beac0cf243e2]. The failing mechanism is the ad service exhausting its (newly constrained) memory allocation and being killed for it; the edit is how it started, exhaustion is what is happening.",
+    "service": "ad",
+    "fault_class": "resource_exhaustion",
+    "remediation_class": "config_revert",
+    "confidence": "high",
+    "evidence": [
+      "tr_8c7dc623349c",
+      "tr_6785098d00e9",
+      "tr_bdafb4a5d489",
+      "tr_beac0cf243e2",
+      "tr_3c0f35f12602",
+      "tr_c78b30efb093",
+      "tr_bce3621ae8b3"
+    ],
+    "reasoning": "Three independent signals converge on ad. (1) Change: the only unreverted change anywhere in the dispatched set is the memory limit lowered to 144m four minutes before onset, and the same change reverted eight times earlier that day produced no incident \u2014 the distinguishing fact is persistence, which matches a slow-building kill/restart loop [tr_8c7dc623349c]. (2) Ad-side behaviour: repeated JVM startup banners with partial initialization and no exception or shutdown text means the process is being terminated externally mid-life, i.e. killed for exceeding its ceiling, not crashing on a bug [tr_6785098d00e9]; the error-ratio series corroborates with intervals of no traffic at all rather than failing traffic [tr_bdafb4a5d489]. (3) Caller-side shape: frontend's errors are partial (peak ~28.6%, min 0, bursty) and confined to the ads endpoint \u2014 browse, cart, recommendations, checkout and product-catalog traces are all clean [tr_3c0f35f12602, tr_beac0cf243e2]. A bursty, ads-only, sub-millisecond failure is exactly what a pod cycling in and out of readiness produces at its caller, and it rules against a slow dependency (a timeout would show a long span near a deadline) and against a frontend-origin fault. The frontend CART_ADDR flap is the nearest change on frontend but is a different variable on a different call path, recurred four times that day without incident, and the cart/checkout traces in the window succeed [tr_bce3621ae8b3, tr_beac0cf243e2]. The empty frontend log search for the ad-service token [tr_c78b30efb093] removes the frontend-side narrative but does not contradict the trace-level attribution; it only means those failures were swallowed without logging. The fix is to restore the ad service's memory limit (remove the 144m cap), after which the restart loop should stop and the ads endpoint recover.",
+    "open_questions": [
+      "No direct confirmation of an OOM kill: no container memory-usage series, no exit code, and no kernel/kubelet kill notice was retrieved. The kill is inferred from the restart pattern plus the unreverted limit, not observed.",
+      "Ad-service request rate and latency were never measured; the traffic gaps are inferred from undefined error-ratio samples rather than a direct rate series [tr_bdafb4a5d489].",
+      "Whether 144m is genuinely below the ad JVM's working set is unverified \u2014 the same limit was applied eight times earlier that day and reverted before any incident surfaced, so we do not know how long it survives under the cap.",
+      "Why platform-automation is flapping resource limits on ad and CART_ADDR on frontend at all is unexplained; if the automation loop is itself misbehaving, a manual revert may be re-applied.",
+      "Only one error trace was sampled for the whole window [tr_beac0cf243e2], so the ads path is confirmed as *an* error origin but not proven to account for all of frontend's 8.7% error ratio.",
+      "Triage reports 7 unmeasured edges; no specialist examined cart, checkout, product-catalog or recommendation directly, so a concurrent second fault on those edges is not excluded.",
+      "The frontend CART_ADDR revert 16 minutes before onset was never tested against cart-path behaviour on the caller side; it remains an unexplained loose end even if it is not this incident's mechanism."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "The 144m memory limit is simply a wrong value for the ad service and the wrongness of the value is the failure.",
+        "service": "ad",
+        "fault_class": "bad_config",
+        "remediation_class": "config_revert",
+        "why_not": "The service is not failing because a value names something wrong \u2014 it is failing because the process runs out of the memory it needs and is killed for it. The edit is the trigger; exhaustion is the mechanism now operating, which is what the class must name. Remediation is identical either way, so this distinction does not change the action.",
+        "root_cause_note": null
+      },
+      {
+        "root_cause": "The CART_ADDR revert that unset the cart endpoint on frontend 16 minutes before onset left frontend pointing at no cart address, producing the elevated frontend error ratio.",
+        "service": "frontend",
+        "fault_class": "bad_config",
+        "remediation_class": "config_revert",
+        "why_not": "The sampled error trace fails on the ads call, not the cart call, and both checkout traces complete with cart EmptyCart and every other downstream span unmarked [tr_beac0cf243e2]. The identical set/revert cycle also ran four earlier times the same day without an incident [tr_bce3621ae8b3]. It also explains nothing about the ad service's restart loop or its traffic gaps."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "v2-valkey-cart-dependency-latency / What was checked: **The traces, because cart paged first and its callers followed.** Every slow trace touched cart,\nand inside cart the time was in one place. At rest, cart answered a `GetCart` in 0.3ms and its\nstore answered an `HGET` in 0.2ms. Under the fault, in 80 traces drawn, every `HGET`, `",
+    "v2-cart-dependency-latency / What was checked: **The traces, because four services slowed at once and the page did not say which one first.**\nEvery slow trace touched cart, and the time sat in the same places in all of them. At rest, cart\nanswered a `GetCart` in 0.4ms and its store answered an `HGET` in 0.3ms. Under the fault",
+    "v2-product-catalog-partition / What was checked: **The proxy and the load generator, because they paged.** Their error traces - 300 drawn, none\nunder fourteen seconds - were all the same shape: a request cut at the proxy's fifteen-second\nroute timeout. 143 product pages, 88 add-to-carts, 43 recommendation calls, 26 checkouts. U"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 29227,
+    "pulled_tokens": 8556,
+    "pull_rate": 0.2265,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 441,
+        "content_tokens": 443,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1564,
+        "content_tokens": 1567,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 8823,
+        "content_tokens": 8799,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 8418,
+        "content_tokens": 8420,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 9981,
+        "content_tokens": 9959,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "config_revert",
+    "action_id": "revert_config",
+    "target": "ad",
+    "rests_on": [
+      "tr_8c7dc623349c",
+      "tr_6785098d00e9",
+      "tr_bdafb4a5d489",
+      "tr_beac0cf243e2"
+    ],
+    "expected_effect": "Restoring ad's prior resource configuration (no memory limit, the value in effect before the 23:58:50Z edit) should let the ad JVM stay resident. Observable as: (1) the repeated JVM/container startup sequence in {service=\"ad\"} logs \u2014 Java tool options pickup, class-sharing warning, OTel javaagent banner \u2014 stops recurring, with at most one final startup from the recreate itself and then steady 'Targeted ad request received' lines; (2) the ad error-ratio series stops producing undefined samples, i.e. traffic is continuously present again rather than gapping as it did for 12 incident samples; (3) frontend's error ratio falls from its ~8.7% window mean back toward its ~0.15% baseline and stops crossing the alert threshold, with no further error traces terminating at frontend/grpc.oteldemo.AdService/GetAds.",
+    "confirm_within_seconds": 600,
+    "if_wrong": "Falsified if, more than ~2 minutes after the recreate, ad logs still show fresh JVM startup banners without a matching lower-limit change, or the ad error-ratio series still yields undefined samples, or frontend's error ratio stays materially above ~1% once a full 5m rate window has elapsed. Any of those means the 144m cap was not the binding constraint \u2014 the memory-exhaustion mechanism itself was never directly observed (no memory series, no exit code, no kubelet/OOM notice; the same 144m cap survived eight earlier applications that day), so the kill is inferred, not measured. A second falsifier specific to this world: platform-automation re-applies the limit minutes later, in which case the restart loop returns and the fix must move to the automation loop, which is outside what this system may touch. Finally, only one error trace was sampled, so frontend error ratio could fail to recover because a concurrent fault on an unmeasured edge (cart, checkout, product-catalog, recommendation) contributes part of the 8.7%.",
+    "risk": "Not none. The action recreates ad's container, so the diagnosis being right does not make it free: in-flight GetAds calls are dropped and frontend sees connection refusals for the seconds of the recreate \u2014 a brief, deliberate worsening of the exact symptom we are treating. If the diagnosis is wrong, that outage is spent for nothing and the real fault keeps running while attention moves on. Restoring an unbounded memory limit also removes whatever containment the cap was providing: if ad has a genuine leak or inflated working set, it may now grow until it pressures co-located containers on the host instead of dying alone, turning a single-service failure into a host-level one. And if platform-automation is itself the misbehaving component, this revert is a manual write into a loop that is still running \u2014 it may be overwritten, and the two writers may flap faster than before.",
+    "blast_radius": "One service directly: ad. Frontend is its caller in this incident's graph and sees the connection reset during the recreate; that propagates upward through frontend's /api/data route, frontend-proxy ingress/egress and the load-generator, which are the three alerting services \u2014 so the alert set already firing may briefly spike again before clearing. The reverted value is a resource limit, not a dependency address, so no traffic moves to a different endpoint and cart, checkout, product-catalog, product-reviews and recommendation see nothing. Host-level: removing the cap means other containers on the same host share the consequences of any ad memory growth."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Critical severity spanning frontend and frontend-proxy plus the load generator within a minute is a user-facing failure that cannot be dismissed, and no open incident covers it. The cause lies among the unmeasured downstream dependencies, so no fault class is implied yet."
+  }
+}

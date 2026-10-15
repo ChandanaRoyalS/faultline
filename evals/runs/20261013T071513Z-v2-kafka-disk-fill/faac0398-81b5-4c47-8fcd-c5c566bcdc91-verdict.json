@@ -1,0 +1,167 @@
+{
+  "incident_id": "faac0398-81b5-4c47-8fcd-c5c566bcdc91",
+  "trajectory_id": "a1dcd1bd-a427-439e-a123-5820196faf6e",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "accounting",
+    "cart",
+    "checkout",
+    "currency",
+    "email",
+    "frontend",
+    "frontend-proxy",
+    "payment",
+    "product-catalog",
+    "shipping"
+  ],
+  "unmeasured_edges": 8,
+  "exclude_origins": [
+    "scenario:v2-kafka-disk-fill"
+  ],
+  "verdict": {
+    "root_cause": "Checkout accepts PlaceOrder requests, completes every downstream call it issues (cart, product-catalog, currency, shipping/quote, payment) in single-digit milliseconds, then stops making progress: ~54.2s of a 54.3s span is checkout's own self-time, and none of the post-charge work (email, EmptyCart, ship-order, orders publish) ever starts [tr_a10c309fb10a]. Callers do not receive errors from checkout \u2014 the only ERROR statuses sit on load-generator and frontend-proxy ingress spans, with the caller still blocked ~39s after the proxy gave up [tr_a10c309fb10a]. Checkout's error ratio jumped abruptly off a flat-zero baseline at 07:20:16 [tr_7c332802b972], no change is recorded against checkout [tr_e7add6c1b1a7, tr_69e4bd1acccd], and checkout wrote no log lines of any severity [tr_54d5d5fffcf0]. Socket still accepting, work abandoned mid-request, callers hanging to their deadlines, nothing written: checkout's process is wedged. Accounting's symptom follows \u2014 no errors, only intervals with no traffic to measure [tr_9445b2ab213a], as expected when checkout stops publishing orders.",
+    "service": "checkout",
+    "fault_class": "process_freeze",
+    "remediation_class": "restart",
+    "confidence": "medium",
+    "evidence": [
+      "tr_a10c309fb10a",
+      "tr_7c332802b972",
+      "tr_54d5d5fffcf0"
+    ],
+    "reasoning": "Traces localise the stall inside checkout: every issued child span returned in milliseconds, and payment, email, shipping/quote and product-catalog were each eliminated as the blocking hop [tr_a10c309fb10a], so dependency_latency on any instrumented edge is excluded. Caller-side-only errors plus the ~39s overhang past the proxy deadline are the hang signature. Of the two classes that hang callers, network_partition is weak: in the same failing trace checkout successfully reached five downstreams, and there is no checkout log complaining of unreachability \u2014 there is no checkout log at all [tr_54d5d5fffcf0]. Change-driven classes (bad_deploy, bad_config, feature_flag) have no supporting record for checkout [tr_e7add6c1b1a7, tr_69e4bd1acccd], and the onset was a step, not the ramp a leak would produce [tr_7c332802b972]. Accounting is a downstream casualty, not the origin: zero errors with traffic gaps [tr_9445b2ab213a].",
+    "open_questions": [
+      "Checkout's log silence is weakened as evidence because frontend's selector is also empty across its whole window [tr_c8569dc6ec21] \u2014 a labelling or ingestion fault may explain both, so 'wrote nothing' is not firmly established.",
+      "No latency percentiles, CPU, memory, thread/connection-pool or GC series were ever retrieved for checkout [tr_7c332802b972, tr_5d999c65d3a3], so a saturation/deadlock cause inside the process is unmeasured and resource_exhaustion cannot be excluded.",
+      "Both change-log queries ran forward from the incident timestamp and never covered the hours preceding onset [tr_e7add6c1b1a7, tr_69e4bd1acccd]; a pre-incident deploy or flag flip remains unsearched."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "Checkout exhausted an internal resource (thread/connection pool, memory, GC death-spiral), leaving requests parked after the charge call rather than the process being frozen.",
+        "service": "checkout",
+        "fault_class": "resource_exhaustion",
+        "remediation_class": "restart",
+        "why_not": "No saturation metric was ever queried, so this is unmeasured rather than supported; the abrupt single change point at 07:20:16 with no ramp [tr_7c332802b972] fits a stop better than a gradual exhaustion, and a pool-starved service would normally still emit logs."
+      },
+      {
+        "root_cause": "A pre-onset deploy or flag flip on checkout introduced code that blocks after the payment charge.",
+        "service": "checkout",
+        "fault_class": "bad_deploy",
+        "remediation_class": "rollback",
+        "why_not": "The change windows queried begin at onset and run forward, so no change evidence exists either way [tr_e7add6c1b1a7, tr_69e4bd1acccd]; a bad artifact would also usually produce errors or logs rather than indefinite silent hangs."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "v2-accounting-bad-credential / What was observed: The page was a single alert, `ServiceHighErrorRate` on **accounting**, 3m16s after the trouble\nstarted. Nothing else fired then, and nothing else fired afterwards. Its error ratio had read\nzero before the incident. It rose from about a minute in, climbed, and settled at **exactly",
+    "v2-frontend-cart-misconfig / What was checked: **The error text, because it was the first thing a responder would read.** Checkout's error spans\nand the frontend's log said `shipping quote failure: failed POST to email service: expected 200,\ngot 400`. That names two services, and neither was at fault. It is checkout's own wor",
+    "v2-payment-dependency-latency / What was observed: The page was one alert, `ServiceHighLatency` on **checkout**, 5m35s after the trouble started.\nNothing else fired, then or later, and nothing fired after the fix. Nothing errored: every error\nratio on the world stayed at zero for the whole incident.\n\nCheckout's p95 had been 35 to"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 37686,
+    "pulled_tokens": 5814,
+    "pull_rate": 0.1337,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 463,
+        "content_tokens": 465,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 2036,
+        "content_tokens": 2039,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 14824,
+        "content_tokens": 14800,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 9462,
+        "content_tokens": 9464,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 10901,
+        "content_tokens": 10879,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "restart",
+    "action_id": "restart_service",
+    "target": "checkout",
+    "rests_on": [
+      "tr_a10c309fb10a",
+      "tr_7c332802b972",
+      "tr_69e4bd1acccd"
+    ],
+    "expected_effect": "New PlaceOrder traces complete at the healthy ~70-110ms profile and again contain the post-charge spans missing today (email send, cart EmptyCart, ship-order, orders publish); checkout's error ratio returns to its flat-zero baseline with no new change point; ERROR statuses on frontend-proxy ingress and load-generator spans stop.",
+    "confirm_within_seconds": 300,
+    "if_wrong": "Falsified if within 5 minutes PlaceOrder spans still show dominant self-time and stop after payment Charge, or proxy ingress spans still carry ERROR with callers blocked to deadline. That points to a cause outside process state - a pre-incident deploy or flag flip in the hours never searched, or resource exhaustion never measured. Whether a charged-but-unpublished order was lost is not observable in these metrics and must be checked by hand.",
+    "risk": "Irreversible and discards in-process state. The stall happens after payment Charge succeeds, so in-flight customers may be charged with no order placed - reconcile against payment. It also destroys the wedged process state that would distinguish deadlock from freeze. If a leak or pool deadlock is the mechanism (unmeasured - no CPU/memory/GC series retrieved), the freeze simply returns.",
+    "blast_radius": "frontend sees connection resets on PlaceOrder during the recreate, surfacing to frontend-proxy and load-generator. cart, currency, payment, product-catalog, shipping and email see checkout traffic stop then resume; accounting's orders gap persists until publishing restarts."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Two independent critical seeds (checkout, accounting) alerting two minutes apart with wide downstream exposure cannot be dismissed, and no open incident could account for it. Nothing in the alert pattern points at a specific fault class yet."
+  }
+}

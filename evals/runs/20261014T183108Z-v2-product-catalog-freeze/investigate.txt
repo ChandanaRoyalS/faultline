@@ -1,0 +1,61 @@
+incident 1a8b535b-9f12-4779-bf65-eabc5fa0f47b  state triaging  anchor 18:35:31
+triage: 3 services, severity critical, start from frontend-proxy, 1 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 7e73df51-0552-449f-b983-40d68e3a48b6
+triage judged: investigate (medium confidence, suspects unknown)
+  Critical alert on frontend-proxy with the load generator also firing indicates user-facing impact rather than a lone synthetic signal, and frontend downstream is an unexamined candidate cause. No open incidents to attribute it to, so it warrants investigation.
+investigation: 2 round(s), 8 dispatch(es), 22 step(s)
+
+=== PROPOSAL ===
+  ABSTAINED - no permitted action fits the evidence
+  if wrong    : Abstention would be shown wrong if cart-side evidence arrived naming a deploy or config change on a service inside this blast radius that explains the parse failures, or if the mechanism turned out to be process state on frontend or frontend-proxy — e.g. frontend-proxy beginning to emit logs again after a recreate, or the cart-storage error lines ceasing after a frontend restart. Neither is supported today: the corruption is in bytes read back from cart's store, which no restart of frontend or frontend-proxy touches. It would also be wrong if frontend-proxy's zero-log anomaly [tr_c246a55b30e6] resolved to a proxy-local fault, but that is currently indistinguishable from a collection gap and a restart would destroy the evidence needed to tell them apart.
+  rests on    : tr_fb32cfc2242a, tr_0c5702aba5e7, tr_5299f83652bc, tr_3584deb08b7a
+  execution   : not executed - a proposal is a claim, never the change (ADR-0028 §1)
+
+context: 29505 pushed / 7049 pulled (pull rate 0.1928), 1 section(s) dropped
+
+=== VERDICT ===
+  fault class : datastore_corruption
+  fix class   : restore_data
+  confidence  : medium
+  evidence    : tr_fb32cfc2242a, tr_1b45dab3107b, tr_474fb03453e0, tr_3cc984ae143c, tr_3584deb08b7a, tr_5299f83652bc, tr_0c5702aba5e7
+  root cause  : The failing mechanism is in the cart service's Valkey-backed cart store: stored cart payloads cannot be deserialized. Frontend's own logs carry only relayed gRPC statuses from cart — FAILED_PRECONDITION (code 9, "can't access cart storage") and INTERNAL (code 13) during checkout — and every stack trace terminates in cart-service cart-store code with a protobuf parse failure on bytes that were successfully read back from the store [tr_fb32cfc2242a]. The store is reachable and returning data; the data itself is malformed/truncated, which is datastore corruption rather than a connectivity, latency or capacity fault. Frontend is only a relay — its own error-status ratio is identically zero through the incident window [tr_1b45dab3107b, tr_474fb03453e0] — and frontend-proxy adds no measurable cost or failure of its own [tr_3584deb08b7a]. The error-ratio excursion visible at the edge at 18:34:31 [tr_3cc984ae143c] is the user-visible surfacing of cart-path failures; no change record exists for frontend-proxy at all [tr_5299f83652bc] and the only frontend changes are a fully-reverted, automation-driven CART_ADDR flap that left no state in effect at onset [tr_0c5702aba5e7], so no deploy or config edit explains the symptom.
+  OPEN        : No dispatch was run against cart itself — no cart logs, metrics, traces or change history. The corruption is inferred entirely from frontend's relayed stack traces [tr_fb32cfc2242a], and cart-side confirmation (parse-failure rate, Valkey key inspection, recent cart deploy or serialization-format change) is missing.
+  OPEN        : The cart-storage errors were already present from 17:35 onward [tr_fb32cfc2242a], roughly an hour before the 18:34:31 proxy change point [tr_3cc984ae143c]. Whether the corruption worsened at 18:34, or something else distinct caused the proxy spike, is unsettled — the frontend log result was truncated with its newest retained line at 17:42 and the trace sample ends at 18:30:58 [tr_3584deb08b7a], so the onset minutes themselves were never directly observed.
+  OPEN        : frontend-proxy produced zero log lines of any kind over the whole window [tr_c246a55b30e6]. That is unexplained — collection gap, label mismatch, or the proxy not emitting — and until it is resolved a proxy-local fault cannot be fully excluded by its own signals.
+  OPEN        : No latency percentiles, request-rate, or saturation series were returned for either frontend or frontend-proxy [tr_3cc984ae143c, tr_474fb03453e0], so a concurrent latency or resource problem is unmeasured rather than ruled out.
+  OPEN        : What corrupted the cart payloads — a serialization-format change, a partial write, an eviction/truncation in Valkey, or a Valkey-side fault — is not established, and that determines whether flushing the store is sufficient or the corruption will recur.
+
+flags: none
+
+retrieval: exclude_origins=['scenario:v2-product-catalog-freeze'], 0 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20261014T183108Z-v2-product-catalog-freeze/1a8b535b-9f12-4779-bf65-eabc5fa0f47b-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20261014T183108Z-v2-product-catalog-freeze/1a8b535b-9f12-4779-bf65-eabc5fa0f47b-narrative.md
+{"ts": "2026-10-14T18:37:29.720+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T18:37:43.294+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T18:37:43.307+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=frontend-proxy start=2026-10-13T18:35:31.664000+00:00 end=2026-10-14T18:37:29.738036+00:00 span_s=86518 refused=False", "component": "investigator"}
+{"ts": "2026-10-14T18:37:43.308+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=frontend start=2026-10-13T18:35:31.664000+00:00 end=2026-10-14T18:37:29.738036+00:00 span_s=86518 refused=False", "component": "investigator"}
+{"ts": "2026-10-14T18:37:43.309+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=metric_baseline subject=sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"frontend\",status_code=\"STATUS_CODE_ERROR\"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"frontend\"}[5m])) start=2026-10-14T17:33:33.589964+00:00 end=2026-10-14T18:37:29.738036+00:00 span_s=3836 refused=False", "component": "investigator"}
+{"ts": "2026-10-14T18:37:43.310+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=metric_baseline subject=sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"frontend-proxy\",status_code=\"STATUS_CODE_ERROR\"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"frontend-proxy\"}[5m])) start=2026-10-14T17:33:33.589964+00:00 end=2026-10-14T18:37:29.738036+00:00 span_s=3836 refused=False", "component": "investigator"}
+{"ts": "2026-10-14T18:37:43.310+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=logql_query subject={service=\"frontend-proxy\"} start=2026-10-14T18:05:31.664000+00:00 end=2026-10-14T18:37:29.738036+00:00 span_s=1918 refused=False", "component": "investigator"}
+{"ts": "2026-10-14T18:37:54.965+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T18:37:55.503+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T18:37:55.676+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T18:38:00.031+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T18:38:00.938+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T18:38:20.594+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T18:38:20.618+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=logql_query subject={service=\"frontend\"} start=2026-10-14T17:35:31.664000+00:00 end=2026-10-14T18:37:29.738036+00:00 span_s=3718 refused=False", "component": "investigator"}
+{"ts": "2026-10-14T18:38:20.621+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=metric_baseline subject=sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"frontend\",status_code=\"STATUS_CODE_ERROR\"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"frontend\"}[5m])) start=2026-10-14T17:33:33.589964+00:00 end=2026-10-14T18:37:29.738036+00:00 span_s=3836 refused=False", "component": "investigator"}
+{"ts": "2026-10-14T18:38:20.622+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=trace_query subject=frontend-proxy start=2026-10-14T17:35:31.664000+00:00 end=2026-10-14T18:37:29.738036+00:00 span_s=3718 refused=False", "component": "investigator"}
+{"ts": "2026-10-14T18:38:32.747+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T18:38:39.697+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T18:38:39.699+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T18:39:15.231+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T18:39:56.024+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T18:40:16.286+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T18:40:35.104+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T18:40:35.152+00:00", "level": "INFO", "logger": "faultline.notify", "msg": "no report-ready notification was sent: no notifier was configured", "component": "investigator"}
+{"ts": "2026-10-14T18:40:35.153+00:00", "level": "INFO", "logger": "faultline.notify", "msg": "no awaiting-approval notification was sent: no notifier was configured", "component": "investigator"}

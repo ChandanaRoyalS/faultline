@@ -1,0 +1,97 @@
+{
+  "incident_id": "1bd5fec4-4619-4d17-ad6d-95c947983407",
+  "trajectory_id": "e9d6f44b-a57c-4d9f-aa86-3290526074e4",
+  "states": [
+    "triaging",
+    "investigating"
+  ],
+  "blast_radius": [
+    "frontend-proxy",
+    "load-generator",
+    "frontend"
+  ],
+  "unmeasured_edges": 1,
+  "exclude_origins": [
+    "scenario:scenario:v2-product-catalog-freeze"
+  ],
+  "verdict": {
+    "fault_class": "feature_flag",
+    "remediation_class": "config_revert",
+    "service": "frontend",
+    "alternatives": [
+      {
+        "root_cause": "frontend's process was stopped while its listening socket stayed open, so callers hung to their deadlines.",
+        "service": "frontend",
+        "fault_class": "process_freeze",
+        "remediation_class": null,
+        "why_not": "A freeze stalls every request, but frontend served POST /api/cart end-to-end in milliseconds, with full downstream child spans, moments after a 15s hang in the same trace (tr_c58f11300073)."
+      },
+      {
+        "root_cause": "A dependency of frontend became slow and frontend failed because it waited.",
+        "service": "frontend",
+        "fault_class": "dependency_latency",
+        "remediation_class": null,
+        "why_not": "The hanging frontend spans have no child spans at all and carry the full duration as self-time; cart, product-catalog and flagd all respond in milliseconds throughout the window (tr_954fe70d5995, tr_c58f11300073)."
+      },
+      {
+        "root_cause": "frontend-proxy was misconfigured with a wrong upstream or timeout and stalled requests itself.",
+        "service": "frontend-proxy",
+        "fault_class": "bad_config",
+        "remediation_class": null,
+        "why_not": "The proxy's own self-time is sub-millisecond and it correctly propagates to a live frontend span; no change was recorded for it in a 24h window (tr_aae08a0ffa3a, tr_60ac92d34ea9)."
+      },
+      {
+        "root_cause": "frontend exhausted its request-handling threads or connections, queueing requests until deadline.",
+        "service": "frontend",
+        "fault_class": "resource_exhaustion",
+        "remediation_class": null,
+        "why_not": "Plausible as a downstream effect, but nothing observed shows a saturation signal, and interleaved fast successes argue the handler pool was not uniformly starved; no supporting metric or log was obtainable."
+      }
+    ],
+    "summary": "A runtime-flagged code path in frontend began hanging on certain page/API GET requests, holding each request with no downstream work until callers hit their 15s deadline, while no artifact or configuration change was recorded anywhere.",
+    "confidence": "medium",
+    "evidence": [
+      "tr_954fe70d5995",
+      "tr_60ac92d34ea9",
+      "tr_c58f11300073",
+      "tr_66657ef96618",
+      "tr_7c9375e06efa",
+      "tr_9ee7bf2366fc",
+      "tr_aae08a0ffa3a",
+      "tr_af7db258e33c"
+    ],
+    "reasoning": "frontend-proxy and load-generator alert, but their failing spans are pure waits on the frontend hop: the frontend span consumes essentially the whole 15s as self-time and emits no child spans, so the stall is inside frontend before it calls any dependency (tr_954fe70d5995, tr_c58f11300073). Downstream services (cart, product-catalog, flagd) continue to answer in single-digit milliseconds in the same traces, so no dependency became slow. frontend's own error ratio stays flat at zero while the proxy's rises 37x with a change point just before onset (tr_7c9375e06efa, tr_66657ef96618) - the signature of a service that hangs rather than fails, with the error surfacing only at the caller. Within one trace a hanging GET is followed by a POST that frontend serves normally in milliseconds (tr_c58f11300073), so the process is alive, accepting and executing work; that excludes a frozen or partitioned process, which would stall everything. No deploy or configuration change exists for frontend or frontend-proxy over a 24h window (tr_9ee7bf2366fc, tr_aae08a0ffa3a), and none for the flag service either (tr_af7db258e33c), which is exactly the empty change log expected when the trigger is a runtime flag flip rather than an artifact or file edit. Remediation is to revert the flag value in the flag store.",
+    "open_questions": [
+      "Which flag and which code path: the log backend returned nothing for any service queried, so no frontend-side statement of what it was doing during the stall was obtainable.",
+      "Why only some request paths hang while others succeed - whether the selection is by route, by flag sampling percentage, or by a saturated worker pool.",
+      "Whether a worker/connection pool in frontend is being exhausted by the stuck requests as a secondary effect, which would be an alternative mechanism for the same symptom.",
+      "The exact flip time in the flag store; onset was inferred from the proxy error-ratio change point, not from a flag audit record."
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B1",
+    "tool_calls": 12,
+    "turns": 14,
+    "looked_at": [
+      "logs:frontend",
+      "traces:frontend",
+      "changes:frontend",
+      "logs:frontend-proxy",
+      "metrics:frontend",
+      "traces:frontend-proxy",
+      "changes:frontend-proxy",
+      "logs:load-generator",
+      "logs:product-catalog",
+      "metrics:frontend-proxy",
+      "traces:cart",
+      "changes:flagd"
+    ]
+  }
+}

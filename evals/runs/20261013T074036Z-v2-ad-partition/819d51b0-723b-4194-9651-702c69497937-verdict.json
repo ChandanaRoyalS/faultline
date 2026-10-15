@@ -1,0 +1,166 @@
+{
+  "incident_id": "819d51b0-723b-4194-9651-702c69497937",
+  "trajectory_id": "748410df-dc23-4f21-abcf-110305e341dd",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "ad",
+    "flagd",
+    "frontend",
+    "frontend-proxy",
+    "load-generator"
+  ],
+  "unmeasured_edges": 3,
+  "exclude_origins": [
+    "scenario:v2-ad-partition"
+  ],
+  "verdict": {
+    "root_cause": "ad is the only service whose own logs show a mechanism: from ~07:48 its OTel agent repeatedly fails to export with a DNS name-resolution failure on the collector hostname, failing at route planning before any socket is opened, recurring periodically [tr_5a5921ad0637]. The process is alive and writing, which marks a partition rather than a freeze. This coincides with ad's bursty error elevation over a tight baseline [tr_bea36e7ec425], frontend-proxy's ~90x intermittent error ratio over a near-zero baseline [tr_7f5b39827403], and frontend-proxy emitting zero log lines of any kind [tr_b4e1f092f921]. No change for ad near onset \u2014 only a memory-limit lower/revert pair that closed ~16h earlier [tr_d2cb5b9acaf1] \u2014 and none for flagd [tr_19038813c135], whose error ratio is flat [tr_6a2a73048375]. Best reading: ad lost network/DNS reachability, silencing telemetry and producing intermittent failures that surface at the proxy.",
+    "service": "ad",
+    "fault_class": "network_partition",
+    "remediation_class": "reconnect",
+    "confidence": "low",
+    "evidence": [
+      "tr_5a5921ad0637",
+      "tr_b4e1f092f921",
+      "tr_7f5b39827403",
+      "tr_bea36e7ec425",
+      "tr_79d7471bc153",
+      "tr_d2cb5b9acaf1"
+    ],
+    "reasoning": "Only ad reports a concrete fault, and it is a reachability fault: resolution fails before any connection, which excludes a peer that is up but rejecting and excludes a wrong port or path [tr_5a5921ad0637]. ad still logs at 07:48 and 07:49, so it is not frozen [tr_5a5921ad0637]. frontend-proxy's elevation is partial and bursty with returns to zero [tr_7f5b39827403], matching an intermittently unreachable upstream rather than a constant failure, and its total log silence including success lines suggests a broken telemetry egress path of the same kind [tr_b4e1f092f921]. Change logs remove deploy, config and flag triggers [tr_d2cb5b9acaf1][tr_19038813c135], and flagd is metrically unchanged [tr_6a2a73048375]. The weak link: ten sampled traces through ad complete cleanly with no error spans [tr_79d7471bc153], so the request-path errors are not directly reproduced and the DNS failure is only demonstrated on the export path \u2014 hence low confidence.",
+    "open_questions": [
+      "Whether ad's resolver fails for all hostnames or only the collector \u2014 nothing tested ad's reachability to other peers, and that decides partition vs. a telemetry-only outage.",
+      "Which upstream and status codes drive frontend-proxy's errors: the metric had no route or status dimension and the proxy produced no logs.",
+      "Whether frontend's and load-generator's symptoms were measured at all; neither was dispatched, so the propagation path from ad to the alerting services is inferred."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "A cluster-wide DNS or collector outage made telemetry export fail across services, so ad's log is a symptom and the real fault sits in the platform's name resolution or collector.",
+        "service": "otel-collector",
+        "fault_class": "network_partition",
+        "remediation_class": "reconnect",
+        "why_not": "Nothing was dispatched against the collector or DNS, so this is unmeasured; ad is the only service with a named failing hostname, and frontend-proxy's error surge is request-path, not telemetry."
+      },
+      {
+        "root_cause": "ad intermittently fails requests under resource pressure, with errors propagating to frontend-proxy; the memory-limit edits hint at prior constraint.",
+        "service": "ad",
+        "fault_class": "resource_exhaustion",
+        "remediation_class": "scale",
+        "why_not": "The lowered limit was reverted ~16h before onset [tr_d2cb5b9acaf1], and no memory, restart or CPU series was ever measured [tr_bea36e7ec425]; the only observed failure mode is name resolution."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "v2-ad-memory-squeeze / What was observed: The page was two alerts in the same moment, `ServiceHighErrorRate` on **frontend-proxy** and\n**frontend**, 5m01s after the trouble started. Three minutes later `ServiceNoTraffic` fired on\n**ad**. Three alerts on three services by the fix, and none after it.\n\nThe frontend's error ",
+    "v2-ad-memory-squeeze / What was checked: **The page names callers.** Frontend-proxy forwards what the frontend returns, and the load\ngenerator is the synthetic shoppers counting their own failures. The frontend was the one service\nmaking calls that failed, and the order path was not among them.\n\n**The frontend's error t",
+    "v2-ad-bad-image-tag / What was checked: **The page names callers.** Frontend-proxy forwards what the frontend returns, and the load\ngenerator is the synthetic shoppers counting their own failures. The frontend was the one service\nmaking calls that failed, and the order path was not among them.\n\n**The frontend's error t"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 28937,
+    "pulled_tokens": 5641,
+    "pull_rate": 0.1631,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 392,
+        "content_tokens": 394,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1830,
+        "content_tokens": 1834,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 8966,
+        "content_tokens": 8943,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 8118,
+        "content_tokens": 8119,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 9631,
+        "content_tokens": 9608,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_5a5921ad0637",
+      "tr_d2cb5b9acaf1",
+      "tr_bea36e7ec425",
+      "tr_b4e1f092f921"
+    ],
+    "expected_effect": "No action is proposed, so no change in any metric or log stream should be expected from this system. The condition that would need to be addressed \u2014 ad's OTel agent failing hostname resolution for the collector, recurring at ~60s intervals [tr_5a5921ad0637] \u2014 will continue to appear in ad's logs until a network-level repair is made by an operator outside this system. The correct next observation is diagnostic, not remedial: test ad's resolution/reachability to a non-collector peer (e.g. flagd or frontend) to decide whether this is a full partition or a telemetry-only export outage.",
+    "confirm_within_seconds": 0,
+    "if_wrong": "This abstention is wrong if a reviewer can show that one of the three built actions actually meets its stated preconditions. Specifically: if change history outside the briefed window holds a deploy or config push to ad near 07:48 (the briefed history shows only two resource_limits entries ~16h prior, both closed [tr_d2cb5b9acaf1]), rollback_image or revert_config would become legal. It is also wrong if the mechanism is in-process rather than network \u2014 e.g. a stale JVM DNS cache inside ad's agent \u2014 in which case restart_service would be both legal and curative; nothing in the evidence tests ad's resolver against any hostname other than the collector, so that reading is not excluded, only unsupported. The named fix class, reconnect, is correct per the verdict but the executor cannot perform it (T6.2), which is the controlling reason for abstaining rather than acting.",
+    "risk": "The risk of abstaining is that ad's telemetry stays dark and frontend-proxy's intermittent ~1.6% error ratio [tr_7f5b39827403] persists unaddressed, and that the blindness compounds: frontend-proxy already emits zero log lines [tr_b4e1f092f921], so the incident is being read through a shrinking set of signals. The risk of the alternative \u2014 proposing restart_service on ad anyway to force a resolver re-initialisation \u2014 is that if the fault is a genuine network partition, the restart does nothing, discards ad's in-process cache, drops in-flight GetAds calls from frontend (ad's only caller), and spends the one irreversible action in the allowlist on a hypothesis the evidence does not support. ad is still serving the large majority of requests [tr_bea36e7ec425]; a needless recreate makes a partial degradation briefly total.",
+    "blast_radius": "No service is touched. For the restart that is being declined: it would have hit ad alone, and frontend is ad's sole upstream caller, with frontend-proxy and load-generator behind it on the same path \u2014 so the connection reset would have surfaced as a burst at exactly the two services already alerting, making the remediation's effect hard to separate from the incident's."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "feature_flag",
+    "confidence": "low",
+    "reasoning": "Critical multi-service alerting at the edge plus the ad service, with flagd as the one-hop candidate cause, is not dismissible. Feature flag is a cheap prior given flagd's position; evidence may say otherwise."
+  }
+}

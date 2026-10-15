@@ -1,0 +1,61 @@
+incident 8d394512-9b4d-4fc0-abcc-9f4baa2053a4  state triaging  anchor 23:50:31
+triage: 10 services, severity critical, start from currency, 7 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 884c6abe-20a5-4387-898a-551fb2ddf676
+triage judged: investigate (medium confidence, suspects unknown)
+  Six services alerting simultaneously at critical severity with a seventh a minute later is a broad, undismissable failure. The simultaneity suggests a shared cause (deploy, config, or flag via flagd) but nothing yet distinguishes them.
+investigation: 2 round(s), 8 dispatch(es), 22 step(s)
+
+=== PROPOSAL ===
+  ABSTAINED - no permitted action fits the evidence
+  if wrong    : This abstention is wrong if a follow-up dispatch returns (a) a change-log query whose window actually precedes 2026-10-11T23:50:31 and shows a deploy or config/flag change on a service in the blast radius — which would meet rollback_image or revert_config preconditions, both currently unmet because every change window queried started at the incident timestamp and ran forward [tr_3b5b2c6af50d, tr_44946be55ff6, tr_3f0972f0bc05]; or (b) cart/Redis metrics and traces at 23:50:31 confirming the slow-dependency hypothesis, in which case the correct fix is restore_store or reconnect_service — both listed UNAVAILABLE, so it would still be outside what this system may do. Note also that the predicted effect of any restart here would be largely unobservable: currency and checkout return zero log lines and currency returns zero span-metric samples in both incident and baseline windows [tr_6277e4836179, tr_2bad76dcfe7d, tr_5c2870e93ffb], so an error ratio or log line 'ceasing' could not be distinguished from the pre-existing telemetry gap.
+  rests on    : tr_80287145255b, tr_5c2870e93ffb, tr_6277e4836179, tr_2bad76dcfe7d, tr_3b5b2c6af50d, tr_44946be55ff6, tr_3f0972f0bc05
+  execution   : not executed - a proposal is a claim, never the change (ADR-0028 §1)
+
+context: 24046 pushed / 5261 pulled (pull rate 0.1795), 0 section(s) dropped
+
+=== VERDICT ===
+  fault class : unknown
+  fix class   : none
+  confidence  : low
+  evidence    : tr_80287145255b, tr_5c2870e93ffb, tr_6277e4836179, tr_2bad76dcfe7d, tr_3b5b2c6af50d, tr_44946be55ff6
+  root cause  : Not established by the dispatches run. The investigation produced almost entirely empty answers: no change records for currency or flagd (and the change-log window queried started at the incident timestamp and ran forward, so the pre-incident period was never inspected) [tr_3b5b2c6af50d, tr_44946be55ff6, tr_3f0972f0bc05]; no span-metric samples for currency in either the incident or baseline window [tr_5c2870e93ffb]; no log lines at all for currency or checkout across the full window [tr_6277e4836179, tr_2bad76dcfe7d]. The only positive signal is tracing, which shows currency serving Convert normally in sub-2ms with no errors or timeouts, while the observed latency sits in cart's ~300ms Redis commands and in checkout self-time, with one truncated trace lacking its payment/email legs [tr_80287145255b]. That evidence actively exonerates currency as the origin despite triage starting there, but nothing dispatched examined cart, its Redis store, checkout, or the seven unmeasured edges, so the actual failing mechanism remains unidentified. The leading unconfirmed hypothesis is a slow dependency in the cart/Redis path dragging checkout and its fan-out of callers (payment, email, shipping, accounting, quote, fraud-detection) past their deadlines.
+  OPEN        : No dispatch examined cart or its Redis dependency, which is where the only observed latency sits - metrics, logs and traces for cart around 23:50:31 are needed.
+  OPEN        : The change-log window ran forward from the incident timestamp, so no pre-incident change for any service has actually been checked.
+  OPEN        : Were currency and checkout genuinely silent, or are their logs/metrics missing under a different service label? The baseline windows are equally empty, suggesting a telemetry gap that invalidates all absence-based conclusions.
+  OPEN        : No trace sampled at or after 23:50:31 was returned; the behaviour at the actual onset minute is unobserved.
+  OPEN        : Why did fraud-detection alert 60s after the others, and what do the seven unmeasured edges carry?
+
+flags: none
+
+retrieval: exclude_origins=['scenario:v2-currency-freeze'], 0 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20261011T234253Z-v2-currency-freeze/8d394512-9b4d-4fc0-abcc-9f4baa2053a4-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20261011T234253Z-v2-currency-freeze/8d394512-9b4d-4fc0-abcc-9f4baa2053a4-narrative.md
+{"ts": "2026-10-11T23:52:32.299+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-11T23:52:48.640+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-11T23:52:48.669+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=flagd start=2026-10-10T23:50:31.664000+00:00 end=2026-10-11T23:52:32.318337+00:00 span_s=86520 refused=False", "component": "investigator"}
+{"ts": "2026-10-11T23:52:48.670+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=metric_baseline subject=sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"flagd\",status_code=\"STATUS_CODE_ERROR\"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"flagd\"}[5m])) start=2026-10-11T22:48:31.009663+00:00 end=2026-10-11T23:52:32.318337+00:00 span_s=3841 refused=False", "component": "investigator"}
+{"ts": "2026-10-11T23:52:48.671+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=metric_baseline subject=sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"currency\",status_code=\"STATUS_CODE_ERROR\"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"currency\"}[5m])) start=2026-10-11T22:48:31.009663+00:00 end=2026-10-11T23:52:32.318337+00:00 span_s=3841 refused=False", "component": "investigator"}
+{"ts": "2026-10-11T23:52:48.671+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=currency start=2026-10-10T23:50:31.664000+00:00 end=2026-10-11T23:52:32.318337+00:00 span_s=86520 refused=False", "component": "investigator"}
+{"ts": "2026-10-11T23:52:48.673+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=logql_query subject={service=\"currency\"} start=2026-10-11T23:20:31.664000+00:00 end=2026-10-11T23:52:32.318337+00:00 span_s=1920 refused=False", "component": "investigator"}
+{"ts": "2026-10-11T23:52:59.594+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-11T23:52:59.720+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-11T23:53:00.717+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-11T23:53:00.860+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-11T23:53:01.744+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-11T23:53:20.254+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-11T23:53:20.262+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=flagd start=2026-10-10T23:50:31.664000+00:00 end=2026-10-11T23:52:32.318337+00:00 span_s=86520 refused=False", "component": "investigator"}
+{"ts": "2026-10-11T23:53:20.263+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=logql_query subject={service=\"checkout\"} start=2026-10-11T23:20:31.664000+00:00 end=2026-10-11T23:52:32.318337+00:00 span_s=1920 refused=False", "component": "investigator"}
+{"ts": "2026-10-11T23:53:20.264+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=trace_query subject=currency start=2026-10-11T22:50:31.664000+00:00 end=2026-10-11T23:52:32.318337+00:00 span_s=3720 refused=False", "component": "investigator"}
+{"ts": "2026-10-11T23:53:30.281+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-11T23:53:33.796+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-11T23:53:39.092+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-11T23:54:22.955+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-11T23:54:45.451+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-11T23:55:20.332+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-11T23:55:37.578+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-11T23:55:37.643+00:00", "level": "INFO", "logger": "faultline.notify", "msg": "no report-ready notification was sent: no notifier was configured", "component": "investigator"}
+{"ts": "2026-10-11T23:55:37.644+00:00", "level": "INFO", "logger": "faultline.notify", "msg": "no awaiting-approval notification was sent: no notifier was configured", "component": "investigator"}

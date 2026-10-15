@@ -1,0 +1,46 @@
+incident 1bd5fec4-4619-4d17-ad6d-95c947983407  state triaging  anchor 00:12:31
+triage: 3 services, severity critical, start from frontend-proxy, 1 unmeasured edge(s) crossed
+
+B1: feature_flag / config_revert (medium)
+  A runtime-flagged code path in frontend began hanging on certain page/API GET requests, holding each request with no downstream work until callers hit their 15s deadline, while no artifact or configuration change was recorded anywhere.
+  12 tool calls over 14 turns
+    logs:frontend  frontend is the downstream dependency in the blast radius; its logs will show whether it errors, complains it cannot reach dependencies, or is silent (freeze)
+    traces:frontend  determine whether frontend spans hang to deadlines (freeze/partition) or error fast, and whether frontend was serving at all before onset
+    changes:frontend  see whether any deploy/config change to frontend precedes onset, or whether the change log is empty (pointing to flag or freeze)
+    logs:frontend-proxy  see how the proxy characterizes the upstream failure (timeout/hang vs connection refused) and when it began
+    metrics:frontend  establish whether frontend itself shows an error-ratio departure and when, versus merely slow hangs
+    traces:frontend-proxy  confirm post-onset requests all hang at a fixed client deadline inside the frontend span with no child spans, indicating frontend stopped processing
+    changes:frontend-proxy  rule out a proxy-side config/deploy change (e.g. wrong upstream or timeout) as the cause of the 15s hangs
+    logs:load-generator  confirm the logging pipeline produced lines for some service in this window, so frontend's total silence is meaningful rather than an absent log source
+    logs:product-catalog  test whether the log pipeline yields anything at all in this window; if other services log and frontend does not, frontend's silence is real evidence
+    metrics:frontend-proxy  confirm the onset time and that proxy errors are sustained from 00:12 onward, consistent with frontend hanging continuously rather than a transient
+    traces:cart  check whether downstream services still receive traffic after 00:10; silence downstream while proxy hangs supports frontend ceasing to process rather than a slow dependency
+    changes:flagd  frontend hangs only on some requests with no downstream spans and no frontend change; check whether a flag-store/config change is recorded for flagd
+wrote /Users/chandana/dev/faultline/evals/runs/20261012T000815Z-v2-product-catalog-freeze/1bd5fec4-4619-4d17-ad6d-95c947983407-verdict.json
+{"ts": "2026-10-12T00:14:37.320+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-12T00:14:37.340+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=logql_query subject={service=\"frontend\"} start=2026-10-11T23:42:31.664000+00:00 end=2026-10-12T00:14:31.674656+00:00 span_s=1920 refused=False", "component": "investigator"}
+{"ts": "2026-10-12T00:14:41.684+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-12T00:14:41.686+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=trace_query subject=frontend start=2026-10-11T23:42:31.664000+00:00 end=2026-10-12T00:14:31.674656+00:00 span_s=1920 refused=False", "component": "investigator"}
+{"ts": "2026-10-12T00:14:46.703+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-12T00:14:46.718+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=frontend start=2026-10-11T00:12:31.664000+00:00 end=2026-10-12T00:14:31.674656+00:00 span_s=86520 refused=False", "component": "investigator"}
+{"ts": "2026-10-12T00:14:56.745+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-12T00:14:56.758+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=logql_query subject={service=\"frontend-proxy\"} start=2026-10-11T23:42:31.664000+00:00 end=2026-10-12T00:14:31.674656+00:00 span_s=1920 refused=False", "component": "investigator"}
+{"ts": "2026-10-12T00:15:04.451+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-12T00:15:04.454+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=metric_baseline subject=sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"frontend\",status_code=\"STATUS_CODE_ERROR\"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"frontend\"}[5m])) start=2026-10-11T23:10:31.653344+00:00 end=2026-10-12T00:14:31.674656+00:00 span_s=3840 refused=False", "component": "investigator"}
+{"ts": "2026-10-12T00:15:16.202+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-12T00:15:16.206+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=trace_query subject=frontend-proxy start=2026-10-11T23:42:31.664000+00:00 end=2026-10-12T00:14:31.674656+00:00 span_s=1920 refused=False", "component": "investigator"}
+{"ts": "2026-10-12T00:15:32.001+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-12T00:15:32.007+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=frontend-proxy start=2026-10-11T00:12:31.664000+00:00 end=2026-10-12T00:14:31.674656+00:00 span_s=86520 refused=False", "component": "investigator"}
+{"ts": "2026-10-12T00:15:41.698+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-12T00:15:41.703+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=logql_query subject={service=\"load-generator\"} start=2026-10-11T23:42:31.664000+00:00 end=2026-10-12T00:14:31.674656+00:00 span_s=1920 refused=False", "component": "investigator"}
+{"ts": "2026-10-12T00:15:49.537+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-12T00:15:49.540+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=logql_query subject={service=\"product-catalog\"} start=2026-10-11T23:42:31.664000+00:00 end=2026-10-12T00:14:31.674656+00:00 span_s=1920 refused=False", "component": "investigator"}
+{"ts": "2026-10-12T00:15:59.802+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-12T00:15:59.804+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=metric_baseline subject=sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"frontend-proxy\",status_code=\"STATUS_CODE_ERROR\"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"frontend-proxy\"}[5m])) start=2026-10-11T23:10:31.653344+00:00 end=2026-10-12T00:14:31.674656+00:00 span_s=3840 refused=False", "component": "investigator"}
+{"ts": "2026-10-12T00:16:12.214+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-12T00:16:12.217+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=trace_query subject=cart start=2026-10-11T23:42:31.664000+00:00 end=2026-10-12T00:14:31.674656+00:00 span_s=1920 refused=False", "component": "investigator"}
+{"ts": "2026-10-12T00:16:24.294+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-12T00:16:24.318+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=flagd start=2026-10-11T00:12:31.664000+00:00 end=2026-10-12T00:14:31.674656+00:00 span_s=86520 refused=False", "component": "investigator"}
+{"ts": "2026-10-12T00:16:35.040+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-12T00:17:07.022+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-12T00:17:22.669+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}

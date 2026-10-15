@@ -1,0 +1,169 @@
+{
+  "incident_id": "444f6557-955a-4710-8f87-ab5e1bdd8b3c",
+  "trajectory_id": "9afcae28-8810-4ee2-8089-6639fad1aadd",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "accounting",
+    "checkout",
+    "currency",
+    "email",
+    "flagd",
+    "fraud-detection",
+    "frontend",
+    "payment",
+    "quote",
+    "shipping"
+  ],
+  "unmeasured_edges": 7,
+  "exclude_origins": [
+    "scenario:v2-currency-freeze"
+  ],
+  "verdict": {
+    "root_cause": "fraud-detection stopped emitting at 22:21:49, ~4.5 minutes before onset, after processing orders normally with a steadily advancing count and no error, warning or retry in its final lines [tr_261f66595c47]. No startup banner or restart marker follows, so it did not crash or loop; it went silent while apparently still resident. No change landed near onset \u2014 the only entries are five platform-automation memory-limit mutations ~167h earlier ending on a revert that restored the limit, with no deploy or config edit at all [tr_16e86d2031d1]. flagd is clean: no recorded changes and only routine INFO file-watch events [tr_22b58cfd361d][tr_bcdeeb8d883b]. Traces show no error spans and no dependency absorbing time \u2014 duration is self-time on fraud-detection's own receive span [tr_caaf308bc316]. The remaining signature is a live-but-wedged process: a partitioned service would log that it cannot reach its broker, and a full disk would say so; this one says nothing. The seven peers alerting together three minutes later fits callers burning down deadlines against a socket that accepts and never answers.",
+    "service": "fraud-detection",
+    "fault_class": "process_freeze",
+    "remediation_class": "restart",
+    "confidence": "medium",
+    "evidence": [
+      "tr_261f66595c47",
+      "tr_16e86d2031d1",
+      "tr_caaf308bc316",
+      "tr_bcdeeb8d883b",
+      "tr_22b58cfd361d"
+    ],
+    "reasoning": "The only direct view of the culprit is its log, which shows abrupt mid-stream cessation from a service healthy seconds earlier [tr_261f66595c47]. Crash and restart loop are excluded by the absence of JVM/agent startup banners in the newest lines [tr_261f66595c47]. Partition is demoted because a running-but-cut-off process writes connection and retry errors, and the final 32 lines carry no error or warning severity [tr_261f66595c47]. The memory-limit edit is tempting but sits ~167h before onset and ends on a revert, and an OOM kill would leave a restart banner that is absent [tr_16e86d2031d1]. No downstream stall explains it: no flagd span, no error status, and receive-span time is self-time not time waiting on a child [tr_caaf308bc316]. Confidence is medium because all four metric dispatches were rejected with HTTP 400 and returned zero samples [tr_b0a42df12647][tr_be1af9ce98e5], leaving heap, CPU, thread and FD behaviour entirely unobserved \u2014 tool failures, not negative findings.",
+    "open_questions": [
+      "No metric series were obtained for any service; all metric dispatches failed with HTTP 400 [tr_b0a42df12647][tr_a12d2da54850][tr_be1af9ce98e5][tr_abe85f35e9d3], so GC thrash, thread-pool deadlock or FD exhaustion as the wedging mechanism is unmeasured.",
+      "Nobody probed the process or socket directly; liveness is inferred from absent restart markers rather than checked. Capture a thread dump before restarting.",
+      "The link from fraud-detection to the seven services alerting at 22:29:31 is asserted, not shown \u2014 it is a Kafka consumer with no upstream parent span [tr_caaf308bc316], a poor candidate to synchronously block payment, currency, quote and shipping; a shared upstream cause is not excluded."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "fraud-detection exhausted memory or threads and wedged under GC or pool starvation rather than being externally stopped.",
+        "service": "fraud-detection",
+        "fault_class": "resource_exhaustion",
+        "remediation_class": "restart",
+        "why_not": "The lowered memory limit was reverted ~167h before onset [tr_16e86d2031d1] and an OOM kill would produce a restart banner that is absent [tr_261f66595c47]; however no memory or thread metrics were retrievable, so this remains live."
+      },
+      {
+        "root_cause": "fraud-detection was cut off from its Kafka broker and peers, hanging callers while unable to reach anything.",
+        "service": "fraud-detection",
+        "fault_class": "network_partition",
+        "remediation_class": "reconnect",
+        "why_not": "A partitioned but running process logs connection and retry failures; the final lines before silence contain no error, warning or retry severity at all [tr_261f66595c47]."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "v2-fraud-detection-partition / What was observed: The page came 7m46s after onset and it was one line: `ServiceNoTraffic` on **fraud-detection**.\nNothing before it, nothing beside it, nothing after it. One alert on one service by the fix, and\nthe world all clear 1m00s after the fix.\n\nNothing else in the world had moved. The stor",
+    "v2-frontend-cart-misconfig / What was checked: **The error text, because it was the first thing a responder would read.** Checkout's error spans\nand the frontend's log said `shipping quote failure: failed POST to email service: expected 200,\ngot 400`. That names two services, and neither was at fault. It is checkout's own wor",
+    "v2-inj-kafka-disk-fill-log-checkout / What was observed: The page came 5m31s after onset: `ServiceHighLatency` on **checkout**. A minute later\n`ServiceHighErrorRate` on checkout and on **fraud-detection** together; at T+2m from the page\n`ServiceHighLatency` on fraud-detection and `ServiceNoTraffic` on **accounting**. Five alerts on\nthr"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 34029,
+    "pulled_tokens": 6659,
+    "pull_rate": 0.1637,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 433,
+        "content_tokens": 435,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1793,
+        "content_tokens": 1797,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 10569,
+        "content_tokens": 10545,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 9929,
+        "content_tokens": 9932,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 11305,
+        "content_tokens": 11282,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "restart",
+    "action_id": "restart_service",
+    "target": "fraud-detection",
+    "rests_on": [
+      "tr_261f66595c47",
+      "tr_16e86d2031d1",
+      "tr_caaf308bc316"
+    ],
+    "expected_effect": "Recreating the container should end the silent-but-resident state. Within ~60-120s of the recreate, fraud-detection's log stream should show the normal JVM/OTel startup sequence (JAVA_TOOL_OPTIONS / javaagent lines, as seen at the far edge of the window in [tr_261f66595c47]) followed by resumption of the routine order-consumption records with a monotonically advancing count \u2014 the exact line class that ceased at 22:21:49. Confirmation is by log emission and by new Tempo traces rooted at fraud-detection/orders receive appearing with timestamps after the recreate [tr_caaf308bc316]; do NOT expect metric confirmation, since every metric dispatch in this incident failed with HTTP 400 and no series are retrievable. Secondary, weaker expectation: the seven co-alerting peers stop alerting within a few minutes of consumption resuming. Before executing, capture a thread dump / process and socket probe \u2014 restarting destroys the only remaining evidence of the wedging mechanism (GC thrash, pool deadlock, FD exhaustion), which is currently unmeasured.",
+    "confirm_within_seconds": 300,
+    "if_wrong": "Falsified if (a) logs resume with startup banners but order-consumption records do not restart or stall again within minutes \u2014 the wedge is not in-process state but in the consumer's path to the broker, which a restart will not fix; or (b) consumption resumes normally yet payment, currency, quote, shipping, accounting and email keep alerting past ~5 minutes \u2014 fraud-detection was not the cause and a shared upstream (broker, collector, or host-level) fault is still live. Note the causal link from fraud-detection to those seven is asserted, not shown: the traces give a Kafka consumer with no upstream parent span [tr_caaf308bc316], a poor candidate to synchronously block them. Also falsified if no startup banner appears at all after the recreate, which would mean the container did not come back.",
+    "risk": "Not reversible. If the diagnosis is wrong, this discards the wedged process and with it the only direct evidence of the freeze mechanism \u2014 no thread dump, no FD count, no heap state \u2014 leaving a recurrence undiagnosable, and metrics cannot substitute because the metric path is returning HTTP 400 [tr_b0a42df12647]. In-flight order consumption is dropped; any Kafka messages taken but not committed are reprocessed or skipped depending on offset commit position, so fraud scoring for a small number of orders may be duplicated or missed. If the true fault is upstream (broker partition, collector, host resource pressure), the restarted process wedges again and the incident clock has been spent. The service also rejoins its consumer group, forcing a rebalance.",
+    "blast_radius": "One service for the duration of the recreate, plus a consumer-group rebalance on the orders topic. fraud-detection is a message consumer with no inbound parent spans [tr_caaf308bc316], so no synchronous caller should see a connection reset; the effect on the seven co-alerting peers (accounting, currency, email, payment, quote, shipping) is the thing being tested, not a thing being guaranteed. Downstream of them, checkout and frontend would see any recovery indirectly. In-process state is cache only."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "feature_flag",
+    "confidence": "medium",
+    "reasoning": "Seven services failing near-simultaneously three minutes after fraud-detection, with flagd as the shared upstream candidate cause, points to a flag or config change rather than organic load. Critical severity and broad fan-out make this undismissable."
+  }
+}

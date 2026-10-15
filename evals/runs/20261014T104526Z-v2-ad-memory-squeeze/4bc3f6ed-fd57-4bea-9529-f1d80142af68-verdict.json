@@ -1,0 +1,165 @@
+{
+  "incident_id": "4bc3f6ed-fd57-4bea-9529-f1d80142af68",
+  "trajectory_id": "e005302a-685a-46fb-b0f3-ef69228fb8f8",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "ad",
+    "cart",
+    "checkout",
+    "frontend",
+    "frontend-proxy",
+    "product-catalog",
+    "product-reviews",
+    "recommendation"
+  ],
+  "unmeasured_edges": 7,
+  "exclude_origins": [
+    "scenario:v2-ad-memory-squeeze"
+  ],
+  "verdict": {
+    "root_cause": "The frontend is not at fault: every error it logs is an outbound gRPC connection failure to a single peer, 172.18.0.19:9555, the ad service's port, escalating from ECONNREFUSED to EHOSTUNREACH [tr_7aa78830adfe]. The ad service's change log shows an automated policy repeatedly clamping its memory limit to 144m and restoring it, with the latest clamp five minutes before onset and never restored [tr_e28af516e347]. That is the signature of a callee being killed for exceeding its memory cap: the endpoint stops accepting, the caller sees refused connections, and the ad hop emits no spans at all across 174 sampled spans [tr_04ece1c3b26b]. Only ad-bearing paths fail, which is why the frontend error ratio rises ~1.67x and peaks at 0.093 without locking high [tr_45251a674f30]. The limit edit is how it started; running out of memory is what is happening.",
+    "service": "ad",
+    "fault_class": "resource_exhaustion",
+    "remediation_class": "config_revert",
+    "confidence": "medium",
+    "evidence": [
+      "tr_7aa78830adfe",
+      "tr_e28af516e347",
+      "tr_04ece1c3b26b"
+    ],
+    "reasoning": "The frontend log names exactly one dependency, by IP and port, in every error line, which excludes an internal frontend bug and a multi-dependency failure [tr_7aa78830adfe]. The only change on that service in the entire retention window is a cycling 144m memory cap, last applied five minutes before onset with no restoration \u2014 no deploy, no flag, no scale-down [tr_e28af516e347]. Refused connections rather than error responses point to a process that is dead or restarting, not slow. The trace specialist read ad's absence from all traces as exoneration; I read it as corroboration, since an OOM-killed callee emits no spans [tr_04ece1c3b26b]. The partial error elevation fits one missing fan-out leg [tr_45251a674f30]. The two dispatches finding ad healthy queried 03:50-09:50 [tr_48b01b06585b, tr_9071767761cf] \u2014 a window ending an hour before the incident begins \u2014 so they are baseline, not refutation. Reverting the limit is the fix; a restart alone would be re-killed by the same cap.",
+    "open_questions": [
+      "No ad logs or metrics were gathered inside the actual incident window (10:20-10:52); OOM-kill or restart events there would confirm the mechanism directly, and without them the link from the 144m cap to the refused connections is inferred.",
+      "The mapping of 172.18.0.19:9555 to the ad service rests on port convention, not a verified service-to-IP lookup; if that port belongs to another workload, blame moves with it.",
+      "The shift from ECONNREFUSED to EHOSTUNREACH is unexplained by a simple kill loop \u2014 refused implies a host with nothing listening, unreachable implies the host or route is gone."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "The ad service's container lost its network attachment or was descheduled, leaving it running but unreachable from the frontend.",
+        "service": "ad",
+        "fault_class": "network_partition",
+        "remediation_class": "reconnect",
+        "why_not": "A partition does not explain the memory-cap change landing five minutes before onset, and the early ECONNREFUSED indicates a reachable host with no listener rather than a severed route."
+      },
+      {
+        "root_cause": "product-catalog latency is the real driver of frontend degradation, flagged as the degrading hop in four traces.",
+        "service": "product-catalog",
+        "fault_class": "dependency_latency",
+        "remediation_class": "restart",
+        "why_not": "Single-digit-millisecond self-times cannot produce gRPC UNAVAILABLE errors, and the frontend's log names no address but the one on port 9555."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "v2-product-catalog-freeze / What was checked: **The proxy, because it was loudest.** Its errors were all the same kind: upstream requests\ncut at the fifteen-second route timeout. The proxy was doing its job. Nothing in its own\nbehaviour had changed, so it was reporting the problem, not causing it.\n\n**Frontend, because its la",
+    "v2-frontend-cart-misconfig / What was checked: **The error text, because it was the first thing a responder would read.** Checkout's error spans\nand the frontend's log said `shipping quote failure: failed POST to email service: expected 200,\ngot 400`. That names two services, and neither was at fault. It is checkout's own wor",
+    "v2-ad-bad-image-tag / What was checked: **The page names callers.** Frontend-proxy forwards what the frontend returns, and the load\ngenerator is the synthetic shoppers counting their own failures. The frontend was the one service\nmaking calls that failed, and the order path was not among them.\n\n**The frontend's error t"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 22010,
+    "pulled_tokens": 8827,
+    "pull_rate": 0.2862,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 433,
+        "content_tokens": 435,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1324,
+        "content_tokens": 1328,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 6777,
+        "content_tokens": 6753,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 5913,
+        "content_tokens": 5915,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 7563,
+        "content_tokens": 7540,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "config_revert",
+    "action_id": "revert_config",
+    "target": "ad",
+    "rests_on": [
+      "tr_e28af516e347",
+      "tr_7aa78830adfe",
+      "tr_04ece1c3b26b"
+    ],
+    "expected_effect": "Restoring the ad service's previous resource configuration (memory limit = None, the recorded prior state before the 10:45:30 clamp to 144m) and recreating the container should put a listener back on port 9555. Observable as: (1) frontend logs stop emitting new `14 UNAVAILABLE ... connect ECONNREFUSED/EHOSTUNREACH 172.18.0.19:9555` lines within a few minutes of the recreate \u2014 the embedded last-error timestamp stops advancing; (2) ad spans reappear under frontend in Tempo traces on ad-bearing paths (currently zero ad spans in 174 sampled spans); (3) the frontend error ratio returns toward its 0.025 baseline mean with peaks well under the observed 0.093.",
+    "confirm_within_seconds": 600,
+    "if_wrong": "Falsified if, 10 minutes after the recreate, frontend still logs fresh connection failures to 172.18.0.19:9555 with an advancing last-error timestamp, or if ad spans are still absent from frontend traces. In particular, persistence of EHOSTUNREACH (rather than ECONNREFUSED) after the revert would indicate the host/route is gone \u2014 a network detach, not a memory cap \u2014 which this action cannot fix and which the permitted action set does not cover (reconnect_service is unavailable). Also falsified if ad logs/metrics inside 10:20\u201310:52 show no OOM-kill or restart activity at all, which would break the inferred link from the 144m cap to the refused connections; that evidence was never gathered. A third falsifier: the frontend error ratio stays at ~0.042 while ad spans return, meaning the errors came from a different workload that happens to own 172.18.0.19:9555 (the IP-to-service mapping rests on port convention, not a verified lookup).",
+    "risk": "If the diagnosis is wrong, this is a container recreate of a healthy ad service for no benefit: in-flight ad requests are dropped and any in-process ad cache is lost, briefly worsening the very error ratio we are trying to lower. Removing the memory cap is not free \u2014 the automated policy applied 144m four times in one day, and if the ad service has a genuine memory leak, lifting the ceiling lets it grow unbounded and apply memory pressure to co-located containers on the same host rather than being contained by an OOM kill. The policy itself is not changed by this action, so platform-automation may re-clamp to 144m and reproduce the fault; this is a symptom revert, not a fix of the loop.",
+    "blast_radius": "The ad service only, plus its inbound callers. frontend is the named caller of ad and will see connection resets for the seconds the container recreates \u2014 already failing on these paths, so the marginal harm is small. Through frontend, frontend-proxy and the load-generator's ad-bearing page loads see the same window. cart, checkout, product-catalog, product-reviews and recommendation are untouched; no dependency address is being changed, so no traffic moves to other services."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Critical alerts on frontend and its proxy simultaneously, with no open incident to attribute them to, affect user-facing traffic and cannot be dismissed. The simultaneous seed pair suggests a shared downstream dependency, but nothing in the alerts identifies a class yet."
+  }
+}

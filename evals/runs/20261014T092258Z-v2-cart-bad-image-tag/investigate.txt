@@ -1,0 +1,25 @@
+incident aa810445-58b1-444f-b4f3-8312ea4e03cf  state triaging  anchor 09:26:46
+triage: 13 services, severity critical, start from checkout, 13 unmeasured edge(s) crossed
+
+B1: bad_deploy / rollback (high)
+  cart was redeployed to the 2.2.0-cart-hotfix.2 image, which does not stay up, so cart's process shut down and its address stopped accepting connections, failing every checkout that needs the cart.
+  5 tool calls over 7 turns
+    logs:checkout  checkout alerted first; its logs should show whether it is failing itself or waiting on a dependency
+    traces:checkout  see whether checkout spans hang to deadline (freeze/partition) or fail fast
+    logs:frontend  see whether frontend reports timeouts/deadline-exceeded against checkout (hang) or explicit errors
+    logs:cart  cart at 7070 is unreachable to callers; see whether cart logs complain it cannot reach anything (partition) or is silent/dead
+    changes:cart  cart shut down and is unreachable; check whether a deploy/config change preceded it
+wrote /Users/chandana/dev/faultline/evals/runs/20261014T092258Z-v2-cart-bad-image-tag/aa810445-58b1-444f-b4f3-8312ea4e03cf-verdict.json
+{"ts": "2026-10-14T09:28:37.341+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T09:28:37.360+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=logql_query subject={service=\"checkout\"} start=2026-10-14T08:56:46.664000+00:00 end=2026-10-14T09:28:34.955146+00:00 span_s=1908 refused=False", "component": "investigator"}
+{"ts": "2026-10-14T09:28:40.790+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T09:28:40.797+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=trace_query subject=checkout start=2026-10-14T08:56:46.664000+00:00 end=2026-10-14T09:28:34.955146+00:00 span_s=1908 refused=False", "component": "investigator"}
+{"ts": "2026-10-14T09:28:46.173+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T09:28:46.183+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=logql_query subject={service=\"frontend\"} start=2026-10-14T08:56:46.664000+00:00 end=2026-10-14T09:28:34.955146+00:00 span_s=1908 refused=False", "component": "investigator"}
+{"ts": "2026-10-14T09:28:53.830+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T09:28:53.840+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=logql_query subject={service=\"cart\"} start=2026-10-14T08:56:46.664000+00:00 end=2026-10-14T09:28:34.955146+00:00 span_s=1908 refused=False", "component": "investigator"}
+{"ts": "2026-10-14T09:29:03.215+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T09:29:03.222+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=cart start=2026-10-13T09:26:46.664000+00:00 end=2026-10-14T09:28:34.955146+00:00 span_s=86508 refused=False", "component": "investigator"}
+{"ts": "2026-10-14T09:29:15.934+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T09:29:33.818+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T09:29:42.844+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}

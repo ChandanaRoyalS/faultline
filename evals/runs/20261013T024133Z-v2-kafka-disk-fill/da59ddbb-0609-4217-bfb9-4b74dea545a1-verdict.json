@@ -1,0 +1,173 @@
+{
+  "incident_id": "da59ddbb-0609-4217-bfb9-4b74dea545a1",
+  "trajectory_id": "1a3bdef9-b2dd-4c77-b84b-93aeb2c99bed",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "accounting",
+    "cart",
+    "checkout",
+    "currency",
+    "email",
+    "frontend",
+    "frontend-proxy",
+    "payment",
+    "product-catalog",
+    "shipping"
+  ],
+  "unmeasured_edges": 8,
+  "exclude_origins": [
+    "scenario:v2-kafka-disk-fill"
+  ],
+  "verdict": {
+    "root_cause": "Checkout and accounting both lost reachability to the Kafka brokers: the bootstrap hostname stops resolving and no broker connection can be established. Checkout's PlaceOrder handler completes all synchronous RPCs normally and then blocks 93-102s on the asynchronous order-publish span, which fails first with broker name-resolution/no-brokers-available and thereafter on an open circuit breaker; the proxy aborts at its ~15s timeout, producing checkout's ~15x error-ratio rise [tr_33e0a5486dc2, tr_51d93e2ba9bd]. Accounting, consuming normally at 02:17:20, degenerates into continuous Kafka broker and group-coordinator connectivity errors caused by DNS resolution failure for the same bootstrap hostname, with its span error ratio flat at zero because no work is being fetched [tr_42eb28a5deb4, tr_0aaae1342ea8]. Two unrelated clients - one producer, one consumer, different runtimes - failing identically at the same name, with no change recorded against either [tr_31460f5b3278, tr_9abf8eaf5170], places the fault in the Kafka endpoint's reachability, not in either caller.",
+    "service": "kafka",
+    "fault_class": "network_partition",
+    "remediation_class": "reconnect",
+    "confidence": "medium",
+    "evidence": [
+      "tr_33e0a5486dc2",
+      "tr_42eb28a5deb4",
+      "tr_51d93e2ba9bd",
+      "tr_0aaae1342ea8",
+      "tr_31460f5b3278",
+      "tr_9abf8eaf5170"
+    ],
+    "reasoning": "Checkout alerted but is not the fault: every synchronous dependency span completes in milliseconds, checkout's own handler self time is 1-2ms, and 100% of trace duration sits in one outbound Kafka publish span [tr_33e0a5486dc2]. That excludes checkout-internal exhaustion, a slow RPC dependency, and a proxy-side origin; the same dispatch also catches the pre-breaker failure mode directly, so the circuit breaker is reacting to a real downstream fault. Accounting shows the same fault from the consumer side - zero errors because no spans are produced at all, with the client naming DNS failure on both the broker and coordinator threads [tr_0aaae1342ea8, tr_42eb28a5deb4]. network_partition over process_freeze because the dependents are not silent and the failure occurs at name resolution before any socket exists. Not bad_config: no change records on either client, and accounting consumed successfully from the same configured hostname earlier in the same window. Not dependency_latency: the clients never connect; the long spans are retry churn, not waiting on a slow reply.",
+    "open_questions": [
+      "Kafka itself was never dispatched on - whether the brokers are running but unreachable, or gone entirely (which would also remove their DNS record), is unsettled.",
+      "Checkout's change point is 02:23:16, ~26 minutes before the earliest observed accounting Kafka error at 02:49:42, and accounting's logs were truncated, so the true onset is not pinned [tr_51d93e2ba9bd, tr_42eb28a5deb4].",
+      "Checkout emitted no logs for the entire window (a collection/labeling gap) and payment returned no metric samples in either window, so neither service's own account is available [tr_af22c0686fed, tr_3a19a9a4a37e]."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "The Kafka broker process or pod died, withdrawing its DNS record, so resolution failure is a secondary symptom of a dead process.",
+        "service": "kafka",
+        "fault_class": "process_freeze",
+        "remediation_class": "restart",
+        "why_not": "A stopped process whose record survives would give connection refusals or hangs on an established socket; the clients fail at hostname resolution before any connection attempt, pointing at reachability/discovery rather than the process. Kafka was never directly observed, so this stays live.",
+        "service_note": ""
+      },
+      {
+        "root_cause": "A cluster-wide DNS or service-discovery outage broke name resolution for many services, with Kafka clients merely the loudest victims.",
+        "service": "kafka",
+        "fault_class": "network_partition",
+        "remediation_class": "reconnect",
+        "why_not": "Only the Kafka bootstrap name is observed failing; checkout's synchronous RPCs to cart, currency, product-catalog and others all resolved and succeeded in milliseconds, which argues against broad resolution failure.",
+        "service_note": ""
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "v2-payment-memory-squeeze / What was observed: One alert. `ServiceHighLatency` on **payment**, 9m46s after the trouble started. It fired for\n45 seconds and cleared on its own, four minutes before the fix, and nothing fired after it.\n\nPayment's p95 had been 4ms. Within the first half-minute it read 18ms, then 26 to 28ms for th",
+    "v2-inj-cart-flag-failure-log-checkout / What was observed: The page came 6m16s after onset and it was one line: `ServiceHighErrorRate` on **checkout**.\nNothing before it, nothing beside it, and nothing after it - no latency alert, no service gone\nquiet, and nothing in the recovery.\n\nCheckout's error ratio was 4.9% at T+2, 6.7% at T+4 and",
+    "v2-inj-kafka-disk-fill-log-checkout / What was checked: **Checkout, because it paged.** Its error traces were all orders, and all the same shape:\n`PlaceOrder` prepared the order - cart, catalog, currency, shipping quote - charged the card,\nbooked the shipment, emptied the cart, sent the confirmation email, and then held on its last st"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 30422,
+    "pulled_tokens": 7610,
+    "pull_rate": 0.2001,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 461,
+        "content_tokens": 463,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1679,
+        "content_tokens": 1682,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 9387,
+        "content_tokens": 9363,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 8694,
+        "content_tokens": 8696,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 10201,
+        "content_tokens": 10178,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_33e0a5486dc2",
+      "tr_42eb28a5deb4",
+      "tr_31460f5b3278",
+      "tr_9abf8eaf5170"
+    ],
+    "expected_effect": "No action proposed, so no effect is expected. The mechanism identified is loss of reachability to the Kafka bootstrap endpoint (name resolution failure) observed identically from two unrelated clients in two runtimes [tr_33e0a5486dc2, tr_42eb28a5deb4]. The only action class that addresses that mechanism is reconnect, which the brief lists as UNAVAILABLE (not built in the executor). The fault is also not located in any service in the legal target list: Kafka itself is not a permitted target, and neither checkout nor accounting is the faulting component. Of the three available actions: rollback_image and revert_config both fail their preconditions, because the change log records no deploy, config, dependency or infrastructure change for either checkout or accounting over the full 24h window [tr_31460f5b3278, tr_9abf8eaf5170]; restart_service fails its precondition because the evidence points at an external endpoint's reachability, not at process state in either caller - checkout's synchronous RPCs all complete normally and accounting consumed normally at 02:17:20 before the broker name stopped resolving [tr_33e0a5486dc2, tr_42eb28a5deb4]. The correct next step is a dispatch on Kafka itself to settle whether the brokers are running-but-unreachable or gone, which this system may not perform.",
+    "confirm_within_seconds": 0,
+    "if_wrong": "This abstention is wrong if the bootstrap hostname is in fact resolvable from the host and the failure is a stale resolver cache or dead connection pool held inside the two client processes - in that case a restart_service on checkout would be followed, within ~2 minutes, by checkout's error ratio dropping back toward its ~0.0076 baseline and the order-publish span completing in milliseconds instead of 93-102s. It is also wrong if a change to Kafka or to the network was made but recorded under a service name not queried here, in which case a config_revert on the owning component would be the right action. Either would be visible as a checkout error-ratio fall and a cessation of accounting's broker/coordinator error lines in Loki; no such observation is predicted here because no action is being taken.",
+    "risk": "The risk of abstaining is that the partition persists: checkout keeps returning ~15s proxy aborts on roughly 11% of calls (peaking at 50%) and accounting keeps fetching nothing, so order events accumulate unconsumed and the accounting ledger falls further behind for as long as this runs. That is a real, accruing cost and it is the price of not guessing. The risk of the alternative - restarting checkout or accounting on a medium-confidence diagnosis - is that it discards in-process state and resets the circuit breaker into a still-broken broker, producing a brief apparent recovery that masks the underlying partition and resets the error-ratio change point, making the true onset harder to pin than it already is (checkout's change point at 02:23:16 is already ~26 minutes ahead of accounting's earliest observed error at 02:49:42, and accounting's logs were truncated).",
+    "blast_radius": "No service is touched, so nobody sees a change from this proposal. The ongoing incident continues to be visible to frontend and frontend-proxy, which carry checkout's ~15s timeouts out to the load generator, and to accounting's consumer group. Had restart_service been proposed on checkout, the inbound callers frontend and frontend-proxy would have seen connection resets for the duration of the container recreate, and checkout's synchronous dependencies - cart, currency, product-catalog, payment, shipping, email - would have seen their inbound traffic pause and resume."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Critical severity with two independent seeds alerting two minutes apart and a wide downstream radius; nothing here can be dismissed and no open incident covers it. The shared dependency set of checkout suggests a common upstream, but the alerts do not point to a specific fault class yet."
+  }
+}

@@ -1,0 +1,160 @@
+{
+  "incident_id": "1a8b535b-9f12-4779-bf65-eabc5fa0f47b",
+  "trajectory_id": "7e73df51-0552-449f-b983-40d68e3a48b6",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "frontend",
+    "frontend-proxy",
+    "load-generator"
+  ],
+  "unmeasured_edges": 1,
+  "exclude_origins": [
+    "scenario:v2-product-catalog-freeze"
+  ],
+  "verdict": {
+    "root_cause": "The failing mechanism is in the cart service's Valkey-backed cart store: stored cart payloads cannot be deserialized. Frontend's own logs carry only relayed gRPC statuses from cart \u2014 FAILED_PRECONDITION (code 9, \"can't access cart storage\") and INTERNAL (code 13) during checkout \u2014 and every stack trace terminates in cart-service cart-store code with a protobuf parse failure on bytes that were successfully read back from the store [tr_fb32cfc2242a]. The store is reachable and returning data; the data itself is malformed/truncated, which is datastore corruption rather than a connectivity, latency or capacity fault. Frontend is only a relay \u2014 its own error-status ratio is identically zero through the incident window [tr_1b45dab3107b, tr_474fb03453e0] \u2014 and frontend-proxy adds no measurable cost or failure of its own [tr_3584deb08b7a]. The error-ratio excursion visible at the edge at 18:34:31 [tr_3cc984ae143c] is the user-visible surfacing of cart-path failures; no change record exists for frontend-proxy at all [tr_5299f83652bc] and the only frontend changes are a fully-reverted, automation-driven CART_ADDR flap that left no state in effect at onset [tr_0c5702aba5e7], so no deploy or config edit explains the symptom.",
+    "service": "cart",
+    "fault_class": "datastore_corruption",
+    "remediation_class": "restore_data",
+    "confidence": "medium",
+    "evidence": [
+      "tr_fb32cfc2242a",
+      "tr_1b45dab3107b",
+      "tr_474fb03453e0",
+      "tr_3cc984ae143c",
+      "tr_3584deb08b7a",
+      "tr_5299f83652bc",
+      "tr_0c5702aba5e7"
+    ],
+    "reasoning": "Three services were in the blast radius and only one concrete failing mechanism was observed anywhere in the dispatched evidence: protobuf deserialization failures on cart data read back from the Valkey cart store, on both the add-item and get-cart paths [tr_fb32cfc2242a]. That finding also tells us what it is not: the store answered with bytes, so it is not unreachable, and no timeout, deadline-exceeded or connection-reset line appears, so it is not latency or partition [tr_fb32cfc2242a]. Working outward from there, the other services' symptoms follow. frontend emits no errors of its own \u2014 its span error ratio is flat zero and actually improved versus baseline [tr_1b45dab3107b, tr_474fb03453e0] \u2014 consistent with a service that catches the upstream gRPC status and renders a handled failure rather than producing an error-status span. frontend-proxy shows a sharp, late, partial error elevation (peak ~27%, change point 18:34:31) with no gradual build [tr_3cc984ae143c], consistent with a subset of request paths \u2014 the cart/checkout paths \u2014 failing while the majority complete. frontend-proxy is excluded as the originator: its ingress/egress spans contribute sub-millisecond self time and pass through cleanly [tr_3584deb08b7a], and its change history is entirely empty [tr_5299f83652bc]. The CART_ADDR environment flap on frontend is tempting given the service it names, but all three applies were matched by reverts, the last landing 2.7h before onset, leaving configuration at its pre-window baseline [tr_0c5702aba5e7]; a wrong address would also produce connection errors, not parse errors on returned bytes. The correct fix is therefore to clear or restore the corrupted cart store contents, not to roll back an artifact or revert a config value.",
+    "open_questions": [
+      "No dispatch was run against cart itself \u2014 no cart logs, metrics, traces or change history. The corruption is inferred entirely from frontend's relayed stack traces [tr_fb32cfc2242a], and cart-side confirmation (parse-failure rate, Valkey key inspection, recent cart deploy or serialization-format change) is missing.",
+      "The cart-storage errors were already present from 17:35 onward [tr_fb32cfc2242a], roughly an hour before the 18:34:31 proxy change point [tr_3cc984ae143c]. Whether the corruption worsened at 18:34, or something else distinct caused the proxy spike, is unsettled \u2014 the frontend log result was truncated with its newest retained line at 17:42 and the trace sample ends at 18:30:58 [tr_3584deb08b7a], so the onset minutes themselves were never directly observed.",
+      "frontend-proxy produced zero log lines of any kind over the whole window [tr_c246a55b30e6]. That is unexplained \u2014 collection gap, label mismatch, or the proxy not emitting \u2014 and until it is resolved a proxy-local fault cannot be fully excluded by its own signals.",
+      "No latency percentiles, request-rate, or saturation series were returned for either frontend or frontend-proxy [tr_3cc984ae143c, tr_474fb03453e0], so a concurrent latency or resource problem is unmeasured rather than ruled out.",
+      "What corrupted the cart payloads \u2014 a serialization-format change, a partial write, an eviction/truncation in Valkey, or a Valkey-side fault \u2014 is not established, and that determines whether flushing the store is sufficient or the corruption will recur."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "The repeated automated CART_ADDR set/revert cycle on frontend pointed cart traffic at a wrong or stale address, breaking the cart call path.",
+        "service": "frontend",
+        "fault_class": "bad_config",
+        "remediation_class": "config_revert",
+        "why_not": "Every apply was matched by a revert and the final operation, 2.7h before onset, restored the pre-window state, so no wrong value was in effect at onset [tr_0c5702aba5e7]. A wrong address would also produce transport-level connection errors, whereas the observed failure is a parse exception on bytes successfully returned by the store [tr_fb32cfc2242a].",
+        "service_note": "frontend"
+      },
+      {
+        "root_cause": "A transient downstream dependency on the checkout/cart path became slow or intermittently unavailable around 18:34, surfacing as the proxy error excursion.",
+        "service": "cart",
+        "fault_class": "dependency_latency",
+        "remediation_class": "restart",
+        "why_not": "Sampled traces through the full downstream graph \u2014 cart, product-catalog, currency, payment, shipping, flagd \u2014 all complete in under 100ms with no long-tail span [tr_3584deb08b7a], and frontend's logs contain no timeout or deadline-exceeded lines [tr_fb32cfc2242a]. It is demoted but not dead, because the trace sample stops 3.5 minutes before the change point [tr_3584deb08b7a] and latency percentiles were never retrieved [tr_3cc984ae143c]."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 29505,
+    "pulled_tokens": 7049,
+    "pull_rate": 0.1928,
+    "dropped_sections": 1,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 79,
+        "content_tokens": 80,
+        "budget": 4000,
+        "kept": [
+          "incident"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1514,
+        "content_tokens": 1516,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 9127,
+        "content_tokens": 9130,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 8636,
+        "content_tokens": 8639,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 10149,
+        "content_tokens": 10127,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_fb32cfc2242a",
+      "tr_0c5702aba5e7",
+      "tr_5299f83652bc",
+      "tr_3584deb08b7a"
+    ],
+    "expected_effect": "No action is proposed, so nothing should change. The expected continuing observation is that frontend keeps relaying cart-originated gRPC statuses \u2014 FAILED_PRECONDITION (9, \"can't access cart storage\") and INTERNAL (13) on checkout \u2014 with protobuf parse failures terminating in cart-service cart-store code [tr_fb32cfc2242a], while frontend's own error-status span ratio stays at zero and frontend-proxy's error ratio continues its intermittent excursions. Escalation path: run a dispatch against cart (logs, metrics, change history) and, once an executor supports it, a restore_store/FLUSHALL on the cart Valkey store.",
+    "confirm_within_seconds": 0,
+    "if_wrong": "Abstention would be shown wrong if cart-side evidence arrived naming a deploy or config change on a service inside this blast radius that explains the parse failures, or if the mechanism turned out to be process state on frontend or frontend-proxy \u2014 e.g. frontend-proxy beginning to emit logs again after a recreate, or the cart-storage error lines ceasing after a frontend restart. Neither is supported today: the corruption is in bytes read back from cart's store, which no restart of frontend or frontend-proxy touches. It would also be wrong if frontend-proxy's zero-log anomaly [tr_c246a55b30e6] resolved to a proxy-local fault, but that is currently indistinguishable from a collection gap and a restart would destroy the evidence needed to tell them apart.",
+    "risk": "The risk of abstaining is continued user-visible cart and checkout failures for as long as the corrupt payloads sit in the store \u2014 they have already persisted since at least 17:35 [tr_fb32cfc2242a] and will not self-heal. That cost is accepted because every permitted action is worse: the named fix class (restore_data / restore_store) is UNAVAILABLE in this executor, and the correct target \u2014 cart and its Valkey store \u2014 is not in the blast radius this brief permits. rollback_image and revert_config both fail their preconditions: frontend has no image change recorded and its only config changes are a fully-reverted CART_ADDR flap whose last operation restored the baseline 2.7h before onset [tr_0c5702aba5e7], and frontend-proxy has no change records of any kind [tr_5299f83652bc]. restart_service fails its precondition too \u2014 the evidence points at persisted malformed data, not process state, and traces show frontend-proxy adding no cost or failure of its own [tr_3584deb08b7a]. Restarting or rolling back either service would reset in-process caches and connections, produce a visible recovery blip that could be misread as a fix, and leave the corrupt cart payloads untouched.",
+    "blast_radius": "None from this proposal \u2014 no service is modified and no caller sees a change. The ongoing blast radius of the unremediated fault is unchanged: cart-path and checkout requests through frontend and frontend-proxy, and the load-generator traffic exercising them. Had an action been taken, frontend's callers (frontend-proxy, and through it load-generator and real edge traffic) would have seen connection resets during container recreation."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Critical alert on frontend-proxy with the load generator also firing indicates user-facing impact rather than a lone synthetic signal, and frontend downstream is an unexamined candidate cause. No open incidents to attribute it to, so it warrants investigation."
+  }
+}

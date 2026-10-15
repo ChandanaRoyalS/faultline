@@ -1,0 +1,159 @@
+{
+  "incident_id": "11d83d20-2523-4099-bf60-f835a1bba8c8",
+  "trajectory_id": "95a2d139-dfbd-4b82-a5b5-b586637f52ab",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "ad",
+    "cart",
+    "checkout",
+    "frontend",
+    "frontend-proxy",
+    "product-catalog",
+    "product-reviews",
+    "recommendation"
+  ],
+  "unmeasured_edges": 7,
+  "exclude_origins": [
+    "scenario:v2-ad-memory-squeeze"
+  ],
+  "verdict": {
+    "root_cause": "Frontend is the service that noticed, not the one at fault. Its only error output is a repeating gRPC status 14 UNAVAILABLE against one single upstream endpoint, 172.18.0.19:9555 \u2014 the ad service's gRPC port \u2014 first connection-refused and later host-unreachable [tr_84e6458f42a0]. Four minutes before onset, platform-automation lowered the ad service's memory limit to 144m and, unlike the five earlier lower/restore cycles, never reverted it, so the constrained limit was in force when frontend errors began at 20:06:31 [tr_a4916a992357, tr_b77156c528e1]. A caller seeing a listener stop accepting and then the address vanish entirely, with no timeouts and no slow responses, is what an ad container being OOM-killed under a too-small memory cap looks like from outside. The failing mechanism is ad exhausting its freshly reduced memory allowance and being terminated.",
+    "service": "ad",
+    "fault_class": "resource_exhaustion",
+    "remediation_class": "config_revert",
+    "confidence": "medium",
+    "evidence": [
+      "tr_84e6458f42a0",
+      "tr_a4916a992357",
+      "tr_b77156c528e1",
+      "tr_3c9c9375c6f7",
+      "tr_33b9c207eb88"
+    ],
+    "reasoning": "Frontend itself is clean: no deploy, no flag flip, and the only config it touched (CART_ADDR) was reverted ~4.2h before onset [tr_3c9c9375c6f7]; its logs show only transport-layer connect failures to one address, no application or memory errors [tr_84e6458f42a0]. The errors are concentrated on exactly one upstream address and port, and the modest ~1.26% service-level error ratio with a sharp change point at 20:06:31 [tr_b77156c528e1] fits one non-critical dependency failing while other routes succeed \u2014 corroborated by traces where cart, product-catalog, checkout and recommendation paths complete with no error-flagged spans [tr_33b9c207eb88]. The only change near onset anywhere is the ad memory limit lowered to 144m four minutes prior with no revert [tr_a4916a992357]. Refused-then-unreachable excludes a latency story (no connection established, so nothing timed out) and excludes a process freeze, which would hang callers rather than refuse them. Confidence is medium because the ad logs and metrics dispatches covered 20:08\u201302:08 the previous day, ending ~18h before onset [tr_4cbcaeeedeed, tr_f720258f6763]; their 38% spike and traffic gaps belong to an earlier lower/restore cycle and say nothing about 20:03\u201320:08.",
+    "open_questions": [
+      "No dispatch resolved 172.18.0.19:9555 to a service; the mapping to ad is inferred from port convention.",
+      "No ad-side evidence covers the incident window \u2014 the OOM-kill, exit code and restart at ~20:04 are inferred, and no memory-usage or restart-count series for ad was ever returned.",
+      "Six services in the blast radius were never dispatched on, and the ~119ms product-reviews hop seen in traces remains unexplained."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "The ad service lost network reachability (address withdrawn or routing broken) while its process kept running.",
+        "service": "ad",
+        "fault_class": "network_partition",
+        "remediation_class": "reconnect",
+        "why_not": "A partition does not normally produce connection-refused first; refusal means the host answered but nothing was listening, which points at a dead process rather than a severed path. No ad-side log complaining it cannot reach anything was collected either way."
+      },
+      {
+        "root_cause": "The 144m memory limit is itself an invalid value for this service and the misconfiguration is the failure.",
+        "service": "ad",
+        "fault_class": "bad_config",
+        "remediation_class": "config_revert",
+        "why_not": "The edit is how it started, but what is happening now is a process being killed for exceeding a limit \u2014 that is exhaustion. The same remediation applies either way."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 29743,
+    "pulled_tokens": 8925,
+    "pull_rate": 0.2308,
+    "dropped_sections": 1,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 135,
+        "content_tokens": 136,
+        "budget": 4000,
+        "kept": [
+          "incident"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1669,
+        "content_tokens": 1671,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 9349,
+        "content_tokens": 9352,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 8469,
+        "content_tokens": 8471,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 10121,
+        "content_tokens": 10098,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "config_revert",
+    "action_id": "revert_config",
+    "target": "ad",
+    "rests_on": [
+      "tr_a4916a992357",
+      "tr_84e6458f42a0",
+      "tr_b77156c528e1"
+    ],
+    "expected_effect": "Restoring ad's previous resource configuration (removing the 144m memory limit applied at 20:03:36 and never reverted) and recreating the container should let ad start and hold its listener. Observable within a few minutes: (1) frontend's Loki stream stops emitting the repeating `14 UNAVAILABLE ... 172.18.0.19:9555` lines \u2014 a selector {service=\"frontend\"} should show zero new occurrences after the recreate completes; (2) frontend's error ratio (same query as tr_b77156c528e1) falls from its ~1.3% window mean / ~6.5-8.5% post-20:06 level back toward the ~0.21% baseline; (3) ad span volume returns, so the ad error-ratio series stops producing undefined (empty-denominator) intervals.",
+    "confirm_within_seconds": 300,
+    "if_wrong": "Frontend keeps logging the identical status-14 error against 172.18.0.19:9555 (or against ad's new address) more than ~5 minutes after the recreate, and its error ratio stays at the post-20:06 level. That would mean either the endpoint is not ad \u2014 the port-9555-to-ad mapping is inferred, no dispatch ever resolved that IP \u2014 or the mechanism is not the memory cap. The shift from ECONNREFUSED to host-unreachable is the specific thing to watch: host-unreachable is more consistent with ad being detached from the network than with an OOM-killed container, and reverting the memory limit would not fix that. Note also that no ad-side memory, restart-count or OOM evidence was ever returned, so the OOM-kill is inferred, not observed; if restart counts were available and show no restarts around 20:04, this proposal is wrong. Finally, platform-automation has lowered this limit five times before and reverted each time on its own \u2014 if the automation re-applies 144m after our revert, the fix will be transient and the errors will return, which is itself a falsification of 'config revert resolves this'.",
+    "risk": "If the diagnosis is wrong this costs an unnecessary container recreate of ad: in-flight ad requests are dropped and frontend sees connection resets on the ad hop for the duration, briefly adding to the very error ratio we are trying to lower. It also removes a memory cap that automation applied deliberately; if ad genuinely leaks, an unconstrained ad could instead consume host memory and pressure co-located services. Recreating the container may also change ad's IP, which would invalidate the one piece of evidence tying 172.18.0.19 to this incident and make the remaining open question harder to close. If the real fault is network-level (the host-unreachable phase), this action consumes time and changes nothing, and the correct fix \u2014 reconnecting ad to the network \u2014 is listed as UNAVAILABLE in this system.",
+    "blast_radius": "One service, ad. Its only named caller in this incident's graph is frontend, which reaches ad directly; frontend-proxy and end users see whatever frontend surfaces (the ads panel). The other candidate services \u2014 cart, checkout, product-catalog, product-reviews, recommendation \u2014 do not call ad and should see nothing. No dependency address is being changed, so no traffic moves to a different upstream. The ~119ms product-reviews hop seen in traces is unaddressed by this action and will remain."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Critical alerts on frontend and its proxy firing simultaneously affect all user traffic and cannot be dismissed. The simultaneity could mean a shared upstream dependency or a frontend-tier change, but nothing in the alerts picks one."
+  }
+}

@@ -1,0 +1,78 @@
+{
+  "incident_id": "987d74d0-5f92-472b-bbcf-cd9ebaad4839",
+  "trajectory_id": "0b4e87b0-1851-4a40-8c1f-67555975bac5",
+  "states": [
+    "triaging",
+    "investigating"
+  ],
+  "blast_radius": [
+    "fraud-detection",
+    "flagd"
+  ],
+  "unmeasured_edges": 1,
+  "exclude_origins": [
+    "scenario:scenario:v2-fraud-detection-flag-queue-lag"
+  ],
+  "verdict": {
+    "fault_class": "feature_flag",
+    "remediation_class": "config_revert",
+    "service": "fraud-detection",
+    "alternatives": [
+      {
+        "root_cause": "A dependency of fraud-detection (Kafka or flagd) became slow and fraud-detection blocked waiting on it",
+        "service": "flagd",
+        "fault_class": "dependency_latency",
+        "remediation_class": null,
+        "why_not": "The ~1s spans are entirely self-time within fraud-detection's own process span with no child dependency span absorbing the time, and the delay is exactly 1.000s per record, which is a coded sleep rather than organic dependency latency"
+      },
+      {
+        "root_cause": "A configuration value controlling consumer behaviour was set wrong",
+        "service": "fraud-detection",
+        "fault_class": "bad_config",
+        "remediation_class": null,
+        "why_not": "Change history for fraud-detection is empty over 24h, and the service attributes the delay to a runtime flag evaluation rather than a configuration file value"
+      },
+      {
+        "root_cause": "fraud-detection exhausted threads or connections and queued work backed up",
+        "service": "fraud-detection",
+        "fault_class": "resource_exhaustion",
+        "remediation_class": null,
+        "why_not": "No exhaustion signals in the log, error ratio is flat or lower than baseline, and the stall duration is a uniform fixed interval rather than the degrading queue-growth pattern exhaustion produces"
+      }
+    ],
+    "summary": "A runtime feature flag ('kafkaQueueProblems') served by flagd was enabled, driving fraud-detection's order-consume path into a deliberate per-record 1-second sleep, so message processing stalled without any artifact or configuration change.",
+    "confidence": "high",
+    "evidence": [
+      "tr_51602c851bf6",
+      "tr_29b3ba9ec320",
+      "tr_fb45e8957907",
+      "tr_8dc6bcd4d1a3",
+      "tr_0776b8650419"
+    ],
+    "reasoning": "The error-ratio metric for the alerting service showed no sustained departure from baseline (tr_51602c851bf6), so this is a latency/stall incident, not a failure incident. The service's own logs during the incident window repeatedly report a named feature flag being enabled and a one-second sleep per consumed record, with the same order id reprocessed over and over (tr_29b3ba9ec320). Traces corroborate this mechanically: many sibling spans of almost exactly ~1000ms self-time under a single root, with the degrading hop entirely self-time inside fraud-detection and no error flags (tr_0776b8650419). Change history for both fraud-detection and flagd is empty over a 24h window (tr_fb45e8957907, tr_8dc6bcd4d1a3), which is exactly the signature of a flag flipped in the flag store rather than a deploy or config edit. flagd appears in the blast radius only as the flag source; it is not itself failing, and no downstream dependency shows up in the self-time breakdown, which rules out dependency latency from an external service. Remediation is to revert the flag value in the flag store.",
+    "open_questions": [
+      "Who flipped the kafkaQueueProblems flag and when it was flipped relative to the 21:47:31 onset, since the flag store carries no change record",
+      "Whether the flag was intentionally enabled for a test/game-day or flipped in error",
+      "Whether downstream order processing suffered data duplication from the repeated consumption of the same order id"
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B1",
+    "tool_calls": 5,
+    "turns": 7,
+    "looked_at": [
+      "metrics:fraud-detection",
+      "logs:fraud-detection",
+      "changes:fraud-detection",
+      "changes:flagd",
+      "traces:fraud-detection"
+    ]
+  }
+}

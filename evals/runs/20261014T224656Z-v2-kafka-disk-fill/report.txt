@@ -1,0 +1,42 @@
+run 20261014T224656Z-v2-kafka-disk-fill   scenario v2-kafka-disk-fill
+trajectory b6d74803-ba8c-44b6-befc-0af23d167c50   runtime faultline/0.0.1+prompts:9ce16b66bbcc
+
+TRIAGE (blast radius vs alerts_over_window)
+  recall    0.67  (2/3 alerted services predicted)
+  precision 0.20  (2/10 predicted services alerted)
+  reported as a pair and never combined - ADR-0017's under-reach question rides on recall alone
+  missed (alerted, not predicted): fraud-detection
+  extra  (predicted, not alerted): cart, currency, email, frontend, frontend-proxy, payment, product-catalog, shipping
+  unmeasured edges crossed: 8 - membership reached through one is not evidence at the same strength
+
+VERDICT
+  reachability answerable by: runtime, logs
+  fault class network_partition vs disk_fill - WRONG
+  fix class   reconnect vs free_storage - WRONG
+  service     checkout vs kafka - WRONG
+    target visibility: kafka is in the catalog but not in the dependency graph, so no blast radius could contain it - The broker between checkout's producer spans on `orders` and the consumer spans of accounting and fraud-detection (docs/evidence/t7.2-topology/q122-presence.txt, part C2). No span of its own. The consumers' traces do not join checkout's, which is why accounting is UNLINKED.. Reported, not forgiven: this counts exactly as a miss.
+  ranked class top1 miss, top3 miss, depth 3  gained by ranking: no
+    ranked: network_partition > bad_config > process_freeze
+  ranked service top1 miss, top3 hit, depth 2  gained by ranking: yes
+    ranked: checkout > kafka
+  coverage: reached a class
+
+REPORTED SEPARATELY (never averaged into the above)
+  flagged verdicts        0
+  specialists failed alone 0
+  contradiction firings   0 (check retired)
+  budget exhausted        no
+  narrative refused       no
+
+COST  in 69521 / out 15346 tokens   $0.7313
+MODELS {'changes': 'claude-opus-5', 'logs': 'claude-opus-5', 'metrics': 'claude-opus-5', 'planner': 'claude-opus-5', 'scribe': 'claude-opus-5', 'synthesizer': 'claude-opus-5', 'traces': 'claude-opus-5'}
+BUDGET {'max_tool_calls_per_specialist': 4, 'max_tokens': 120000, 'wall_clock_seconds': 600, 'max_dispatch_rounds': 2, 'briefing_tokens': 4000, 'max_usd': 2.0, 'usd_per_mtok_in': 5.0, 'usd_per_mtok_out': 25.0, 'per_specialist_tool_calls': {}}
+
+n=1. A single run is an observation, not a rate (CLAUDE.md rule 6).
+
+METRIC PANEL (T4.3) - reported beside accuracy, never averaged into it
+  latency        199.9s (OVER G4's 3-minute per-run comparison) tools 0.9s  models 266.2s (summed, not a critical path)  retrieval 6.0s  steps 24
+  tool calls     8 total, 8 valid, 0 errored, 1 redundant  validity 1.00  redundancy 0.12
+    a query that ran and found nothing is valid - an empty result is evidence (ADR-0019); 3 empty, 1 truncated
+  context budget 5 briefing(s), 3 over budget (0.60), 2 section(s) dropped, largest 9894 est. tokens against a 4000 cap
+  citations      0 violation(s), regenerated false, escalated false

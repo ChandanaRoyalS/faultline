@@ -1,0 +1,166 @@
+{
+  "incident_id": "1010dff1-33e1-48e3-bc9d-2f19402ca51b",
+  "trajectory_id": "fb3b5ca6-f688-4edf-bdea-8d69339bc075",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "ad",
+    "cart",
+    "checkout",
+    "frontend",
+    "frontend-proxy",
+    "product-catalog",
+    "product-reviews",
+    "recommendation"
+  ],
+  "unmeasured_edges": 7,
+  "exclude_origins": [
+    "scenario:v2-ad-memory-squeeze"
+  ],
+  "verdict": {
+    "root_cause": "platform-automation lowered ad's memory limit to 144m at 21:34:38Z, five minutes before onset, and unlike the eight prior lower/restore cycles this one was never reverted [tr_6ddf31bc8b26]. Under that limit the JVM cannot stay resident: ad shows four cold starts at ~60s intervals, each reaching AdService startup then dying with no shutdown line, no stack trace, no bind error and no in-process OutOfMemoryError \u2014 the signature of an external cgroup kill rather than an application fault [tr_03cb0064e103]. Each kill tears down the container, so frontend's gRPC client to 172.18.0.19:9555 fails at connect with EHOSTUNREACH / code 14 UNAVAILABLE against that single endpoint, with error timestamps advancing as retries keep failing [tr_54e3af93d73e]. frontend is the reporter, not the fault: its only changes are CART_ADDR churn already reverted to baseline an hour before onset [tr_80ad64f18b46]. The mechanism is memory exhaustion against a too-small limit; the edit is how it started.",
+    "service": "ad",
+    "fault_class": "resource_exhaustion",
+    "remediation_class": "config_revert",
+    "confidence": "medium",
+    "evidence": [
+      "tr_6ddf31bc8b26",
+      "tr_03cb0064e103",
+      "tr_54e3af93d73e",
+      "tr_80ad64f18b46"
+    ],
+    "reasoning": "Three strands converge on ad: an unreverted memory-limit reduction active at onset [tr_6ddf31bc8b26]; a sustained ~60s crash/kill loop on ad with silent terminations, with graceful shutdown, JVM fatal error, bind conflict and startup failure all explicitly excluded [tr_03cb0064e103]; and frontend errors that are connect-level EHOSTUNREACH to one endpoint only, with deadline-exceeded, ECONNREFUSED, DNS failure, multi-dependency breakage and frontend-internal faults ruled out [tr_54e3af93d73e]. A container repeatedly destroyed and recreated makes its address unreachable exactly that way. frontend's change record offers no candidate [tr_80ad64f18b46]. Confidence is medium because both metric baselines returned HTTP 400 and measured nothing [tr_5867cb77b5bf, tr_ab9f73e6a1f0], so no memory-usage or restart series confirms the kill directly. Fix is restoring ad's baseline memory limit; a bare restart re-enters the loop.",
+    "open_questions": [
+      "No direct OOMKill confirmation: container exit codes, kernel/orchestrator events and ad's working set versus the 144m limit were never retrieved; the kill mechanism is inferred from silent periodic termination.",
+      "The 172.18.0.19:9555 to ad mapping is conventional, not established by any retrieved evidence.",
+      "Six of eight services in blast radius were never dispatched and both Prometheus queries failed, so a broader shared cause with ad as one casualty is not excluded."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "ad is killed every ~60s by a failing liveness probe or supervisor unrelated to memory, and the limit edit is coincidental automation noise.",
+        "service": "ad",
+        "fault_class": "unknown",
+        "remediation_class": "restart",
+        "why_not": "Does not explain why the single unreverted limit cycle is the one aligned with onset, and 144m is implausibly tight for a JVM with the OTel javaagent [tr_6ddf31bc8b26]."
+      },
+      {
+        "root_cause": "A host or network-level routing fault isolates ad's address from frontend while ad itself restarts for unrelated reasons.",
+        "service": "ad",
+        "fault_class": "network_partition",
+        "remediation_class": "reconnect",
+        "why_not": "ad's own log shows no connectivity complaints during the incident minutes, only clean startups ending abruptly, and EHOSTUNREACH is fully explained by the container being repeatedly destroyed [tr_03cb0064e103]."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "v2-product-catalog-flag-failure / What was observed: The page was two alerts in the same moment, `ServiceHighErrorRate` on **frontend** and on\n**frontend-proxy**, 5m31s after the trouble started. Nothing else fired, then or later, and nothing\nfired after the fix.\n\nBoth error ratios had been zero. They rose from about two minutes in",
+    "v2-frontend-cart-misconfig / What was checked: **The error text, because it was the first thing a responder would read.** Checkout's error spans\nand the frontend's log said `shipping quote failure: failed POST to email service: expected 200,\ngot 400`. That names two services, and neither was at fault. It is checkout's own wor",
+    "v2-product-catalog-freeze / What was observed: The page came 4m15s after requests started hanging: two alerts at once, error rate on\n**frontend-proxy** and on **load-generator**. Neither is a service anyone would fix. One is the\nedge proxy and the other is the synthetic client, and both were reporting what they received\nfrom "
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 28729,
+    "pulled_tokens": 8051,
+    "pull_rate": 0.2189,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 433,
+        "content_tokens": 435,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1972,
+        "content_tokens": 1976,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 8735,
+        "content_tokens": 8711,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 8066,
+        "content_tokens": 8068,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 9523,
+        "content_tokens": 9501,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "config_revert",
+    "action_id": "revert_config",
+    "target": "ad",
+    "rests_on": [
+      "tr_6ddf31bc8b26",
+      "tr_03cb0064e103",
+      "tr_54e3af93d73e"
+    ],
+    "expected_effect": "Restoring ad's prior resource configuration (removing the memory=144m limit applied at 21:34:38Z, the state the eight prior cycles reverted to) should let the JVM stay resident. Observable: in {service=\"ad\"} logs, the ~60s cadence of cold starts (JAVA_TOOL_OPTIONS pickup + OTel agent banner + 'AdService starting') stops \u2014 one startup banner after the recreate, then no further startup banners and continuous log output past the 60s mark and beyond. Downstream, {service=\"frontend\"} should stop emitting new 'code: 14 UNAVAILABLE' lines with EHOSTUNREACH against 172.18.0.19:9555, with the embedded 'last error' timestamps ceasing to advance.",
+    "confirm_within_seconds": 300,
+    "if_wrong": "If ad logs a fresh cold-start banner ~60s after the recreate, the termination is not driven by the 144m cgroup limit \u2014 no OOMKill was ever confirmed (no exit codes, no kernel/orchestrator events, no working-set measurement; [tr_03cb0064e103] explicitly rules out any in-process OutOfMemoryError), so the mechanism is inferred from silent periodic death and could equally be a failing liveness probe or an external supervisor. Separately, if ad stabilises but frontend keeps logging EHOSTUNREACH against 172.18.0.19:9555, the IP:port-to-ad mapping is conventional only and the real unreachable endpoint is something else. A third falsifier: platform-automation re-applies memory=144m within minutes (it has done so eight times in this window), in which case the revert does not stick and the loop resumes \u2014 visible as a new resource_limits entry in change history.",
+    "risk": "The container recreate kills the currently running ad instance: in-flight GetAds calls fail and ad's in-process cache is discarded, so the first post-revert requests are cold. If the diagnosis is wrong, we have added one more restart to a service already restarting, destroyed the live process state that would have supported the missing OOMKill confirmation (exit code of the dying container), and removed a memory ceiling that may have been deliberately bounding a genuinely leaking process \u2014 an unbounded ad could then pressure host memory and harm co-located services. The revert also fights an active automation loop; if that loop is the real defect, this is a cosmetic fix that masks it. Finally, six of eight blast-radius services were never dispatched and both Prometheus queries failed, so a broader shared cause with ad as one casualty is not excluded \u2014 this action would leave that cause untouched while appearing to resolve the incident.",
+    "blast_radius": "ad only, for the duration of the recreate. frontend is ad's caller and is the reporting/alerted service; it sees the connect failure continue for a few extra seconds during recreate (it is already failing against this endpoint). frontend-proxy and the load path through it see the same, indirectly. No other service in the incident set (cart, checkout, product-catalog, product-reviews, recommendation) calls ad per the retrieved evidence, so they should see no change \u2014 if they do, that itself argues for the untested shared-cause hypothesis."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Critical alerts on frontend and its proxy firing simultaneously affect user-facing traffic and cannot be dismissed. No open incidents to attribute it to, and the simultaneous pair gives no clear fault signature yet."
+  }
+}

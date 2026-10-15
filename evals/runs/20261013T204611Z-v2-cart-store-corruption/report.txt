@@ -1,0 +1,42 @@
+run 20261013T204611Z-v2-cart-store-corruption   scenario v2-cart-store-corruption
+trajectory e754b2ae-782e-4682-8201-7665ede65114   runtime faultline/0.0.1+prompts:9ce16b66bbcc
+
+TRIAGE (blast radius vs alerts_over_window)
+  recall    1.00  (1/1 alerted services predicted)
+  precision 0.11  (1/9 predicted services alerted)
+  reported as a pair and never combined - ADR-0017's under-reach question rides on recall alone
+  missed (alerted, not predicted): none
+  extra  (predicted, not alerted): cart, currency, email, frontend, frontend-proxy, payment, product-catalog, shipping
+  unmeasured edges crossed: 8 - membership reached through one is not evidence at the same strength
+
+VERDICT
+  reachability answerable by: logs
+  fault class datastore_corruption vs datastore_corruption - correct
+  fix class   restore_data vs restore_data - correct
+  service     cart vs valkey-cart - WRONG
+    target visibility: valkey-cart is in the catalog but not in the dependency graph, so no blast radius could contain it - The cart's datastore, as v1's redis-cart. No span of its own; cart's client spans carry `db.system` redis and `server.address` valkey-cart (docs/evidence/t7.2-topology/q122-presence.txt, part C1).. Reported, not forgiven: this counts exactly as a miss.
+  ranked class top1 hit, top3 hit, depth 3  gained by ranking: no
+    ranked: datastore_corruption > unknown > bad_config
+  ranked service top1 miss, top3 miss, depth 2  gained by ranking: no
+    ranked: cart > checkout
+  coverage: reached a class
+
+REPORTED SEPARATELY (never averaged into the above)
+  flagged verdicts        0
+  specialists failed alone 0
+  contradiction firings   0 (check retired)
+  budget exhausted        no
+  narrative refused       no
+
+COST  in 72900 / out 18398 tokens   $0.8245
+MODELS {'changes': 'claude-opus-5', 'logs': 'claude-opus-5', 'metrics': 'claude-opus-5', 'planner': 'claude-opus-5', 'scribe': 'claude-opus-5', 'synthesizer': 'claude-opus-5', 'traces': 'claude-opus-5'}
+BUDGET {'max_tool_calls_per_specialist': 4, 'max_tokens': 120000, 'wall_clock_seconds': 600, 'max_dispatch_rounds': 2, 'briefing_tokens': 4000, 'max_usd': 2.0, 'usd_per_mtok_in': 5.0, 'usd_per_mtok_out': 25.0, 'per_specialist_tool_calls': {}}
+
+n=1. A single run is an observation, not a rate (CLAUDE.md rule 6).
+
+METRIC PANEL (T4.3) - reported beside accuracy, never averaged into it
+  latency        191.4s (OVER G4's 3-minute per-run comparison) tools 5.4s  models 260.6s (summed, not a critical path)  retrieval 6.0s  steps 22
+  tool calls     7 total, 5 valid, 2 errored, 2 redundant  validity 0.71  redundancy 0.29
+    a query that ran and found nothing is valid - an empty result is evidence (ADR-0019); 2 empty, 4 truncated
+  context budget 5 briefing(s), 3 over budget (0.60), 2 section(s) dropped, largest 9666 est. tokens against a 4000 cap
+  citations      0 violation(s), regenerated false, escalated false

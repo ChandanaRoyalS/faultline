@@ -1,0 +1,41 @@
+run 20261014T043428Z-v2-frontend-cart-misconfig   scenario v2-frontend-cart-misconfig
+trajectory eb2d6759-f087-4447-9860-79d607f07b68   runtime faultline/0.0.1+prompts:9ce16b66bbcc
+
+TRIAGE (blast radius vs alerts_over_window)
+  recall    0.64  (7/11 alerted services predicted)
+  precision 0.54  (7/13 predicted services alerted)
+  reported as a pair and never combined - ADR-0017's under-reach question rides on recall alone
+  missed (alerted, not predicted): accounting, flagd, fraud-detection, quote
+  extra  (predicted, not alerted): ad, cart, product-catalog, product-reviews, recommendation, shipping
+  unmeasured edges crossed: 13 - membership reached through one is not evidence at the same strength
+
+VERDICT
+  reachability answerable by: runtime, logs
+  fault class unknown vs bad_config - ABSTAINED (excluded from accuracy; counted in coverage)
+  fix class   restart vs config_revert - WRONG
+  service     email vs frontend - WRONG
+  ranked class top1 miss, top3 hit, depth 3  gained by ranking: yes
+    ranked: unknown > feature_flag > bad_config
+  ranked service top1 miss, top3 miss, depth 2  gained by ranking: no
+    ranked: email > shipping
+  coverage: abstained
+
+REPORTED SEPARATELY (never averaged into the above)
+  flagged verdicts        0
+  specialists failed alone 0
+  contradiction firings   0 (check retired)
+  budget exhausted        no
+  narrative refused       no
+
+COST  in 60042 / out 15423 tokens   $0.6858
+MODELS {'changes': 'claude-opus-5', 'logs': 'claude-opus-5', 'metrics': 'claude-opus-5', 'planner': 'claude-opus-5', 'scribe': 'claude-opus-5', 'synthesizer': 'claude-opus-5', 'traces': 'claude-opus-5'}
+BUDGET {'max_tool_calls_per_specialist': 4, 'max_tokens': 120000, 'wall_clock_seconds': 600, 'max_dispatch_rounds': 2, 'briefing_tokens': 4000, 'max_usd': 2.0, 'usd_per_mtok_in': 5.0, 'usd_per_mtok_out': 25.0, 'per_specialist_tool_calls': {}}
+
+n=1. A single run is an observation, not a rate (CLAUDE.md rule 6).
+
+METRIC PANEL (T4.3) - reported beside accuracy, never averaged into it
+  latency        191.9s (OVER G4's 3-minute per-run comparison) tools 0.4s  models 261.2s (summed, not a critical path)  retrieval 6.2s  steps 24
+  tool calls     8 total, 8 valid, 0 errored, 0 redundant  validity 1.00  redundancy 0.00
+    a query that ran and found nothing is valid - an empty result is evidence (ADR-0019); 6 empty, 0 truncated
+  context budget 5 briefing(s), 3 over budget (0.60), 1 section(s) dropped, largest 8760 est. tokens against a 4000 cap
+  citations      0 violation(s), regenerated false, escalated false

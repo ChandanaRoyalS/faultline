@@ -1,0 +1,100 @@
+{
+  "incident_id": "9f6ff7a8-8f70-49c5-b2a0-20ac53d57262",
+  "trajectory_id": "53329636-37ae-4e34-b733-51b461634bf0",
+  "states": [
+    "triaging",
+    "investigating"
+  ],
+  "blast_radius": [
+    "frontend-proxy",
+    "load-generator",
+    "checkout",
+    "fraud-detection",
+    "cart",
+    "currency",
+    "email",
+    "flagd",
+    "frontend",
+    "payment",
+    "product-catalog",
+    "shipping"
+  ],
+  "unmeasured_edges": 9,
+  "exclude_origins": [
+    "scenario:scenario:v2-kafka-disk-fill"
+  ],
+  "verdict": {
+    "fault_class": "disk_fill",
+    "remediation_class": "free_storage",
+    "service": "kafka",
+    "alternatives": [
+      {
+        "root_cause": "A misconfigured volume mount or data-directory path/ownership for the broker made its storage unwritable.",
+        "service": "kafka",
+        "fault_class": "bad_config",
+        "remediation_class": null,
+        "why_not": "Plausible given the permission-style error, but the kafka change log is empty, and a bad_config verdict requires the wrong value itself to be the failure; what is observed is the broker halting because it cannot write its data."
+      },
+      {
+        "root_cause": "checkout itself froze or was partitioned, hanging its callers to their deadlines.",
+        "service": "checkout",
+        "fault_class": "process_freeze",
+        "remediation_class": null,
+        "why_not": "checkout is demonstrably alive in the same traces - it executes cart, currency, payment, shipping and email calls with normal latency during the very requests that hang."
+      },
+      {
+        "root_cause": "fraud-detection stalled and back-pressured the order path.",
+        "service": "fraud-detection",
+        "fault_class": "dependency_latency",
+        "remediation_class": null,
+        "why_not": "fraud-detection is an asynchronous consumer downstream of the broker; its silence is explained by the broker being down, and it cannot block a synchronous PlaceOrder call."
+      },
+      {
+        "root_cause": "flagd stream failures broke a flagged code path in checkout.",
+        "service": "flagd",
+        "fault_class": "feature_flag",
+        "remediation_class": null,
+        "why_not": "flagd resolves boolean flags in well under a millisecond inside the hanging traces, and the long EventStream span is a normal server-side stream timeout predating onset."
+      }
+    ],
+    "summary": "Kafka cannot write to its log/metadata directory and crash-loops at startup, so checkout's order publish blocks until the 15s client deadline and every checkout request fails upstream.",
+    "confidence": "medium",
+    "evidence": [
+      "tr_5de89774520b",
+      "tr_fa1967a5693a",
+      "tr_a7a565d35c60",
+      "tr_aa8fbefbf4cc",
+      "tr_1c145d7dd78f",
+      "tr_17011518c727"
+    ],
+    "reasoning": "Traces (tr_fa1967a5693a) show every checkout sub-call - cart, currency, product-catalog, shipping, payment, email, flagd - completing in single-digit to tens of milliseconds, while the frontend's PlaceOrder span hangs past the 15s proxy deadline; the hang is therefore not in any of the RPC dependencies checkout calls, but in the remaining step of PlaceOrder, the order publish to the message broker. Kafka's own log (tr_5de89774520b) changes at 23:26-23:28 from normal KRaft snapshot/segment activity to repeated restart banners that each end with a failure writing its metadata file into its log directory, i.e. a crash loop caused by the broker being unable to persist to its storage. That begins about a minute before checkout's error ratio crosses threshold at 23:27:16 (tr_a7a565d35c60), and fraud-detection, the downstream consumer, simply stops recording consumed orders in the same period (tr_1c145d7dd78f) - consistent with the broker being gone rather than fraud-detection being broken. frontend-proxy and load-generator alert first because they hold the deadline, not because they broke. No change was recorded for checkout (tr_aa8fbefbf4cc), flagd (tr_012bf2fad57a) or kafka (tr_17011518c727), which rules out a deploy or edit on the request path and leaves the broker's storage-write failure as the mechanism: it cannot write its data, so it refuses to start rather than running slow.",
+    "open_questions": [
+      "The broker's write failure is reported as an access/permission denial on its log directory rather than an explicit out-of-space message, so whether the underlying cause is a full volume, a read-only remount, or wrong ownership on the mount is not settled.",
+      "No change record exists for kafka, so what made a previously-writable directory unwritable (host disk, volume re-provisioning, or an out-of-band edit) is unknown.",
+      "checkout emitted no log lines at all in the window (tr_4b5c4514fe6a), so the producer-side timeout was inferred from span structure rather than read directly."
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B1",
+    "tool_calls": 9,
+    "turns": 11,
+    "looked_at": [
+      "logs:fraud-detection",
+      "logs:checkout",
+      "traces:checkout",
+      "changes:checkout",
+      "metrics:checkout",
+      "changes:flagd",
+      "traces:fraud-detection",
+      "logs:kafka",
+      "changes:kafka"
+    ]
+  }
+}

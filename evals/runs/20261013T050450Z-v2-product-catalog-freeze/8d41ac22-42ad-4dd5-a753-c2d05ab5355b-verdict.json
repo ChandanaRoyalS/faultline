@@ -1,0 +1,166 @@
+{
+  "incident_id": "8d41ac22-42ad-4dd5-a753-c2d05ab5355b",
+  "trajectory_id": "168abe3c-3398-476d-aaa8-78fd76e4cb2a",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "frontend",
+    "frontend-proxy",
+    "load-generator"
+  ],
+  "unmeasured_edges": 1,
+  "exclude_origins": [
+    "scenario:v2-product-catalog-freeze"
+  ],
+  "verdict": {
+    "root_cause": "checkout is crash-looping on an unrecovered nil-pointer dereference in its own PlaceOrder handler (send-to-post-processor path, main.go:630), repeating with an identical fault signature across the window [tr_e2eb7807b28d]. Each crash takes checkout's listener down, which is what frontend's server-side gRPC calls see as status 14 UNAVAILABLE with connection refused / connection dropped against a single upstream IP on port 5050 \u2014 checkout's port \u2014 with name resolution fine and failures at TCP accept, not at deadline [tr_3382f79d68aa]. The resulting partial failures surface as ~15s client-timeout cut-offs at frontend-proxy and load-generator rather than as elevated frontend error ratios [tr_90a6a61fbe13][tr_4b7fb366dc99][tr_03e3dd383648]. No change of any kind is recorded for checkout [tr_f419323593fd], and frontend's only changes are an unrelated automated CART_ADDR set/revert flap that was already reverted 2.6h before onset [tr_daf4e6c3ed89], so the faulting artifact is a build whose code path dies on live traffic.",
+    "service": "checkout",
+    "fault_class": "bad_deploy",
+    "remediation_class": "rollback",
+    "confidence": "low",
+    "evidence": [
+      "tr_e2eb7807b28d",
+      "tr_3382f79d68aa",
+      "tr_90a6a61fbe13",
+      "tr_f419323593fd",
+      "tr_03e3dd383648"
+    ],
+    "reasoning": "Only one service shows a self-originated fatal defect: checkout, with three identical SIGSEGV panics inside its own handler, ruled out as downstream propagation, OOM-kill or graceful shutdown [tr_e2eb7807b28d]. That mechanism predicts exactly what frontend reports \u2014 immediate connection-refused/dropped UNAVAILABLE against one upstream address on 5050, not DNS, not TLS, not deadline exhaustion, not a fleet-wide outage [tr_3382f79d68aa]. Frontend and frontend-proxy error ratios are below baseline with only a terminal spike at 05:08:16, so neither is the origin; they are the places the damage was noticed [tr_4b7fb366dc99][tr_03e3dd383648]. Traces show the proxy and cart/product-reviews paths healthy and the failures pinned at a fixed ~15s timeout boundary, the expected caller-side view of an upstream that keeps dying mid-flight [tr_90a6a61fbe13]. I class it bad_deploy because the running checkout build cannot serve its own PlaceOrder path; the rollback claim is the weak link, since no deploy record exists for checkout at all [tr_f419323593fd].",
+    "open_questions": [
+      "No change record covers checkout before onset \u2014 the queried window starts at the incident timestamp, so whether a deploy introduced the nil deref is unestablished and the rollback target is unidentified [tr_f419323593fd].",
+      "Both log queries are truncated at ~04:52:41; nothing observed speaks to checkout's or frontend's state at 05:07:16 itself [tr_e2eb7807b28d][tr_3382f79d68aa].",
+      "The ~15s traces show frontend spans with 100% self-time and no child spans \u2014 if checkout were refusing connections, a failed child span would normally appear; the stall is unexplained inside frontend [tr_90a6a61fbe13].",
+      "The upstream IP on port 5050 was never resolved to a named service, so the identification of checkout as that peer is inference, not measurement.",
+      "No evidence placed checkout's restart/crash timing against the 05:07:16 onset."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "frontend's server process is wedged on the affected request paths \u2014 callers hang to a fixed 15s deadline, frontend emits no log lines for the final 16 minutes, and the errored handler spans have no children at all.",
+        "service": "frontend",
+        "fault_class": "process_freeze",
+        "remediation_class": "restart",
+        "why_not": "Frontend still served a page render and API routes normally in the same window and still produced span data, and its own logs name a concrete refused upstream; a freeze does not explain checkout's panics, whereas checkout's panics do explain frontend's errors."
+      },
+      {
+        "root_cause": "An unidentified dependency behind frontend became slow, and frontend failed because it waited out a 15s timeout.",
+        "service": "frontend",
+        "fault_class": "dependency_latency",
+        "remediation_class": "none",
+        "why_not": "The errored frontend spans have no child spans to attribute a wait to, and the observed failures are connect-time refusals rather than DEADLINE_EXCEEDED; every measured dependency (cart, product-reviews, Redis) completed in milliseconds."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "v2-frontend-cart-misconfig / Resolution: `CART_ADDR` was set back to cart's address and the frontend was recreated with it. The refused\ncalls stopped, carts filled again, orders completed, and the quiet services came back within a\nminute. Fraud-detection's and flagd's alerts ended with them, as orders drowned out the st",
+    "v2-valkey-cart-dependency-latency / What was checked: **The traces, because cart paged first and its callers followed.** Every slow trace touched cart,\nand inside cart the time was in one place. At rest, cart answered a `GetCart` in 0.3ms and its\nstore answered an `HGET` in 0.2ms. Under the fault, in 80 traces drawn, every `HGET`, `",
+    "v2-cart-freeze / What was checked: **The proxy, because it was loudest.** Its error traces - 247 of them across the ten minutes -\nwere all the same kind: a request cut at its fifteen-second route timeout. And they were all the\nsame four requests: `user_add_to_cart` (132), `user_view_cart` (71), `user_checkout_mult"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 30535,
+    "pulled_tokens": 5543,
+    "pull_rate": 0.1536,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 382,
+        "content_tokens": 384,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1857,
+        "content_tokens": 1860,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 9383,
+        "content_tokens": 9360,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 8714,
+        "content_tokens": 8716,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 10199,
+        "content_tokens": 10176,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_f419323593fd",
+      "tr_e2eb7807b28d",
+      "tr_3382f79d68aa",
+      "tr_90a6a61fbe13"
+    ],
+    "expected_effect": "No action is proposed, so no observable effect is predicted. The mechanism named by the verdict \u2014 a nil-pointer panic in checkout's own PlaceOrder handler \u2014 lives in a service that is not in this incident's blast radius, so no permitted action can be aimed at it. The three legal targets (frontend-proxy, load-generator, frontend) are all downstream symptom-carriers: frontend's error ratio is *below* baseline at 0.44x [tr_4b7fb366dc99] and frontend's own logs show only transport-level status 14 from an upstream, with frontend itself explicitly ruled out as the faulting component [tr_3382f79d68aa]. Recreating or rolling back any of them would not remove a panic running in another process.",
+    "confirm_within_seconds": 0,
+    "if_wrong": "This abstention would be shown wrong by evidence that does not exist in this brief: (a) a change-history query on checkout over a window that actually *starts before* 05:07:16 \u2014 the queried window begins at the incident timestamp and returned empty, so it carries no information about a pre-onset deploy [tr_f419323593fd] \u2014 naming a prior image tag and a deploy inside the window, which would make rollback_image's preconditions met; (b) resolution of the port-5050 upstream IP to a named service, since the identification of that peer as checkout is inference rather than measurement [tr_3382f79d68aa]; or (c) log or trace coverage at 05:07:16 itself, which both log queries lack \u2014 they truncate at ~04:52:41 [tr_e2eb7807b28d][tr_3382f79d68aa]. Separately, the ~15s frontend stalls show 100% self-time with no child spans at all [tr_90a6a61fbe13]; if checkout were refusing connections a failed child span should appear, so a second, unexplained mechanism inside frontend may be in play. If that mechanism were characterised and shown to be process state rather than a change, restart_service on frontend would become arguable \u2014 nothing here establishes that yet.",
+    "risk": "The risk being avoided is acting on a low-confidence diagnosis whose target is unidentified. rollback_image on frontend would recreate a service that measurement shows is erroring *less* than baseline, discard a working build, and move frontend to an older image on the strength of a change record that contains only CART_ADDR environment flaps and no deploys at all [tr_daf4e6c3ed89] \u2014 i.e. there is no prior image tag to roll back to, so the action would either fail or revert something unrelated. restart_service on frontend would clear the ~15s stalls only if they are in-process state; if they are in fact a downstream crash-loop, the restart buys a few minutes of churn, destroys the stalled-request evidence needed to localise the real fault, and the panics resume on the next PlaceOrder. revert_config on frontend would restore the CART_ADDR override that was already reverted 2.6h before onset and was explicitly ruled out as the trigger [tr_daf4e6c3ed89] \u2014 actively reintroducing a known-bad pointer to cart:7071. The cost of abstaining is continued partial checkout failure; the cost of each available action is a working service degraded for no mechanistic reason.",
+    "blast_radius": "Nobody \u2014 no change is made, so no caller sees a reset and the incident continues in its current state (intermittent ~15s client-timeout cut-offs at frontend-proxy and load-generator [tr_90a6a61fbe13][tr_03e3dd383648]). For contrast, had an action been taken: any of the three permitted actions recreates one container, and its inbound callers see connection resets for the duration \u2014 frontend's recreate would be visible to frontend-proxy and through it to load-generator, i.e. every user-facing path in this incident, including the browse, cart and recommendations routes that are currently succeeding in tens of milliseconds [tr_90a6a61fbe13]. That is the whole alerted surface, which is why it should not be spent on an unestablished target. Escalate to a human with the three open questions above, and in particular re-run change_history on checkout with a window starting several hours before onset; until the port-5050 peer is resolved and a prior image tag exists, the correct remediation lies outside what this system may do.",
+    "confirm_within_seconds_note_ignored": null
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "low",
+    "reasoning": "The edge-facing proxy alerted alongside the load generator, which means user-facing traffic is affected rather than a lone synthetic probe. With no open incident to attribute it to and frontend implicated one hop in, this is not dismissible."
+  }
+}

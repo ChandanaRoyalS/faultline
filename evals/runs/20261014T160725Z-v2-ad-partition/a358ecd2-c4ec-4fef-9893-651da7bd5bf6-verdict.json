@@ -1,0 +1,175 @@
+{
+  "incident_id": "a358ecd2-c4ec-4fef-9893-651da7bd5bf6",
+  "trajectory_id": "020a2057-3489-4385-81e0-cf6dc92afd27",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "ad",
+    "flagd",
+    "frontend",
+    "frontend-proxy",
+    "load-generator"
+  ],
+  "unmeasured_edges": 3,
+  "exclude_origins": [
+    "scenario:v2-ad-partition"
+  ],
+  "verdict": {
+    "root_cause": "The evidence does not establish a root cause. Everything the specialists actually measured in ad is clean or uninformative: traces through ad complete without errors at normal latency [tr_cdaa32951ad4], the only error lines in ad's log are OpenTelemetry exporter failures on the background OkHttp thread, caused by DNS resolution of the collector host and not touching the request path [tr_cb5e1e5e4b95][tr_bb7969af7d3e], and both metric attempts failed with HTTP 400 so no error-rate, latency, CPU or heap figure exists for ad at all [tr_f9025118037f][tr_e779ceaa0e52]. The change log shows no proximate trigger, with the last memory-limit toggle reverted ~5.3h before onset [tr_62dee350fb29], and the flagd change query covered only the post-onset window so pre-onset flag flips were never checked [tr_feda815a3c5b]. frontend-proxy and load-generator alerted first and ad alerted a minute later, yet nothing was dispatched against frontend-proxy or frontend. The collector-name resolution failure is the one real anomaly and most likely explains why ad's metrics and traces are sparse or missing rather than why requests failed.",
+    "service": "ad",
+    "fault_class": "unknown",
+    "remediation_class": "none",
+    "confidence": "low",
+    "evidence": [
+      "tr_cdaa32951ad4",
+      "tr_cb5e1e5e4b95",
+      "tr_bb7969af7d3e",
+      "tr_f9025118037f",
+      "tr_62dee350fb29",
+      "tr_feda815a3c5b"
+    ],
+    "reasoning": "No dispatch produced a mechanism for user-visible failure. Traces are error-free and attribute dominant self-time above ad [tr_cdaa32951ad4]; ad's error lines are telemetry-egress only, in agent frames, with the process still logging at onset [tr_cb5e1e5e4b95]; the sole unresolved host is the collector, not a business dependency [tr_bb7969af7d3e]. Metrics are entirely absent due to malformed queries, not missing series [tr_f9025118037f][tr_e779ceaa0e52], so resource_exhaustion and latency regression are untested rather than excluded. The change log leaves ad at baseline [tr_62dee350fb29] and the flagd window was mis-scoped [tr_feda815a3c5b]. Naming a class here would be asserting more than the board supports.",
+    "open_questions": [
+      "What do ad's error-rate, p95 latency, CPU and heap actually show? Both metric queries were rejected with 400 and must be re-run with a corrected template.",
+      "Were there flagd flag changes in the hours *before* 16:14:31? The flagd query window started at onset and ran forward, so pre-onset flips are unexamined.",
+      "Why did frontend-proxy and load-generator alert first? No logs, metrics or changes were pulled for frontend-proxy or frontend, and the failure may originate there rather than in ad.",
+      "Why does the collector hostname fail DNS resolution intermittently since 2026-10-07T20:28, and does the resulting telemetry gap hide ad-side errors from traces and metrics?"
+    ],
+    "alternatives": [
+      {
+        "root_cause": "ad's telemetry pipeline is broken because the collector hostname does not resolve, so ad's failures are real but invisible to traces and metrics.",
+        "service": "ad",
+        "fault_class": "network_partition",
+        "remediation_class": "reconnect",
+        "why_not": "The resolution failure is confined to one hostname on a background exporter thread and predates onset by a week [tr_bb7969af7d3e]; broad DNS breakage was ruled out and ad's request path shows no impact [tr_cdaa32951ad4]."
+      },
+      {
+        "root_cause": "A flagd flag flipped shortly before onset drove the ad code path into failure, leaving no artifact or config change in the log.",
+        "service": "flagd",
+        "fault_class": "feature_flag",
+        "remediation_class": "config_revert",
+        "why_not": "No flagd child span appears beneath ad in any sampled trace [tr_cdaa32951ad4] and the flagd change query never covered the pre-onset hours [tr_feda815a3c5b], so this is unexcluded rather than supported."
+      },
+      {
+        "root_cause": "ad was killed or throttled under a lowered memory limit applied by platform automation.",
+        "service": "ad",
+        "fault_class": "resource_exhaustion",
+        "remediation_class": "config_revert",
+        "why_not": "Every limit reduction has a matching restore and the final revert landed ~5.3h before onset [tr_62dee350fb29]; ad was logging continuously through onset with no restart [tr_cb5e1e5e4b95]."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "v2-ad-memory-squeeze / Root cause: The ad service container's memory limit was lowered from 300M to 144m, below the 230MB working set\nof a JVM that had sized its heap against 300M, and below what a fresh JVM needs to load its\ninstrumentation agent and start at all. The kernel killed the running JVM within a second",
+    "v2-ad-memory-squeeze / What was checked: **The page names callers.** Frontend-proxy forwards what the frontend returns, and the load\ngenerator is the synthetic shoppers counting their own failures. The frontend was the one service\nmaking calls that failed, and the order path was not among them.\n\n**The frontend's error t",
+    "v2-ad-memory-squeeze / Resolution: The memory limit was restored to 300M. The next JVM start, twenty seconds after the fix, was the\nfirst in ten minutes to reach `Ad service started, listening on 9555`, and it served its first ad\nrequest just under two minutes later, as the frontend found it again; a new set of 51"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 26335,
+    "pulled_tokens": 7079,
+    "pull_rate": 0.2119,
+    "dropped_sections": 1,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 390,
+        "content_tokens": 392,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1596,
+        "content_tokens": 1600,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 8019,
+        "content_tokens": 7995,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 7529,
+        "content_tokens": 7531,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 8801,
+        "content_tokens": 8804,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_cdaa32951ad4",
+      "tr_cb5e1e5e4b95",
+      "tr_bb7969af7d3e",
+      "tr_f9025118037f",
+      "tr_e779ceaa0e52",
+      "tr_62dee350fb29",
+      "tr_feda815a3c5b"
+    ],
+    "expected_effect": "No action is proposed, so no change in any metric or log stream should be expected or attributed to this system. The correct next step is investigative, not remedial: re-run the ad metric baseline with a corrected template (the 400 was a client-side rejection, not an empty result) [tr_f9025118037f][tr_e779ceaa0e52], re-run the flagd change query over the hours *before* 16:14:31 [tr_feda815a3c5b], and pull logs/metrics/changes for frontend-proxy and frontend, which alerted a minute before ad [tr_cdaa32951ad4].",
+    "confirm_within_seconds": 0,
+    "if_wrong": "This abstention is falsified if a corrected metric query shows a genuine ad-side error-ratio or p95 regression that lines up with onset, or if a pre-onset flagd flip turns up and maps to a revertible configuration, or if frontend-proxy/frontend evidence names a deploy or config change inside the window. Any of those would meet a precondition that is currently unmet and would justify a concrete action. Note also that the one real anomaly - intermittent UnknownHostException on the collector hostname since 2026-10-07T20:28 [tr_bb7969af7d3e] - is a telemetry-egress fault on a background OkHttp thread [tr_cb5e1e5e4b95], so it degrades our ability to observe ad rather than ad's ability to serve; the sparse, clustered trace sampling [tr_cdaa32951ad4] is consistent with that gap, and it means the absence of observed ad errors is weaker evidence than it looks.",
+    "risk": "The risk of abstaining is that a real, ongoing fault continues unremediated while the investigation re-runs queries; frontend-proxy and load-generator alerted first and remain uninvestigated, so user-facing impact may be persisting. The risk of the alternative - acting anyway - is higher: the only actions available are rollback_image, revert_config and restart_service on ad, and none of their preconditions are met. The change log records no deploy or config change near onset, with the last memory-limit toggle reverted and paired ~5.3h earlier [tr_62dee350fb29], so rollback_image and revert_config would move ad away from a baseline it is already in. restart_service requires evidence pointing at process state, and there is none: ad was alive and logging sub-second up to 16:13:46 [tr_cb5e1e5e4b95] and its traces completed clean at 0.5-19.7ms [tr_cdaa32951ad4]. A restart would also discard the only live process that is producing the UnknownHostException lines, destroying the one real anomaly we have before anyone has explained it.",
+    "blast_radius": "Nobody sees a change, because nothing changes. The services left under an unexplained alert are frontend-proxy, load-generator and ad as seeds, with frontend also affected downstream of ad and flagd still an unexcluded candidate cause for the pre-onset window. Callers of ad - frontend, and through it frontend-proxy and load-generator per the observed call path [tr_cdaa32951ad4] - would have been the ones disturbed by any container recreate, which is a further reason not to recreate one on this evidence."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Critical multi-service alerting across frontend-proxy, load-generator, and ad with no open incidents to attribute it to. flagd as a one-hop candidate cause hints at a flag/config path, but there is no evidence yet to commit to a class."
+  }
+}

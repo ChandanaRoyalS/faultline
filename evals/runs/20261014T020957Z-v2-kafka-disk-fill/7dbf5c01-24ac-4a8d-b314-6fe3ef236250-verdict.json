@@ -1,0 +1,169 @@
+{
+  "incident_id": "7dbf5c01-24ac-4a8d-b314-6fe3ef236250",
+  "trajectory_id": "b60d736a-b399-49f8-a616-b8724970fd2b",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "accounting",
+    "cart",
+    "checkout",
+    "currency",
+    "email",
+    "flagd",
+    "fraud-detection",
+    "frontend",
+    "frontend-proxy",
+    "payment",
+    "product-catalog",
+    "shipping"
+  ],
+  "unmeasured_edges": 9,
+  "exclude_origins": [
+    "scenario:v2-kafka-disk-fill"
+  ],
+  "verdict": {
+    "root_cause": "Checkout's PlaceOrder path fails at a single hop: the 'orders publish' span burns ~68-80s of self-time and errors because the Kafka broker hostname cannot be resolved (DNS 'no such host' against 127.0.0.11:53), with a circuit breaker opening once failures accumulated [tr_dbffa43306da]. Every other checkout dependency - payment, cart, shipping, currency, product-catalog, email - completes in milliseconds without errors in the same traces [tr_dbffa43306da], so checkout is running and generally networked; the Kafka endpoint specifically has vanished from the network/service-discovery plane. Accounting and fraud-detection, both Kafka consumers, show intervals with no defined error ratio - no traffic at all - during the incident window that were absent in baseline [tr_d3a3ea324e8a, tr_ce236c7cc1a0], which is what a starved consumer looks like rather than a consumer-side fault. Checkout's error ratio was flat zero until a change point at 02:14:31 [tr_b83ec1a2cf03], and no deployment, config edit, flag flip or messaging-infrastructure change was recorded over a 24h window [tr_36884e2a7d77, tr_3cd2d3ded37d], so a previously-working broker endpoint became unreachable without any recorded act.",
+    "service": "kafka",
+    "fault_class": "network_partition",
+    "remediation_class": "reconnect",
+    "confidence": "medium",
+    "evidence": [
+      "tr_dbffa43306da",
+      "tr_b83ec1a2cf03",
+      "tr_d3a3ea324e8a"
+    ],
+    "reasoning": "The trace dispatch is the only one that reached the mechanism: it localises all latency and all errors to one span, names the failure as name-resolution failure, and explicitly rules out broker overload, a slow PlaceOrder handler, and every sibling dependency [tr_dbffa43306da]. Checkout never reaches the broker, so this is severed connectivity rather than a slow dependency, and the health of other call paths in the same process rules out resource exhaustion. Two independent empty change logs over 24h [tr_36884e2a7d77, tr_3cd2d3ded37d] plus a flat-zero baseline up to 02:14:31 [tr_b83ec1a2cf03] mean the configured broker address was working minutes earlier - the value did not become wrong, the endpoint behind it became unreachable. Kafka is blamed over checkout because the cut is one-sided and because accounting and fraud-detection show traffic gaps rather than errors [tr_d3a3ea324e8a, tr_ce236c7cc1a0], which follows from a broker no publisher can reach and no consumer can drain.",
+    "open_questions": [
+      "No dispatch targeted kafka itself - no broker logs, metrics, process state or DNS/service-registry records exist in this briefing, so crash vs. deschedule vs. network severance is inferred purely from the client-side resolution error.",
+      "Checkout returned zero log lines for the whole window [tr_1e53b8ffb6d9] while still emitting spans [tr_dbffa43306da]; likely a log-shipping gap, but unconfirmed, leaving checkout's own account unread.",
+      "The consumer traffic gaps [tr_d3a3ea324e8a, tr_ce236c7cc1a0] were never time-aligned against checkout's 02:14:31 change point, so the causal ordering is plausible but not demonstrated."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "The Kafka broker process is stopped or gone and the DNS record was withdrawn as a consequence, making this a broker-side process failure rather than a network cut.",
+        "service": "kafka",
+        "fault_class": "process_freeze",
+        "remediation_class": "restart",
+        "why_not": "A frozen process still holds its socket and name; clients hang on connect rather than failing to resolve. The explicit DNS 'no such host' [tr_dbffa43306da] points at the discovery/network layer, not a hung process - but with no kafka-side evidence at all this cannot be excluded."
+      },
+      {
+        "root_cause": "Checkout holds a wrong or stale Kafka broker address in its configuration, so the name it looks up does not exist.",
+        "service": "checkout",
+        "fault_class": "bad_config",
+        "remediation_class": "config_revert",
+        "why_not": "Checkout's error ratio was exactly zero through the baseline and only broke at 02:14:31 [tr_b83ec1a2cf03] with no config change recorded in 24h [tr_36884e2a7d77]; a wrong value would have been wrong from process start."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "v2-accounting-bad-credential / What was observed: The page was a single alert, `ServiceHighErrorRate` on **accounting**, 3m16s after the trouble\nstarted. Nothing else fired then, and nothing else fired afterwards. Its error ratio had read\nzero before the incident. It rose from about a minute in, climbed, and settled at **exactly",
+    "v2-frontend-cart-misconfig / What was checked: **The error text, because it was the first thing a responder would read.** Checkout's error spans\nand the frontend's log said `shipping quote failure: failed POST to email service: expected 200,\ngot 400`. That names two services, and neither was at fault. It is checkout's own wor",
+    "v2-inj-kafka-disk-fill-log-checkout / What was observed: The page came 5m31s after onset: `ServiceHighLatency` on **checkout**. A minute later\n`ServiceHighErrorRate` on checkout and on **fraud-detection** together; at T+2m from the page\n`ServiceHighLatency` on fraud-detection and `ServiceNoTraffic` on **accounting**. Five alerts on\nthr"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 21306,
+    "pulled_tokens": 8502,
+    "pull_rate": 0.2852,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 480,
+        "content_tokens": 482,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1185,
+        "content_tokens": 1189,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 6477,
+        "content_tokens": 6453,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 5820,
+        "content_tokens": 5822,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 7344,
+        "content_tokens": 7322,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_dbffa43306da",
+      "tr_36884e2a7d77",
+      "tr_3cd2d3ded37d"
+    ],
+    "expected_effect": "No action proposed, so no change in observed behaviour is expected. Checkout's 'orders publish' span should continue to error with DNS 'no such host' for host 'kafka' and checkout's error ratio should stay elevated above its flat-zero baseline until a human reattaches the broker endpoint to the network or restores its DNS record. The correct fix - the equivalent of `docker network connect` for the kafka container - is named in this brief as the reconnect class and is explicitly marked UNAVAILABLE (not built in the executor), so it cannot be proposed here.",
+    "confirm_within_seconds": 300,
+    "if_wrong": "If checkout's error ratio returns to zero and the 'orders publish' span latency drops back to milliseconds without any operator action within ~5 minutes, then the resolution failure was transient (e.g. a brief DNS blip) and abstention cost nothing anyway. Conversely, my abstention is wrong in the other direction if evidence appears that the kafka hostname is resolvable from other containers while only checkout fails - that would point at checkout's own resolver/process state and would make restart_service on checkout defensible. No such evidence exists here: checkout emitted zero log lines for the whole window [tr_1e53b8ffb6d9], so its own account of the failure is unread, and no dispatch ever targeted kafka (no broker logs, process state, or DNS/service-registry records), so crash vs. deschedule vs. network severance is inferred purely client-side.",
+    "risk": "The risk of abstaining is continued order loss: PlaceOrder keeps failing and the accounting and fraud-detection consumers keep starving [tr_d3a3ea324e8a, tr_ce236c7cc1a0] until a human intervenes. I accept that over the alternative, because every available action is a poor match. restart_service on checkout would discard checkout's cache and reset its circuit breaker, producing a brief apparent recovery while the publish path re-walks the same DNS failure - a misleading signal that could stall the real fix; its precondition (evidence points at process state) is also unmet, since the failure is name resolution of an external host, not checkout's own process. rollback_image and revert_config both require a recorded prior image or config and a change inside the window, and the change log is explicitly empty for checkout, fraud-detection and messaging infrastructure over 24h [tr_36884e2a7d77, tr_3cd2d3ded37d], so both preconditions fail. Acting anyway would recreate a working container for no mechanism-level reason.",
+    "blast_radius": "Nothing changes, so nobody sees a new effect. The existing damage continues to reach: checkout (seed), its caller frontend and frontend-proxy on the PlaceOrder path, and the two starved Kafka consumers accounting and fraud-detection. The dependencies payment, cart, shipping, currency, product-catalog and email are unaffected and complete in milliseconds [tr_dbffa43306da]. Had I proposed restart_service on checkout, the blast radius would have been checkout plus a connection reset seen by frontend and frontend-proxy for the duration of the recreate."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Critical multi-service alert starting at checkout and spreading to accounting and fraud-detection within two minutes; nothing here can be dismissed and no open incident covers it. The shared downstream set (flagd, payment, cart) offers no single clear prior yet."
+  }
+}

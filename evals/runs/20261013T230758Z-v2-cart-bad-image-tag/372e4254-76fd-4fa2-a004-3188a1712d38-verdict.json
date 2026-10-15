@@ -1,0 +1,174 @@
+{
+  "incident_id": "372e4254-76fd-4fa2-a004-3188a1712d38",
+  "trajectory_id": "eee4e4a4-34eb-4433-b32c-6965f9e1f334",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "ad",
+    "cart",
+    "checkout",
+    "currency",
+    "email",
+    "frontend",
+    "frontend-proxy",
+    "load-generator",
+    "payment",
+    "product-catalog",
+    "product-reviews",
+    "recommendation",
+    "shipping"
+  ],
+  "unmeasured_edges": 13,
+  "exclude_origins": [
+    "scenario:v2-cart-bad-image-tag"
+  ],
+  "verdict": {
+    "root_cause": "cart is not running the artifact it should be. At 23:08:02 the cart process logged an orderly framework shutdown and emitted nothing afterwards \u2014 no startup, readiness or bind lines [tr_7c431108b964] \u2014 and one second later platform-automation re-applied the image reference ghcr.io/open-telemetry/demo:2.2.0-cart-hotfix.2 to cart [tr_7a7ccb1fb7c5]. The replacement workload never came up: checkout's traces show the cart hop first failing as a ~20s dial timeout to cart:7070 at ~23:08:07, then from ~23:09:03 onward failing in under a millisecond with a gRPC name-resolution error returning zero addresses [tr_1b5c6578abb6]. The same hotfix image had been applied ~25 minutes before onset and reverted 8 minutes later, and those two exposure windows match checkout's two error-ratio crossings (~22:47 and ~23:09) and cart's 22:50:31 change point reaching a 1.0 error ratio [tr_ba44177de632][tr_53509cbaf833]. Checkout itself is clean, with sub-millisecond self time, healthy concurrent dependencies and no change records of its own [tr_1b5c6578abb6][tr_6519405226d3].",
+    "service": "cart",
+    "fault_class": "bad_deploy",
+    "remediation_class": "rollback",
+    "confidence": "high",
+    "evidence": [
+      "tr_7a7ccb1fb7c5",
+      "tr_7c431108b964",
+      "tr_1b5c6578abb6",
+      "tr_53509cbaf833",
+      "tr_ba44177de632",
+      "tr_6519405226d3"
+    ],
+    "reasoning": "Causal direction: the deepest and only erroring span in every failing checkout trace is checkout's call to cart GetCart, and failing traces terminate there while concurrent successful traces show all other dependencies healthy [tr_1b5c6578abb6]; checkout has no changes of its own [tr_6519405226d3]. Mechanism: cart's log ends with a clean shutdown at 23:08:02 with no crash, bind failure, probe failure or backend error, and no restart line follows [tr_7c431108b964]; cart's metrics show 20 intervals with no defined error ratio, meaning zero recorded calls \u2014 absence, not slowness [tr_53509cbaf833]. Trigger: the hotfix image was re-applied one second after that shutdown, having already been applied and backed out once in the preceding half hour [tr_7a7ccb1fb7c5], which explains the two separate threshold crossings rather than a monotonic ramp [tr_ba44177de632]. The dial-timeout-then-zero-address progression is the signature of pods terminating with no replacement endpoint registering; longer timeouts or retries cannot help [tr_1b5c6578abb6]. The fix is to revert the image reference to the pre-hotfix tag, as was already done once at 22:54:51 and then undone.",
+    "open_questions": [
+      "No log lines exist for the post-23:08:02 cart workload, so the evidence cannot distinguish an image-pull failure, a crash before logging initialised, or a pod never scheduled; a container/kubelet status query would settle it.",
+      "Checkout returned zero log lines of any severity over a full hour [tr_8a2da7f81239] despite demonstrably serving traffic \u2014 a separate observability defect left unexamined.",
+      "Why the automation churned apply/revert/re-apply is unknown, including whether a manual revert would simply be re-applied again."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "cart's workload was scaled to zero or removed, so its endpoints vanished and callers resolved no addresses.",
+        "service": "cart",
+        "fault_class": "resource_exhaustion",
+        "remediation_class": "scale",
+        "why_not": "The change log records only image-reference updates, no scaling or replica entries [tr_7a7ccb1fb7c5], and the clean shutdown one second before an image re-apply [tr_7c431108b964] fits a rolling replacement rather than a deliberate scale-down."
+      },
+      {
+        "root_cause": "The hotfix image starts but is misconfigured \u2014 wrong port or address \u2014 so it never registers at cart:7070.",
+        "service": "cart",
+        "fault_class": "bad_config",
+        "remediation_class": "config_revert",
+        "why_not": "No configuration or env-var changes are recorded for cart in the window [tr_7a7ccb1fb7c5], and cart logged no bind or listen-address lines at all after the shutdown [tr_7c431108b964], so there is no evidence a process started and bound wrongly."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "v2-payment-dependency-latency / What was observed: The page was one alert, `ServiceHighLatency` on **checkout**, 5m35s after the trouble started.\nNothing else fired, then or later, and nothing fired after the fix. Nothing errored: every error\nratio on the world stayed at zero for the whole incident.\n\nCheckout's p95 had been 35 to",
+    "v2-frontend-cart-misconfig / What was checked: **The error text, because it was the first thing a responder would read.** Checkout's error spans\nand the frontend's log said `shipping quote failure: failed POST to email service: expected 200,\ngot 400`. That names two services, and neither was at fault. It is checkout's own wor",
+    "v2-inj-payment-dependency-latency-log-checkout / What was observed: The page came 5m20s after onset and it was one line: `ServiceHighLatency` on **checkout**. Nothing\nelse fired before it, beside it or after it - no error-rate alert anywhere, no service gone quiet.\n\nCheckout's 95th percentile stepped from 16 to 18ms at rest to 267ms at T+2, 313 a"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 27827,
+    "pulled_tokens": 7272,
+    "pull_rate": 0.2072,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 481,
+        "content_tokens": 482,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1786,
+        "content_tokens": 1789,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 8449,
+        "content_tokens": 8425,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 7804,
+        "content_tokens": 7807,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 9307,
+        "content_tokens": 9285,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "rollback",
+    "action_id": "rollback_image",
+    "target": "cart",
+    "rests_on": [
+      "tr_7a7ccb1fb7c5",
+      "tr_7c431108b964",
+      "tr_1b5c6578abb6",
+      "tr_53509cbaf833"
+    ],
+    "expected_effect": "Redeploying cart at the image reference it ran before the 23:08:03 re-apply of ghcr.io/open-telemetry/demo:2.2.0-cart-hotfix.2 should both put a known-good artifact in place and recreate the container that has emitted nothing since its 23:08:02 orderly shutdown. Observable within minutes: (1) cart's Loki stream resumes \u2014 startup/ready lines and ValkeyCartStore Add/Get/Empty info lines appear after a ~several-minute gap, which is the single clearest signal since the current state is total log silence [tr_7c431108b964]; (2) checkout traces stop showing the sub-millisecond gRPC name-resolution error with zero addresses on the cart/GetCart hop, and failing traces stop truncating at ~9-11 spans [tr_1b5c6578abb6]; (3) cart's error-ratio series stops producing undefined (zero-traffic) intervals and falls back toward its ~0.2% baseline [tr_53509cbaf833]; (4) checkout's error ratio returns to the flat zero it held for the whole baseline hour [tr_ba44177de632].",
+    "confirm_within_seconds": 300,
+    "if_wrong": "Falsified if, 5 minutes after the redeploy, cart has still emitted no startup or request lines \u2014 that would mean the workload fails to come up regardless of tag (image-pull failure against the registry, scheduling failure, or a crash before logging initialises), none of which a tag change fixes and all of which the current evidence cannot distinguish. Also falsified if cart comes up and logs normally but checkout's cart hop still returns zero resolved addresses, which would point at service discovery / network naming rather than the artifact. A third failure mode is non-durable success: cart recovers and then platform-automation re-applies the hotfix a third time, reproducing the outage; the apply/revert/re-apply churn in the change log [tr_7a7ccb1fb7c5] makes this plausible and it is not something this action can prevent \u2014 watch for a new change record on cart after the rollback. Note also that checkout's own logs are empty for a full hour [tr_8a2da7f81239], so confirmation must come from cart's logs, traces, and metrics, not from checkout log lines.",
+    "risk": "If the diagnosis is wrong and cart's failure to start is environmental rather than artifact-related, this action spends a container recreate and changes nothing, while leaving cart pinned to an older tag that someone may have had a reason to move off \u2014 the hotfix name implies it was fixing something, and the prior-tag behaviour during the 22:54-23:08 reverted window is not characterised in this evidence beyond checkout's error ratio dropping back below threshold. The recreate discards cart's in-process state (cache only; durable cart contents live in Valkey, which the logs show healthy up to 23:08:00). If this rollback races a fourth automation apply, the two writers could leave cart in an indeterminate image state and prolong the outage. The change-record metadata for the most recent apply shows a prior reference of 'None', so there is a small chance the executor resolves the wrong prior tag; verify the resolved target tag before approving.",
+    "blast_radius": "One service, cart, plus everyone fronting it. Direct inbound callers named in this incident are checkout (gRPC GetCart on :7070) and frontend; their failures propagate up through frontend-proxy and load-generator, all four of which are already alerting. Since cart is currently serving nothing, the recreate's connection reset costs almost nothing beyond the present state. If the rollback succeeds, checkout's downstream chain (payment, shipping, currency, email, product-catalog) will begin receiving traffic again for the first time since ~23:08 as checkout traces stop aborting at the cart hop \u2014 expect their request rates to rise back to pre-incident levels, which is recovery and not a regression."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Simultaneous critical alerts across checkout, frontend, and the proxy point to a shared user-facing failure rather than a quiet system, and no open incident covers it. The common dependency is unclear at this stage, so the fault class stays unknown."
+  }
+}

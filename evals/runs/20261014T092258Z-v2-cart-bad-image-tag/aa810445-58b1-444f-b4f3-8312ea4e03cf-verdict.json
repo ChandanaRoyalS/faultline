@@ -1,0 +1,89 @@
+{
+  "incident_id": "aa810445-58b1-444f-b4f3-8312ea4e03cf",
+  "trajectory_id": "45299f16-ce59-43eb-a471-09092994bfac",
+  "states": [
+    "triaging",
+    "investigating"
+  ],
+  "blast_radius": [
+    "checkout",
+    "frontend",
+    "frontend-proxy",
+    "load-generator",
+    "ad",
+    "cart",
+    "currency",
+    "email",
+    "payment",
+    "product-catalog",
+    "product-reviews",
+    "recommendation",
+    "shipping"
+  ],
+  "unmeasured_edges": 13,
+  "exclude_origins": [
+    "scenario:scenario:v2-cart-bad-image-tag"
+  ],
+  "verdict": {
+    "fault_class": "bad_deploy",
+    "remediation_class": "rollback",
+    "service": "cart",
+    "alternatives": [
+      {
+        "root_cause": "cart was cut off from the network so callers could not reach it",
+        "service": "cart",
+        "fault_class": "network_partition",
+        "remediation_class": null,
+        "why_not": "a partitioned cart would keep running and log that it cannot reach its own dependencies; instead cart logged a clean application shutdown and then went silent"
+      },
+      {
+        "root_cause": "cart's process froze while its socket still accepted connections",
+        "service": "cart",
+        "fault_class": "process_freeze",
+        "remediation_class": null,
+        "why_not": "callers got immediate unreachable failures rather than hanging to deadline, and cart's shutdown is explicitly logged"
+      },
+      {
+        "root_cause": "a configuration value pointed callers at the wrong cart address or port",
+        "service": "frontend",
+        "fault_class": "bad_config",
+        "remediation_class": null,
+        "why_not": "the address and port in the caller errors match cart's normal endpoint, and cart itself stopped at the moment of its own image change"
+      }
+    ],
+    "summary": "cart was redeployed to the 2.2.0-cart-hotfix.2 image, which does not stay up, so cart's process shut down and its address stopped accepting connections, failing every checkout that needs the cart.",
+    "confidence": "high",
+    "evidence": [
+      "tr_d71055b3d7e8",
+      "tr_24f3470d5add",
+      "tr_a679d4f7b5fa",
+      "tr_27a9c3f1c553",
+      "tr_0af683819833"
+    ],
+    "reasoning": "Checkout alerted first but writes nothing in the window (tr_27a9c3f1c553) and its healthy-period traces (tr_0af683819833) show a normal fan-out with no slow dependency, so checkout is the noticer. The frontend's errors name a single peer address on the cart port and report that the host is unreachable, i.e. hard, fast connection failures rather than deadline hangs (tr_a679d4f7b5fa). Cart's own log is normal request traffic up to an orderly application shutdown and then nothing (tr_24f3470d5add) - no complaints about being unable to reach anything, which rules out a partition, and no silent-but-accepting socket, which rules out a freeze. The change log (tr_d71055b3d7e8) shows platform-automation repeatedly flipping cart to a hotfix image and reverting it, with the last flip to that image coinciding with the shutdown; the running artifact is not one that stays up, so the failing mechanism is the deployed artifact itself. Every other service in the blast radius is downstream of checkout's dependence on cart.",
+    "open_questions": [
+      "Whether the hotfix image crash-loops on start or exits cleanly, since no cart logs exist after the shutdown line to show a failed startup",
+      "Why checkout produced no log lines at all in the window, which left its own failure mode uncharacterised",
+      "Whether the earlier flip/revert cycles caused the same outage and were auto-reverted before alerting"
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B1",
+    "tool_calls": 5,
+    "turns": 7,
+    "looked_at": [
+      "logs:checkout",
+      "traces:checkout",
+      "logs:frontend",
+      "logs:cart",
+      "changes:cart"
+    ]
+  }
+}

@@ -1,0 +1,179 @@
+{
+  "incident_id": "d99dd903-6058-4982-b38d-d59e6e906b28",
+  "trajectory_id": "337369ca-e23b-49df-b358-41a5a4998aaf",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "accounting",
+    "checkout",
+    "currency",
+    "email",
+    "flagd",
+    "fraud-detection",
+    "frontend",
+    "payment",
+    "quote",
+    "shipping"
+  ],
+  "unmeasured_edges": 7,
+  "exclude_origins": [
+    "scenario:v2-currency-freeze"
+  ],
+  "verdict": {
+    "root_cause": "Currency appears to have stopped producing any observable output at 02:02:16 while its socket remained reachable: no log lines of any severity over the window [tr_a1407cb1d298] and no span-metric series at all [tr_cc24c6b98fe9], with no change recorded against it [tr_d3ad6dd523b1] and the flag plane healthy and unchanged [tr_123f77d1efca][tr_74545cf48418]. Currency is on checkout's hot path, invoked repeatedly per order [tr_7c3866737f02], so a silent, non-responding currency hop stalls checkout and fans out to the seven alerting services. The silence-with-reachability signature points at a frozen process rather than an error-producing fault; however, the trace evidence is genuinely in tension with this, since sampled traces show currency completing sub-2ms, and no sampled data covers the exact onset minute.",
+    "service": "currency",
+    "fault_class": "process_freeze",
+    "remediation_class": "restart",
+    "confidence": "low",
+    "evidence": [
+      "tr_a1407cb1d298",
+      "tr_cc24c6b98fe9",
+      "tr_7c3866737f02",
+      "tr_d3ad6dd523b1",
+      "tr_123f77d1efca"
+    ],
+    "reasoning": "Three independent currency-side signals are empty (logs, span metrics) while the service is still named as a callee in traces and no change record exists. A crashing or erroring service would leave exception text or an error-ratio step; neither exists. A partitioned service would log its own connection failures; currency logs nothing. That combination - alive socket, zero self-emitted signal, callers alerting - is the freeze signature. flagd is excluded as origin by its flat error ratio and continuous coverage. Confidence is low because checkout's log stream is equally empty [tr_23ec0ae537fb], which raises the possibility that the emptiness is a telemetry-collection gap rather than a service state, and the traces sampled from 00:02 onward show currency healthy.",
+    "open_questions": [
+      "Is currency's emptiness real silence or a broken/mislabeled log and metric shipping path, given checkout's stream is also entirely empty [tr_23ec0ae537fb]?",
+      "Do any traces fall inside 02:02:16-02:04 specifically, and do currency spans there carry error status or unbounded duration? The sampled traces were truncated and showed no status codes [tr_7c3866737f02].",
+      "What happened in the hours before 02:02:16? Both change queries covered only the post-incident period [tr_d3ad6dd523b1][tr_74545cf48418].",
+      "Was checkout itself hanging on currency, or is checkout the actual culprit and currency merely quiet?"
+    ],
+    "alternatives": [
+      {
+        "root_cause": "The incident is an observability-pipeline failure, not a service fault: log and metric collection broke for multiple services, and the alerts reflect a different, uninvestigated cause.",
+        "service": "currency",
+        "fault_class": "unknown",
+        "remediation_class": "none",
+        "why_not": "It explains the empty queries but not why seven business services alerted simultaneously at 02:02:16; a collection gap does not fail checkout orders."
+      },
+      {
+        "root_cause": "Checkout is the failing service and currency is simply quiet, with checkout stalling its own order path and propagating to payment, shipping, email, accounting and fraud-detection.",
+        "service": "checkout",
+        "fault_class": "process_freeze",
+        "remediation_class": "restart",
+        "why_not": "Triage traced the blast radius to start at currency, and checkout still appears as an active caller issuing currency spans in traces [tr_7c3866737f02]; no checkout-side evidence beyond an empty log stream was gathered."
+      },
+      {
+        "root_cause": "Currency is cut off from the network, hanging its callers while remaining process-alive.",
+        "service": "currency",
+        "fault_class": "network_partition",
+        "remediation_class": "reconnect",
+        "why_not": "A partitioned service normally logs its own unreachable-dependency errors; currency logged nothing at all, and traces show it has no downstream calls to be cut off from [tr_7c3866737f02][tr_a1407cb1d298]."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "runbook:class-bad-config / What the change record holds: The variable and a timestamp, and **the new value only** - no change record in this world carries\na prior value, which `world-change-records-have-no-prior-value` sets out.\n\n**What the logs hold is not uniform, and this document had it wrong.** An earlier version said a\nservice po",
+    "v2-shipping-quote-misconfig / What was checked: **The error text, because it was the first thing a responder would read.** Frontend's log and\ncheckout's error span both said the same thing: `shipping quote failure: failed POST to email\nservice: expected 200, got 500`. That sentence names two services. The email service is the ",
+    "v2-fraud-detection-memory-squeeze / What was observed: One alert. `ServiceNoTraffic` on **fraud-detection**, 7m15s after the trouble started. Nothing\nelse fired for the entire incident, and nothing fired after the fix.\n\nThe store was perfect throughout. The frontend, frontend-proxy and the load generator recorded no\nerrors and no cha"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 23010,
+    "pulled_tokens": 5526,
+    "pull_rate": 0.1937,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 433,
+        "content_tokens": 435,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1460,
+        "content_tokens": 1462,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 6962,
+        "content_tokens": 6939,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 6453,
+        "content_tokens": 6455,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 7702,
+        "content_tokens": 7679,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_a1407cb1d298",
+      "tr_cc24c6b98fe9",
+      "tr_23ec0ae537fb",
+      "tr_7c3866737f02",
+      "tr_d3ad6dd523b1"
+    ],
+    "expected_effect": "No action is proposed, so nothing should change. The observable justification for holding: currency's span-metric series is empty in the *baseline* window as well as the incident window [tr_cc24c6b98fe9], and checkout's log stream is equally and totally empty over the same 32 minutes [tr_23ec0ae537fb]. Two independent services silent in two independent stores, with emptiness predating onset, is the signature of a collection/labeling gap, not of one frozen process. Meanwhile the only direct observation of currency's behaviour shows it completing Convert calls as a leaf span in 0.3-1.8ms across the window [tr_7c3866737f02] - i.e. serving. restart_service requires evidence that points at process state; what we have points at the telemetry path. The discriminating queries are cheap and not yet run: a trace query bounded to 02:02:16-02:04 with status codes rendered (the prior query returned 10 traces truncated to 4 with no status codes [tr_7c3866737f02]), a Loki label-values query for the `service` label to see what currency and checkout are actually labelled as, and a change-history query covering the hours *before* 02:02:16, which neither change query did [tr_d3ad6dd523b1].",
+    "confirm_within_seconds": 0,
+    "if_wrong": "This abstention is wrong if a trace query scoped to 02:02:16-02:04 shows currency spans with unbounded duration, STATUS_CODE_ERROR, or checkout client spans to CurrencyService/Convert that never receive a child - that would be direct evidence of a hung process and would meet restart_service's precondition. It is also wrong if a Loki label enumeration confirms `service=\"currency\"` is a live, correctly-populated label that genuinely went silent at 02:02:16 while other services kept shipping. Note that if currency is in fact frozen, a restart's success would be hard to confirm from the very signals that are currently empty - no log line to resume, no span-metric series to recover - which is a second reason to fix the observability question first rather than act blind.",
+    "risk": "The risk of abstaining is prolonged outage: if currency really is frozen on checkout's hot path, seven alerting services stay degraded for as long as this takes to resolve. The risk of the action I am declining is worse-shaped: restart_service is irreversible, it discards in-process state, and a restart of a healthy currency would destroy the frozen process's evidence, make the true cause unrecoverable, and leave the real fault (plausibly in checkout, or in the telemetry pipeline) untouched while appearing to have been 'tried'.",
+    "blast_radius": "Nobody sees this change, because there is no change. For the record, the action withheld would have hit currency alone; per the sampled traces its only inbound caller is checkout [tr_7c3866737f02], which would see connection resets on Convert during the recreate, propagating to frontend and to the seven alerting services via checkout's order path."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Seven services alerting simultaneously at the same second is a synchronized multi-service failure that cannot be dismissed, and no open incident covers it. The shared flagd dependency hints at a flag/config trigger, but nothing yet distinguishes that from a common-infrastructure fault."
+  }
+}

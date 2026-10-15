@@ -1,0 +1,61 @@
+incident 4239dcab-eb5a-4f72-8942-ee40a5ebf891  state triaging  anchor 22:00:31
+triage: 9 services, severity critical, start from checkout, 8 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 0eb395bb-987f-480e-8a96-fb63aea1d085
+triage judged: investigate (medium confidence, suspects unknown)
+  A critical alert on checkout with no open incidents to attribute it to and no competing signal to dismiss it. Single-seed alert gives no hint of cause yet, so fault class stays unknown.
+investigation: 2 round(s), 7 dispatch(es), 20 step(s)
+
+=== PROPOSAL ===
+  ABSTAINED - no permitted action fits the evidence
+  if wrong    : This abstention is wrong if the malformed bytes are not persisted but are produced per-request by cart's own in-process state — for example a corrupted in-memory serializer buffer or a wedged connection multiplexer — in which case restart_service on cart would stop the error lines and the abstention cost real downtime. The observation that would show this: the FailedPrecondition line text varying across restarts or across cart replicas, or the error disappearing and reappearing without any write to the store. Current evidence argues against it — the error detail text is byte-identical across every line in the window [tr_871968a1ced8], which reads as one bad stored payload replayed rather than live corruption. It is also wrong if a pre-onset cart deploy exists: no change-log window before 21:56:30Z was ever queried [tr_b83043db5026], and if such a deploy (e.g. a serializer change) is found, rollback_image on cart would meet its preconditions and become the correct proposal. Querying change history for cart over the hours preceding 21:56:30Z is the single cheapest observation that could convert this abstention into an action.
+  rests on    : tr_871968a1ced8, tr_45a6a0243e5f, tr_b83043db5026, tr_4ef11f576ced
+  execution   : not executed - a proposal is a claim, never the change (ADR-0028 §1)
+
+context: 26729 pushed / 9248 pulled (pull rate 0.2571), 1 section(s) dropped
+
+=== VERDICT ===
+  fault class : datastore_corruption
+  fix class   : restore_data
+  confidence  : high
+  evidence    : tr_871968a1ced8, tr_45a6a0243e5f, tr_b83043db5026, tr_4ef11f576ced, tr_6a4cad08a919, tr_7ba8e797a1a7, tr_a3d27276183e
+  root cause  : Cart's backing store is reachable and fast but holds at least one payload that cart cannot decode: every cart error line in the window is the identical FailedPrecondition carrying a Google.Protobuf.InvalidProtocolBufferException reporting that the input ended in the middle of a field [tr_871968a1ced8]. Traces confirm the failure is a data-shape fault above the storage call rather than a storage outage or slowness — the Redis HGET child span still completes in sub-millisecond time inside failing traces, and the error status originates at the cart handler span [tr_45a6a0243e5f]. Checkout is a victim, not a cause: every failing checkout trace aborts at its first downstream hop, CartService/GetCart, before currency, product-catalog, shipping, payment, email or the orders publish are ever invoked, and checkout/frontend/frontend-proxy spans merely re-wrap the cart status with negligible self time [tr_45a6a0243e5f]. Onset is bounded to just before 21:56:30Z, with failures continuing unbroken to the window edge [tr_871968a1ced8], and no deploy, config edit or flag flip is recorded for either checkout [tr_4ef11f576ced] or cart [tr_b83043db5026] in the window the change log actually covered.
+  OPEN        : Whether the corruption is confined to a small set of cart keys/session IDs or is spreading — nothing queried the store directly or counted distinct affected carts.
+  OPEN        : What wrote the malformed payload. No change log window covering the hours before 21:56:30 was ever queried; a pre-onset cart deploy or serializer change remains unexamined.
+  OPEN        : Why checkout emits zero log lines across a 32-minute window [tr_a3d27276183e]. This may be a label mismatch or a broken shipping path, but an unlogging checkout is an unexplained second anomaly.
+  OPEN        : Whether cart's Redis instance is itself healthy at the infrastructure level — no memory, eviction, persistence or disk-capacity signal was collected, and an eviction or truncated-write condition on Redis could be the upstream producer of the bad bytes.
+  OPEN        : Whether the corruption is still being produced or is static: the identical error text suggests one bad payload replayed, but no write-path instrumentation was examined to confirm new bad writes are not occurring.
+  OPEN        : The baseline windows for both metric queries returned no samples [tr_7ba8e797a1a7, tr_6a4cad08a919], so no before/after comparison exists for either service and the prior error rate is unknown rather than zero.
+  OPEN        : The truncated 6-span failing trace with no checkout child [tr_45a6a0243e5f] is unexplained and may represent a second, distinct failure path.
+
+flags: none
+
+retrieval: exclude_origins=['scenario:v2-cart-store-corruption'], 0 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20261011T215426Z-v2-cart-store-corruption/4239dcab-eb5a-4f72-8942-ee40a5ebf891-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20261011T215426Z-v2-cart-store-corruption/4239dcab-eb5a-4f72-8942-ee40a5ebf891-narrative.md
+{"ts": "2026-10-11T22:02:25.221+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-11T22:02:39.192+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-11T22:02:45.441+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-11T22:02:45.449+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=checkout start=2026-10-10T22:00:31.664000+00:00 end=2026-10-11T22:02:25.237393+00:00 span_s=86513 refused=False", "component": "investigator"}
+{"ts": "2026-10-11T22:02:45.452+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=metric_baseline subject=sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"checkout\",status_code=\"STATUS_CODE_ERROR\"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"checkout\"}[5m])) start=2026-10-11T20:58:38.090607+00:00 end=2026-10-11T22:02:25.237393+00:00 span_s=3827 refused=False", "component": "investigator"}
+{"ts": "2026-10-11T22:02:45.453+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=trace_query subject=checkout start=2026-10-11T21:30:31.664000+00:00 end=2026-10-11T22:02:25.237393+00:00 span_s=1913 refused=False", "component": "investigator"}
+{"ts": "2026-10-11T22:02:45.455+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=logql_query subject={service=\"checkout\"} start=2026-10-11T21:30:31.664000+00:00 end=2026-10-11T22:02:25.237393+00:00 span_s=1913 refused=False", "component": "investigator"}
+{"ts": "2026-10-11T22:02:56.409+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-11T22:02:57.536+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-11T22:03:04.270+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-11T22:03:10.898+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-11T22:03:27.296+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-11T22:03:27.303+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=metric_baseline subject=sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"cart\",status_code=\"STATUS_CODE_ERROR\"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"cart\"}[5m])) start=2026-10-11T20:58:38.090607+00:00 end=2026-10-11T22:02:25.237393+00:00 span_s=3827 refused=False", "component": "investigator"}
+{"ts": "2026-10-11T22:03:27.304+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=cart start=2026-10-10T22:00:31.664000+00:00 end=2026-10-11T22:02:25.237393+00:00 span_s=86513 refused=False", "component": "investigator"}
+{"ts": "2026-10-11T22:03:27.307+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=logql_query subject={service=\"cart\"} |= \"FailedPrecondition\" start=2026-10-11T21:30:31.664000+00:00 end=2026-10-11T22:02:25.237393+00:00 span_s=1913 refused=False", "component": "investigator"}
+{"ts": "2026-10-11T22:03:38.396+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-11T22:03:40.552+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-11T22:03:46.118+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-11T22:04:25.870+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-11T22:05:04.023+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-11T22:05:29.290+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-11T22:05:29.323+00:00", "level": "INFO", "logger": "faultline.notify", "msg": "no report-ready notification was sent: no notifier was configured", "component": "investigator"}
+{"ts": "2026-10-11T22:05:29.323+00:00", "level": "INFO", "logger": "faultline.notify", "msg": "no awaiting-approval notification was sent: no notifier was configured", "component": "investigator"}

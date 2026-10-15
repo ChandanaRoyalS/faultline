@@ -1,0 +1,175 @@
+{
+  "incident_id": "f53a2ad8-d15b-4327-bf20-85e00553cfc7",
+  "trajectory_id": "ccd9dc7f-33d0-47be-a690-f3d229e3e114",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "ad",
+    "cart",
+    "checkout",
+    "frontend",
+    "frontend-proxy",
+    "load-generator",
+    "product-catalog",
+    "product-reviews",
+    "recommendation"
+  ],
+  "unmeasured_edges": 7,
+  "exclude_origins": [
+    "scenario:v2-product-catalog-freeze"
+  ],
+  "verdict": {
+    "root_cause": "Frontend's gRPC calls to a backend at 172.18.0.24:7070 are being refused at the TCP layer (ECONNREFUSED, gRPC 14 UNAVAILABLE) starting ~05:43:36, about one minute before the error-ratio change point at 05:44:46 on both frontend and frontend-proxy [tr_83aa4bdc809b, tr_c9826424f3bd, tr_39825163a4f0]. Nothing is listening on that port: the failure is immediate rejection, not slowness or saturation, and DNS resolved fine [tr_83aa4bdc809b]. Port 7070 matches the CART_ADDR value (cart:7071 was the transient override; the normal cart port is 7070) that platform-automation set and reverted ~1.4h before onset [tr_1faaffc58867], so the most likely culprit is the cart service process no longer accepting connections on its port while frontend holds a sticky, non-retried failed connection [tr_83aa4bdc809b]. The elevation is partial and bursty \u2014 only the request paths that touch this backend fail, which is why most traffic still succeeds [tr_39825163a4f0, tr_a469193f329f]. frontend-proxy and frontend are relays of this failure, not its source [tr_a469193f329f, tr_5be4a3a171b2].",
+    "service": "cart",
+    "fault_class": "unknown",
+    "remediation_class": "restart",
+    "confidence": "low",
+    "evidence": [
+      "tr_83aa4bdc809b",
+      "tr_c9826424f3bd",
+      "tr_39825163a4f0",
+      "tr_1faaffc58867",
+      "tr_a469193f329f",
+      "tr_5be4a3a171b2"
+    ],
+    "reasoning": "The only first-party error signal anywhere in the board is frontend's log: repeated gRPC 14 UNAVAILABLE with ECONNREFUSED against a single resolved IP:port, beginning ~70s before the metric change point on both frontend and frontend-proxy. Connection-refused means the socket is closed, which excludes dependency_latency, process_freeze and network_partition (all of which hang rather than refuse) [tr_83aa4bdc809b]. frontend-proxy has no changes and shows negligible self-time with intact routing in sampled traces, so it is a propagation path, not the fault [tr_5be4a3a171b2, tr_a469193f329f]. frontend's only recorded changes are a set-and-revert of CART_ADDR completed 1.4h before onset, leaving the environment at its pre-change baseline \u2014 so the current config value is not itself wrong and bad_config is not the mechanism [tr_1faaffc58867]. That leaves the backend behind 172.18.0.24:7070 as the failing party. No specialist was dispatched against cart itself, so the mechanism on that host \u2014 crash-loop, OOM kill, bad artifact, or disk \u2014 is unidentified, which is why fault_class is unknown and confidence is low. Frontend's sticky cached connection failure [tr_83aa4bdc809b] explains why errors persist in bursts rather than clearing immediately, and the separate gRPC 13 INTERNAL from the email service on the shipping-quote path is a second, independent failure mode not covered by this verdict [tr_83aa4bdc809b].",
+    "open_questions": [
+      "No dispatch ever examined the service behind 172.18.0.24:7070 \u2014 its identity must be confirmed (cart is inferred from the CART_ADDR port, not observed) and its logs, metrics, changes and restart history pulled to name the actual mechanism.",
+      "The second error family \u2014 gRPC 13 INTERNAL from an HTTP 400 returned by the email service on the shipping-quote path \u2014 is unexplained and may be an independent concurrent incident [tr_83aa4bdc809b].",
+      "frontend-proxy returned zero log lines across the entire window including the pre-onset period, so its log pipeline is broken or mislabelled; no absence-of-errors conclusion from the proxy is safe [tr_34f5c2d8163e], and the sampled traces contained no error spans at all [tr_a469193f329f], meaning the failing path was never captured in trace evidence."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "The cart (or other 7070) backend exhausted memory or connections and was killed, so its listener disappeared and connections are refused.",
+        "service": "cart",
+        "fault_class": "resource_exhaustion",
+        "remediation_class": "restart",
+        "why_not": "Plausible and consistent with a refused socket, but no metric, log or change evidence was gathered from that host, so exhaustion is speculation rather than an observed mechanism."
+      },
+      {
+        "root_cause": "A deploy of the 7070 backend shipped an artifact that cannot start, leaving nothing bound to the port.",
+        "service": "cart",
+        "fault_class": "bad_deploy",
+        "remediation_class": "rollback",
+        "why_not": "The change log was only queried for frontend-proxy and frontend; no deploy against the backend was ever looked for, and the set/revert of CART_ADDR at 04:34-04:43 is too distant from the 05:43 onset to supply the trigger [tr_1faaffc58867]."
+      },
+      {
+        "root_cause": "The CART_ADDR revert left frontend pointing at an address or port where no cart instance is listening, making the configuration value itself the failure.",
+        "service": "frontend",
+        "fault_class": "bad_config",
+        "remediation_class": "config_revert",
+        "why_not": "The revert restored the pre-04:34 baseline state and completed 1.4h before onset, with a quiet baseline in between \u2014 if the restored value were wrong, errors would have begun at 04:43, not 05:43 [tr_1faaffc58867, tr_c9826424f3bd]."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "v2-product-catalog-flag-failure / What was observed: The page was two alerts in the same moment, `ServiceHighErrorRate` on **frontend** and on\n**frontend-proxy**, 5m31s after the trouble started. Nothing else fired, then or later, and nothing\nfired after the fix.\n\nBoth error ratios had been zero. They rose from about two minutes in",
+    "v2-frontend-cart-misconfig / What was observed: The page was three alerts in the same moment, `ServiceHighErrorRate` on **checkout**, on\n**frontend** and on **frontend-proxy**, 3m17s after the trouble started. Load-generator joined them\na minute later. Frontend's error ratio had been zero. It rose from about a minute in, peake",
+    "v2-ad-bad-image-tag / What was observed: The page was two alerts in the same moment, `ServiceHighErrorRate` on **frontend** and\n**frontend-proxy**, 5m17s after the trouble started. The service the failures would turn out to\nname was not on it.\n\nThe frontend's error ratio had been zero. It was 3% at two minutes, 11% at f"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 28498,
+    "pulled_tokens": 6292,
+    "pull_rate": 0.1809,
+    "dropped_sections": 1,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 442,
+        "content_tokens": 444,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1771,
+        "content_tokens": 1774,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 8664,
+        "content_tokens": 8640,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 8096,
+        "content_tokens": 8098,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 9525,
+        "content_tokens": 9527,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_83aa4bdc809b",
+      "tr_a469193f329f",
+      "tr_1faaffc58867",
+      "tr_39825163a4f0"
+    ],
+    "expected_effect": "No action is proposed, so nothing should change: frontend's error ratio stays in its current bursty 0-30% band and the gRPC 14 UNAVAILABLE / ECONNREFUSED 172.18.0.24:7070 lines continue or stop on their own (the log sample already ends at 05:53:34). The next observation that would unblock a proposal is a direct check of which container holds 172.18.0.24 and whether anything is bound to :7070, plus that service's own logs, restart count and change history.",
+    "confirm_within_seconds": 300,
+    "if_wrong": "If the identity check shows 172.18.0.24:7070 is in fact cart and cart's own evidence shows a crashed or non-listening process (restart count rising, no listener, its logs silent at 05:43:36), then abstaining was wrong and restart_service on cart becomes the right call. Equally, if the refusals persist past 06:11 and continue to drive the error ratio, the cost of waiting for identification becomes real.",
+    "risk": "Abstention is not free: the refused-connection path keeps failing for the subset of requests that touch that backend, and if the process really is dead it stays dead until a human acts. I accept that cost because the only candidate action, restart_service on cart, rests on an inference the evidence actively contradicts: in the same incident window the sampled traces show cart serving AddItem/GetCart with Redis HGET/HMSET/EXPIRE leaves completing in 0.1-2.6ms with no errors [tr_a469193f329f], which is not consistent with cart refusing TCP connections. The 7070-means-cart link comes only from a CART_ADDR value that was set and reverted 1.4h before onset and was not in effect at onset [tr_1faaffc58867]. restart_service is also irreversible, so a restart aimed at the wrong service would discard that service's in-process cache, cause a connection reset for its callers, and leave the actual refused endpoint untouched while consuming the incident's remediation budget.",
+    "blast_radius": "None from this proposal, since no change is made. For contrast, the action I am declining \u2014 restarting cart \u2014 would be seen by frontend (its only inbound caller in this graph) and therefore by frontend-proxy and load-generator traffic on the AddItem/GetCart paths, for the duration of the container recreate."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Critical alerts span the proxy and frontend plus the load generator, indicating user-facing impact rather than a single quiet warning. No open incident covers it, and the cause could be any of several frontend dependencies, so a prior isn't warranted yet."
+  }
+}

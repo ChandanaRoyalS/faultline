@@ -1,0 +1,60 @@
+incident 72e796a7-0480-4e39-8385-fdd53ba0309a  state triaging  anchor 23:52:16
+triage: 5 services, severity critical, start from frontend-proxy, 3 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 2200c614-2ecf-451f-8e34-c51b78dc1573
+triage judged: investigate (low confidence, suspects feature_flag)
+  Critical multi-service alerting spanning frontend-proxy, load-generator, and ad is not dismissible, and no open incident exists to fold it into. flagd as a one-hop candidate cause via ad weakly suggests a feature flag change, but evidence is absent.
+investigation: 2 round(s), 8 dispatch(es), 22 step(s)
+
+=== PROPOSAL ===
+  ABSTAINED - no permitted action fits the evidence
+  if wrong    : Abstention is wrong if the stall is in fact a flag-gated code path that is cheaply revertible and is degrading real user traffic faster than the sampled 1.3% suggests. Two observations would falsify the abstention: (a) a flagd change record or evaluation log appearing for the incident window, which would satisfy revert_config's preconditions on flagd; or (b) frontend metrics showing the error ratio climbing monotonically rather than staying bursty, which would argue for acting on partial information. Note also that the effect of any fix here is only weakly observable - frontend-proxy emitted zero logs for 32 minutes [tr_e20414659457] and frontend was never queried at all, so confirmation would have to rest on span metrics and sampled traces alone.
+  rests on    : tr_deae37253e72, tr_f99438be7f9b, tr_a66c398ef4a0, tr_d02b69164bb6
+  execution   : not executed - a proposal is a claim, never the change (ADR-0028 §1)
+
+context: 28232 pushed / 5542 pulled (pull rate 0.1641), 1 section(s) dropped
+
+=== VERDICT ===
+  fault class : feature_flag
+  fix class   : config_revert
+  confidence  : low
+  evidence    : tr_a66c398ef4a0, tr_d02b69164bb6, tr_f7e513fb78fc, tr_f99438be7f9b, tr_deae37253e72
+  root cause  : The failing requests are intermittent ~15s stalls that terminate inside the frontend service: on the one error trace the span tree ends at a childless frontend/GET span whose entire ~15.0s is self-time, with no downstream ad, cart, product-catalog or DB span ever created [tr_a66c398ef4a0]. frontend-proxy merely propagates this (near-zero self-time) while its error ratio rises from an exactly-zero baseline to a bursty ~1.3% mean [tr_d02b69164bb6], and ad shows no error elevation of its own [tr_f7e513fb78fc] with only OTel exporter DNS failures in its logs [tr_2e10958165ec]. The ~15.000s round figure and the fact that a sibling frontend/GET branch in the same trace succeeded in ~2.6ms point to a subset of frontend request handlers hanging until a fixed client/proxy timeout, i.e. frontend is stalling on something it never emits a span for. No deploy or config change landed near onset for frontend or frontend-proxy [tr_f99438be7f9b], and flagd has no recorded changes and no logs [tr_deae37253e72, tr_b0da3459f23d], so the most likely mechanism is a flag-gated hang path in frontend rather than an artifact or config edit.
+  OPEN        : No flagd metrics, traces or evaluation records were examined; the feature_flag attribution rests on absence of change records plus intermittency, not on a positive observation of a flipped flag.
+  OPEN        : frontend itself was never queried directly - no logs, metrics or change history for frontend's running state - so what the frontend/GET handler was blocked on during the 15s is unknown.
+  OPEN        : frontend-proxy emitted no logs at all for 32 minutes [tr_e20414659457]; whether that is a log-shipping gap or a sign the proxy itself is impaired is unresolved.
+  OPEN        : Only one error trace was sampled, so the 15s stall pattern may not be representative of all failing requests.
+
+flags: none
+
+retrieval: exclude_origins=['scenario:v2-ad-partition'], 0 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20261012T234553Z-v2-ad-partition/72e796a7-0480-4e39-8385-fdd53ba0309a-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20261012T234553Z-v2-ad-partition/72e796a7-0480-4e39-8385-fdd53ba0309a-narrative.md
+{"ts": "2026-10-12T23:54:17.244+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-12T23:54:31.408+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-12T23:54:31.417+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=flagd start=2026-10-11T23:52:16.664000+00:00 end=2026-10-12T23:54:17.264425+00:00 span_s=86520 refused=False", "component": "investigator"}
+{"ts": "2026-10-12T23:54:31.418+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=metric_baseline subject=sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"frontend-proxy\",status_code=\"STATUS_CODE_ERROR\"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"frontend-proxy\"}[5m])) start=2026-10-12T22:50:16.063575+00:00 end=2026-10-12T23:54:17.264425+00:00 span_s=3841 refused=False", "component": "investigator"}
+{"ts": "2026-10-12T23:54:31.419+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=metric_baseline subject=sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"ad\",status_code=\"STATUS_CODE_ERROR\"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"ad\"}[5m])) start=2026-10-12T22:50:16.063575+00:00 end=2026-10-12T23:54:17.264425+00:00 span_s=3841 refused=False", "component": "investigator"}
+{"ts": "2026-10-12T23:54:31.422+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=logql_query subject={service=\"ad\"} start=2026-10-12T23:22:16.664000+00:00 end=2026-10-12T23:54:17.264425+00:00 span_s=1920 refused=False", "component": "investigator"}
+{"ts": "2026-10-12T23:54:42.782+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-12T23:54:45.219+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-12T23:54:45.696+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-12T23:54:48.965+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-12T23:55:12.025+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-12T23:55:12.034+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=trace_query subject=frontend-proxy start=2026-10-12T23:22:16.664000+00:00 end=2026-10-12T23:54:17.264425+00:00 span_s=1920 refused=False", "component": "investigator"}
+{"ts": "2026-10-12T23:55:12.035+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=logql_query subject={service=\"frontend-proxy\"} start=2026-10-12T23:22:16.664000+00:00 end=2026-10-12T23:54:17.264425+00:00 span_s=1920 refused=False", "component": "investigator"}
+{"ts": "2026-10-12T23:55:12.036+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=logql_query subject={service=\"flagd\"} start=2026-10-12T23:22:16.664000+00:00 end=2026-10-12T23:54:17.264425+00:00 span_s=1920 refused=False", "component": "investigator"}
+{"ts": "2026-10-12T23:55:12.037+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=frontend start=2026-10-11T23:52:16.664000+00:00 end=2026-10-12T23:54:17.264425+00:00 span_s=86520 refused=False", "component": "investigator"}
+{"ts": "2026-10-12T23:55:25.161+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-12T23:55:25.725+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-12T23:55:25.864+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-12T23:55:37.625+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-12T23:56:19.970+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-12T23:56:41.448+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-12T23:57:22.901+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-12T23:57:43.995+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-12T23:57:44.036+00:00", "level": "INFO", "logger": "faultline.notify", "msg": "no report-ready notification was sent: no notifier was configured", "component": "investigator"}
+{"ts": "2026-10-12T23:57:44.036+00:00", "level": "INFO", "logger": "faultline.notify", "msg": "no awaiting-approval notification was sent: no notifier was configured", "component": "investigator"}

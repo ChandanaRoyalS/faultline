@@ -1,0 +1,164 @@
+{
+  "incident_id": "affb6935-f6cd-4517-a57f-0d6455b1af9f",
+  "trajectory_id": "d92014da-87d3-4a2b-9f1b-7ac9b6d8de78",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "flagd",
+    "fraud-detection"
+  ],
+  "unmeasured_edges": 1,
+  "exclude_origins": [
+    "scenario:v2-fraud-detection-flag-queue-lag"
+  ],
+  "verdict": {
+    "root_cause": "fraud-detection's Kafka order-consumer is executing the code path gated by the `kafkaQueueProblems` feature flag, which evaluates to enabled and injects a fixed ~1 second sleep into every message handler invocation. Flag lines appear paired with every consumption line from ~20:53:54 onward and are absent in the preceding ~26 minutes [tr_6cd205f7d850]; traces show the cost is ~1.004-1.009s of pure self-time inside `orders process` with no outbound child spans [tr_5c5089be0b50]. The throttle to ~1 record/second prevents offset commit, so the same orderId is redelivered and reprocessed under one trace_id (200 spans, only 10 traces in 32 minutes) [tr_5c5089be0b50], [tr_b2161a5c6c9a]. No deploy, config edit or restart is recorded for fraud-detection or flagd [tr_f6c32d9532b0], [tr_e01e1e3a6214] - the signature of a runtime flag flip in the flag store.",
+    "service": "fraud-detection",
+    "fault_class": "feature_flag",
+    "remediation_class": "config_revert",
+    "confidence": "high",
+    "evidence": [
+      "tr_6cd205f7d850",
+      "tr_5c5089be0b50",
+      "tr_b2161a5c6c9a",
+      "tr_f6c32d9532b0",
+      "tr_e01e1e3a6214",
+      "tr_edbf05bf6eb3"
+    ],
+    "reasoning": "Logs name the mechanism explicitly: flag evaluation succeeds, returns enabled, and the handler sleeps one second per message [tr_6cd205f7d850], [tr_b2161a5c6c9a]. Traces localise the failing hop inside fraud-detection - sub-millisecond receive span, process spans carrying full duration as self-time, no downstream children - which eliminates dependency latency; the fixed duration eliminates queue-depth or progressive degradation [tr_5c5089be0b50]. Specialists separately ruled out OOM/heap/GC and restart (counter carries forward), consumer rebalance storms, unhandled exceptions, and flag-client evaluation failures [tr_b2161a5c6c9a], leaving the flag's value rather than any error as the fault. The empty change log is corroborating, not merely absent: a store-side flag flip changes no artifact and no config file [tr_f6c32d9532b0], [tr_e01e1e3a6214]. The bursty full-failure episodes and thirty-fold rise in intervals with no traffic [tr_edbf05bf6eb3] follow from a consumer that has stopped draining its partition. The fix is setting the flag back to disabled.",
+    "open_questions": [
+      "The flip's time and actor are unestablished: every change-history query ran a window starting at the incident timestamp and extending forward, so the pre-onset period was never queried [tr_f6c32d9532b0], [tr_e01e1e3a6214].",
+      "The metrics window (Oct 13 20:57 - Oct 14 02:57) does not overlap the window where flag activity was observed (Oct 14 19:57 onward), so the five full-failure episodes [tr_edbf05bf6eb3] cannot be attributed to this flag on the evidence held.",
+      "flagd itself was never inspected for logs or current flag state, and the second service in the blast radius plus the one unmeasured edge were never investigated."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "A flag-definition file or default shipped to flagd is itself wrong, making this a flagd misconfiguration rather than a runtime flip.",
+        "service": "flagd",
+        "fault_class": "bad_config",
+        "remediation_class": "config_revert",
+        "why_not": "No flagd config rollout or definition edit is recorded in the covered window [tr_e01e1e3a6214], [tr_f05812f8d4b1], which fits a store-side flip better than a file change; but the pre-onset window was never queried, so this is not excluded. The remediation is identical either way."
+      },
+      {
+        "root_cause": "A fraud-detection release before the queried window introduced the sleeping code path.",
+        "service": "fraud-detection",
+        "fault_class": "bad_deploy",
+        "remediation_class": "rollback",
+        "why_not": "The running artifact behaves exactly as the enabled flag branch specifies and flag evaluation succeeds [tr_b2161a5c6c9a]; nothing suggests the wrong artifact is running. Flipping the flag off resolves it without a rollback."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "v2-inj-kafka-disk-fill-log-checkout / What was observed: The page came 5m31s after onset: `ServiceHighLatency` on **checkout**. A minute later\n`ServiceHighErrorRate` on checkout and on **fraud-detection** together; at T+2m from the page\n`ServiceHighLatency` on fraud-detection and `ServiceNoTraffic` on **accounting**. Five alerts on\nthr",
+    "v2-frontend-cart-misconfig / What was checked: **The error text, because it was the first thing a responder would read.** Checkout's error spans\nand the frontend's log said `shipping quote failure: failed POST to email service: expected 200,\ngot 400`. That names two services, and neither was at fault. It is checkout's own wor",
+    "v2-fraud-detection-partition / What was observed: The page came 7m46s after onset and it was one line: `ServiceNoTraffic` on **fraud-detection**.\nNothing before it, nothing beside it, nothing after it. One alert on one service by the fix, and\nthe world all clear 1m00s after the fix.\n\nNothing else in the world had moved. The stor"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 25528,
+    "pulled_tokens": 6230,
+    "pull_rate": 0.1962,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 379,
+        "content_tokens": 382,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1596,
+        "content_tokens": 1600,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 7795,
+        "content_tokens": 7771,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 7240,
+        "content_tokens": 7243,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 8518,
+        "content_tokens": 8495,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_6cd205f7d850",
+      "tr_5c5089be0b50",
+      "tr_f6c32d9532b0",
+      "tr_e01e1e3a6214",
+      "tr_f05812f8d4b1"
+    ],
+    "expected_effect": "No action proposed, so no effect is predicted. For the record, the action that would fix the stated mechanism is setting the `kafkaQueueProblems` flag back to disabled in the flagd flag store; that is a flag-store write, not a container environment restore, and it is not among the permitted actions. Had it been taken, the observable confirmation would be the line \"FeatureFlag 'kafkaQueueProblems' is enabled, sleeping 1 second\" ceasing in {service=\"fraud-detection\"} within one message-poll interval, `orders process` span self-time dropping from ~1.004-1.009s to sub-10ms in tempo, and distinct orderIds resuming in the consumption lines instead of one orderId repeating under a single trace_id.",
+    "confirm_within_seconds": 300,
+    "if_wrong": "The abstention is wrong if a pre-onset change-history query (window starting hours before 2026-10-14T20:53:54, which no query yet covers [tr_f6c32d9532b0], [tr_e01e1e3a6214], [tr_f05812f8d4b1]) returns a recorded prior configuration for flagd or fraud-detection naming the flag edit. That single result would satisfy both preconditions of revert_config and this should be re-proposed as config_revert on flagd. It is also wrong if an inspection of flagd (never performed - its logs and current flag state are unexamined) shows the enabled value lives in flagd's deployed configuration rather than in a runtime store write, in which case revert_config on flagd is both legal and correct.",
+    "risk": "Abstaining carries its own cost: the flag is still emitting at ~1/s with no observed cessation through the end of the window [tr_6cd205f7d850], so the consumer stays throttled to ~1 record/second and the same orderId keeps being redelivered without offset commit. Order processing lag grows for as long as nobody acts. I accept that cost because the two actions I could legally take are both likely to be harmful or useless: revert_config fails its stated precondition (no prior configuration is recorded for either service - the change log is empty across every window queried), so the executor would either refuse or restore an unknown baseline, and where a reverted value is a dependency address that moves traffic for services never investigated; restart_service fails its precondition too (the evidence points at a flag value, not process state) and would discard the consumer's in-process position only to re-read the same enabled flag on startup, reproducing the fault within seconds while adding a rebalance the logs currently show is absent.",
+    "blast_radius": "No one, since nothing changes. The services that would have seen a change are fraud-detection (seed, alerted) and flagd (candidate_cause); flagd is the flag source for other consumers in this world, so any revert there would be felt beyond fraud-detection by every service evaluating flags against it - a further reason not to act on a configuration baseline nobody has read."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "feature_flag",
+    "confidence": "low",
+    "reasoning": "A single warning on fraud-detection is thin, but the only upstream candidate is flagd across an edge whose propagation was never measured, so a flag change affecting fraud evaluation cannot be dismissed without evidence."
+  }
+}

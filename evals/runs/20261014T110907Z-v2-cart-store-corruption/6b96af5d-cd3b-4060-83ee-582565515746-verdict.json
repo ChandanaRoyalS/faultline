@@ -1,0 +1,85 @@
+{
+  "incident_id": "6b96af5d-cd3b-4060-83ee-582565515746",
+  "trajectory_id": "dbc624c7-1e84-400b-81bb-62071442ab0a",
+  "states": [
+    "triaging",
+    "investigating"
+  ],
+  "blast_radius": [
+    "checkout",
+    "cart",
+    "currency",
+    "email",
+    "frontend",
+    "payment",
+    "product-catalog",
+    "shipping",
+    "frontend-proxy"
+  ],
+  "unmeasured_edges": 8,
+  "exclude_origins": [
+    "scenario:scenario:v2-cart-store-corruption"
+  ],
+  "verdict": {
+    "fault_class": "datastore_corruption",
+    "remediation_class": "restore_data",
+    "service": "cart",
+    "alternatives": [
+      {
+        "root_cause": "The cart-hotfix image wrote or reads cart records with an incompatible schema, making this a bad artifact rollout.",
+        "service": "cart",
+        "fault_class": "bad_deploy",
+        "remediation_class": null,
+        "why_not": "The last image change reverted at 09:29, nearly two hours before onset, so the running artifact at onset is the baseline image."
+      },
+      {
+        "root_cause": "Checkout itself fails to assemble orders.",
+        "service": "checkout",
+        "fault_class": "bad_config",
+        "remediation_class": null,
+        "why_not": "Checkout's error text is a propagated cart RPC failure; every failing checkout span has a cart error child and its other dependencies are clean."
+      },
+      {
+        "root_cause": "Cart's store is unreachable or out of resources.",
+        "service": "cart",
+        "fault_class": "resource_exhaustion",
+        "remediation_class": null,
+        "why_not": "The store read spans complete normally and cart keeps logging and serving most requests, so nothing was exhausted or unreachable - the bytes read were undecodable."
+      }
+    ],
+    "summary": "Cart's Valkey-backed store returns cart records that cannot be deserialized, so GetCart fails with a protobuf decode error and checkout aborts the order.",
+    "confidence": "medium",
+    "evidence": [
+      "tr_15e5b94850b3",
+      "tr_c2d1c5ea6347",
+      "tr_69d776be732d",
+      "tr_561be9930699",
+      "tr_ef85e1636eae"
+    ],
+    "reasoning": "checkout alerted first but its failing spans terminate at cart's GetCart, which returns a FailedPrecondition whose detail is a protobuf parse failure while reading cart storage (tr_c2d1c5ea6347); the underlying store call itself completes in sub-millisecond time, so the connection is healthy and the contents are what cannot be read. Cart is not silent and not slow (tr_69d776be732d), ruling out freeze, partition and dependency latency, and its error ratio is a minority of calls, consistent with only certain corrupted keys failing (tr_ef85e1636eae). The change log for cart shows only a repeating automated image set/revert cycle that last ended ~1h50m before the 11:17-11:19 onset (tr_561be9930699, tr_15e5b94850b3), so no artifact change coincides with onset, demoting bad_deploy.",
+    "open_questions": [
+      "Whether the corruption affects only specific user keys or a contiguous range of the keyspace",
+      "Whether the repeated cart-hotfix image cycling earlier in the day wrote records in an incompatible encoding now being read back",
+      "Valkey-side health and persistence state were not directly observed"
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B1",
+    "tool_calls": 5,
+    "turns": 7,
+    "looked_at": [
+      "metrics:checkout",
+      "traces:checkout",
+      "logs:cart",
+      "changes:cart",
+      "metrics:cart"
+    ]
+  }
+}

@@ -1,0 +1,174 @@
+{
+  "incident_id": "e5657a3e-a85d-43f2-9b0d-b6d3d39d1e7a",
+  "trajectory_id": "01167bec-b081-4deb-b2e4-0e99821d1278",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "accounting",
+    "checkout",
+    "currency",
+    "email",
+    "flagd",
+    "fraud-detection",
+    "frontend",
+    "payment",
+    "quote",
+    "shipping"
+  ],
+  "unmeasured_edges": 7,
+  "exclude_origins": [
+    "scenario:v2-currency-freeze"
+  ],
+  "verdict": {
+    "root_cause": "The evidence does not identify a failing mechanism. Seven services alerted simultaneously at 08:36:16 with currency named as the blast-radius origin, but every probe aimed at currency came back empty or healthy: no error-ratio samples at all [tr_442706f3c61c], no log lines [tr_1c2ff94d632d], no deployments or config changes [tr_b11242a221e5], and traces showing Convert spans completing in 0.3-2.1ms with no error status [tr_37561b9fb5d8]. flagd, the usual suspect for a simultaneous multi-service break with no change record, is also clear: no changes recorded [tr_3e62e639f356] and an error ratio indistinguishable from baseline [tr_1f876997ef8a]. Frontend likewise emitted no logs [tr_b302ee9e949f]. The joint absence of logs from two unrelated services (currency and frontend) over the same 32-minute window, combined with currency having no span metrics even in the pre-incident baseline, is more consistent with a telemetry/ingestion gap than with a proven service fault - which means the true culprit is likely a service that was never dispatched against. No verdict is supportable on this board.",
+    "service": "currency",
+    "fault_class": "unknown",
+    "remediation_class": "none",
+    "confidence": "low",
+    "evidence": [
+      "tr_442706f3c61c",
+      "tr_1c2ff94d632d",
+      "tr_b11242a221e5",
+      "tr_37561b9fb5d8",
+      "tr_3e62e639f356",
+      "tr_1f876997ef8a",
+      "tr_b302ee9e949f"
+    ],
+    "reasoning": "Every positive hypothesis tested against currency was ruled out by the specialist who tested it: traces show currency reachable, fast, and error-free during the window [tr_37561b9fb5d8], which contradicts freeze, partition, and dependency-latency at currency. No change record exists for currency [tr_b11242a221e5], removing bad_deploy and bad_config there. flagd is excluded by both change history [tr_3e62e639f356] and metrics [tr_1f876997ef8a], removing feature_flag. The remaining signals are all absences, and absences here are ambiguous: currency produced no span metrics in the baseline window either [tr_442706f3c61c], which means the gap predates the incident and reflects instrumentation or label mismatch rather than a failure at 08:36:16. Likewise, frontend's total log silence [tr_b302ee9e949f] mirrors currency's [tr_1c2ff94d632d]; two services going log-silent together over an identical window points at the logging pipeline, not at either service. Seven services alerting on the same second with no error elevation anywhere probed implies a shared downstream or infrastructure cause among the services never dispatched against - accounting, payment, quote, shipping, email, fraud-detection, and the datastores behind them. Naming currency would be naming the triage starting point, not a conclusion the evidence reached.",
+    "open_questions": [
+      "What did accounting, payment, quote, shipping, email, and fraud-detection actually log or report at 08:36:16? None of the six alerting services besides currency was dispatched against.",
+      "Is the log and metric silence for currency and frontend a genuine service condition or a Loki/Prometheus ingestion gap? Checking whether any service produced logs in that window would settle it.",
+      "Were the 7 unmeasured edges crossed by triage hiding a shared dependency (cache, datastore, message broker) that all seven alerting services call?",
+      "The trace query covered 07:36-08:38 and showed only 4 of 10 traces; do any traces originate after 08:36:16, or are the healthy samples all pre-incident?"
+    ],
+    "alternatives": [
+      {
+        "root_cause": "A shared downstream dependency of the seven alerting services became slow or unavailable at 08:36:16, and currency was flagged only because triage started there.",
+        "service": "unknown",
+        "fault_class": "dependency_latency",
+        "remediation_class": "none",
+        "why_not": "Plausible given the simultaneous multi-service alert, but no specialist examined any of the other six alerting services or any shared dependency, so there is zero direct evidence naming one."
+      },
+      {
+        "root_cause": "The currency process is frozen - its socket accepts but it writes nothing, producing no logs and no metrics while callers hang to their deadlines.",
+        "service": "currency",
+        "fault_class": "process_freeze",
+        "remediation_class": "restart",
+        "why_not": "Total silence in logs and metrics fits a freeze, but traces show currency server spans completing in under 2ms with no errors [tr_37561b9fb5d8], and the metric gap extends into the baseline window [tr_442706f3c61c], so the silence predates the incident and is not a freeze signature."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "v2-fraud-detection-memory-squeeze / What was observed: One alert. `ServiceNoTraffic` on **fraud-detection**, 7m15s after the trouble started. Nothing\nelse fired for the entire incident, and nothing fired after the fix.\n\nThe store was perfect throughout. The frontend, frontend-proxy and the load generator recorded no\nerrors and no cha",
+    "v2-shipping-quote-misconfig / What was checked: **The error text, because it was the first thing a responder would read.** Frontend's log and\ncheckout's error span both said the same thing: `shipping quote failure: failed POST to email\nservice: expected 200, got 500`. That sentence names two services. The email service is the ",
+    "runbook:class-feature-flag / What the target shows: **Errors, fast.** A flag that fails a code path fails it quickly - the failing service answered in\nsingle-digit milliseconds - so `ServiceHighErrorRate` is the rule that fires and\n`ServiceHighLatency` stays quiet. The span carries the reason: the failing service sets its span\nsta"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 15907,
+    "pulled_tokens": 5510,
+    "pull_rate": 0.2573,
+    "dropped_sections": 1,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 433,
+        "content_tokens": 435,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 949,
+        "content_tokens": 951,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 4706,
+        "content_tokens": 4682,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 4299,
+        "content_tokens": 4301,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 5520,
+        "content_tokens": 5523,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_442706f3c61c",
+      "tr_1c2ff94d632d",
+      "tr_b11242a221e5",
+      "tr_37561b9fb5d8",
+      "tr_3e62e639f356",
+      "tr_1f876997ef8a",
+      "tr_b302ee9e949f"
+    ],
+    "expected_effect": "No action proposed, so no change in any metric or log stream is expected. The board's own state is the prediction: currency continues to emit zero span-metric samples and zero log lines while its Convert spans continue to complete in 0.3-2.1ms with no error status, and flagd's error ratio stays at its baseline ~0.002. Nothing in the permitted action set would move any of those numbers in a direction that could be read as a fix.",
+    "confirm_within_seconds": 0,
+    "if_wrong": "This abstention is wrong if a dispatch against the six undispatched alerting services (accounting, payment, quote, shipping, email, fraud-detection) turns up a concrete mechanism - a logged error, an error-ratio departure, or a change-history entry inside the window - that one of rollback_image, revert_config or restart_service addresses. It is also wrong if a broad Loki query over the same window returns log lines from any service, which would convert the currency/frontend silence from a suspected ingestion gap into a genuine two-service condition and make currency's silence real evidence rather than missing evidence. Note that the central suspicion here - a telemetry/ingestion gap - is itself only weakly observable from inside this system: the absence of data looks identical whether the collector is down or the services are. That unobservability is a further reason not to act on it.",
+    "risk": "The risk of abstaining is that the incident continues unmitigated while seven services remain alerting; six of them have never been probed, so the damage is unquantified. The risk of the alternative is worse and concrete: every permitted action fails its own preconditions. rollback_image and revert_config both require a change recorded inside the window, and change history is explicitly empty for both currency [tr_b11242a221e5] and flagd [tr_3e62e639f356] - there is no prior image tag or prior config to restore, so the executor would either refuse or redeploy an identity. restart_service requires evidence pointing at process state, and the only currency evidence that is not an empty set shows the process healthy [tr_37561b9fb5d8]; restarting it would discard its cache and reset connections to fix a fault nobody has shown exists. The three action classes that the narrative suggests might actually match a multi-service simultaneous break - reconnect, restore_data, free_storage - are all unavailable in this executor, which means the right fix, if it is one of those, is outside what this system may do.",
+    "blast_radius": "No service is touched, so no caller sees a change. For contrast, the action not taken: a restart of currency would be seen by checkout, which calls oteldemo.CurrencyService/Convert on every checkout flow [tr_37561b9fb5d8], and through checkout by frontend and the user-facing checkout path - connection resets during container recreate, on a service that traces show is currently serving correctly."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Seven services alerting simultaneously at critical severity is a broad synchronized failure that cannot be dismissed. The shared flagd dependency hints at a flag/config trigger, but nothing yet distinguishes that from a platform-wide cause."
+  }
+}

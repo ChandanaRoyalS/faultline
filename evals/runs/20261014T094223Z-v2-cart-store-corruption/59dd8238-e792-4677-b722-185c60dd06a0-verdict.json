@@ -1,0 +1,174 @@
+{
+  "incident_id": "59dd8238-e792-4677-b722-185c60dd06a0",
+  "trajectory_id": "b0f090ee-0d08-4066-b4c9-63c8e0041ac2",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "cart",
+    "checkout",
+    "currency",
+    "email",
+    "frontend",
+    "frontend-proxy",
+    "payment",
+    "product-catalog",
+    "shipping"
+  ],
+  "unmeasured_edges": 8,
+  "exclude_origins": [
+    "scenario:v2-cart-store-corruption"
+  ],
+  "verdict": {
+    "root_cause": "Cart's backing store (ValkeyCartStore) is returning records that cannot be deserialized: checkout's GetCart call to cart fails with a gRPC FailedPrecondition whose underlying cause is a Google.Protobuf.InvalidProtocolBufferException on a truncated/corrupt stored cart message, and that hard error aborts the whole PlaceOrder flow [tr_bc34c35ba5d3]. Cart itself is alive and serving \u2014 its process is logging normal info-level GetCartAsync/AddItemAsync activity on both sides of onset with no connection or warn/error lines [tr_a39112facb95] \u2014 and its span-level error ratio moved from a perfectly flat zero in baseline to an intermittent ~0.5% mean with ~4.5% peaks during the window [tr_cac1f1720bc5], exactly the shape expected when only some stored keys are unreadable. The store is reachable and healthy; its contents are not decodable. The likely origin of the bad bytes is the cart hotfix churn: image ghcr.io/open-telemetry/demo:2.2.0-cart-hotfix.2 was deployed and reverted eight times in the preceding 24 hours, the last revert 17 minutes before onset [tr_78175fbd562c], so a version that wrote cart entries in an incompatible/partial encoding plausibly left poisoned records behind that the currently-running (reverted) image cannot parse. The failure happening now is the decode failure on read, not the rollout.",
+    "service": "cart",
+    "fault_class": "datastore_corruption",
+    "remediation_class": "restore_data",
+    "confidence": "medium",
+    "evidence": [
+      "tr_bc34c35ba5d3",
+      "tr_a39112facb95",
+      "tr_cac1f1720bc5",
+      "tr_78175fbd562c",
+      "tr_4a9790b25d64",
+      "tr_0623cb382456",
+      "tr_c6759d4af4ab"
+    ],
+    "reasoning": "Blame moves from the alerting service to the one producing the hard error. Checkout alerted but has no change record of its own [tr_4a9790b25d64] and no error-rate departure from baseline [tr_0623cb382456]; the only error in the traced critical path originates downstream at cart's GetCart [tr_bc34c35ba5d3]. Within cart, the distinguishing signal is the exception type: a protobuf InvalidProtocolBufferException on a read is a decode failure, not a timeout, not a refused connection, and not an out-of-space write failure. Cart's own logs show it running and handling calls normally with no storage connectivity complaints [tr_a39112facb95], which rules out process_freeze, network_partition and disk_fill on cart \u2014 a frozen process writes nothing, a partitioned one complains it cannot reach its store, a full disk says no space left. The intermittency of cart's new error ratio [tr_cac1f1720bc5] fits a subset of corrupted keys rather than a uniformly broken dependency or configuration value: a wrong address or credential would fail every read, not one in two hundred. The change log is evidence for how the bad bytes got there, not the class itself \u2014 the hotfix image was already reverted and absent at onset [tr_78175fbd562c], so the running artifact is not the thing failing; what fails is the read of data it left behind. Hence datastore_corruption on cart, remediated by flushing or restoring the affected cart entries rather than by another rollback.",
+    "open_questions": [
+      "No specialist queried the Valkey/cart store directly \u2014 the corruption is inferred from one exception in trace 3dac651a1c46b8a9 [tr_bc34c35ba5d3], not from inspection of the stored bytes, their extent, or which userIds are affected.",
+      "Checkout produced zero log lines across the entire window [tr_c6759d4af4ab]. This was read as a silent process, but it is equally consistent with checkout simply not shipping logs to Loki; nothing here distinguishes the two, and a genuinely silent checkout would need a separate explanation.",
+      "Whether the 2.2.0-cart-hotfix.2 image is actually the writer of the unreadable records is unverified \u2014 the link between the deploy/revert churn and the encoding mismatch is plausible but untested.",
+      "Cart's error ratio peaks at only ~4.5% [tr_cac1f1720bc5] while checkout alerted at critical severity across a 9-service blast radius; whether this error volume alone accounts for the user-visible severity, or whether another unmeasured edge contributes, was not established.",
+      "Seven of eight unmeasured edges crossed by triage were never dispatched against; email was flagged as the largest variable latency contributor in checkout's path [tr_bc34c35ba5d3] and was never investigated on its own.",
+      "The 12 incident-window samples with no defined cart error ratio [tr_cac1f1720bc5] suggest intervals of zero traffic to cart that nobody explained."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "The repeated deploy/revert cycling of the cart hotfix image left cart running an artifact that mishandles its stored cart format, making the running build itself the fault.",
+        "service": "cart",
+        "fault_class": "bad_deploy",
+        "remediation_class": "rollback",
+        "why_not": "The hotfix was already reverted 17 minutes before onset and cart was in a reverted state at incident time [tr_78175fbd562c], so the suspect artifact was not the one running when checkout failed; and the observed failure is a decode error on read from storage [tr_bc34c35ba5d3] rather than a service that cannot start or serve. Rolling the image again would not make the unreadable records readable. This stays a live alternative only if the currently-running build, not the data, is what cannot parse a legitimately-encoded message."
+      },
+      {
+        "root_cause": "Email's HTTP POST on checkout's critical path is the dominant and most variable latency component, and checkout degraded by waiting on it.",
+        "service": "email",
+        "fault_class": "dependency_latency",
+        "remediation_class": "restart",
+        "why_not": "The absolute numbers are small \u2014 4.9 to 20.6 ms across the sampled traces [tr_bc34c35ba5d3] \u2014 which is nowhere near a deadline, and checkout's traced aborts are hard FailedPrecondition errors from cart rather than timeouts. Email was never dispatched against, so this rests entirely on checkout-side trace observation."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "v2-cart-flag-failure / Detection notes: - Onset to first page: **5m16s**. Services on the page: **one**, checkout, which was not at fault.\n  By the fix: **one**.\n- Alerts that fired only during recovery: **none**.\n- Did the loudest service turn out to be the culprit? **No.** Checkout paged on its calls to cart.\n  Cart,",
+    "v2-frontend-cart-misconfig / What was checked: **The error text, because it was the first thing a responder would read.** Checkout's error spans\nand the frontend's log said `shipping quote failure: failed POST to email service: expected 200,\ngot 400`. That names two services, and neither was at fault. It is checkout's own wor",
+    "v2-cart-flag-failure / Resolution: The flag was turned back off. The flag service picks up the change on its own, so nothing was\nrestarted or redeployed. `EmptyCart` went back to the real store and succeeded at once, cart's\nexception counters stopped climbing, and the error ratios drained with their windows. Check"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 19301,
+    "pulled_tokens": 7524,
+    "pull_rate": 0.2805,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 454,
+        "content_tokens": 456,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1229,
+        "content_tokens": 1232,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 5616,
+        "content_tokens": 5592,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 5262,
+        "content_tokens": 5263,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 6740,
+        "content_tokens": 6718,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_bc34c35ba5d3",
+      "tr_cac1f1720bc5",
+      "tr_a39112facb95",
+      "tr_78175fbd562c"
+    ],
+    "expected_effect": "No action proposed, so no effect is expected. The mechanism named by the verdict \u2014 undecodable protobuf records sitting in cart's Valkey store [tr_bc34c35ba5d3] \u2014 would only be cleared by restore_store (the FLUSHALL-class action), which this brief lists as UNAVAILABLE (not built; executor performs rollback_image, revert_config, restart_service only). None of the three available actions touches the stored bytes: restart_service recreates cart's container and discards in-process cache only, leaving the external store and its poisoned keys untouched, so the intermittent ~0.5%-mean/~4.5%-peak cart error ratio [tr_cac1f1720bc5] would be expected to continue unchanged; rollback_image would redeploy ghcr.io/open-telemetry/demo:2.2.0-cart-hotfix.2, which is the suspected writer of the bad encoding [tr_78175fbd562c], i.e. the opposite of the fix; revert_config has no recorded config change on cart to revert \u2014 all 16 recorded changes are image references [tr_78175fbd562c], so its second precondition is unmet. Escalate to a human operator who can flush or repair the cart store.",
+    "confirm_within_seconds": 0,
+    "if_wrong": "This abstention is wrong if the failure is actually in cart's process state rather than in the stored bytes \u2014 e.g. a corrupted in-memory connection-multiplexer or client-side buffer that a container recreate would clear. Evidence that would show that: cart's error ratio returning to a flat zero after an unrelated recreate, or an operator inspecting the Valkey keyspace directly and finding every stored cart record decodes cleanly. Note also that the corruption is inferred from a single InvalidProtocolBufferException in one trace [tr_bc34c35ba5d3] and never confirmed against the store, and that cart's logs show only info-level GetCartAsync/AddItemAsync lines with no read errors [tr_a39112facb95]; if a direct store inspection found no corrupt keys, the datastore_corruption verdict itself collapses and a different target (email's variable latency on checkout's path, or checkout's total log silence [tr_c6759d4af4ab]) becomes the live question.",
+    "risk": "Abstaining is not free: the undecodable records persist, so PlaceOrder keeps aborting for whichever userIds hold poisoned keys, and the critical-severity alert across nine services stays open for as long as it takes a human to act. I am accepting continued partial checkout failure in exchange for not firing an action that cannot reach the mechanism. The specific harm avoided is a rollback_image on cart, which would reinstall the suspected bad writer and could poison further keys; and a restart_service on cart, which would reset cart's container and the error-ratio series for no benefit, muddying the signal a later real fix would be judged against.",
+    "blast_radius": "No service is changed, so nobody sees a change from this proposal. The ongoing, unremediated impact continues to be seen by checkout (seed, alerted), its caller frontend, and frontend-proxy at the edge \u2014 the user-visible path. cart, currency, email, payment, product-catalog and shipping remain in the incident's reach but are not altered here."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "A single critical alert on checkout with no open incidents and many unmeasured downstream dependencies cannot be dismissed. No signal yet favors a particular fault class."
+  }
+}

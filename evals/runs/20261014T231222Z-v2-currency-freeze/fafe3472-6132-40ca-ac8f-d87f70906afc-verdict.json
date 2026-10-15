@@ -1,0 +1,176 @@
+{
+  "incident_id": "fafe3472-6132-40ca-ac8f-d87f70906afc",
+  "trajectory_id": "bf492999-3bbf-4f72-a5ea-a3a50004fb34",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "accounting",
+    "checkout",
+    "currency",
+    "email",
+    "frontend",
+    "frontend-proxy",
+    "payment",
+    "quote",
+    "shipping"
+  ],
+  "unmeasured_edges": 7,
+  "exclude_origins": [
+    "scenario:v2-currency-freeze"
+  ],
+  "verdict": {
+    "root_cause": "The failing hop is frontend->checkout PlaceOrder: traces show that gRPC call consuming 100% of trace time (18.4s, 24.0s, 52.7s) as pure self time with no corresponding checkout server span, while the ingress deadline cut at 15s [tr_6ef0d6740cf9]. Checkout's own downstream fan-out (cart, product-catalog, payment, shipping, email, currency, flagd) completes in tens of milliseconds in those same traces, and every currency call is answered in single-digit ms, so currency is not the culprit despite alerting first [tr_6ef0d6740cf9]. Checkout's error ratio rose ~26x with a change point at 22:51:31Z and a wide spread consistent with intermittent bursts [tr_e15b112d18b2], and no deploy, image swap, config push or flag edit is recorded for checkout, currency or their one-hop neighbours over 24h [tr_4120a3f3bc24, tr_5ee898a674ba]. The pattern - callers hanging to their deadline against a peer whose requests sometimes never produce a server span, with no change record anywhere - points at checkout accepting connections it does not serve: a stalled/frozen checkout process. Downstream services (payment, shipping, email, quote, accounting) alerted a minute later by starvation, not fault.",
+    "service": "checkout",
+    "fault_class": "process_freeze",
+    "remediation_class": "restart",
+    "confidence": "low",
+    "evidence": [
+      "tr_6ef0d6740cf9",
+      "tr_e15b112d18b2",
+      "tr_4120a3f3bc24",
+      "tr_5ee898a674ba"
+    ],
+    "reasoning": "Triage seeded on currency, but all three currency dispatches are either empty or exculpatory: no changes [tr_5ee898a674ba], no span-metric series in either window so the gap predates the incident and is an instrumentation gap rather than onset [tr_40d57e02ea67], no logs at all [tr_19bfe26748dc], and fast, error-free, fully-paired server spans [tr_6ef0d6740cf9]. The degradation localises one hop upstream of currency, at frontend->checkout, where the caller span is all self time with no attached checkout server span and the request dies at the 15s ingress deadline [tr_6ef0d6740cf9] - the hang-and-cascade shape in which errors surface at the proxy and everything behind the stuck caller goes quiet, matching the 23:20:31 cohort of downstream alerts. Checkout's measured error elevation and its early change point confirm checkout is genuinely misbehaving rather than merely reporting [tr_e15b112d18b2]. The empty change log across checkout and neighbours removes bad_deploy and bad_config as mechanisms [tr_4120a3f3bc24]. Process state rather than change makes restart_service the appropriate action. Confidence is low because no checkout-side logs, pod events or resource metrics were ever dispatched, and the freeze/partition distinction rests entirely on that missing evidence.",
+    "open_questions": [
+      "No log query was run against checkout - its own log is the only thing that separates process_freeze (silent) from network_partition (repeating telemetry-export deadline lines) and from disk_fill (no space left on device).",
+      "Checkout's error ratio was intermittent with a change point at 22:51:31Z, ~28 minutes before the 23:19:31 alert; nothing explains that lead time or whether the two are the same fault.",
+      "No memory, CPU or container-restart data was gathered for checkout, so a memory squeeze producing stalls remains untested.",
+      "Both change-history queries returned empty; whether the change log itself is healthy was never verified, so a flag flip or unrecorded edit cannot be excluded."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "Checkout's container is cut from its network, so callers hang on dropped packets while the process keeps running.",
+        "service": "checkout",
+        "fault_class": "network_partition",
+        "remediation_class": "reconnect",
+        "why_not": "Indistinguishable from a freeze at the caller, and the traces do show the hang shape - but two short traces show PlaceOrder failing fast with frontend dns.lookup and tcp.connect spans present [tr_6ef0d6740cf9], and checkout's own downstream calls to cart, payment and shipping succeed in the same traces, which a fully partitioned checkout could not do. Also unperformable: reconnect_service is not built."
+      },
+      {
+        "root_cause": "Checkout is being squeezed against a container memory limit, stalling its request handlers intermittently.",
+        "service": "checkout",
+        "fault_class": "resource_exhaustion",
+        "remediation_class": "config_revert",
+        "why_not": "Fits the intermittent bursty error pattern [tr_e15b112d18b2], but no resource metric, container log or OOM signature was collected for checkout at all, and an empty change log [tr_4120a3f3bc24] leaves no recorded limit edit to revert; this is speculation where the freeze reading at least has trace-shaped support."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "runbook:class-bad-config / What the change record holds: The variable and a timestamp, and **the new value only** - no change record in this world carries\na prior value, which `world-change-records-have-no-prior-value` sets out.\n\n**What the logs hold is not uniform, and this document had it wrong.** An earlier version said a\nservice po",
+    "v2-frontend-cart-misconfig / What was checked: **The error text, because it was the first thing a responder would read.** Checkout's error spans\nand the frontend's log said `shipping quote failure: failed POST to email service: expected 200,\ngot 400`. That names two services, and neither was at fault. It is checkout's own wor",
+    "v2-fraud-detection-memory-squeeze / What was observed: One alert. `ServiceNoTraffic` on **fraud-detection**, 7m15s after the trouble started. Nothing\nelse fired for the entire incident, and nothing fired after the fix.\n\nThe store was perfect throughout. The frontend, frontend-proxy and the load generator recorded no\nerrors and no cha"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 58709,
+    "pulled_tokens": 4804,
+    "pull_rate": 0.0756,
+    "dropped_sections": 0,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 7668,
+        "content_tokens": 7673,
+        "budget": 10000000,
+        "kept": [
+          "incident",
+          "past-incidents",
+          "push-allowlist",
+          "push-runbooks"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 8429,
+        "content_tokens": 8435,
+        "budget": 10000000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents",
+          "push-allowlist",
+          "push-runbooks"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 14230,
+        "content_tokens": 14236,
+        "budget": 10000000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board",
+          "past-incidents",
+          "push-allowlist",
+          "push-runbooks"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 13939,
+        "content_tokens": 13944,
+        "budget": 10000000,
+        "kept": [
+          "conclusion",
+          "evidence-board",
+          "push-allowlist",
+          "push-runbooks",
+          "push-past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 14443,
+        "content_tokens": 14449,
+        "budget": 10000000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board",
+          "push-runbooks",
+          "push-past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "restart",
+    "action_id": "restart_service",
+    "target": "checkout",
+    "rests_on": [
+      "tr_6ef0d6740cf9",
+      "tr_e15b112d18b2",
+      "tr_4120a3f3bc24"
+    ],
+    "expected_effect": "PlaceOrder traces regain a checkout server span and drop from 18-53s of pure self time to the tens-of-ms its fan-out already shows; frontend-proxy stops cutting at the 15s deadline; checkout's error ratio falls back toward its ~0.0009 baseline. Expect a thundering-herd error spike on checkout and its callers ~2 min after recreate, self-clearing within ~3; judge at the 10-minute mark.",
+    "confirm_within_seconds": 600,
+    "if_wrong": "PlaceOrder spans still show caller self time to the deadline with no checkout server span after ~10 minutes, or checkout's error ratio stays elevated past the herd window. That would point at a memory squeeze (restart returns under the same limit, fault recurs within minutes) or a network partition (fix is reconnect, which this executor cannot perform). Neither was tested: no checkout log query, no memory/CPU/restart-count data.",
+    "risk": "Confidence is low and the discriminating evidence - checkout's own log - was never read. If this is resource_exhaustion the restart masks it briefly and it returns; if network_partition the recreate may or may not re-attach the container and we lose the frozen process state that would have identified the real mechanism. The action is irreversible and discards checkout's in-process cache.",
+    "blast_radius": "checkout only, for the recreate duration. Its caller frontend (and frontend-proxy ingress behind it) sees connection resets; shipping, payment, email, quote, accounting see a brief further gap before traffic resumes."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "low",
+    "reasoning": "Seven services alerting simultaneously at critical with a two-wave onset and no open incident to attribute it to; this cannot be dismissed. The fan-out across currency, payment, shipping and the proxy suggests a shared dependency or change, but nothing in the alerts picks a mechanism yet."
+  }
+}

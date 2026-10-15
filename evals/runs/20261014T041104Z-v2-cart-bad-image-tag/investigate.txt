@@ -1,0 +1,65 @@
+incident 5c100df6-0176-4c94-964c-3750f4e75e07  state triaging  anchor 04:14:46
+triage: 13 services, severity critical, start from frontend, 13 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: f8c5957c-33e1-4092-b8a4-435784f58fec
+triage judged: investigate (medium confidence, suspects unknown)
+  Critical multi-service failure spanning frontend, proxy, and checkout with load-generator impact indicates real user-facing breakage, not noise. No open incidents to duplicate; cause could lie in any of several checkout/frontend dependencies, so no fault class is implied yet.
+investigation: 2 round(s), 7 dispatch(es), 20 step(s)
+
+=== PROPOSAL ===
+  action      : rollback_image (rollback)
+  target      : cart
+  expect      : Cart redeployed at its prior image tag and recreated. Within ~2 minutes cart's Loki stream should show a startup banner and routine ValkeyCartStore lines again (it has emitted nothing since the graceful shutdown at 04:11:09). Frontend's checkout INTERNAL 'resolver returned zero addresses for cart' and gRPC 14 UNAVAILABLE lines should cease, and frontend's error ratio should decay back toward its exactly-zero baseline within one or two 5m rate windows.
+  within      : 420s
+  risk        : Four prior reverts of this same tag did not end the flap, so this may be overwritten within minutes and merely adds churn. If the hotfix image is actually fine and the deploy controller simply left cart stopped, rolling back changes the running artifact for no reason and obscures the real fault. Cart's in-memory state is discarded on recreate.
+  blast radius: cart only, plus its callers during the recreate: checkout (direct), and frontend / frontend-proxy on the checkout and cart paths see resets for a few seconds. Load-generator traffic on those paths will register the blip.
+  if wrong    : Falsified if cart logs no startup banner within ~120s (prior tag also unbootable, or cart is never scheduled); or cart comes up but frontend keeps logging host-unreachable to 172.18.0.24:7070, which was never confirmed to be cart; or platform-automation reapplies the hotfix and cart shuts down again, meaning the apply/revert flap must be stopped before any rollback holds.
+  rests on    : tr_2b13800c9e60, tr_b0f7fb64e3a5, tr_dfc8f3bbf81c
+  execution   : not executed - a proposal is a claim, never the change (ADR-0028 §1)
+
+context: 28223 pushed / 5742 pulled (pull rate 0.1691), 1 section(s) dropped
+
+=== VERDICT ===
+  fault class : bad_deploy
+  fix class   : rollback
+  confidence  : medium
+  evidence    : tr_2b13800c9e60, tr_b0f7fb64e3a5, tr_dfc8f3bbf81c, tr_058f9905ad2e, tr_e7416da6ce5f, tr_be27a2e7b078
+  root cause  : An automated image-reference change on cart at 04:11:10 [tr_2b13800c9e60] took the service down: cart logged routine traffic until 04:11:06, then a clean graceful shutdown at 04:11:09 with no restart or startup banner for the rest of the window [tr_b0f7fb64e3a5]. With cart absent, its endpoints were withdrawn, which matches frontend's symptoms exactly — checkout failing with INTERNAL wrapping a name resolver that returned zero addresses for cart, plus gRPC 14 UNAVAILABLE host-unreachable, progressing from dropped connections to no connection possible [tr_dfc8f3bbf81c]. Frontend's error ratio broke from an exactly-flat-zero baseline at 04:12:46, ninety seconds after cart stopped [tr_e7416da6ce5f]. Cart emits zero error-coded spans but has intervals with no span traffic at all [tr_058f9905ad2e] — the signature of a service that is gone rather than broken. The running artifact on cart is one that does not stay up, so this is a bad deploy on cart; frontend, frontend-proxy and checkout are downstream victims.
+  OPEN        : Cart's logs end at shutdown with the window closing ~5.5 minutes later, so whether the hotfix image failed to start, crashed unseen, or was never scheduled is unsettled — as is whether the artifact is broken or the deploy churn merely left cart down.
+  OPEN        : Nothing confirms that 172.18.0.24:7070 is cart; if it is another backend, only the zero-address resolution error ties cleanly to cart.
+  OPEN        : No availability, replica-count or restart-count metrics were returned for cart [tr_058f9905ad2e]; 11 of 13 services in the blast radius were never examined.
+
+flags: none
+
+retrieval: exclude_origins=['scenario:v2-cart-bad-image-tag'], 0 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20261014T041104Z-v2-cart-bad-image-tag/5c100df6-0176-4c94-964c-3750f4e75e07-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20261014T041104Z-v2-cart-bad-image-tag/5c100df6-0176-4c94-964c-3750f4e75e07-narrative.md
+{"ts": "2026-10-14T04:16:44.261+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T04:16:58.596+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T04:16:58.621+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=frontend start=2026-10-13T04:14:46.664000+00:00 end=2026-10-14T04:16:44.278433+00:00 span_s=86517 refused=False", "component": "investigator"}
+{"ts": "2026-10-14T04:16:58.622+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=metric_baseline subject=sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"frontend\",status_code=\"STATUS_CODE_ERROR\"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"frontend\"}[5m])) start=2026-10-14T03:12:49.049567+00:00 end=2026-10-14T04:16:44.278433+00:00 span_s=3835 refused=False", "component": "investigator"}
+{"ts": "2026-10-14T04:16:58.624+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=logql_query subject={service=\"frontend\"} start=2026-10-14T03:44:46.664000+00:00 end=2026-10-14T04:16:44.278433+00:00 span_s=1917 refused=False", "component": "investigator"}
+{"ts": "2026-10-14T04:16:58.625+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=trace_query subject=frontend start=2026-10-14T03:44:46.664000+00:00 end=2026-10-14T04:16:44.278433+00:00 span_s=1917 refused=False", "component": "investigator"}
+{"ts": "2026-10-14T04:17:08.873+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T04:17:15.580+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T04:17:19.141+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T04:17:21.977+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T04:17:41.756+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T04:17:50.209+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T04:17:50.214+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=metric_baseline subject=sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"cart\",status_code=\"STATUS_CODE_ERROR\"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"cart\"}[5m])) start=2026-10-14T03:12:49.049567+00:00 end=2026-10-14T04:16:44.278433+00:00 span_s=3835 refused=False", "component": "investigator"}
+{"ts": "2026-10-14T04:17:50.219+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=logql_query subject={service=\"cart\"} start=2026-10-14T03:44:46.664000+00:00 end=2026-10-14T04:16:44.278433+00:00 span_s=1917 refused=False", "component": "investigator"}
+{"ts": "2026-10-14T04:17:50.219+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=cart start=2026-10-13T04:14:46.664000+00:00 end=2026-10-14T04:16:44.278433+00:00 span_s=86517 refused=False", "component": "investigator"}
+{"ts": "2026-10-14T04:18:02.011+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T04:18:04.510+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T04:18:07.537+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T04:18:47.706+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T04:19:06.371+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T04:19:47.235+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T04:20:07.671+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T04:20:34.962+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T04:20:43.579+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T04:20:43.603+00:00", "level": "INFO", "logger": "faultline.notify", "msg": "no report-ready notification was sent: no notifier was configured", "component": "investigator"}
+{"ts": "2026-10-14T04:20:43.603+00:00", "level": "INFO", "logger": "faultline.notify", "msg": "no awaiting-approval notification was sent: no notifier was configured", "component": "investigator"}

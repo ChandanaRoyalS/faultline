@@ -1,0 +1,179 @@
+{
+  "incident_id": "2576682b-6239-4ce5-9495-15918ff0f00d",
+  "trajectory_id": "d1c76e99-4764-4651-b08c-ec8cae4cecb3",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "ad",
+    "cart",
+    "checkout",
+    "flagd",
+    "frontend",
+    "frontend-proxy",
+    "load-generator",
+    "product-catalog",
+    "product-reviews",
+    "recommendation"
+  ],
+  "unmeasured_edges": 8,
+  "exclude_origins": [
+    "scenario:v2-ad-memory-squeeze"
+  ],
+  "verdict": {
+    "root_cause": "An automated resource_limits change at 15:11:51Z lowered the ad container's memory limit to 144m [tr_0fded08a4b2e]. Under that ceiling the ad process cannot stay resident: ad's logs show normal serving at 14:24 and then at least eight distinct JVM startup sequences between ~15:31 and 15:35:53, several reaching the application's own 'service starting' line before dying again \u2014 a crashloop, not one restart [tr_ba0e1637b35c]. The kill comes from outside the runtime, which is why no OutOfMemoryError token appears in ad's logs [tr_9b573018eac2] and why ad's error ratio stays under 1% while 29 of 96 intervals are undefined \u2014 ad served no traffic at all in those intervals because the process was down [tr_c6dda981caac, tr_650bcbff6bc2]. When ad is up it is healthy: no error spans, GetAds in 0.3\u20134.7ms, no outbound calls [tr_613998684b05]. The intermittent bursty error profile at frontend-proxy (mean ~2.8%, peaks ~11%, floor 0) is what a dependency that keeps vanishing and returning produces [tr_4d991b3199ae]. The mechanism is memory exhaustion against a lowered limit; the fix is restoring the prior limit, since a restart returns the container under the same ceiling.",
+    "service": "ad",
+    "fault_class": "resource_exhaustion",
+    "remediation_class": "config_revert",
+    "confidence": "medium",
+    "evidence": [
+      "tr_0fded08a4b2e",
+      "tr_ba0e1637b35c",
+      "tr_9b573018eac2",
+      "tr_c6dda981caac",
+      "tr_613998684b05"
+    ],
+    "reasoning": "The only change in ad's window is a memory ceiling lowered minutes before onset, with no deploy, image, env or flag mutation recorded [tr_0fded08a4b2e], which forecloses bad_deploy and config-edit explanations. ad's own log shows a repeating boot loop reaching application init [tr_ba0e1637b35c], excluding process_freeze (a frozen process writes nothing) and an image that never boots. The missing OOM token [tr_9b573018eac2] is consistent with a container-level kill rather than an in-JVM heap error, and the NOP-logger warnings mean app-level error lines would be suppressed anyway. Metrics show absence rather than failure: sub-1% errors where ad reports, and a third of intervals with no traffic at all [tr_c6dda981caac, tr_650bcbff6bc2] \u2014 a crashing service goes undefined, a failing one goes toward 1. Traces show ad fast and dependency-free whenever alive [tr_613998684b05], ruling out dependency_latency inside ad. The edit is how it started; exhaustion against the limit is what is happening, so revert_config, not restart, removes it.",
+    "open_questions": [
+      "No memory working-set, restart-count or OOMKilled exit-code series was ever retrieved [tr_650bcbff6bc2]; the kill is inferred from the restart loop plus the limit change, not directly observed, and the prior limit value is unrecorded.",
+      "frontend-proxy alerted at 15:15:46, ~16 minutes before the first visible ad restart cycle; no per-timestamp series exists for the proxy [tr_4d991b3199ae], so the earliest errors are unattributed.",
+      "Eight edges and nine other services were never measured; whether ad alone accounts for the full blast radius is untested, and flagd's change log was only queried forward from onset [tr_aad7a8e78bb5]."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "The proxy's error bursts originate in an unexamined service and ad's restart loop is secondary or coincident.",
+        "service": "unknown",
+        "fault_class": "unknown",
+        "remediation_class": "none",
+        "why_not": "No positive evidence supports it, while the ad path has a change record, a crashloop and traffic gaps that interlock; the proxy's zero-floor bursty profile matches a dependency repeatedly vanishing."
+      },
+      {
+        "root_cause": "A flag flipped before the queried window broke a flagged code path, leaving no change record.",
+        "service": "flagd",
+        "fault_class": "feature_flag",
+        "remediation_class": "config_revert",
+        "why_not": "A flag failure shows fast errors with span statuses naming the flag; ad's traces carry no error spans [tr_613998684b05] and its logs no flag-evaluation lines [tr_ba0e1637b35c], and a flag flip does not restart a JVM eight times."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "v2-ad-partition / Root cause: The ad container was disconnected from the demo network. The process kept running and its port\nstayed open, on an address nothing could reach; packets on its established connections were\ndropped rather than refused, so its one caller waited on a socket that would never answer. On",
+    "v2-ad-bad-image-tag / What was checked: **The page names callers.** Frontend-proxy forwards what the frontend returns, and the load\ngenerator is the synthetic shoppers counting their own failures. The frontend was the one service\nmaking calls that failed, and the order path was not among them.\n\n**The frontend's error t",
+    "v2-ad-partition / Resolution: The container was put back on its network under its original names, on the same address. Where\nan operator cannot reconnect a container with its aliases, recreating or restarting it does the\nsame job. Class of fix: **restart**. Nothing was deployed or misconfigured, so there was "
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 67072,
+    "pulled_tokens": 5878,
+    "pull_rate": 0.0806,
+    "dropped_sections": 0,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 7701,
+        "content_tokens": 7705,
+        "budget": 10000000,
+        "kept": [
+          "incident",
+          "past-incidents",
+          "push-allowlist",
+          "push-runbooks"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 9595,
+        "content_tokens": 9601,
+        "budget": 10000000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents",
+          "push-allowlist",
+          "push-runbooks"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 16770,
+        "content_tokens": 16778,
+        "budget": 10000000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board",
+          "past-incidents",
+          "push-allowlist",
+          "push-runbooks"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 16088,
+        "content_tokens": 16094,
+        "budget": 10000000,
+        "kept": [
+          "conclusion",
+          "evidence-board",
+          "push-allowlist",
+          "push-runbooks",
+          "push-past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 16918,
+        "content_tokens": 16925,
+        "budget": 10000000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board",
+          "push-runbooks",
+          "push-past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "config_revert",
+    "action_id": "revert_config",
+    "target": "ad",
+    "rests_on": [
+      "tr_0fded08a4b2e",
+      "tr_ba0e1637b35c",
+      "tr_9b573018eac2",
+      "tr_c6dda981caac",
+      "tr_650bcbff6bc2"
+    ],
+    "expected_effect": "Restoring ad's declared container configuration (removing the 144m memory ceiling applied at 15:11:51Z) should end the crashloop. Observable as: (1) in Loki, {service=\"ad\"} stops producing repeated JVM startup banners (JAVA_TOOL_OPTIONS / CDS / otel-javaagent-version / 'service starting') \u2014 after the recreate there should be exactly one startup sequence and then steady AdService request lines, not eight in four minutes; (2) in Prometheus, ad's span-metrics call-rate series becomes continuously defined \u2014 the undefined intervals that made 29 of 96 samples blank should stop appearing, because the process stays resident and keeps serving; (3) frontend-proxy's error ratio should settle at its floor of 0 instead of bursting to ~11%, since the bursts are hypothesised to be ad vanishing and returning.",
+    "confirm_within_seconds": 600,
+    "if_wrong": "Falsified if, more than ~3 minutes after the recreate, Loki still shows repeated JVM startup banners for ad (a second crashloop under the restored config), or if ad stays up cleanly but frontend-proxy's error ratio continues to burst above ~5%. The second outcome is the more likely miss: frontend-proxy alerted at 15:15:46, roughly 16 minutes before the first visible ad restart cycle, and no per-timestamp proxy series exists [tr_4d991b3199ae], so the earliest proxy errors are unattributed and may have a separate cause. Also note what cannot be observed: the OOM-kill itself was never measured \u2014 no working-set, restart-count or OOMKilled exit-code series was retrieved [tr_650bcbff6bc2] and no OutOfMemory token appears in ad's logs [tr_9b573018eac2] \u2014 so success here is inferred from the restart loop stopping, not from watching memory fall below a limit. If the loop stops, that is consistent with the diagnosis but does not prove the kill was memory-driven.",
+    "risk": "Three concrete risks. (1) The prior memory limit is unrecorded (null before-state in the change log), so this restores the service's declared definition rather than a known-good measured value; if the declared definition carries no limit, ad runs unbounded and a genuine leak \u2014 which the automated rightsizing may have been reacting to \u2014 would then pressure the host and its co-located containers instead of being contained to ad. (2) The revert recreates the container, so ad's in-process cache is discarded and callers see a connection reset for the duration; if ad was in fact healthy between restarts (traces show clean sub-5ms GetAds [tr_613998684b05]), this adds a fresh outage to a service that was partly working. (3) If the real driver of the frontend-proxy errors is upstream of ad or in an unmeasured edge \u2014 eight edges and nine services were never measured \u2014 this consumes an approval, resets ad, and leaves the actual fault running while appearing to have acted.",
+    "blast_radius": "ad itself, for the length of the recreate. Directly: frontend, which calls ad and will see resets/failed GetAds during the recreate; frontend-proxy and load-generator see that propagate as a brief error burst on the user_get_ads path. Downstream: flagd is reached from ad, so it sees ad's flag-evaluation traffic stop and then resume. No other service's configuration is touched, and the reverted value is a resource limit rather than a dependency address, so no traffic moves between services."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "low",
+    "reasoning": "Critical multi-service alerting spanning proxy, frontend and ad over a ~19 minute spread, with no open incident to attribute it to. Fan-in at the frontend with an ad/flagd branch is consistent with several mechanisms, so the fault class is best left open for evidence."
+  }
+}

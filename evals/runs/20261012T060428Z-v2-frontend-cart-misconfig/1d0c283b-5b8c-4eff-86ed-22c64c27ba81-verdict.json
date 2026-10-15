@@ -1,0 +1,87 @@
+{
+  "incident_id": "1d0c283b-5b8c-4eff-86ed-22c64c27ba81",
+  "trajectory_id": "6101d2d7-3a2f-4b7a-8dae-3c791a2b7b4f",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "failed"
+  ],
+  "blast_radius": [
+    "ad",
+    "cart",
+    "checkout",
+    "currency",
+    "email",
+    "frontend",
+    "frontend-proxy",
+    "load-generator",
+    "payment",
+    "product-catalog",
+    "product-reviews",
+    "recommendation",
+    "shipping"
+  ],
+  "unmeasured_edges": 13,
+  "exclude_origins": [
+    "scenario:v2-frontend-cart-misconfig"
+  ],
+  "verdict": null,
+  "flags": [
+    "synthesizer produced no valid findings: schema validation failed twice (1 validation error for Verdict\nconfidence\n  Field required [type=missing, input_value={'root_cause': \"Two minut... likelier wrong one.\"}]}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing)"
+  ],
+  "retrieved": [
+    "v2-valkey-cart-dependency-latency / What was checked: **The traces, because cart paged first and its callers followed.** Every slow trace touched cart,\nand inside cart the time was in one place. At rest, cart answered a `GetCart` in 0.3ms and its\nstore answered an `HGET` in 0.2ms. Under the fault, in 80 traces drawn, every `HGET`, `",
+    "v2-cart-store-corruption / Resolution: The loop was stopped and the store flushed: every cart discarded, so that each user's next\nrequest created a fresh one the loop was no longer touching. Class of fix: **restore_data**. There\nwas nothing to roll back or revert, and restarting cart would have changed nothing - it wo",
+    "v2-cart-dependency-latency / What was checked: **The traces, because four services slowed at once and the page did not say which one first.**\nEvery slow trace touched cart, and the time sat in the same places in all of them. At rest, cart\nanswered a `GetCart` in 0.4ms and its store answered an `HGET` in 0.3ms. Under the fault"
+  ],
+  "failed_dispatches": [
+    [
+      "synthesizer",
+      "schema validation failed twice (1 validation error for Verdict\nconfidence\n  Field required [type=missing, input_value={'root_cause': \"Two minut... likelier wrong one.\"}]}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing)"
+    ]
+  ],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 2659,
+    "pulled_tokens": 6907,
+    "pull_rate": 0.722,
+    "dropped_sections": 0,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 479,
+        "content_tokens": 481,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 2180,
+        "content_tokens": 2183,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      }
+    ]
+  },
+  "proposal": null,
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Critical multi-service failure spanning frontend, proxy, and checkout with load-generator affected indicates a real user-facing outage, not noise. No open incidents to duplicate, and the alert pattern alone does not distinguish a shared downstream dependency from a deploy or resource issue."
+  }
+}

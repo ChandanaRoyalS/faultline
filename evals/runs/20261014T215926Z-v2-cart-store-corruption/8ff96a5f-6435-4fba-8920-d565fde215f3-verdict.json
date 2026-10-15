@@ -1,0 +1,177 @@
+{
+  "incident_id": "8ff96a5f-6435-4fba-8920-d565fde215f3",
+  "trajectory_id": "bb5ef65d-b8b9-4821-8727-559cafc4b092",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "cart",
+    "checkout",
+    "currency",
+    "email",
+    "frontend",
+    "frontend-proxy",
+    "payment",
+    "product-catalog",
+    "shipping"
+  ],
+  "unmeasured_edges": 8,
+  "exclude_origins": [
+    "scenario:v2-cart-store-corruption"
+  ],
+  "verdict": {
+    "root_cause": "Checkout's cart-fetch path fails because the cart service's store returns bytes that cannot be decoded: frontend's log shows every failed checkout call as gRPC 13 INTERNAL wrapping an upstream FailedPrecondition from cart's storage layer with a protobuf parse error reporting input ending mid-field [tr_466e9ae05f50]. The connection and read succeed; decoding does not. No artifact, config or flag change exists on checkout across 24 hours [tr_658a160b8f79, tr_a9913a607fe6]. Checkout itself is up and fast - traces complete in tens of milliseconds with no error spans and no inflated hop [tr_7411836e9c90] - and its own error ratio moved from flat zero to only ~1.5% mean / 8.4% peak with onset near 22:04:31 [tr_31dd6fecb508], the diluted-culprit shape where the caller pages first. The failing mechanism is corrupted contents in cart's datastore; checkout and frontend are the services that noticed.",
+    "service": "cart",
+    "fault_class": "datastore_corruption",
+    "remediation_class": "restore_data",
+    "confidence": "medium",
+    "evidence": [
+      "tr_466e9ae05f50",
+      "tr_31dd6fecb508",
+      "tr_658a160b8f79",
+      "tr_7411836e9c90",
+      "tr_005b184ec01f"
+    ],
+    "reasoning": "The only concrete failure signature on the board is mechanistic, not merely nominative: a decoder and a decode failure beneath a 'cannot access cart storage' status, returned upward as INTERNAL at steady cadence with no deadline-exceeded [tr_466e9ae05f50]. That excludes freeze and partition - frontend gets well-formed detailed responses, so the path is up and fast-failing, and checkout's traces complete normally [tr_7411836e9c90]. It excludes disk_fill (no no-space-left; the failing operation is a read, not a write) and a wrong store address (that logs connection errors, not parse errors). It excludes a checkout-side change: two independent 24-hour change queries are empty [tr_a9913a607fe6, tr_658a160b8f79], which is exactly what corrupted contents produce. Magnitude corroborates: zero baseline to 1.5% mean / 8.4% peak in a two-step ramp [tr_31dd6fecb508] - a minority of requests failing because only reads touching corrupted state fail. Checkout's total log silence [tr_005b184ec01f] is a collection gap, not exculpation, since frontend is demonstrably receiving checkout's responses. The fix is discarding or restoring cart's store contents; a restart re-reads the same bytes and a config revert restores nothing. Note the executor cannot currently perform restore_store.",
+    "open_questions": [
+      "No dispatch touched cart itself - its logs, metrics and change history were never queried; attribution rests entirely on detail text in frontend's log one hop away.",
+      "Whether the corruption is in stored contents or in a cart-side serialization/deploy change is unsettled; a cart change-history query would separate them.",
+      "The two checkout error-ratio queries disagree in framing [tr_4d7d2e808768] vs [tr_31dd6fecb508], so the pre-22:08 hour contained error activity that was never characterised."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "A cart deploy or schema change made cart encode/decode cart messages incompatibly, so the parse failure is a version mismatch rather than damaged stored bytes.",
+        "service": "cart",
+        "fault_class": "bad_deploy",
+        "remediation_class": "rollback",
+        "why_not": "The decoder reports input ending mid-field - truncation, the signature of damaged bytes rather than a schema disagreement; it survives only because cart's change history was never queried."
+      },
+      {
+        "root_cause": "Checkout's own logs and spans are entirely absent, which could indicate checkout is not emitting because it is not the process that should be running.",
+        "service": "checkout",
+        "fault_class": "unknown",
+        "remediation_class": "restart",
+        "why_not": "Frontend receives well-formed gRPC responses from checkout throughout and checkout's traces complete normally, so checkout is running and serving; the log gap is a collection or labeling defect."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "v2-inj-payment-dependency-latency-log-checkout / Resolution: The traffic-shaping container was stopped and the delay went with it. Class of fix: **restart** -\nthe rule lives in payment's network namespace, and recreating payment's container clears it the\nsame way. Rolling checkout back - what the note in its log asked for - would have chan",
+    "v2-frontend-cart-misconfig / What was checked: **The error text, because it was the first thing a responder would read.** Checkout's error spans\nand the frontend's log said `shipping quote failure: failed POST to email service: expected 200,\ngot 400`. That names two services, and neither was at fault. It is checkout's own wor",
+    "v2-frontend-cart-misconfig / Detection notes: - Onset to first page: **3m17s**. Services on the page: **three**, and one of them was the service\n  that changed. By the fix: **twelve alerts across eleven services**.\n- Alerts that fired only during recovery: **none**. Fraud-detection's and flagd's three began\n  while orders we"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 62257,
+    "pulled_tokens": 9922,
+    "pull_rate": 0.1375,
+    "dropped_sections": 0,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 7709,
+        "content_tokens": 7713,
+        "budget": 10000000,
+        "kept": [
+          "incident",
+          "past-incidents",
+          "push-allowlist",
+          "push-runbooks"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 8957,
+        "content_tokens": 8962,
+        "budget": 10000000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents",
+          "push-allowlist",
+          "push-runbooks"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 15343,
+        "content_tokens": 15349,
+        "budget": 10000000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board",
+          "past-incidents",
+          "push-allowlist",
+          "push-runbooks"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 14788,
+        "content_tokens": 14793,
+        "budget": 10000000,
+        "kept": [
+          "conclusion",
+          "evidence-board",
+          "push-allowlist",
+          "push-runbooks",
+          "push-past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 15460,
+        "content_tokens": 15466,
+        "budget": 10000000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board",
+          "push-runbooks",
+          "push-past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_466e9ae05f50",
+      "tr_658a160b8f79",
+      "tr_a9913a607fe6",
+      "tr_31dd6fecb508"
+    ],
+    "expected_effect": "No action is proposed, so no change in any metric or log is expected. The frontend log line `13 INTERNAL: cart failure: ... FailedPrecondition ... InvalidProtocolBufferException ... input ended unexpectedly in the middle of a field` [tr_466e9ae05f50] should continue at its current steady cadence, and checkout's error ratio should remain in the ~1.5% mean / 8.4% peak band [tr_31dd6fecb508], until a human discards or restores cart's store contents by a route outside this system.",
+    "confirm_within_seconds": 600,
+    "if_wrong": "Two things would falsify the abstention. First, if a cart-side change-history or log dispatch returns a deploy, image swap, config edit or flag flip on cart inside the incident window - that would make rollback_image or revert_config on cart a supported proposal with a real precondition, and abstaining would have cost time. Second, if the frontend error line stops of its own accord without any operator action, the corruption was transient (short-lived state written and read within milliseconds, per class-datastore-corruption's cadence note) and no remediation was ever needed. Conversely, if the error line persists past ten minutes with no change evidence on cart, the abstention was correct and the next step is a human-run store flush, not an action from this allowlist.",
+    "risk": "The risk of abstaining is continued user-visible checkout failure at ~1.5% mean / 8.4% peak for as long as it takes a human to act. The risk of the alternative - proposing restart_service on cart, the only permitted action that could be aimed at the named culprit - is higher and is why it is refused: class-datastore-corruption states that recreating the service changes nothing because it reads the same bad bytes on its next request, restart_service is irreversible and discards in-process cache, and its precondition (evidence pointing at process state rather than at a change) is not met - the connection and read succeed, only decoding fails. A restart would reset cart's cache, briefly reset every caller's connection, and leave the corruption in place while appearing to have been tried.",
+    "blast_radius": "None from this proposal. For the record, the service the evidence names - cart - was never directly queried: no dispatch touched its logs, metrics or change history, and attribution rests entirely on detail text in frontend's log one hop away [tr_466e9ae05f50]. Had an action been proposed on cart, the callers that would have seen the container recreate are checkout (which reads cart once per request and fails the whole request on that read) and, one hop further, frontend and frontend-proxy. The fix class the synthesizer named, restore_data / restore_store, is marked UNAVAILABLE in the allowlist - the executor performs rollback_image, revert_config and restart_service only - so the correct remediation is outside what this system may do."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "low",
+    "reasoning": "A critical alert on checkout with no other incident open and no evidence yet; a single seed alert on a hub service is not dismissible. Nothing in the alert shape distinguishes a change-shaped fault from a hang or a dependency issue, so the fault class is honestly unknown."
+  }
+}

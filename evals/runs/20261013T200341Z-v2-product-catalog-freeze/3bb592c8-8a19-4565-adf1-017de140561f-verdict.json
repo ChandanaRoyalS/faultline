@@ -1,0 +1,164 @@
+{
+  "incident_id": "3bb592c8-8a19-4565-adf1-017de140561f",
+  "trajectory_id": "dcff428e-1245-4388-a89b-9096a64a4e6c",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "frontend",
+    "frontend-proxy",
+    "load-generator"
+  ],
+  "unmeasured_edges": 1,
+  "exclude_origins": [
+    "scenario:v2-product-catalog-freeze"
+  ],
+  "verdict": {
+    "root_cause": "frontend-proxy is the reporter, not the culprit. In the only sampled error trace the proxy routed correctly and frontend accepted the request, but frontend/GET then consumed ~15.006s entirely as self-time with no child spans and no error flag of its own, with ERROR flags only on the spans above it [tr_0c72445f0195] \u2014 a caller-side timeout cutoff, not a downstream failure. frontend itself emits no error spans [tr_e51c35080e6f] and no log lines of any severity [tr_d84de0963499], while the proxy's error ratio steps from an exactly-zero baseline to ~2% mean / ~27% peak at 20:05:31 [tr_4873b7c0ddde]. No change explains it: frontend's only edits are two complete CART_ADDR set/revert pairs 17-18h before onset leaving the value unset [tr_2b6777361bb0], and frontend-proxy has no recorded changes [tr_9ae11db7c4e4]. The fitting mechanism is frontend's request-serving process stalling while its socket still accepts \u2014 callers hang to their deadlines and the process writes nothing.",
+    "service": "frontend",
+    "fault_class": "process_freeze",
+    "remediation_class": "restart",
+    "confidence": "medium",
+    "evidence": [
+      "tr_0c72445f0195",
+      "tr_e51c35080e6f",
+      "tr_d84de0963499",
+      "tr_4873b7c0ddde",
+      "tr_2b6777361bb0"
+    ],
+    "reasoning": "Locality: the deepest span in the error trace is frontend/GET with all time as self-time and no children, placing the stall inside frontend before any downstream call was issued; recommendation, product-catalog, cart, SQL and Redis spans are absent from the error trace or sub-3ms elsewhere [tr_0c72445f0195]. Shape: the proxy's errors are a minority of requests hitting a fixed ~15s cutoff rather than fast failures or a total outage [tr_4873b7c0ddde] \u2014 callers waiting on deadlines. Silence: frontend records no error spans [tr_e51c35080e6f] and no logs at all [tr_d84de0963499], which is what a hung process looks like. Change evidence removes deploy, flag and config stories on both services [tr_2b6777361bb0, tr_9ae11db7c4e4]. Confidence is medium because frontend-proxy's logs are equally empty [tr_77efa843a1d1], so frontend's silence may partly be a collection gap.",
+    "open_questions": [
+      "Both services return zero log lines, so frontend's silence may be a Loki collection/labelling gap rather than a frozen process \u2014 unverified.",
+      "No CPU, memory, thread-pool or connection metrics were collected for frontend, so resource exhaustion producing the same 15s stalls is untested.",
+      "Why only the recommendations route errors while cart, index and browse_product traces complete in 2-18ms; a whole-process freeze should hang everything, so this may be partial stalling or a sampling artifact."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "frontend exhausted a bounded resource (worker threads, connection pool, memory) so a fraction of requests queued without progress until the caller's deadline fired.",
+        "service": "frontend",
+        "fault_class": "resource_exhaustion",
+        "remediation_class": "restart",
+        "why_not": "Explains the intermittency better than a clean freeze, but no frontend resource metrics were gathered at all, and pool exhaustion would usually surface as rejected or error-flagged spans at frontend, of which there are none [tr_e51c35080e6f]."
+      },
+      {
+        "root_cause": "frontend is network-isolated from its dependencies, so requests hang waiting on unreachable downstreams.",
+        "service": "frontend",
+        "fault_class": "network_partition",
+        "remediation_class": "reconnect",
+        "why_not": "A partitioned service still logs that it cannot reach anything and would emit an attempted egress span; frontend/GET has no children at all, so it never got as far as calling out [tr_0c72445f0195]."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "v2-cart-dependency-latency / What was observed: The page was four alerts in the same moment, `ServiceHighLatency` on **cart**, **frontend**,\n**frontend-proxy** and **load-generator**, 4m50s after the trouble started. A minute later\n`ServiceHighLatency` fired on **checkout**. Five alerts on five services by the fix, all of them",
+    "v2-valkey-cart-dependency-latency / What was observed: The page was one alert, `ServiceHighLatency` on **cart**, 4m04s after the trouble started. A\nminute later `ServiceHighLatency` fired on all four of cart's callers at once: **checkout**,\n**frontend**, **frontend-proxy** and **load-generator**. Five alerts on five services by the f",
+    "v2-ad-memory-squeeze / What was checked: **The page names callers.** Frontend-proxy forwards what the frontend returns, and the load\ngenerator is the synthetic shoppers counting their own failures. The frontend was the one service\nmaking calls that failed, and the order path was not among them.\n\n**The frontend's error t"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 24816,
+    "pulled_tokens": 4890,
+    "pull_rate": 0.1646,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 382,
+        "content_tokens": 384,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1548,
+        "content_tokens": 1551,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 7581,
+        "content_tokens": 7557,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 7001,
+        "content_tokens": 7003,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 8304,
+        "content_tokens": 8281,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "restart",
+    "action_id": "restart_service",
+    "target": "frontend",
+    "rests_on": [
+      "tr_0c72445f0195",
+      "tr_4873b7c0ddde",
+      "tr_2b6777361bb0",
+      "tr_e51c35080e6f",
+      "tr_d84de0963499"
+    ],
+    "expected_effect": "Recreating frontend's container should clear the stalled request-serving state. Observable within a few minutes: (1) frontend-proxy's span-metrics error ratio (the same query in tr_4873b7c0ddde: rate of STATUS_CODE_ERROR calls over all calls, 5m rate) falls back from its ~2% mean / ~27% peak to the exactly-zero baseline it held for the 32 minutes before 20:05:31; (2) no further frontend/GET spans of ~15.0s with all time as self-time and no children appear in Tempo for frontend-proxy traces on the recommendations route \u2014 those traces return to the ~20-36ms range seen in the healthy samples of tr_0c72445f0195; (3) secondarily, if the silence in tr_d84de0963499 was the frozen process rather than a Loki gap, {service=\"frontend\"} should start returning request/access lines again after the recreate. Effect (3) is weak evidence either way and is not the basis of the claim.",
+    "confirm_within_seconds": 420,
+    "if_wrong": "Falsified if, more than ~7 minutes after the recreate, frontend-proxy's error ratio is still stepping above zero and Tempo still shows ~15s childless frontend/GET spans on the recommendations route \u2014 that means the stall is not in frontend's in-process state and a fresh container inherits it (external dependency, host-level resource pressure, or a proxy-side 15s timeout against something else). Also treat as falsified-in-diagnosis if the error ratio recovers but recurs on a similar clock within the hour, which would indicate a repeating resource exhaustion (thread pool, connection pool, memory) that no one measured \u2014 tr_e51c35080e6f returned error ratio only, and no CPU/memory/thread-pool series for frontend were ever collected. Note one effect that cannot be observed here: whether logs reappear does not distinguish a frozen process from a Loki collection/labelling gap, since frontend-proxy is equally silent (tr_77efa843a1d1) while demonstrably serving traffic.",
+    "risk": "A restart destroys the evidence. If the real mechanism is resource exhaustion or a partial/route-specific stall \u2014 and tr_0c72445f0195 shows cart, index and browse_product completing in 2-18ms while only recommendations hangs, which a whole-process freeze does not explain \u2014 the recreate clears the symptom, resets whatever counter or pool was filling, and removes the only state from which that could have been diagnosed. The fault then returns with no better evidence than this time. The restart is also not reversible: in-flight requests at the moment of recreate are dropped, and frontend's in-process cache is discarded, so the first requests after recovery will be slower than baseline (expect a brief latency bump, not errors). If frontend is in fact healthy and the 15s is a proxy-side or network-level timeout, this restart causes a short outage for no benefit.",
+    "blast_radius": "frontend only, for the duration of the container recreate. Its inbound edge in this incident is frontend-proxy, which will see connection resets and may briefly report a higher error ratio than the current ~2% mean while the container comes back \u2014 do not mistake that spike for failure of the remediation; measure from after the container is healthy. Through frontend-proxy, load-generator (the alerted seed) sees the same resets as failed requests. frontend's downstream dependencies (cart, product-catalog, recommendation) see its outbound traffic stop and resume; none are targets and none are modified."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Critical-severity alert on the edge proxy plus the load generator means user-facing traffic is affected, not a lone synthetic signal. No open incident covers it and the frontend behind the proxy is an unexamined candidate cause."
+  }
+}

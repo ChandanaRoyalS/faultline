@@ -1,0 +1,174 @@
+{
+  "incident_id": "49699e74-6a22-40c1-97a3-1a171253bcf6",
+  "trajectory_id": "f601a7b2-d84c-4a9a-bcef-1f41ab847d46",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "ad",
+    "flagd",
+    "frontend",
+    "frontend-proxy",
+    "load-generator"
+  ],
+  "unmeasured_edges": 3,
+  "exclude_origins": [
+    "scenario:v2-ad-partition"
+  ],
+  "verdict": {
+    "root_cause": "The failing mechanism is in the cart service's Valkey-backed cart store: cart reads a stored cart, the protobuf decode fails mid-field, and cart returns FAILED_PRECONDITION (\"can't access cart storage\") to its callers, which checkout wraps as INTERNAL. The frontend log capture [tr_ed7ccccf84dd] carries cart's own exception and stack as a pass-through, with frontend contributing only gRPC client frames \u2014 the connection succeeded and the RPC returned an application-level error, so this is stored contents that cannot be decoded rather than an unreachable store. Every alerting service sits upstream of that read, and ad, where triage began, shows no request-path fault: all sampled traces complete with no error spans [tr_02b57ed602b4] and its only errors come from the OTel agent's metric exporter failing DNS for the collector host, off the serving path [tr_c846ca457dd0]. The change log is empty where this class predicts: nothing for flagd [tr_a7a1ac488368], and ad's only edits were resource limits reverted ~4.5h before onset [tr_d9f6c1e19115].",
+    "service": "cart",
+    "fault_class": "datastore_corruption",
+    "remediation_class": "restore_data",
+    "confidence": "medium",
+    "evidence": [
+      "tr_ed7ccccf84dd",
+      "tr_02b57ed602b4",
+      "tr_c846ca457dd0",
+      "tr_c9aec1f2d524",
+      "tr_d9f6c1e19115"
+    ],
+    "reasoning": "The only mechanism-naming error text on the board is in [tr_ed7ccccf84dd]: a .NET protobuf parse exception in cart's get-cart routine against its Valkey store, surfaced as gRPC code 9 and wrapped by checkout as code 13. The specialist ruled out a network/timeout condition on that edge (codes are not UNAVAILABLE/DEADLINE_EXCEEDED) and ruled out frontend-origin code, leaving cart as origin and frontend as reporter. Connection fine, read succeeds, decode fails is precisely what separates datastore_corruption from a misconfigured store address, which logs connection failures. The triage candidates do not survive: frontend shows no sustained departure and its incident peak is below its own baseline peak [tr_c9aec1f2d524]; ad's traces are clean and its errors are exporter-thread-pool only [tr_02b57ed602b4, tr_c846ca457dd0]; the ad memory squeeze ran nine minutes and was reverted hours before onset with no OOM signature [tr_d9f6c1e19115, tr_c846ca457dd0]. The fix is discarding or restoring the store's contents; a cart restart re-reads the same bytes and a config revert changes nothing, and the executor does not currently perform restore_store.",
+    "open_questions": [
+      "No dispatch ran against cart or its Valkey store; cart's own logs, error ratio and store health are unmeasured, and the verdict rests entirely on cart's exception quoted back through frontend.",
+      "The cart errors cluster 06:45\u201306:56 and frontend's log stream ends at 06:56:21, roughly 16\u201327 minutes before the 07:12:46 onset; whether the corruption was still active at onset is unestablished.",
+      "Why ad alerted first is unexplained, and the agent's unknown-host DNS failure [tr_c846ca457dd0] is unaccounted for \u2014 possibly unrelated telemetry breakage, possibly a wider resolution problem."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "ad lost network/DNS reachability, visible as its exporter failing to resolve the collector host.",
+        "service": "ad",
+        "fault_class": "network_partition",
+        "remediation_class": "reconnect",
+        "why_not": "A cut-off service cannot deliver spans, yet 10 complete ad traces were retrieved for the window and ad kept serving requests without error [tr_02b57ed602b4, tr_c846ca457dd0]; the DNS failure is confined to the telemetry export path."
+      },
+      {
+        "root_cause": "A flag flip in the flag store broke a code path in a service reached through frontend, leaving no change record.",
+        "service": "flagd",
+        "fault_class": "feature_flag",
+        "remediation_class": "config_revert",
+        "why_not": "No span in any sampled trace carries an error status or flag-naming message [tr_02b57ed602b4], and the frontend errors name cart storage and a protobuf decode rather than any flag [tr_ed7ccccf84dd]; the empty flagd log and change log are consistent with this class but carry no positive evidence."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "v2-ad-memory-squeeze / Root cause: The ad service container's memory limit was lowered from 300M to 144m, below the 230MB working set\nof a JVM that had sized its heap against 300M, and below what a fresh JVM needs to load its\ninstrumentation agent and start at all. The kernel killed the running JVM within a second",
+    "v2-ad-memory-squeeze / What was checked: **The page names callers.** Frontend-proxy forwards what the frontend returns, and the load\ngenerator is the synthetic shoppers counting their own failures. The frontend was the one service\nmaking calls that failed, and the order path was not among them.\n\n**The frontend's error t",
+    "v2-ad-memory-squeeze / Resolution: The memory limit was restored to 300M. The next JVM start, twenty seconds after the fix, was the\nfirst in ten minutes to reach `Ad service started, listening on 9555`, and it served its first ad\nrequest just under two minutes later, as the frontend found it again; a new set of 51"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 66373,
+    "pulled_tokens": 7175,
+    "pull_rate": 0.0976,
+    "dropped_sections": 0,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 7643,
+        "content_tokens": 7647,
+        "budget": 10000000,
+        "kept": [
+          "incident",
+          "past-incidents",
+          "push-allowlist",
+          "push-runbooks"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 9184,
+        "content_tokens": 9190,
+        "budget": 10000000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents",
+          "push-allowlist",
+          "push-runbooks"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 16751,
+        "content_tokens": 16758,
+        "budget": 10000000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board",
+          "past-incidents",
+          "push-allowlist",
+          "push-runbooks"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 15994,
+        "content_tokens": 15999,
+        "budget": 10000000,
+        "kept": [
+          "conclusion",
+          "evidence-board",
+          "push-allowlist",
+          "push-runbooks",
+          "push-past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 16801,
+        "content_tokens": 16806,
+        "budget": 10000000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board",
+          "push-runbooks",
+          "push-past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_ed7ccccf84dd",
+      "tr_02b57ed602b4",
+      "tr_c846ca457dd0",
+      "tr_d9f6c1e19115",
+      "tr_a7a1ac488368"
+    ],
+    "expected_effect": "No action is proposed, so nothing should change. The abstention rests on three independent blocks. (1) Mechanism: the only error text in evidence [tr_ed7ccccf84dd] is cart's own protobuf parse failure ('input ended unexpectedly in the middle of a field') wrapped as FAILED_PRECONDITION 'Can't access cart storage' and re-wrapped by checkout as INTERNAL, passed through frontend as a gRPC client. That is stored contents that cannot be decoded; the class runbook states plainly that recreating the service reads the same bad bytes and reverting configuration restores nothing. (2) Action: the one action that addresses it, restore_store/restore_data, is listed UNAVAILABLE - the executor performs only rollback_image, revert_config and restart_service. (3) Target: cart and its Valkey store are not in the blast radius this brief gives, so no legal target carries the mechanism. Every permitted action against a legal target would be aimed at a service the evidence exonerates: ad's sampled traces complete with no error spans and no downstream dependency at all [tr_02b57ed602b4], its only errors are the OTel agent's DNS failure off the serving path [tr_c846ca457dd0], its change log holds only resource-limit edits reverted ~4.5h before onset [tr_d9f6c1e19115], and flagd has no recorded change [tr_a7a1ac488368] - so neither rollback_image nor revert_config meets its precondition of evidence naming a deploy or config change inside the window.",
+    "confirm_within_seconds": 0,
+    "if_wrong": "This abstention is wrong if a dispatch against cart and its Valkey store shows the store itself unreachable or the container unhealthy rather than holding undecodable bytes - i.e. UNAVAILABLE/DEADLINE_EXCEEDED in cart's own logs instead of InvalidProtocolBufferException - in which case a restart or reconnect class becomes relevant and cart would need to be added to the blast radius. It is also wrong if cart's errors have already stopped: the cart cluster is 06:45-06:56 and frontend's log stream ends 06:56:21, 16-27 minutes before the 07:12:46 onset, so the corruption may not have been active at onset at all and the real onset mechanism is still unidentified. The abstention would also be reconsidered if the executor gains restore_store, or if the unexplained agent DNS failure [tr_c846ca457dd0] turns out to be a wider name-resolution fault rather than isolated telemetry breakage - that would be a different class with a different target. Note that no proposal here produces an observable effect, by design: the needed effect (cart error ratio falling, the parse-failure log line ceasing) is unmeasured because no dispatch ran against cart.",
+    "risk": "The risk of abstaining is elapsed time: if cart's store is still serving undecodable bytes, checkout keeps failing for real users while the investigation reopens. That is a real cost and it is the reason this is an abstention and not a conclusion. The risk of the alternative is worse and concrete: restarting or rolling back ad, frontend or flagd on a medium-confidence verdict that points at none of them would recreate a working container, discard its cache, reset its callers' connections, and leave the cart mechanism untouched - a wrong action spends the outage window and buys nothing.",
+    "blast_radius": "None - no container is recreated and no traffic moves. What this does consume is an approval decision and the operator attention behind it. The follow-up it asks for is a dispatch against cart and its Valkey store - cart's own logs, error ratio and store health - plus a check of whether cart's errors persisted past 06:56 into the 07:12:46 onset; both are read-only and touch nothing. The services named in this incident (ad, frontend-proxy, load-generator, flagd, frontend) see no change from this proposal."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "low",
+    "reasoning": "Critical alerts on ad and frontend-proxy simultaneously, with flagd one hop upstream, cannot be dismissed as a working world. The flagd adjacency hints at a flag flip but there is no evidence yet, so the prior stays unknown."
+  }
+}

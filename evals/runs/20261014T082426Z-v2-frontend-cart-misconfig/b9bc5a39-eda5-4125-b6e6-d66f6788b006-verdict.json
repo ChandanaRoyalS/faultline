@@ -1,0 +1,172 @@
+{
+  "incident_id": "b9bc5a39-eda5-4125-b6e6-d66f6788b006",
+  "trajectory_id": "ed2e747a-a804-4926-851d-c11da3f70a50",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "ad",
+    "cart",
+    "checkout",
+    "currency",
+    "email",
+    "frontend",
+    "frontend-proxy",
+    "load-generator",
+    "payment",
+    "product-catalog",
+    "product-reviews",
+    "recommendation",
+    "shipping"
+  ],
+  "unmeasured_edges": 13,
+  "exclude_origins": [
+    "scenario:v2-frontend-cart-misconfig"
+  ],
+  "verdict": {
+    "root_cause": "frontend's CART_ADDR environment variable was re-applied by platform-automation at 08:24:32 pointing at cart:7071, a port nothing is listening on. frontend restarted a second later [tr_ffd09da66365], picked up the wrong endpoint, and every outbound gRPC call to CartService began failing immediately with status 14 UNAVAILABLE / connection refused against the resolved address 172.18.0.24:7071. The wrongness of the value is the failure: cart itself is healthy and serving, so only the frontend code paths that dial the misconfigured endpoint (/api/cart GetCart and AddItem) break, and the errors propagate outward to frontend-proxy, checkout and the load generator, which is why those services alerted after frontend.",
+    "service": "frontend",
+    "fault_class": "bad_config",
+    "remediation_class": "config_revert",
+    "confidence": "high",
+    "evidence": [
+      "tr_8b2c437c958a",
+      "tr_ffd09da66365",
+      "tr_36d896dacae9",
+      "tr_caa1c51c6bda",
+      "tr_170c77c4641d",
+      "tr_81299862b448",
+      "tr_2a12a40350e5"
+    ],
+    "reasoning": "Three independent lines converge. (1) The only change on frontend in the window is the same key, CART_ADDR, set to cart:7071 about three minutes before onset by platform-automation, and the identical value had been applied and backed out hours earlier \u2014 a re-application of a previously reverted change [tr_8b2c437c958a]. (2) frontend's own log shows a clean start at 08:24:33 with no internal fault, followed immediately and continuously by a single error class: gRPC 14 UNAVAILABLE, connection refused, against one address and port, 172.18.0.24:7071 [tr_ffd09da66365]. A refusal at TCP connect on a resolved IP excludes DNS, TLS/auth, overload and timeout. (3) Traces show error spans terminating only at frontend's CartService client calls, with no cart server-side span and sub-millisecond-to-2ms durations \u2014 immediate rejection, not slowness \u2014 while every non-cart route in the same window succeeds [tr_36d896dacae9]. The culprit side is exonerated: cart's error ratio is flat zero with no sample gaps across 08:24-08:28 [tr_170c77c4641d], its logs show uninterrupted cart-store work right up to 08:29:29 with no restart or binding event and no refusals [tr_81299862b448], and its only changes were image-tag churn ending 2.6h before onset, leaving it on the reverted reference with no port or service-spec edit anywhere [tr_2a12a40350e5]. So cart is up and answering someone \u2014 just not on 7071. The frontend error-ratio change point at 08:27:46 with a window max ~3.5x the baseline max anchors onset and confirms this is a late, sharp excursion rather than a slow burn [tr_caa1c51c6bda]. The mechanism is the wrong value in the config, not exhaustion, not waiting, not a bad artifact (no deploy or image event exists for frontend), so the fix is to revert CART_ADDR to the endpoint cart actually serves and prevent automation from re-applying it.",
+    "open_questions": [
+      "Cart's actual listening port was never directly observed \u2014 its logs contain no bind or listener lines [tr_81299862b448] and no deployment/service spec was pulled. The 7071-is-wrong conclusion is inferred from the refusal on the frontend side plus cart's continued healthy service to other callers, not confirmed from cart's config.",
+      "Why platform-automation re-applied a value that had already been reverted twice is unexplained; without that, a revert may simply be re-applied again.",
+      "Both log results were truncated (frontend 8 oldest / 32 newest, cart roughly 07:57-08:28 unobserved), so the interval between the 08:24:33 restart and the 08:27:46 change point is not directly characterised on either side.",
+      "No frontend latency percentiles, CPU, memory or connection-pool data were returned [tr_caa1c51c6bda], so a concurrent resource issue on frontend is unmeasured, though nothing in logs or traces suggests one.",
+      "The gap between the 08:24:33 restart with immediate errors and the 08:27:46 metric change point (~3 minutes) is not fully explained \u2014 likely rate-window smoothing or cached channel state [tr_ffd09da66365], but not demonstrated.",
+      "checkout also calls cart; whether checkout uses a separate, correct endpoint (which would explain cart's continued zero-error traffic) was not investigated \u2014 no dispatch touched checkout."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "cart's listener genuinely moved off 7071 (or never bound it) due to something outside the recorded change log, making frontend's config correct and cart the faulty party.",
+        "service": "cart",
+        "fault_class": "bad_config",
+        "remediation_class": "config_revert",
+        "why_not": "cart's change history contains no port, service-spec or containerPort edit at all \u2014 only image-tag churn ending 2.6h before onset [tr_2a12a40350e5] \u2014 and cart keeps serving successful calls with a flat-zero error ratio and unbroken sample coverage through the onset minutes [tr_170c77c4641d, tr_81299862b448]. A listener that moved would have disrupted its other callers too. The only thing that demonstrably changed minutes before onset is frontend's CART_ADDR [tr_8b2c437c958a]. It stays on the list only because cart's bind address was never directly read.",
+        "_": ""
+      },
+      {
+        "root_cause": "frontend was restarted at 08:24:33 into a state where its cart gRPC channel is permanently wedged, and a restart rather than a config change is what is needed.",
+        "service": "frontend",
+        "fault_class": "bad_deploy",
+        "remediation_class": "restart",
+        "why_not": "frontend starts cleanly and reports ready in ~209ms with no internal exception, crash loop or build failure, and its change log contains no deploy, release or image event \u2014 only environment edits [tr_ffd09da66365, tr_8b2c437c958a]. The running artifact is the right one; it is simply pointed at a port nothing answers on. A restart would re-read the same wrong CART_ADDR and reproduce the refusals.",
+        "__": ""
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 27087,
+    "pulled_tokens": 7303,
+    "pull_rate": 0.2124,
+    "dropped_sections": 1,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 180,
+        "content_tokens": 181,
+        "budget": 4000,
+        "kept": [
+          "incident"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1604,
+        "content_tokens": 1606,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 8334,
+        "content_tokens": 8337,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 7635,
+        "content_tokens": 7637,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 9334,
+        "content_tokens": 9312,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "config_revert",
+    "action_id": "revert_config",
+    "target": "frontend",
+    "rests_on": [
+      "tr_8b2c437c958a",
+      "tr_ffd09da66365",
+      "tr_36d896dacae9",
+      "tr_caa1c51c6bda"
+    ],
+    "expected_effect": "Restoring frontend's prior environment (CART_ADDR absent, as it stood after the 04:43:01 revert) and recreating the container should stop the repeating gRPC status 14 UNAVAILABLE / connection refused lines against 172.18.0.24:7071 in {service=\"frontend\"} logs \u2014 the last such line should be within seconds of the recreate. Frontend's error-ratio series (sum rate STATUS_CODE_ERROR / sum rate calls, 5m window) should fall from its ~0.19-0.27 excursion back under the ~0.12 detection threshold and toward the baseline mean of ~0.029 within roughly two rate-windows. In traces, /api/cart GetCart and AddItem client spans should regain matching cart server-side spans and lose their error status; frontend-proxy, checkout and load-generator error ratios should follow frontend down, since trace evidence shows their errors are inherited from frontend's cart branch. Cart's own error ratio should stay flat at zero throughout \u2014 it never moved.",
+    "confirm_within_seconds": 420,
+    "if_wrong": "Falsified if, more than ~60s after the recreate, frontend still logs connection-refused to a cart endpoint: (a) still to :7071 \u2014 the revert did not take, or platform-automation re-applied the value a third time (unexplained in this investigation, and the single largest reason this fix may not hold); (b) to a different address/port \u2014 then the pre-change default is also wrong and cart's real listening port must be read from its deployment/service spec, which was never pulled; cart's own logs cannot settle it [tr_81299862b448]. Also falsified if frontend's error ratio stays above ~0.12 after two 5m rate windows while cart client spans now succeed \u2014 that would mean a second, unmeasured failure mode on frontend (no latency, CPU, memory or connection-pool data was returned [tr_caa1c51c6bda]). A weaker warning sign: frontend fails to reach Ready after recreate, meaning the prior config is incomplete rather than merely different.",
+    "risk": "If CART_ADDR=cart:7071 was in fact correct and the refusal has another cause (cart bound elsewhere, a network-level block), this removes the only explicit cart endpoint from frontend and leaves it on a compiled-in default that may be equally wrong or absent \u2014 frontend could fail to start or break cart paths in a new way, and we would have spent a restart without learning anything. Cart's actual listening port was never directly observed, so the premise that 7071 is wrong is inferred, not confirmed. The recreate itself discards frontend's in-process cache and resets its gRPC channels, which is cheap here but not free. There is also a real chance platform-automation re-applies the bad value minutes later, producing a second identical outage; this action does not address the automation loop, which is outside what this system may do and needs a human to stop the actor.",
+    "blast_radius": "One service is changed, frontend, but its callers feel the recreate: frontend-proxy, and through it load-generator, will see connections reset and a brief burst of 5xx/connection errors for the few seconds frontend is down (it reported Ready in ~209ms previously, so expect a short interruption). checkout calls frontend's upstream path and may see the same blip. cart is the service the reverted value points at: it should begin receiving GetCart/AddItem traffic from frontend again, raising its request rate from its current frontend-free level \u2014 it was already serving other callers at zero errors, so this is added load, not new risk. ad, product-catalog, product-reviews, recommendation, currency, email, payment and shipping are untouched except for the same momentary gap in any in-flight frontend request."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Critical multi-service failure spanning frontend, proxy, and checkout with user-visible impact; nothing here can be dismissed. Fault class is not implied by the alert pattern alone, so downstream dependency checks of checkout/frontend should decide it."
+  }
+}

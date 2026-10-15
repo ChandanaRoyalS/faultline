@@ -1,0 +1,168 @@
+{
+  "incident_id": "f8726c1a-badc-4be0-87e5-9eee111f8040",
+  "trajectory_id": "93d2adda-0a02-462b-bea9-6ffcb2ca6298",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "ad",
+    "cart",
+    "checkout",
+    "frontend",
+    "frontend-proxy",
+    "product-catalog",
+    "product-reviews",
+    "recommendation"
+  ],
+  "unmeasured_edges": 7,
+  "exclude_origins": [
+    "scenario:v2-ad-memory-squeeze"
+  ],
+  "verdict": {
+    "root_cause": "Platform automation lowered the ad service's container memory limit to 144m about five minutes before onset [tr_09ba07093f8b]. From 07:31:55 onward ad enters a ~1-minute restart loop, with several cycles dying before the application init line and with no exception, OOM message or graceful-shutdown line \u2014 the signature of an external kill for exceeding the cgroup ceiling rather than an in-process crash [tr_760e30cba380]. Its error-ratio series shows 105 no-traffic intervals versus 36 in baseline, matching repeated short gaps in serving [tr_f35faa930f7a]. With ad's gRPC listener absent, frontend logs nothing but transport-level status 14 UNAVAILABLE against one peer at 172.18.0.19:9555, first connection refused then host unreachable, while frontend itself stays alive and retries [tr_ffbcb564ba8c] and its own error ratio only deviates at 07:34:46 [tr_fb97dbf9e088]. The mechanism is ad running out of its memory allotment and being killed for it; the limit edit is how it started, exhaustion is what is happening.",
+    "service": "ad",
+    "fault_class": "resource_exhaustion",
+    "remediation_class": "config_revert",
+    "confidence": "high",
+    "evidence": [
+      "tr_09ba07093f8b",
+      "tr_760e30cba380",
+      "tr_ffbcb564ba8c",
+      "tr_f35faa930f7a",
+      "tr_fb97dbf9e088"
+    ],
+    "reasoning": "The only change near onset is a memory-limit reduction on ad, and the same reduction was applied and reverted earlier the same day by the same automation [tr_09ba07093f8b]. Ad then restarts about once a minute, silently, with no startup error or bind failure \u2014 ruling out a bad artifact, a config/startup error and a clean stop, and fitting an external memory kill [tr_760e30cba380]; the metric gaps corroborate intermittent loss of serving [tr_f35faa930f7a]. Frontend's symptoms follow from this: connect-time failures to a single address with no connection ever established, no application errors and no timeouts, so frontend is the noticer, not the cause [tr_ffbcb564ba8c, tr_fb97dbf9e088]. The earlier queueing episode visible in ad traces had drained and recovered by 07:20:50 and is a prior episode of the same loop, not the active fault [tr_0d4a40446fe8]. Restoring the prior memory limit is the fix; restarting ad alone re-enters the loop.",
+    "open_questions": [
+      "No container-runtime or kernel OOM-kill event was retrieved, so the memory-kill mechanism is inferred rather than observed.",
+      "Nothing in this board maps 172.18.0.19:9555 to the ad container; that identification rests on the port and on ad being the only service looping.",
+      "Ad's memory usage against the 144m ceiling was never measured, and six of frontend's direct dependencies were never queried for changes [tr_590efece6aa1]."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "Ad is being killed and restarted for a non-memory reason (failing liveness probe or orchestrator eviction), with the limit change coincidental.",
+        "service": "ad",
+        "fault_class": "process_freeze",
+        "remediation_class": "restart",
+        "why_not": "The restart loop begins roughly 30 seconds after the limit was lowered and the identical limit change earlier the same day was reverted within minutes, which is a tight coincidence to dismiss; also the process is not frozen \u2014 it dies and relaunches [tr_760e30cba380, tr_09ba07093f8b]."
+      },
+      {
+        "root_cause": "The 144m memory limit is simply a wrong configuration value and the wrongness of that value is the failure.",
+        "service": "ad",
+        "fault_class": "bad_config",
+        "remediation_class": "config_revert",
+        "why_not": "The limit does not break any request by naming a wrong address or credential; it causes the process to be killed for exceeding a resource, so exhaustion is the mechanism and the edit is only its origin."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "v2-cart-freeze / What was checked: **The proxy, because it was loudest.** Its error traces - 247 of them across the ten minutes -\nwere all the same kind: a request cut at its fifteen-second route timeout. And they were all the\nsame four requests: `user_add_to_cart` (132), `user_view_cart` (71), `user_checkout_mult",
+    "v2-cart-freeze / Root cause: The cart process was suspended. The container existed and kept its port; the kernel went on\naccepting connections into its backlog; but nothing in the process ran, so no request was ever\nread or answered. Every add-to-cart, cart view and checkout hung until its caller's deadline ",
+    "v2-valkey-cart-dependency-latency / What was checked: **The traces, because cart paged first and its callers followed.** Every slow trace touched cart,\nand inside cart the time was in one place. At rest, cart answered a `GetCart` in 0.3ms and its\nstore answered an `HGET` in 0.2ms. Under the fault, in 80 traces drawn, every `HGET`, `"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 43849,
+    "pulled_tokens": 11756,
+    "pull_rate": 0.2114,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 433,
+        "content_tokens": 435,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 2005,
+        "content_tokens": 2008,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 20783,
+        "content_tokens": 20759,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 9430,
+        "content_tokens": 9432,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 11198,
+        "content_tokens": 11175,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "config_revert",
+    "action_id": "revert_config",
+    "target": "ad",
+    "rests_on": [
+      "tr_09ba07093f8b",
+      "tr_760e30cba380",
+      "tr_ffbcb564ba8c",
+      "tr_f35faa930f7a"
+    ],
+    "expected_effect": "Restoring ad's prior container configuration removes the 144m memory ceiling applied at 07:31:23 (the recorded prior value is unset) and recreates the container. Within a few minutes I expect: (1) ad's logs stop emitting a fresh JVM startup sequence (JAVA_TOOL_OPTIONS / otel javaagent banner) roughly every minute \u2014 one start, then the 'Ad service starting' application-init line, then no further banners; (2) frontend's log stream stops producing 'Error: 14 UNAVAILABLE ... 172.18.0.19:9555' lines (first connection-refused, then host-unreachable), replaced by silence on that endpoint; (3) ad's error-ratio series stops showing undefined/no-traffic intervals and returns to a continuously defined series near the baseline mean (~0.004); (4) frontend's error ratio returns below the ~6.4% level it crossed at 07:34:46.",
+    "confirm_within_seconds": 300,
+    "if_wrong": "Falsified if, more than ~3 minutes after the recreate, ad still logs a new JVM startup banner about every minute, or frontend still logs status 14 UNAVAILABLE against 172.18.0.19:9555, or ad's error-ratio series still shows repeated undefined intervals. Any of those means the kill is not driven by the cgroup ceiling. Two specific caveats: no container-runtime or kernel OOM-kill event was ever retrieved and ad's actual memory usage against 144m was never measured, so the mechanism is inferred; and nothing on this board ties 172.18.0.19:9555 to the ad container \u2014 if the restart loop stops but frontend's UNAVAILABLE lines continue, the peer was some other service and the diagnosis mis-identified the broken dependency. Also note the automation that lowered the limit did so twice (02:38-ish and 07:31) with a revert in between; if the banners stop and then resume several minutes later, automation has re-applied the limit and the fix is transient rather than wrong.",
+    "risk": "If ad is genuinely leaking or over-allocating and 144m merely exposed an existing problem, removing the ceiling lets the JVM grow unbounded on the host instead of being killed \u2014 trading a visible restart loop for host-level memory pressure that could degrade co-located containers, which is harder to see and slower to diagnose. The recreate itself discards in-process state (cache only for this service) and drops any in-flight GetAds calls. If the real cause is upstream automation rather than the value, this change is undone the next time the automation loop fires and we will have spent a recreate for nothing. The action is reversible, but reverting it reinstates the restart loop.",
+    "blast_radius": "ad is recreated: its one inbound caller in this incident, frontend, sees the connection reset for the duration of the recreate \u2014 which it already tolerates, since it stays alive and retries through the current outage. Downstream of frontend, frontend-proxy and end users on ad-bearing pages see at most a continuation of the ad gaps they are already seeing. No other candidate service (cart, checkout, product-catalog, product-reviews, recommendation) is touched. Host-level memory headroom is shared, so if the leak hypothesis is right the effect is not confined to ad."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Critical alerts on both frontend and its proxy simultaneously indicate user-facing impact that cannot be dismissed, and no open incident covers it. The simultaneous edge-pair firing could be a frontend regression or an upstream dependency, so the fault class is not yet suggested."
+  }
+}

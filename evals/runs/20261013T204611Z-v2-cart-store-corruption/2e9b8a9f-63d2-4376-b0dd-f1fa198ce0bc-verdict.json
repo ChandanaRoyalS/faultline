@@ -1,0 +1,170 @@
+{
+  "incident_id": "2e9b8a9f-63d2-4376-b0dd-f1fa198ce0bc",
+  "trajectory_id": "e754b2ae-782e-4682-8201-7665ede65114",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "cart",
+    "checkout",
+    "currency",
+    "email",
+    "frontend",
+    "frontend-proxy",
+    "payment",
+    "product-catalog",
+    "shipping"
+  ],
+  "unmeasured_edges": 8,
+  "exclude_origins": [
+    "scenario:v2-cart-store-corruption"
+  ],
+  "verdict": {
+    "root_cause": "At the incident time, checkout's PlaceOrder calls were failing with gRPC INTERNAL, and the error detail checkout forwarded to frontend names the real origin: the cart service returned FailedPrecondition because it could not deserialize the protobuf-encoded cart records it read back from its Valkey-backed store, on both the add-item and get-cart paths [tr_aa1309b0cabe]. The store itself was reachable and answering \u2014 the RPC completed and the server produced a structured application-level error rather than a transport failure or UNAVAILABLE [tr_aa1309b0cabe] \u2014 so the failure is in the content of the stored bytes, not in connectivity, capacity, or latency. Checkout is therefore the service that noticed and propagated the fault, not the service that caused it; its own recurring nil-pointer panic is a separate, pre-existing defect whose latest occurrence is roughly thirteen hours before onset [tr_3eadc1304f16].",
+    "service": "cart",
+    "fault_class": "datastore_corruption",
+    "remediation_class": "restore_data",
+    "confidence": "medium",
+    "evidence": [
+      "tr_aa1309b0cabe",
+      "tr_3eadc1304f16",
+      "tr_f363288ec2f7",
+      "tr_76bcce1c73ab",
+      "tr_608b42db3d5b"
+    ],
+    "reasoning": "The only evidence anchored within seconds of the alert is the frontend log pull: at ~20:51:28 checkout answers frontend with status 13 INTERNAL, and the attached detail is a FailedPrecondition raised inside cart's Valkey-backed store during protobuf deserialization [tr_aa1309b0cabe]. That signature discriminates sharply: a reachable store returning bytes that cannot be decoded is datastore corruption, not a connection, capacity or latency problem. Transport-level failure and checkout being down are both excluded by the same evidence \u2014 an INTERNAL with a server-produced detail requires a live checkout, and the only connection-refused line is a week old at frontend startup [tr_aa1309b0cabe]. Retry would not help, since the same stored bytes decode identically [tr_aa1309b0cabe].\n\nThe competing checkout-local story does not hold at the incident minute. The nil-pointer panic in checkout's PlaceOrder/sendToPostProcessor path is real and recurring [tr_f363288ec2f7], but it carries one identical signature present at both ends of the seven-day window, is annotated recovered rather than crash-looping, and its newest retained occurrence is about thirteen hours before 20:51:31 \u2014 with newest-lines retention, a panic adjacent to onset would have been kept and is absent [tr_3eadc1304f16]. So it is a latent defect, not the trigger.\n\nThe change log offers no proximate act: eight environment edits to CURRENCY_ADDR, all automated, all clustered ~86 hours before onset, with nothing in the three and a half days before the incident, and no deploys or flag toggles at all [tr_608b42db3d5b]. Sampled traces show full, error-free PlaceOrder flows with sub-millisecond-to-low-millisecond downstream hops, which rules out dependency latency as the mechanism \u2014 but those traces are all from 19:24\u201319:48, not the incident minute, so they constrain the normal case rather than the failure [tr_76bcce1c73ab]. Both metrics dispatches returned nothing usable: an HTTP 400 query rejection, which is a tooling failure and carries no information about checkout's traffic or error rate [tr_1103cb2a4cb6, tr_8db102268896].",
+    "open_questions": [
+      "No dispatch was run against cart itself \u2014 cart's own logs, its Valkey instance health, and the exact decode error are known only secondhand through checkout's forwarded detail in frontend's logs [tr_aa1309b0cabe].",
+      "The scope of the corruption is unsettled: whether it affects all cart keys, a subset written by a particular path, or a schema/version mismatch between writer and reader encodings.",
+      "What wrote the undecodable bytes \u2014 a cart-side encoding change, a Valkey eviction/persistence event, or an out-of-band write \u2014 is entirely unestablished; without that, restoring data may not prevent recurrence.",
+      "Checkout's error-rate and request-rate across onset remain unmeasured; both metric pulls failed with HTTP 400 [tr_1103cb2a4cb6, tr_8db102268896], so the blast size and exact onset shape are unquantified.",
+      "Whether checkout's recurring nil-pointer panic [tr_3eadc1304f16, tr_f363288ec2f7] is causally related to malformed cart responses \u2014 e.g. the same bad data reaching a path that dereferences an unset field \u2014 or is wholly independent.",
+      "No trace was sampled at or near 20:51:31 [tr_76bcce1c73ab], so the failing request path has not been observed directly, only inferred from frontend's view of it.",
+      "Whether the absent CURRENCY_ADDR left by the final automated revert [tr_608b42db3d5b] has any operational effect on checkout; it was not shown to be harmless, only shown to be non-proximate."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "A latent nil-pointer dereference in checkout's PlaceOrder/sendToPostProcessor path is crashing order placement and is what callers see.",
+        "service": "checkout",
+        "fault_class": "unknown",
+        "remediation_class": "none",
+        "why_not": "The panic signature is identical across the whole seven-day window and predates the incident by days, every occurrence is marked recovered rather than fatal, and the newest retained panic line is roughly thirteen hours before onset despite newest-lines retention that would have kept a contemporaneous one [tr_3eadc1304f16]. It also cannot explain the cart-store deserialization detail that checkout actually returned at 20:51:28 [tr_aa1309b0cabe]."
+      },
+      {
+        "root_cause": "The automated flapping of CURRENCY_ADDR left checkout without a currency service address, breaking a dependency lookup during order placement.",
+        "service": "checkout",
+        "fault_class": "bad_config",
+        "remediation_class": "config_revert",
+        "why_not": "The last edit landed about 86 hours before onset with nothing in the intervening three and a half days [tr_608b42db3d5b], and sampled traces show the currency hop completing normally in low single-digit milliseconds with no error status [tr_76bcce1c73ab]. The error actually returned at onset names cart's store, not currency [tr_aa1309b0cabe]."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "runbook:class-bad-config / What the change record holds: The variable and a timestamp, and **the new value only** - no change record in this world carries\na prior value, which `world-change-records-have-no-prior-value` sets out.\n\n**What the logs hold is not uniform, and this document had it wrong.** An earlier version said a\nservice po",
+    "v2-cart-freeze / What was checked: **The proxy, because it was loudest.** Its error traces - 247 of them across the ten minutes -\nwere all the same kind: a request cut at its fifteen-second route timeout. And they were all the\nsame four requests: `user_add_to_cart` (132), `user_view_cart` (71), `user_checkout_mult",
+    "v2-currency-freeze / Resolution: The currency process was resumed. Every held order woke together: 110 orders completed in the\nminutes after the resume, each one's conversion having waited up to ten minutes and then taken\ntwo milliseconds, and not one failed - checkout, the frontend and currency have no error tr"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 28846,
+    "pulled_tokens": 9240,
+    "pull_rate": 0.2426,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 454,
+        "content_tokens": 456,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1896,
+        "content_tokens": 1899,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 8640,
+        "content_tokens": 8616,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 8190,
+        "content_tokens": 8192,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 9666,
+        "content_tokens": 9643,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_aa1309b0cabe"
+    ],
+    "expected_effect": "No action proposed. The mechanism the evidence names \u2014 protobuf-undecodable cart records persisted in cart's Valkey-backed store, surfaced as FailedPrecondition on both the add-item and get-cart paths and forwarded by checkout as gRPC INTERNAL [tr_aa1309b0cabe] \u2014 is addressed only by clearing or restoring the stored bytes. That is restore_data, which this system cannot perform (restore_store is listed UNAVAILABLE: not built; the executor does rollback_image, revert_config and restart_service only). No permitted action touches the contents of the store, so no permitted action has a predictable effect on the observed error.",
+    "confirm_within_seconds": 0,
+    "if_wrong": "This abstention is wrong if the undecodable bytes live in cart's process memory rather than in Valkey, in which case restart_service on cart would clear them and frontend's gRPC status-13 lines naming cart FailedPrecondition / deserialization would stop within ~2 minutes of the recreate. Nothing in the brief supports that: the decode failure is on read-back from the store, and a restart leaves the stored bytes untouched \u2014 a retry against the same bytes fails identically [tr_aa1309b0cabe]. It is also wrong if a cart-side image or config change inside the window is later found; no dispatch was ever run against cart, so its change history is simply unknown, and rollback_image/revert_config preconditions (a recorded prior tag or config, plus a change named inside the window) are unmet for cart on the evidence I hold. Checkout is the wrong target in any case: its only recorded changes are CURRENCY_ADDR flaps ~86h before onset ending in a revert [tr_608b42db3d5b], and its nil-pointer panic last fired ~13h before onset [tr_3eadc1304f16]. The next step is investigative, not remedial: dispatch against cart for its own logs, its Valkey health, and the exact decode error, and re-run checkout's error-ratio query with valid syntax (both pulls failed HTTP 400 [tr_1103cb2a4cb6, tr_8db102268896]), so blast size and onset shape are currently unquantified.",
+    "risk": "The risk of abstaining is that the incident continues: PlaceOrder keeps failing for any user whose cart key holds corrupt bytes, and no automated remediation lands. That is a real cost and I am accepting it deliberately, because the available alternative \u2014 restarting cart on a datastore_corruption diagnosis \u2014 drops cart's in-process cache and resets connections while leaving the corrupt records in place, producing a visible disruption with no corresponding recovery, and consuming the incident's one remediation attempt on an action that cannot work. If the diagnosis is right, a cart restart breaks working traffic for nothing; if it is wrong, a restart on unexamined evidence hides the real mechanism behind a transient recovery.",
+    "blast_radius": "No services affected, since no action is taken. For reference, the action I declined to propose would have hit cart, whose inbound caller in this incident is checkout, with frontend and frontend-proxy behind it \u2014 the same path that is already failing. A human operator with store-level access should run the restore/flush on cart's Valkey instance out of band, and should first establish what wrote the undecodable bytes, since restoring data without that will not prevent recurrence."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "A critical alert on checkout, a user-facing transaction path, with no open incident to attribute it to and no evidence of recovery. Single seed with many unmeasured downstream dependencies gives no basis to guess a fault class yet."
+  }
+}

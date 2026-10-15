@@ -1,0 +1,172 @@
+{
+  "incident_id": "e581cb2b-bcdd-467e-9c25-03fb2bb58acd",
+  "trajectory_id": "95629729-f046-4603-a392-e73994ab0d51",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "ad",
+    "cart",
+    "checkout",
+    "currency",
+    "email",
+    "frontend",
+    "frontend-proxy",
+    "load-generator",
+    "payment",
+    "product-catalog",
+    "product-reviews",
+    "recommendation",
+    "shipping"
+  ],
+  "unmeasured_edges": 13,
+  "exclude_origins": [
+    "scenario:v2-cart-bad-image-tag"
+  ],
+  "verdict": {
+    "root_cause": "At 01:35:13 platform-automation updated cart's image reference to ghcr.io/open-telemetry/demo:2.2.0-cart-hotfix.2 [tr_d3104a47d19e]. Cart's log shows routine traffic until ~01:35:12, then an orderly host shutdown at 01:35:12-01:35:13 with no startup banner and no further lines through window end [tr_d1afe3e77921] - the old container was torn down for the swap and the replacement never came back. With no running cart endpoint, its name resolves to zero addresses: every sampled checkout trace fails at checkout's outbound GetCart with a client-side gRPC name-resolver error in ~0.0-0.1ms, no cart-side child span, and that error propagates unchanged through PlaceOrder, frontend, frontend-proxy and the load generator [tr_02a3a8baef73]. Checkout itself has no recorded change [tr_2fd267f799cd] and its errors are new against a flat-zero baseline [tr_3dda0e3cff18]. The running artifact on cart is not one that serves traffic.",
+    "service": "cart",
+    "fault_class": "bad_deploy",
+    "remediation_class": "rollback",
+    "confidence": "high",
+    "evidence": [
+      "tr_d3104a47d19e",
+      "tr_d1afe3e77921",
+      "tr_02a3a8baef73",
+      "tr_2fd267f799cd",
+      "tr_3dda0e3cff18"
+    ],
+    "reasoning": "Three lines converge on cart. The only change anywhere in 24 hours is an automated image swap on cart four minutes before onset [tr_d3104a47d19e], while checkout has no change of any kind [tr_2fd267f799cd]. Cart's own log ends in a clean shutdown at exactly that timestamp with no subsequent startup or crash trace [tr_d1afe3e77921] - the container-never-starts shape of this class. The traces name the mechanism: zero-address name resolution, sub-millisecond, no server-side span, so the call never reached a cart instance and cart's code is absent rather than erroring [tr_02a3a8baef73]. That also explains cart's flat-zero error ratio [tr_72c71dc72ed7]: a container that is not running emits no error spans. The simultaneous alerts on checkout, frontend, frontend-proxy and load-generator follow mechanically from one failing hop propagating upward [tr_02a3a8baef73]. Since the wrong artifact is what is (not) running, the fix is redeploying cart at its prior tag, not restarting into the same image and not reverting config - no environment or flag edit is recorded on cart [tr_d3104a47d19e].",
+    "open_questions": [
+      "No prior image tag is recorded for cart [tr_d3104a47d19e], so the rollback target must be read from the declared service definition before the action can run.",
+      "No one inspected cart's container state directly; 'never started' is inferred from a clean shutdown with no startup line [tr_d1afe3e77921] plus zero-address resolution [tr_02a3a8baef73].",
+      "Checkout's mean error ratio is only ~5.6% with a change point at 01:37:31 [tr_3dda0e3cff18] while 10/10 traces fail [tr_02a3a8baef73]; no request-rate series was pulled, so denominator collapse versus partial traffic is unresolved."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "Cart's container was stopped by an unrelated lifecycle event and never restarted, making this process state rather than a wrong artifact.",
+        "service": "cart",
+        "fault_class": "process_freeze",
+        "remediation_class": "restart",
+        "why_not": "A stopped process holding its socket would hang callers to their deadlines; instead checkout fails in ~0.1ms with zero addresses resolved [tr_02a3a8baef73], and the shutdown coincides to the second with the recorded image update [tr_d3104a47d19e, tr_d1afe3e77921]."
+      },
+      {
+        "root_cause": "Cart was cut from the shared network, removing its name from the resolver while its process kept running.",
+        "service": "cart",
+        "fault_class": "network_partition",
+        "remediation_class": "reconnect",
+        "why_not": "A partitioned container keeps running and logs repeating telemetry-export failures; cart's log instead ends in a graceful shutdown with total silence afterwards [tr_d1afe3e77921], and no change record would exist for a partition while one does here [tr_d3104a47d19e]."
+      }
+    ]
+  },
+  "flags": [
+    "scribe produced no valid findings: schema validation failed twice (Expecting ',' delimiter: line 1 column 7898 (char 7897))"
+  ],
+  "retrieved": [
+    "v2-cart-flag-failure / What was observed: The page was one alert, `ServiceHighErrorRate` on **checkout**, 5m16s after the trouble started.\nNothing else fired, then or later, and nothing fired after the fix.\n\nCheckout's error ratio had been zero. It rose from about a minute in and held at 7.1-7.4%. Its\nlatency rose too, f",
+    "v2-valkey-cart-dependency-latency / What was checked: **The traces, because cart paged first and its callers followed.** Every slow trace touched cart,\nand inside cart the time was in one place. At rest, cart answered a `GetCart` in 0.3ms and its\nstore answered an `HGET` in 0.2ms. Under the fault, in 80 traces drawn, every `HGET`, `",
+    "v2-frontend-cart-misconfig / What was observed: The page was three alerts in the same moment, `ServiceHighErrorRate` on **checkout**, on\n**frontend** and on **frontend-proxy**, 3m17s after the trouble started. Load-generator joined them\na minute later. Frontend's error ratio had been zero. It rose from about a minute in, peake"
+  ],
+  "failed_dispatches": [
+    [
+      "scribe",
+      "schema validation failed twice (Expecting ',' delimiter: line 1 column 7898 (char 7897))"
+    ]
+  ],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 49002,
+    "pulled_tokens": 5654,
+    "pull_rate": 0.1034,
+    "dropped_sections": 0,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 7735,
+        "content_tokens": 7739,
+        "budget": 10000000,
+        "kept": [
+          "incident",
+          "past-incidents",
+          "push-allowlist",
+          "push-runbooks"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 9072,
+        "content_tokens": 9077,
+        "budget": 10000000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents",
+          "push-allowlist",
+          "push-runbooks"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 16018,
+        "content_tokens": 16025,
+        "budget": 10000000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board",
+          "past-incidents",
+          "push-allowlist",
+          "push-runbooks"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 16177,
+        "content_tokens": 16183,
+        "budget": 10000000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board",
+          "push-runbooks",
+          "push-past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "rollback",
+    "action_id": "rollback_image",
+    "target": "cart",
+    "rests_on": [
+      "tr_d3104a47d19e",
+      "tr_d1afe3e77921",
+      "tr_02a3a8baef73"
+    ],
+    "expected_effect": "Redeploying cart at the image tag in its declared service definition and recreating the container should bring a running cart endpoint back. Observable, in order: (1) cart's log stream resumes - a startup/banner line after ~6 minutes of silence since the 01:35:12-13 shutdown, then routine ValkeyCartStore AddItem/GetCart lines again [tr_d1afe3e77921]; (2) new checkout traces show the outbound oteldemo.CartService/GetCart span succeeding with a cart-side child span present, instead of a sub-millisecond client-side gRPC name-resolver 'produced zero addresses' error [tr_02a3a8baef73]; (3) checkout's error-ratio series (sum rate STATUS_CODE_ERROR / sum rate calls, 5m) falls back toward the flat zero of its pre-incident baseline, and frontend / frontend-proxy / load-generator stop inheriting the ERROR status. Because the ratio uses a 5m rate window, expect the metric to decay rather than snap; the trace and log signals are the fast confirmation.",
+    "confirm_within_seconds": 420,
+    "if_wrong": "Falsified if, after the recreate: cart's log still shows no startup line and no request handling (the container again fails to start - meaning the tag read from the declared definition is the same non-serving artifact, and this action cannot help); or cart starts and logs normally but checkout's GetCart spans keep returning the same name-resolver/zero-addresses error at ~0.1ms (then the fault is in name resolution or network attachment, not the image, and the right class would be reconnect, which this executor cannot perform); or cart starts and GetCart now reaches it but returns application errors with a cart-side child span (fault is in cart's code path, not in the container failing to come up). Note one evidential gap this cannot resolve either way: no one read cart's container state directly, and no request-rate series was pulled for checkout, so a checkout error ratio that stays near its ~5.6% mean [tr_3dda0e3cff18] is ambiguous between 'not fixed' and 'denominator still recovering' - judge on traces and logs first.",
+    "risk": "If the diagnosis is wrong the cost is a second outage window on a service that is already down, plus a wasted recovery interval. Specifically: the rollback target is not recorded anywhere in change history [tr_d3104a47d19e] and must be read from the declared service definition - if that definition still names ghcr.io/open-telemetry/demo:2.2.0-cart-hotfix.2, the recreate reproduces the non-starting container and nothing improves. If cart were in fact running and the fault were name resolution or network attachment, this action destroys a healthy container for no benefit and adds a recreate gap. The recreate discards cart's in-process state; cart's items live in the Valkey store rather than in-process, so the expected loss is cache only, but that is an inference from its log [tr_d1afe3e77921] and not something measured here. Rollback is reversible - the hotfix tag is recorded and can be re-applied.",
+    "blast_radius": "One service, cart. Its inbound callers in this incident's graph are checkout (GetCart on the PlaceOrder path) and frontend (cart reached from frontend); they see connection resets during the recreate, though both are already failing 100% of checkout traces [tr_02a3a8baef73], so the marginal harm to them is near zero. Error status currently propagates through frontend-proxy and load-generator, so those two also see the change - as recovery if this is right, as continued failure if it is not. Cart's own dependency, the Valkey cart store, sees its client reconnect. No other service in the blast radius (ad, currency, email, payment, product-catalog, product-reviews, recommendation, shipping) is touched; note that payment, shipping and currency currently receive no traffic because PlaceOrder aborts at GetCart, so a successful rollback will make their request rates rise again - expect that as recovery, not as a new fault."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "low",
+    "reasoning": "Critical simultaneous alerts across the checkout/frontend/proxy request path plus the load generator describe a user-facing failure that cannot be dismissed, and no open incident covers it. The symmetric onset gives no clear mechanism yet, so the fault class stays unknown pending evidence."
+  }
+}

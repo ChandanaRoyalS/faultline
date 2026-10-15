@@ -1,0 +1,182 @@
+{
+  "incident_id": "a2971136-8492-47d1-914b-5db2c3a712de",
+  "trajectory_id": "ca3a8730-87f0-439f-b93c-75d37c918af9",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "ad",
+    "cart",
+    "checkout",
+    "currency",
+    "email",
+    "flagd",
+    "fraud-detection",
+    "frontend",
+    "frontend-proxy",
+    "load-generator",
+    "payment",
+    "product-catalog",
+    "product-reviews",
+    "recommendation",
+    "shipping"
+  ],
+  "unmeasured_edges": 14,
+  "exclude_origins": [
+    "scenario:v2-frontend-cart-misconfig"
+  ],
+  "verdict": {
+    "root_cause": "The failure originates in shipping's quote path, not in checkout. Every failing checkout trace aborts at the same hop: checkout's outbound HTTP POST to shipping's get-quote endpoint, whose server span is reached and returns in under a millisecond without an error flag of its own, while the propagated status says the shipping quote failed because an HTTP POST to an email service returned 400 instead of 200 [tr_dbdf109e4e4e]; the same detail string reappears at the frontend as a gRPC INTERNAL from its callee [tr_a665343cfaec]. Minutes earlier the same path resolved normally through shipping into the quote service [tr_dbdf109e4e4e], and in the failing traces no quote-service child span exists at all. The best reading is that the destination shipping uses for the quote step is pointed at the wrong service (the email service), which answers instantly with a 400 the handler cannot use; the wrongness of that value is the failure, not a wait and not an exhaustion. Checkout, frontend, frontend-proxy and load-generator all carry an inherited error [tr_dbdf109e4e4e], which is why checkout alerted first despite having no change recorded against it [tr_dd60838e4c7e, tr_c637066c3630].",
+    "service": "shipping",
+    "fault_class": "bad_config",
+    "remediation_class": "config_revert",
+    "confidence": "medium",
+    "evidence": [
+      "tr_dbdf109e4e4e",
+      "tr_a665343cfaec",
+      "tr_b6346d400654"
+    ],
+    "reasoning": "The innermost span with an originating error status is checkout's client call to shipping get-quote; frontend and proxy errors are inherited and frontend started cleanly with no local faults [tr_dbdf109e4e4e, tr_a665343cfaec]. Failing traces are shorter than the healthy one with sub-millisecond child spans, so this is immediate rejection, not timeout or saturation - which rules out dependency_latency and resource_exhaustion [tr_dbdf109e4e4e]. Shipping's handler is reached and answers, so freeze and partition do not fit. Checkout's error ratio was flat zero then stepped abruptly at 15:47:31, favouring a discrete trigger [tr_b6346d400654], and checkout owns no change in the window [tr_dd60838e4c7e, tr_c637066c3630]. What remains is a contract-level misdirection inside shipping: a quote call sent to the wrong endpoint.",
+    "open_questions": [
+      "Shipping's own logs, metrics and change history were never queried; no specialist confirmed the wrong endpoint value directly - the 400-from-email detail is read only from propagated status text.",
+      "The change-log queries covered only checkout and only the window starting at onset, so a pre-incident change to shipping (or to the email service's contract) is unexamined rather than absent [tr_dd60838e4c7e, tr_c637066c3630].",
+      "Frontend's connection-refused errors to 172.18.0.24:7071 starting 15:45:52 [tr_a665343cfaec] are unexplained and may be a second, separate fault; which service owns that endpoint was never established.",
+      "Checkout emitted zero log lines of any level for the whole window [tr_248be2245b58] - whether that is a shipper/label gap or a checkout-side problem is unresolved."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "A feature flag was flipped enabling a broken shipping quote code path that posts to the email service, with no artifact or config file change.",
+        "service": "shipping",
+        "fault_class": "feature_flag",
+        "remediation_class": "config_revert",
+        "why_not": "Plausible given the abrupt zero-to-error step and an empty checkout change log, but no flag store was queried and no flagd span appears in failing traces; the mechanism observed is a wrong destination answering 400, which the config reading explains without assuming a flag."
+      },
+      {
+        "root_cause": "A bad shipping deploy shipped quote logic that calls the wrong service, so the running artifact is not the one that should be running.",
+        "service": "shipping",
+        "fault_class": "bad_deploy",
+        "remediation_class": "rollback",
+        "why_not": "Shipping's change history was never queried, so there is no deploy record to support it; the evidence shows a wrong destination rather than a process that cannot start or a version mismatch."
+      },
+      {
+        "root_cause": "An unidentified service behind 172.18.0.24:7071 is down or its process stopped, refusing connections and breaking the checkout path.",
+        "service": "unknown",
+        "fault_class": "process_freeze",
+        "remediation_class": "restart",
+        "why_not": "Connection-refused is active rejection rather than the silent hang a freeze produces, and it does not explain the quote-step abort that every failing trace actually shows [tr_dbdf109e4e4e]."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "v2-product-catalog-freeze / What was checked: **The proxy, because it was loudest.** Its errors were all the same kind: upstream requests\ncut at the fifteen-second route timeout. The proxy was doing its job. Nothing in its own\nbehaviour had changed, so it was reporting the problem, not causing it.\n\n**Frontend, because its la",
+    "v2-cart-flag-failure / What was observed: The page was one alert, `ServiceHighErrorRate` on **checkout**, 5m16s after the trouble started.\nNothing else fired, then or later, and nothing fired after the fix.\n\nCheckout's error ratio had been zero. It rose from about a minute in and held at 7.1-7.4%. Its\nlatency rose too, f",
+    "v2-fraud-detection-partition / What was observed: The page came 7m46s after onset and it was one line: `ServiceNoTraffic` on **fraud-detection**.\nNothing before it, nothing beside it, nothing after it. One alert on one service by the fix, and\nthe world all clear 1m00s after the fix.\n\nNothing else in the world had moved. The stor"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 23813,
+    "pulled_tokens": 6633,
+    "pull_rate": 0.2179,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 498,
+        "content_tokens": 500,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1391,
+        "content_tokens": 1395,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 7063,
+        "content_tokens": 7038,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 6777,
+        "content_tokens": 6779,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 8084,
+        "content_tokens": 8061,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_dd60838e4c7e",
+      "tr_c637066c3630",
+      "tr_dbdf109e4e4e",
+      "tr_a665343cfaec"
+    ],
+    "expected_effect": "No action proposed, so no effect is expected. The signal that would justify a later proposal is a change-history query on shipping covering the hours before 15:47:31Z that returns a prior configuration (specifically a quote-endpoint address) recorded inside or just before the incident window; that is the precondition revert_config requires and it has not been observed.",
+    "confirm_within_seconds": 0,
+    "if_wrong": "This abstention is wrong if a change-history query on shipping (radius >=1 hop from checkout, window extended backwards past 15:47:31Z) returns a recorded config change to shipping's quote destination. At that point revert_config on shipping becomes proposable and the expected effect would be checkout's error ratio returning from ~0.10 to the flat 0 baseline [tr_b6346d400654] and the 'POST to email returned 400' detail string ceasing in frontend logs [tr_a665343cfaec]. Until that query is run, the only artifact naming the wrong endpoint is propagated status text, which no specialist confirmed against shipping's own configuration.",
+    "risk": "The risk here is the risk of acting, which is why I am not. revert_config on shipping cannot be executed without a recorded prior config, and the executor would either refuse or restore a configuration nobody has inspected - potentially pointing the quote step at a stale address and converting a partial failure (~10% of checkouts, dipping back to 0) into a sustained one. rollback_image on shipping is worse: no deploy or image change is named anywhere in the evidence window, so it would be a blind redeploy. restart_service is ruled out by the mechanism - the failure is the wrongness of a value, not process state, and a recreate would re-read the same wrong value while discarding shipping's cache for nothing. There is also an unexplained second fault: frontend's connection-refused to 172.18.0.24:7071 from 15:45:52, owner unestablished [tr_a665343cfaec]; any action taken now would be credited or blamed for a condition it did not touch.",
+    "blast_radius": "If a shipping action were taken, checkout sees the connection reset during the recreate, and checkout's error is inherited upward by frontend, frontend-proxy and load-generator [tr_dbdf109e4e4e] - so the four alerted services would all register a second disturbance. Where the reverted value is a dependency address, email and the quote service would see traffic move. Abstaining instead leaves the incident where it is: checkout continues failing roughly one call in ten with peaks at half, and the reader must run the shipping change-history and shipping-log queries that were never run.",
+    "_note": "Abstaining because no permitted action's preconditions are met. The named fix class is config_revert, but revert_config requires (a) a prior configuration for the target recorded in change history and (b) evidence naming a configuration change inside the window. Change history was queried only for checkout, scoped to the seed at zero hops, with a window opening at onset and running forward [tr_dd60838e4c7e, tr_c637066c3630]; shipping's change history is unqueried, not clean. The wrong-endpoint diagnosis rests entirely on a status string propagated up from shipping [tr_dbdf109e4e4e, tr_a665343cfaec], never on shipping's own config, logs or metrics. Verdict confidence is medium. The correct next step is investigation, not remediation."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Multiple services across the checkout and frontend paths alerted simultaneously at critical severity, with fraud-detection following a minute later \u2014 too broad to dismiss. No open incident to attribute it to, and the alerts alone don't distinguish a bad deploy, flag change, or a shared downstream dependency."
+  }
+}

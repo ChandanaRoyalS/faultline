@@ -1,0 +1,170 @@
+{
+  "incident_id": "8b38e0e3-6c83-4349-a737-bcd7d5e64eb2",
+  "trajectory_id": "0d01bccd-9966-479b-8256-561087e3b567",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "cart",
+    "checkout",
+    "currency",
+    "email",
+    "frontend",
+    "frontend-proxy",
+    "payment",
+    "product-catalog",
+    "shipping"
+  ],
+  "unmeasured_edges": 8,
+  "exclude_origins": [
+    "scenario:v2-kafka-disk-fill"
+  ],
+  "verdict": {
+    "root_cause": "checkout crashes inside its own code: retained logs show Go runtime panics (nil pointer dereference / SIGSEGV) raised in the send-to-post-processor path reached from the PlaceOrder handler, with identical faulting address and program counter at both ends of the week [tr_6943c47a6092]. This is a reproducible defect in the artifact checkout is running, not propagated downstream failure \u2014 no downstream error status is in the stack, and sampled traces show currency, payment, shipping, cart and email legs all completing in milliseconds [tr_220bfd64ac6d]. A panicking PlaceOrder handler explains checkout alerting first at 05:18:31 and frontend-proxy following two minutes later as the caller observing the broken RPC. The CURRENCY_ADDR flapping on checkout sits ~46.5h before onset and ended in the reverted (unset) state, so it was not the value in effect at onset [tr_4107f89ed02e], and currency itself has no recorded change at all [tr_2754c2f01980].",
+    "service": "checkout",
+    "fault_class": "bad_deploy",
+    "remediation_class": "rollback",
+    "confidence": "low",
+    "evidence": [
+      "tr_6943c47a6092",
+      "tr_220bfd64ac6d",
+      "tr_4107f89ed02e",
+      "tr_2754c2f01980"
+    ],
+    "reasoning": "The only positive failure signal anywhere on the board is checkout's own panic, localized to a named source line in checkout application code, recurring with identical addr/pc \u2014 a defect in the running build rather than a transient or environmental condition [tr_6943c47a6092]. Dependency slowness is contradicted by the trace sample, where all checkout children are short and complete [tr_220bfd64ac6d]. The config angle is the natural competitor but is time-misaligned and left in the reverted state [tr_4107f89ed02e], and currency shows no change at all [tr_2754c2f01980]. Confidence is low because no deploy or release record for checkout exists in the window [tr_4107f89ed02e] and both metric attempts failed with HTTP 400, so error rate and traffic around 05:18:31 are entirely unmeasured [tr_e1b6682a980d, tr_4d375df5a94e].",
+    "open_questions": [
+      "No deploy record for checkout appears in the change log, so the artifact-version claim is inferred from the panic's reproducibility rather than observed; when did the faulting build start running?",
+      "Both metric queries were rejected with HTTP 400, leaving checkout's error ratio and request rate at onset unmeasured [tr_e1b6682a980d, tr_4d375df5a94e].",
+      "No traces from at or before 05:18:31 were returned (sample truncated, 5 of 10, all from 2026-10-11) so the onset cohort was never inspected [tr_220bfd64ac6d].",
+      "Whether an unset CURRENCY_ADDR is what leaves the nil pointer in the post-processor path \u2014 the config flap and the panic site may be the same story."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "The CURRENCY_ADDR environment variable was left unset by the last automated revert, and checkout dereferences a nil client built from that missing address.",
+        "service": "checkout",
+        "fault_class": "bad_config",
+        "remediation_class": "config_revert",
+        "why_not": "The last edit predates onset by ~46.5 hours with a two-day quiet period before the incident, and the panic signature already appears on 2026-10-07, before the flapping window [tr_4107f89ed02e, tr_6943c47a6092]."
+      },
+      {
+        "root_cause": "currency-service became slow or unreachable and checkout failed while waiting on Convert.",
+        "service": "currency",
+        "fault_class": "dependency_latency",
+        "remediation_class": "restart",
+        "why_not": "Both Convert calls complete in 0.6-9.7ms with matching peer spans in every sampled trace, and checkout's stack shows a nil dereference in its own frame with no downstream error status [tr_220bfd64ac6d, tr_6943c47a6092]."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "v2-currency-freeze / Resolution: The currency process was resumed. Every held order woke together: 110 orders completed in the\nminutes after the resume, each one's conversion having waited up to ten minutes and then taken\ntwo milliseconds, and not one failed - checkout, the frontend and currency have no error tr",
+    "v2-cart-freeze / What was checked: **The proxy, because it was loudest.** Its error traces - 247 of them across the ten minutes -\nwere all the same kind: a request cut at its fifteen-second route timeout. And they were all the\nsame four requests: `user_add_to_cart` (132), `user_view_cart` (71), `user_checkout_mult",
+    "runbook:class-bad-config / What the change record holds: The variable and a timestamp, and **the new value only** - no change record in this world carries\na prior value, which `world-change-records-have-no-prior-value` sets out.\n\n**What the logs hold is not uniform, and this document had it wrong.** An earlier version said a\nservice po"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 24320,
+    "pulled_tokens": 6765,
+    "pull_rate": 0.2176,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 444,
+        "content_tokens": 446,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1387,
+        "content_tokens": 1390,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 7323,
+        "content_tokens": 7299,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 6961,
+        "content_tokens": 6963,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 8205,
+        "content_tokens": 8183,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_4107f89ed02e",
+      "tr_6943c47a6092",
+      "tr_e1b6682a980d",
+      "tr_4d375df5a94e",
+      "tr_220bfd64ac6d"
+    ],
+    "expected_effect": "No action is proposed, so no change in checkout's panic rate, error ratio, or frontend-proxy's 5xx rate should be observed. The named fix class (rollback) cannot be executed: rollback_image requires both a prior image tag in change history and evidence of a deploy or image change inside the window, and [tr_4107f89ed02e] states the change log for checkout contains no deploy or release entries at all \u2014 only eight CURRENCY_ADDR environment edits \u2014 so the artifact-version claim is inferred from panic reproducibility, not observed. restart_service requires evidence pointing at process state; [tr_6943c47a6092] shows the opposite: an identical faulting address and program counter at both ends of a week in the send-to-post-processor path reached from PlaceOrder, which is a deterministic code defect that a container recreate will reproduce on the next PlaceOrder. revert_config has a recorded prior configuration but fails its second precondition \u2014 the nearest CURRENCY_ADDR edit sits ~46.5h before onset with a two-day quiet period before 05:18:31, and the final recorded state is the reverted (unset) one, so invoking it would re-apply CURRENCY_ADDR=currencyservice:7001, a value explicitly ruled out as in effect at onset and a change rather than a restoration.",
+    "confirm_within_seconds": 0,
+    "if_wrong": "This abstention is wrong if a deploy record for checkout inside the window is found in a source not yet queried (the change-log query was untrusted and scoped to one window), or if a corrected metric query \u2014 the two attempts returned HTTP 400 and measured nothing [tr_e1b6682a980d, tr_4d375df5a94e] \u2014 shows checkout's error ratio stepping at 05:18:31 rather than running elevated across the whole week. The panic-reproducibility evidence spans 2026-10-07 to 2026-10-12 and would be consistent with a defect that predates onset entirely, in which case the thing that changed at 05:18:31 has not been identified by any evidence here. Likewise, if the open question resolves the other way \u2014 that an unset CURRENCY_ADDR is what leaves the nil pointer in the post-processor path \u2014 then config state, not the artifact, is the mechanism, and the correct action would be to *set* CURRENCY_ADDR, which is not what revert_config would do from the current recorded state. Unblock by: retrying the metric queries with a valid expression, and re-running the trace query bounded to 05:00\u201305:30 on the onset date, since the returned sample was truncated at 5 of 10 and contained only 2026-10-11 06:19\u201306:36 traces [tr_220bfd64ac6d] \u2014 the onset cohort was never inspected.",
+    "risk": "The risk of abstaining is that checkout keeps panicking in PlaceOrder and orders keep failing while the investigation reopens the metrics and onset-trace questions; this is a live customer-facing failure and waiting has a real cost. The risk of the alternatives is worse and asymmetric: a rollback_image with no recorded prior tag either fails outright or redeploys an arbitrary image, and a revert_config here would push CURRENCY_ADDR=currencyservice:7001 onto checkout \u2014 a value the evidence rules out as present at onset \u2014 which if the post-processor nil pointer is unrelated adds a second fault on the checkout\u2192currency edge on top of the first, and makes the next round of evidence harder to read because the config state at onset is no longer reconstructable.",
+    "blast_radius": "No service is touched, so nobody sees a change. For reference, had an action been taken on checkout, the container recreate would reset connections for frontend-proxy and frontend (its callers, both already alerting) and briefly halt outbound calls to cart, currency, payment, shipping, product-catalog and email; a revert_config in particular would have moved checkout's currency traffic to currencyservice:7001, which currency \u2014 a service with no recorded change at all in the window [tr_2754c2f01980] \u2014 would have seen as a traffic shift."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Critical alerts on checkout followed by frontend-proxy two minutes later suggest a real user-facing failure propagating upward, with no open incident to attribute it to. No evidence yet distinguishes a checkout-side fault from a downstream dependency, so the fault class stays unknown."
+  }
+}

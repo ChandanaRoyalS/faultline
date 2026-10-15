@@ -1,0 +1,168 @@
+{
+  "incident_id": "083cd2de-8a2f-4b29-93da-1c43beb154a3",
+  "trajectory_id": "cb71c2fe-6b96-4a8b-8e27-413c39bdb41a",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "frontend",
+    "frontend-proxy",
+    "load-generator"
+  ],
+  "unmeasured_edges": 1,
+  "exclude_origins": [
+    "scenario:v2-cart-store-corruption"
+  ],
+  "verdict": {
+    "root_cause": "Cart's Valkey-backed cart store is returning byte payloads that cart's own protobuf runtime cannot decode: every cart error in the window is one uniform signature \u2014 a gRPC FailedPrecondition carrying a .NET Google.Protobuf.InvalidProtocolBufferException about input ending mid-field (truncated payload / embedded message misreporting length) \u2014 raised locally inside cart on both the add-item and get-cart paths [tr_7f7b1cd0a147][tr_4475d4ef6c87]. The connection to the store is healthy (bytes are received and a response body exists; no connection, DNS, timeout or auth errors appear) [tr_7f7b1cd0a147], so the failure is at the stored-content/decode layer, not the reachability layer. Cart went from an exact-zero error floor across the whole baseline to nonzero at ~17:35, peaking ~7.4% [tr_ef0fc0ae8f42][tr_7f7b1cd0a147], and frontend and frontend-proxy merely relay that: frontend emits only code 13 INTERNAL wrappers around cart's status and its own ratio tracks the same late change point [tr_4475d4ef6c87][tr_2df8c615d997][tr_dd1afe8b86de]. No cart change lands within ~8 hours of onset and the running artifact at onset is the pre-existing baseline image [tr_f6354810309e], so the corrupted store contents, not an act, are the mechanism.",
+    "service": "cart",
+    "fault_class": "datastore_corruption",
+    "remediation_class": "restore_data",
+    "confidence": "high",
+    "evidence": [
+      "tr_7f7b1cd0a147",
+      "tr_4475d4ef6c87",
+      "tr_ef0fc0ae8f42",
+      "tr_f6354810309e",
+      "tr_2df8c615d997",
+      "tr_dd1afe8b86de"
+    ],
+    "reasoning": "Three services show symptoms but only one originates a status. frontend's entire error stream is a relayed gRPC status whose detail is cart's server-side stack trace, which rules out a frontend-local defect and also rules out unreachability, since a structured application status requires a completed round trip [tr_4475d4ef6c87]. The cart-side query confirms the same lines come from cart's own stream, with a local protobuf exception rather than a pass-through of a downstream status [tr_7f7b1cd0a147]. Within cart, the distinguishing detail is that bytes arrive and fail to parse: that excludes resource exhaustion, freeze (cart logs plenty), partition (cart complains about decoding, not reachability) and disk fill (no space-left signature; reads, not writes, are failing). Cart's baseline error ratio is a flat exact zero with zero variance, so the nonzero incident values are a genuine regime change and not noise, and the partial blast radius (~7.4% peak, affecting two operations) fits a subset of stored cart keys being unreadable rather than a whole-service fault [tr_ef0fc0ae8f42]. Change evidence argues against every act-based class: cart's 16 entries are image update/revert pairs ending ~8.1h pre-onset with the artifact back at baseline [tr_f6354810309e], and frontend's six entries are all CART_ADDR edits, the nearest ~1.7h pre-onset [tr_3c9db5402b70] \u2014 and a wrong cart address would produce connection failures at frontend, not a cart-authored parse exception. The proxy's ratio actually fell below its own baseline for most of the window with a single late crossing at 17:38:31, consistent with a narrow downstream burst propagating upward rather than a proxy-level fault [tr_dd1afe8b86de].",
+    "open_questions": [
+      "The Valkey/cart-store itself was never dispatched \u2014 the cart-to-store edge is the unmeasured edge triage flagged. Whether the corruption is in the stored values, in a writer that serialized them badly, or in an eviction/truncation behaviour of the store is unestablished.",
+      "What happened at ~17:35 to start it. No change of any kind is recorded near onset on either cart or frontend, so the triggering event (store restart, eviction, memory policy, partial write) is unidentified.",
+      "Scope of the corruption: whether a bounded set of cart keys is affected (consistent with the ~7% error ceiling) or whether the rate is still climbing. No per-key or per-operation breakdown was obtained.",
+      "Request rate and latency were never queried for cart or frontend [tr_ef0fc0ae8f42][tr_2df8c615d997], so a traffic or latency contribution is untouched rather than excluded.",
+      "Whether cart emits non-FailedPrecondition errors as well \u2014 the cart log query was filtered on that string, so other failure modes would not have appeared [tr_7f7b1cd0a147].",
+      "The repeated automation flapping on both cart's image reference and frontend's CART_ADDR is itself unexplained and may share a cause with the store state even though neither coincides with onset [tr_f6354810309e][tr_3c9db5402b70]."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "A cart build that writes or reads cart state with an incompatible protobuf schema was cycled in by the flapping image-reference automation, producing unparseable stored records.",
+        "service": "cart",
+        "fault_class": "bad_deploy",
+        "remediation_class": "rollback",
+        "why_not": "The last cart change is a revert ~8.1h before onset and every update is paired with a revert, so the image in effect at onset is the pre-existing baseline \u2014 there is no newer artifact to roll back from, and nothing changed in the hours before 17:35 [tr_f6354810309e]. This stays plausible only as an explanation of how bad bytes got written earlier; the thing failing now is still the decode of stored content.",
+        "comment": "would be promoted if the store is found to contain records written by the hotfix tag"
+      },
+      {
+        "root_cause": "The repeated set/clear of frontend's CART_ADDR left frontend pointed at a wrong or unset cart endpoint, and the resulting errors are a misconfiguration rather than a store problem.",
+        "service": "frontend",
+        "fault_class": "bad_config",
+        "remediation_class": "config_revert",
+        "why_not": "A wrong address produces connection-level failures; instead cart answers with a full server-side status and stack trace, proving the round trip completes and the address resolves [tr_4475d4ef6c87]. The identical exception also appears in cart's own log stream independently of frontend [tr_7f7b1cd0a147], and the nearest CART_ADDR edit precedes onset by ~1.7h with nothing in between [tr_3c9db5402b70]."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "v2-valkey-cart-dependency-latency / What was checked: **The traces, because cart paged first and its callers followed.** Every slow trace touched cart,\nand inside cart the time was in one place. At rest, cart answered a `GetCart` in 0.3ms and its\nstore answered an `HGET` in 0.2ms. Under the fault, in 80 traces drawn, every `HGET`, `",
+    "v2-cart-dependency-latency / What was checked: **The traces, because four services slowed at once and the page did not say which one first.**\nEvery slow trace touched cart, and the time sat in the same places in all of them. At rest, cart\nanswered a `GetCart` in 0.4ms and its store answered an `HGET` in 0.3ms. Under the fault",
+    "runbook:class-bad-config / Its relationship to bad_deploy: Both mechanisms are changes and both are recorded in change history. They are different changes\n- one moves an image reference, the other moves an environment value - and the actions that undo\nthem differ accordingly, `rollback_image` against `revert_config`."
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 31304,
+    "pulled_tokens": 7875,
+    "pull_rate": 0.201,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 382,
+        "content_tokens": 384,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1778,
+        "content_tokens": 1781,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 9584,
+        "content_tokens": 9560,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 8994,
+        "content_tokens": 8996,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 10566,
+        "content_tokens": 10544,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_7f7b1cd0a147",
+      "tr_4475d4ef6c87",
+      "tr_f6354810309e",
+      "tr_ef0fc0ae8f42"
+    ],
+    "expected_effect": "No action is proposed, so no change in any metric should be expected. The condition should be expected to persist: cart's FailedPrecondition/InvalidProtocolBufferException lines continue at the observed rate and cart's error ratio stays nonzero (peak ~7.4%), with frontend relaying code 13 INTERNAL, until a store-level repair (flush/restore of the Valkey-backed cart store) is performed by an operator outside this system.",
+    "confirm_within_seconds": 300,
+    "if_wrong": "If the error signature stops on its own within the next few minutes with no operator action, the mechanism was transient (a bounded set of poisoned keys expiring or being overwritten) rather than persistent corrupted store contents, and abstention was over-cautious. Conversely, if cart's error ratio climbs well past the ~7.4% ceiling toward a total outage, the scope assumption behind waiting for a human is wrong and the incident needs escalation faster than an abstention implies. Note also that the key observable needed to settle this \u2014 the cart-to-store edge and per-key breakdown \u2014 was never measured, so neither this abstention nor any action here can be confirmed from the cart-store side with the evidence on the board.",
+    "risk": "The risk of abstaining is prolonged degradation: roughly 5-8% of cart add-item and get-cart calls keep failing, and checkout failures keep reaching users for as long as it takes a human to flush or restore the cart store. That is a real cost, accepted deliberately because every action this executor can perform is either targeted at the wrong service or contradicted by the evidence. Specifically: the diagnosed mechanism is corrupted stored content in the Valkey-backed cart store, and the only action class that addresses it, restore_store (restore_data), is UNAVAILABLE \u2014 not built into the executor. rollback_image fails its precondition twice over: [tr_f6354810309e] records no change within ~8h of onset and shows the running artifact at onset is already the pre-existing baseline after the final revert, so there is nothing to roll back to. revert_config fails its precondition on cart (all 16 entries are image references, no config change) and on frontend the nearest CART_ADDR edit is ~1.7h before onset and frontend is only a relay [tr_4475d4ef6c87]. restart_service would discard only in-process cache and would not touch the bytes sitting in the store, so it would recreate a healthy process that re-reads the same unparseable payloads \u2014 cost with no expected benefit. Separately, cart, the service that actually originates the error, is not in the legal target list at all; the listed targets are load-generator, frontend-proxy and frontend, all of which are downstream relays, and acting on any of them would reset live connections for every user while leaving the corrupted payloads untouched.",
+    "blast_radius": "None from this proposal, since nothing is acted on. The ongoing incident's blast radius is unchanged: cart's callers \u2014 frontend, and through it frontend-proxy and load-generator \u2014 continue to see a small fraction of add-item and checkout requests fail as code 13 INTERNAL. The recommended out-of-band fix (flush/restore of the cart store) would clear all users' saved carts, which is a data-loss side effect a human should be the one to accept."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "low",
+    "reasoning": "This is more than a lone load-generator alert: frontend-proxy also alerted a minute later, pointing at a real user-facing path with frontend implicated downstream. No open incident covers it, and the alerts give no clear signature yet."
+  }
+}

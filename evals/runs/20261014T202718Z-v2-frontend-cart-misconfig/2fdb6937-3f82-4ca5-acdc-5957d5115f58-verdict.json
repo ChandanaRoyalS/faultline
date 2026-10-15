@@ -1,0 +1,174 @@
+{
+  "incident_id": "2fdb6937-3f82-4ca5-acdc-5957d5115f58",
+  "trajectory_id": "d0987f27-2688-4b36-adfa-cde0480fc0ed",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "ad",
+    "cart",
+    "checkout",
+    "currency",
+    "email",
+    "frontend",
+    "frontend-proxy",
+    "load-generator",
+    "payment",
+    "product-catalog",
+    "product-reviews",
+    "recommendation",
+    "shipping"
+  ],
+  "unmeasured_edges": 13,
+  "exclude_origins": [
+    "scenario:v2-frontend-cart-misconfig"
+  ],
+  "verdict": {
+    "root_cause": "Three minutes before onset, platform-automation set CART_ADDR=cart:7071 on frontend and, unlike the six identical sets earlier in the week, never reverted it [tr_7698e78df7dd]. Frontend then emits a high-rate gRPC status 14 UNAVAILABLE whose detail is a refused TCP connection to 172.18.0.24:7071 \u2014 the exact port in the override \u2014 meaning the name resolved and the host was reached but no listener was bound there [tr_98a3591b5fb7]. Cart is healthy throughout, serving per-user requests at info level up to the window edge [tr_f385dc3c5114], with no port or listener change in its history [tr_c7758f64d9bc]. The wrong address value is itself the mechanism; failures propagate to frontend-proxy, load-generator and checkout.",
+    "service": "frontend",
+    "fault_class": "bad_config",
+    "remediation_class": "config_revert",
+    "confidence": "high",
+    "evidence": [
+      "tr_7698e78df7dd",
+      "tr_98a3591b5fb7",
+      "tr_f385dc3c5114",
+      "tr_c7758f64d9bc",
+      "tr_cf6bd139479b",
+      "tr_30019e988363"
+    ],
+    "reasoning": "The decisive join is the port: the override names 7071 [tr_7698e78df7dd] and the refused-connection errors name 7071 [tr_98a3591b5fb7]. Connection-refused is an immediate transport rejection, excluding saturation, slowness and DNS failure, and excluding a cart-side freeze or partition since cart logs dense successful work at onset [tr_f385dc3c5114]. Nothing was exhausted and no artifact changed on frontend \u2014 its change log holds only env set/revert entries [tr_7698e78df7dd] \u2014 while cart had already reverted off its hotfix image 11h earlier with no listener change [tr_c7758f64d9bc]. The six prior sets were each reverted within 8-9 minutes; the seventh was not, which is what distinguishes onset. The interleaved email HTTP 400 on the shipping-quote path is a separate call path with no email change within ~87h [tr_cf6bd139479b]. Both metric baselines failed with HTTP 400 and measured nothing [tr_30019e988363], so the verdict rests on the log/change join alone.",
+    "open_questions": [
+      "Cart's actual listening port was never directly observed \u2014 no bind line in its logs [tr_f385dc3c5114] and no service definition read; the inference rests on refusal plus cart's health.",
+      "No metrics exist for either service: both baseline queries were rejected [tr_30019e988363], leaving error-ratio onset and restart counts unmeasured.",
+      "The email 400 on the shipping-quote path is unexplained and may be a second concurrent fault needing its own fix [tr_cf6bd139479b]."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "Cart stopped binding its gRPC listener on 7071, so connections are refused regardless of frontend's configuration.",
+        "service": "cart",
+        "fault_class": "bad_config",
+        "remediation_class": "restart",
+        "why_not": "Cart handles traffic continuously with no restarts or refusals at the window edge [tr_f385dc3c5114], and no port or listener change appears in seven days [tr_c7758f64d9bc]; the only thing that changed near onset was frontend's address value."
+      },
+      {
+        "root_cause": "The email service rejects the shipping-quote POST with HTTP 400, breaking checkout-adjacent frontend paths.",
+        "service": "email",
+        "fault_class": "bad_deploy",
+        "remediation_class": "rollback",
+        "why_not": "It is a different stack frame and call path from the dominant UNAVAILABLE errors [tr_98a3591b5fb7], and email's last change was ~87h before onset and was a revert off the quote image [tr_cf6bd139479b], so it does not explain onset timing."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "v2-product-catalog-freeze / What was checked: **The proxy, because it was loudest.** Its errors were all the same kind: upstream requests\ncut at the fifteen-second route timeout. The proxy was doing its job. Nothing in its own\nbehaviour had changed, so it was reporting the problem, not causing it.\n\n**Frontend, because its la",
+    "v2-kafka-disk-fill / What was checked: **Checkout, because it paged.** Its error traces were all orders, and all the same shape:\n`PlaceOrder` prepared the order in a few milliseconds - cart, catalog, currency, shipping quote -\ncharged the card, booked the shipment, emptied the cart, sent the confirmation email, and th",
+    "v2-ad-bad-image-tag / What was checked: **The page names callers.** Frontend-proxy forwards what the frontend returns, and the load\ngenerator is the synthetic shoppers counting their own failures. The frontend was the one service\nmaking calls that failed, and the order path was not among them.\n\n**The frontend's error t"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 26253,
+    "pulled_tokens": 5575,
+    "pull_rate": 0.1752,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 479,
+        "content_tokens": 481,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1450,
+        "content_tokens": 1453,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 8102,
+        "content_tokens": 8078,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 7361,
+        "content_tokens": 7364,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 8861,
+        "content_tokens": 8838,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "config_revert",
+    "action_id": "revert_config",
+    "target": "frontend",
+    "rests_on": [
+      "tr_7698e78df7dd",
+      "tr_98a3591b5fb7",
+      "tr_f385dc3c5114",
+      "tr_c7758f64d9bc"
+    ],
+    "expected_effect": "After frontend is restored to its prior environment (CART_ADDR unset, as it stood after each of the six earlier reverts) and recreated, the high-rate repeating gRPC 'code: 14 UNAVAILABLE' lines in {service=\"frontend\"} whose detail names a refused TCP connection to :7071 should stop appearing in Loki within a couple of minutes of the container coming back, and frontend cart-path requests should return to succeeding. Confirmation must come from logs, not metrics: both Prometheus baselines were rejected with 400 [tr_30019e988363], so there is no error-ratio series to watch. The secondary signal is the alerted callers \u2014 frontend-proxy, load-generator and checkout \u2014 ceasing to log cart-path failures; cart should continue its unbroken info-level cart-store stream [tr_f385dc3c5114] and simply receive the traffic again.",
+    "confirm_within_seconds": 300,
+    "if_wrong": "If, five minutes after the recreate, {service=\"frontend\"} still emits connection-refused 14 UNAVAILABLE at the same rate \u2014 whether to :7071 or to some other cart address \u2014 the diagnosis is wrong: cart's real listening port was never directly observed (no bind line in its logs [tr_f385dc3c5114], no service definition read), so the assumption that the unset default points at a bound listener is inference, not measurement. A second falsifier: platform-automation re-sets CART_ADDR within minutes, in which case this is a loop in the automation and the fix is outside this system. Note also that the email 400 on the shipping-quote path [tr_cf6bd139479b, tr_98a3591b5fb7] is a separate fault and will NOT clear from this action; its persistence is expected and is not evidence against this proposal.",
+    "risk": "Recreating frontend drops every in-flight request and connection on the user-facing path for the duration of the recreate \u2014 a short, total frontend outage, deliberately taken. If the override was in fact correct and cart had genuinely moved to 7071 while something else refused the connection, this revert points frontend at a stale address and the incident persists with an added outage. Because the override has been set and reverted seven times by automation in a week, a revert without disabling that automation may be undone again within minutes, which would make the result ambiguous rather than conclusive. The email/shipping-quote 400 is untouched and checkout will keep failing on that path.",
+    "blast_radius": "frontend only is modified. Its callers see the reset while the container recreates: frontend-proxy, load-generator and checkout (all seed/alerted). Because the reverted value is a dependency address, cart sees cart-path traffic move back to its default endpoint; frontend's other downstreams \u2014 ad, product-catalog, product-reviews, recommendation \u2014 see their connections reset and re-established but no address change."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Multiple user-facing services alerted simultaneously at critical severity with checkout following a minute later, which is a real customer-impacting failure. No open incidents to attribute it to, and the alert pattern alone does not single out a fault class."
+  }
+}

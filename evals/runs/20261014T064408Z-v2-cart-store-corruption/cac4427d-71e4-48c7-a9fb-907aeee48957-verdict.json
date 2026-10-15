@@ -1,0 +1,175 @@
+{
+  "incident_id": "cac4427d-71e4-48c7-a9fb-907aeee48957",
+  "trajectory_id": "dc10edeb-073f-4526-9487-fb083d2aafc0",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "cart",
+    "checkout",
+    "currency",
+    "email",
+    "frontend",
+    "frontend-proxy",
+    "payment",
+    "product-catalog",
+    "shipping"
+  ],
+  "unmeasured_edges": 8,
+  "exclude_origins": [
+    "scenario:v2-cart-store-corruption"
+  ],
+  "verdict": {
+    "root_cause": "The cart service cannot decode the contents of its Valkey-backed cart store: reads fail with a protobuf deserialization error (message truncated mid-field) on both the get-cart and add-item paths, and cart returns gRPC FAILED_PRECONDITION \"Can't access cart storage\" [tr_ae3a9b7f0a85]. Checkout relays that as an INTERNAL error while retrieving the user cart, and frontend surfaces it to callers \u2014 so the user-visible failure at the edge originates two hops down, in cart's store contents, not in checkout or frontend. The connection to the store is clearly fine (cart is reached, executes the read, and raises a decode exception rather than a connection error), and checkout's own dependency spans to cart, currency, payment, product-catalog and shipping all complete in single-digit milliseconds [tr_268f87638e09], which rules out a slow or unreachable datastore. The condition is sustained across the alert boundary, appearing at both ends of the retained log window [tr_ae3a9b7f0a85]. The checkout latency that triggered triage is a separate, weaker signal: it sits in unattributed self time at the root and in the PlaceOrder handler, not in any dependency hop [tr_268f87638e09], and is not accompanied by any error-ratio step on checkout [tr_366bb131b4b8] or frontend [tr_b556406d8424].",
+    "service": "cart",
+    "fault_class": "datastore_corruption",
+    "remediation_class": "restore_data",
+    "confidence": "medium",
+    "evidence": [
+      "tr_ae3a9b7f0a85",
+      "tr_268f87638e09",
+      "tr_366bb131b4b8",
+      "tr_b556406d8424",
+      "tr_8c5a6ecb43bc",
+      "tr_fb725a1a554e"
+    ],
+    "reasoning": "The only concrete failure signature anywhere on the board is the error chain captured in frontend's logs [tr_ae3a9b7f0a85]: status 13 INTERNAL from checkout wrapping status 9 FAILED_PRECONDITION from cart, whose innermost cause is an InvalidProtocolBufferException on reading cart data. That is the defining shape of datastore_corruption \u2014 the store answers, the bytes it returns cannot be parsed. It is not dependency_latency: the statuses are immediate application errors with no deadline-exceeded or retry/backoff lines, and cart client spans from checkout are sub-millisecond to a few milliseconds [tr_268f87638e09, tr_ae3a9b7f0a85]. It is not a freeze or partition: checkout serves structured responses and cart executes its read before failing [tr_ae3a9b7f0a85]. It is not a bad_deploy or flag flip on checkout or email \u2014 their change logs are empty over 24 hours [tr_8c5a6ecb43bc, tr_941b36069ef9] \u2014 and it is not a checkout-local fault, since checkout's error explicitly attributes the failure to cart's storage layer. I blame cart rather than checkout because every symptom checkout and frontend show follows from cart's unreadable store, while nothing in checkout explains cart's decode exception. The fix is to flush or restore the cart store contents (restore_data), not to roll back or restart anything, since no artifact or config change is implicated and a restart leaves the corrupt bytes in place.",
+    "open_questions": [
+      "Cart itself was never dispatched: no cart logs, metrics, traces or change history were examined. The entire verdict rests on cart's exception as relayed through frontend's log stream [tr_ae3a9b7f0a85].",
+      "The scope of corruption is unknown \u2014 whether it affects all cart keys, a subset, or only certain users, and whether it is spreading or static.",
+      "Valkey's own health, persistence state (AOF/RDB), eviction policy and any recent restart or restore were never checked; the proximate writer of the truncated bytes is unidentified.",
+      "Change history for cart and Valkey was never queried; tr_8c5a6ecb43bc explicitly notes the query was seed-scoped and cart was not covered. A cart-side serialization change remains unexcluded.",
+      "Checkout's latency step \u2014 tens of milliseconds of unattributed self time [tr_268f87638e09] \u2014 is not explained by cart's decode failures and may be an independent issue or a telemetry artifact; no checkout p95/p99 or request-rate series was ever returned [tr_366bb131b4b8].",
+      "Checkout emitted zero log lines across the entire 32-minute window including the healthy baseline [tr_fb725a1a554e]. That telemetry gap is unexplained and means checkout's own account of the failure was never read.",
+      "One trace was structurally incomplete with a negative-offset subtree [tr_268f87638e09], suggesting dropped or clock-skewed spans; how much that degrades the trace-based rule-outs is unquantified.",
+      "Onset time is unpinned: the failure signature is present at the earliest retained line (~06:45:20), before the 06:50:46 alert, so what changed at the alert boundary is unestablished."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "A change in cart's own serialization or storage code began writing records that its reader cannot decode, making the artifact rather than the stored bytes the fault.",
+        "service": "cart",
+        "fault_class": "bad_deploy",
+        "remediation_class": "rollback",
+        "why_not": "Nothing on the board places a change against cart \u2014 but nothing excludes one either, since cart's change history was never queried [tr_8c5a6ecb43bc notes the seed-only scope]. It sits below the primary because the observed exception is a truncation mid-field, which is the signature of damaged stored bytes rather than a schema or encoding mismatch, and because a rollback alone would not repair records already written.",
+        "_comment": "would be promoted if cart change history shows a recent deploy touching the cart store path"
+      },
+      {
+        "root_cause": "The Valkey instance behind cart truncated or partially evicted stored values (e.g. after an out-of-memory eviction or an interrupted write), so cart reads back incomplete messages.",
+        "service": "cart",
+        "fault_class": "resource_exhaustion",
+        "remediation_class": "restore_data",
+        "why_not": "This is a plausible mechanism for how the bytes became truncated, but no Valkey memory, eviction or OOM evidence was gathered at all; it is an unverified explanation one level beneath the primary rather than a competing one, and the immediate fix is the same."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "v2-inj-cart-flag-failure-log-checkout / What was observed: The page came 6m16s after onset and it was one line: `ServiceHighErrorRate` on **checkout**.\nNothing before it, nothing beside it, and nothing after it - no latency alert, no service gone\nquiet, and nothing in the recovery.\n\nCheckout's error ratio was 4.9% at T+2, 6.7% at T+4 and",
+    "v2-kafka-disk-fill / What was observed: The page came 6m15s after onset: `ServiceHighLatency` on **checkout**. Thirty seconds later\n`ServiceHighErrorRate` on checkout; at T+2m from the page `ServiceNoTraffic` on **accounting**; at\nT+3m `ServiceHighErrorRate` on **fraud-detection**, and a minute after that its\n`ServiceH",
+    "v2-inj-payment-dependency-latency-log-checkout / What was observed: The page came 5m20s after onset and it was one line: `ServiceHighLatency` on **checkout**. Nothing\nelse fired before it, beside it or after it - no error-rate alert anywhere, no service gone quiet.\n\nCheckout's 95th percentile stepped from 16 to 18ms at rest to 267ms at T+2, 313 a"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 26003,
+    "pulled_tokens": 7061,
+    "pull_rate": 0.2136,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 455,
+        "content_tokens": 457,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1780,
+        "content_tokens": 1783,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 7604,
+        "content_tokens": 7580,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 7393,
+        "content_tokens": 7395,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 8771,
+        "content_tokens": 8748,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_ae3a9b7f0a85",
+      "tr_8c5a6ecb43bc",
+      "tr_268f87638e09"
+    ],
+    "expected_effect": "No action is proposed, so no change in any series is expected. The condition should persist: frontend log lines carrying gRPC status 9 FAILED_PRECONDITION \"Can't access cart storage\" with the embedded InvalidProtocolBufferException should continue to appear at their current rate [tr_ae3a9b7f0a85] until the cart store contents are repaired by a mechanism this system does not have.",
+    "confirm_within_seconds": 0,
+    "if_wrong": "Two things would show the abstention was wrong. First, if cart's change history were queried and returned a deploy or config push inside the window \u2014 specifically a cart-side serialization or client-library change \u2014 then rollback_image or revert_config would become precondition-satisfied and a targeted proposal would be preferable to waiting. Second, if the truncated bytes turn out to be held only in cart's in-process state rather than in Valkey, restart_service would clear it; but the evidence says cart raises the decode error while reading the Valkey-backed store [tr_ae3a9b7f0a85], and cart's HGET/HMSET spans complete in well under a millisecond [tr_268f87638e09], so the bad bytes are persisted, not cached. Either observation should reopen this.",
+    "risk": "The risk of abstaining is that the user-visible checkout failure continues for as long as it takes a human to run the store repair. That is a real cost and it falls on every caller attempting add-item or get-cart. I am accepting it because the alternative actions are worse: the fix class the verdict names, restore_data, is unavailable in this executor, and no available action addresses the mechanism. restart_service on cart would recreate a container whose process state is not implicated \u2014 the truncated protobuf lives in Valkey, which survives the restart \u2014 so it would cost an outage window on cart and leave the fault exactly where it is, while burning the evidence that the fault is store-resident. rollback_image and revert_config both require a recorded prior image or configuration for the target plus a change named inside the window; cart's change history was never queried at all [tr_8c5a6ecb43bc] and nothing names a cart deploy, so both preconditions fail outright. Proposing either would be proposing on an unexamined service.",
+    "blast_radius": "Nobody sees a change, because nothing changes. The ongoing failure continues to be visible to cart's caller checkout, to frontend above it, and to frontend-proxy and end users at the edge, as it is now. The escalation this abstention implies \u2014 a human-run repair or flush of the Valkey cart store \u2014 would, when performed, discard cart contents for all users, which is why it needs an operator who can judge the scope of the corruption; that scope is currently unknown and was never measured."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "A critical alert on checkout, a core revenue path, with no open incident to attribute it to and no evidence of recovery. Single seed with many unmeasured downstream edges gives no reliable prior on cause."
+  }
+}

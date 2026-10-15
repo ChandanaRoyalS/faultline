@@ -1,0 +1,174 @@
+{
+  "incident_id": "cb48578c-368c-4ccd-a7e3-24969938cec0",
+  "trajectory_id": "de842406-9b75-4714-bf84-49682660a668",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "ad",
+    "cart",
+    "checkout",
+    "currency",
+    "email",
+    "frontend",
+    "frontend-proxy",
+    "load-generator",
+    "payment",
+    "product-catalog",
+    "product-reviews",
+    "recommendation",
+    "shipping"
+  ],
+  "unmeasured_edges": 13,
+  "exclude_origins": [
+    "scenario:v2-cart-bad-image-tag"
+  ],
+  "verdict": {
+    "root_cause": "At 05:43:37, about three minutes before onset, platform-automation updated cart's image reference to ghcr.io/open-telemetry/demo:2.2.0-cart-hotfix.2 [tr_da7e0bd1d132]. Cart's own log shows it serving normally until it performed an orderly, staged application shutdown at essentially that same moment, with no subsequent startup, host-build, or listening/bind entry anywhere afterwards [tr_f8b93e0fa29a] \u2014 i.e. the old pod was drained for the rollout and the replacement artifact never came up serving. Three minutes later frontend begins failing on the cart path: gRPC code 14 UNAVAILABLE with no connection established to 172.18.0.24:7070 and a host-unreachable network condition, plus a checkout-path code 13 INTERNAL whose underlying cause is a name resolver returning zero addresses for the target [tr_f72635268a0b]. Zero resolved endpoints is the signature of a deployment whose replacement pods never reached Ready, not of a partial instance failure. Frontend, frontend-proxy, checkout and load-generator alerted in caller order because the cart dependency vanished beneath them; frontend's own change history contains no deploy or flag change at all [tr_e3b00488f813].",
+    "service": "cart",
+    "fault_class": "bad_deploy",
+    "remediation_class": "rollback",
+    "confidence": "medium",
+    "evidence": [
+      "tr_da7e0bd1d132",
+      "tr_f8b93e0fa29a",
+      "tr_f72635268a0b",
+      "tr_e3b00488f813"
+    ],
+    "reasoning": "Three independent lines converge on cart. (1) Timing: the only change within minutes of onset is cart's image-reference update at 05:43:37 [tr_da7e0bd1d132]; frontend's only changes are a CART_ADDR set/revert pair that had already been reverted roughly an hour earlier, leaving frontend on the default cart address at onset [tr_e3b00488f813]. (2) Cart's own behaviour: a graceful lifecycle shutdown immediately after the image update with no restart, no crash, no OOM, no cart-store errors, and healthy traffic right up to the shutdown [tr_f8b93e0fa29a] \u2014 the old process left deliberately and nothing replaced it. (3) The caller's symptom matches that exactly: frontend reports connection-establishment failure and, decisively, a resolver producing zero addresses for the target, which means no endpoints were registered at all rather than a slow or erroring peer; the specialist explicitly ruled out reachable-but-slow and application-level rejection [tr_f72635268a0b]. That is the mechanism of a bad deploy \u2014 the artifact that should be running is not running \u2014 rather than a wrong configuration value, exhaustion, or latency. The corroborating metric work is worthless in either direction: every Prometheus query was rejected with HTTP 400 before evaluation, so no error ratio, request rate, or instance-up series exists to confirm or refute onset timing [tr_8a7135c95c50, tr_b0ab1469979e, tr_808bb5045ceb]. Remediation is to roll the image reference back to the previously-serving tag and confirm endpoints repopulate.",
+    "open_questions": [
+      "Why the replacement pods never became Ready is unproven \u2014 image pull failure, crash-on-start, failed readiness probe, or admission/scheduling rejection are all still open; no cart startup or container-runtime evidence was collected.",
+      "The same hotfix tag was applied and reverted successfully several times in the preceding hours and days [tr_da7e0bd1d132], so a deterministic 'bad image' is not established; a flaky rollout or environment-dependent startup failure fits the history equally well.",
+      "The peer at 172.18.0.24:7070 in frontend's log [tr_f72635268a0b] is never named as cart by any evidence; the identification rests on port 7070 and the checkout cart-fetch error, not on a confirmed endpoint mapping.",
+      "No metrics at all were obtained \u2014 every query failed with HTTP 400 [tr_8a7135c95c50, tr_b0ab1469979e, tr_808bb5045ceb] \u2014 so onset timing, error volume, and cart replica count are unverified independently of logs. The malformed query template is itself worth fixing.",
+      "The remaining nine of thirteen affected services were never examined; whether all of them fail through the cart path or some have an independent cause is untested.",
+      "Cart's log window closes at the shutdown, so whether cart later recovered on its own before the investigation is unknown."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "Cart's process was stopped or cut off while its service address remained resolvable, hanging callers rather than failing them.",
+        "service": "cart",
+        "fault_class": "process_freeze",
+        "remediation_class": "restart",
+        "why_not": "A freeze or partition leaves the socket accepting and callers waiting to deadline; frontend instead got immediate transport-level UNAVAILABLE with host-unreachable and a resolver returning zero addresses [tr_f72635268a0b], and cart logged a clean staged shutdown rather than going silent mid-request [tr_f8b93e0fa29a]. The endpoint was withdrawn, not wedged."
+      },
+      {
+        "root_cause": "The CART_ADDR override on frontend pointed it at a wrong cart address, so frontend could not reach cart.",
+        "service": "frontend",
+        "fault_class": "bad_config",
+        "remediation_class": "config_revert",
+        "why_not": "The override was reverted roughly an hour before onset, so frontend held the default address when errors began, and the same set/revert pair recurs five times across three days without incident [tr_e3b00488f813]. It also names port 7071 while the failing connections are to 7070 [tr_f72635268a0b], and it does not explain cart's own shutdown with no restart [tr_f8b93e0fa29a]."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "v2-valkey-cart-dependency-latency / What was checked: **The traces, because cart paged first and its callers followed.** Every slow trace touched cart,\nand inside cart the time was in one place. At rest, cart answered a `GetCart` in 0.3ms and its\nstore answered an `HGET` in 0.2ms. Under the fault, in 80 traces drawn, every `HGET`, `",
+    "v2-cart-dependency-latency / What was checked: **The traces, because four services slowed at once and the page did not say which one first.**\nEvery slow trace touched cart, and the time sat in the same places in all of them. At rest, cart\nanswered a `GetCart` in 0.4ms and its store answered an `HGET` in 0.3ms. Under the fault",
+    "runbook:class-bad-config / Its relationship to bad_deploy: Both mechanisms are changes and both are recorded in change history. They are different changes\n- one moves an image reference, the other moves an environment value - and the actions that undo\nthem differ accordingly, `rollback_image` against `revert_config`."
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 26698,
+    "pulled_tokens": 4511,
+    "pull_rate": 0.1445,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 480,
+        "content_tokens": 482,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1453,
+        "content_tokens": 1456,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 8008,
+        "content_tokens": 7984,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 7679,
+        "content_tokens": 7681,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 9078,
+        "content_tokens": 9055,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "rollback",
+    "action_id": "rollback_image",
+    "target": "cart",
+    "rests_on": [
+      "tr_da7e0bd1d132",
+      "tr_f8b93e0fa29a",
+      "tr_f72635268a0b"
+    ],
+    "expected_effect": "Redeploying cart at the image tag it ran before 05:43:37 recreates the container, so cart's own log should show what it has not shown since the shutdown sequence: a host-build / application-started / listening entry. Within a minute or two of that line appearing, frontend's log should stop emitting gRPC code 14 UNAVAILABLE 'no connection established to 172.18.0.24:7070' and the checkout-path code 13 INTERNAL whose cause is a resolver returning zero addresses; load-generator and frontend-proxy error lines on the cart path should cease too. Confirmation must come from logs, not metrics: every Prometheus query in this investigation was rejected with HTTP 400 [tr_8a7135c95c50, tr_b0ab1469979e, tr_808bb5045ceb], so no error-ratio or replica series is available to watch. The malformed query template should be fixed separately; until it is, this remediation cannot be confirmed by metrics at all.",
+    "confirm_within_seconds": 300,
+    "if_wrong": "Cart's log still shows no startup/listening entry after the recreate, or it shows a startup followed by an immediate shutdown or crash loop \u2014 that would mean the replacement artifact is not what prevented Ready (admission/scheduling rejection, readiness-probe config, or a dependency cart needs at boot), and the prior tag will fail the same way. Equally falsifying: cart comes up serving but frontend keeps reporting UNAVAILABLE to 172.18.0.24:7070 \u2014 the peer at that address is never named as cart by any evidence, the identification rests only on port 7070 plus the checkout cart-fetch error, so a persistent error after a healthy cart means we fixed the wrong service. Third: frontend/checkout errors fall but the other nine affected services stay alerting, meaning at least one has a cause independent of the cart path, which was never tested.",
+    "risk": "The hotfix tag was applied and reverted successfully several times in the preceding hours and days, so this is plausibly a flaky or environment-dependent rollout rather than a deterministic bad image. If so, rolling back buys nothing from the tag change and the value of the action collapses to the container recreate \u2014 and the recreate itself may hit the same unknown start-time failure, extending cart's outage rather than ending it. The rollback also removes whatever the 2.2.0-cart-hotfix.2 build was fixing; nobody collected what that hotfix addressed, so a previously-patched defect may return. Cart's in-process cart-store cache is discarded. If the real blocker is image-pull, scheduling, or a readiness probe, this action consumes time and attention while the outage continues.",
+    "blast_radius": "One service, cart, but its inbound callers notice. checkout calls cart directly and will see connection resets for the duration of the recreate; frontend and frontend-proxy see it through the checkout and cart-fetch paths; load-generator's synthetic traffic will register the gap. Since cart is already not serving, the marginal disruption to those callers is small \u2014 they are failing now. No other candidate_cause service (ad, currency, email, payment, product-catalog, product-reviews, recommendation, shipping) is touched, and if any of them has an independent fault this action will not change it."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Critical multi-service failure spanning frontend, proxy, and checkout with no open incident to attribute it to; this is user-facing and cannot be dismissed. The simultaneous frontend/proxy onset followed by checkout suggests a shared dependency or deploy, but there is no evidence yet to favor a class."
+  }
+}

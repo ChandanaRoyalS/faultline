@@ -1,0 +1,83 @@
+{
+  "incident_id": "33337ea3-7c1a-45cd-82d7-f8a516799036",
+  "trajectory_id": "b57e3ad6-6cbe-4ad4-b8ca-d0b54953e1ae",
+  "states": [
+    "triaging",
+    "investigating"
+  ],
+  "blast_radius": [
+    "checkout",
+    "cart",
+    "currency",
+    "email",
+    "frontend",
+    "payment",
+    "product-catalog",
+    "shipping",
+    "frontend-proxy"
+  ],
+  "unmeasured_edges": 8,
+  "exclude_origins": [
+    "scenario:scenario:v2-payment-dependency-latency"
+  ],
+  "verdict": {
+    "fault_class": "dependency_latency",
+    "remediation_class": "config_revert",
+    "service": "payment",
+    "alternatives": [
+      {
+        "root_cause": "payment itself became slow from internal resource exhaustion",
+        "service": "payment",
+        "fault_class": "resource_exhaustion",
+        "remediation_class": null,
+        "why_not": "payment's own server spans complete in well under 1.2ms; the latency is entirely in checkout's client span self-time, i.e. before payment's handler is entered"
+      },
+      {
+        "root_cause": "payment was cut off from the network",
+        "service": "payment",
+        "fault_class": "network_partition",
+        "remediation_class": null,
+        "why_not": "calls still succeed and return in ~300ms with no errors; a partition would hang to deadlines and produce unreachability complaints, not a fixed uniform delay"
+      },
+      {
+        "root_cause": "a wrong configuration value in checkout pointed it at a slow payment endpoint",
+        "service": "checkout",
+        "fault_class": "bad_config",
+        "remediation_class": null,
+        "why_not": "no change was observed on checkout and the delay matches exactly the 300ms shaping value recorded against payment's network namespace"
+      }
+    ],
+    "summary": "A traffic-shaping container attached to payment's network namespace at 01:16 injecting a 300ms link delay, so every checkout->payment call waits ~300ms while payment itself serves in under a millisecond.",
+    "confidence": "high",
+    "evidence": [
+      "tr_f12577128140",
+      "tr_2513afb166c2",
+      "tr_bda83c006c85",
+      "tr_6e2c94bc096a"
+    ],
+    "reasoning": "checkout alerted but shows zero error ratio (tr_bda83c006c85) and no log lines (tr_6e2c94bc096a) - it is slow, not broken. Every sampled trace (tr_2513afb166c2) has the same degrading hop: checkout's client span to oteldemo.PaymentService/Charge takes ~302-306ms with nearly all of it as self-time, while the payment server span and payment/charge complete in under 1.2ms. That signature is time spent on the wire, not in payment's handler. The change log for payment (tr_f12577128140) shows platform-automation attaching a traffic-shaping container with eth0 delay=300ms at 01:16:18, just before the 01:21:31 onset, and an identical earlier attach/remove pair hours before. The delay is inserted into the call path, so the failing mechanism is dependency latency; remediation is to revert that injected network setting by removing the shaping container.",
+    "open_questions": [
+      "Whether the earlier 22:36-22:44 shaping episode produced a matching unreported slowdown, which would further confirm causality",
+      "Whether any upstream request ultimately timed out or failed for users, since no errors were observed in checkout's window",
+      "Why platform-automation attached the shaping container - deliberate experiment or misfired automation"
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B1",
+    "tool_calls": 4,
+    "turns": 6,
+    "looked_at": [
+      "logs:checkout",
+      "metrics:checkout",
+      "traces:checkout",
+      "changes:payment"
+    ]
+  }
+}

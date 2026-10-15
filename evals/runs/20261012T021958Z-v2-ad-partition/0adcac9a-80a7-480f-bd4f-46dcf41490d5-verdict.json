@@ -1,0 +1,168 @@
+{
+  "incident_id": "0adcac9a-80a7-480f-bd4f-46dcf41490d5",
+  "trajectory_id": "cb3eaa26-de11-4f27-b6d8-7b3c76d99241",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "ad",
+    "flagd",
+    "frontend",
+    "frontend-proxy",
+    "load-generator"
+  ],
+  "unmeasured_edges": 3,
+  "exclude_origins": [
+    "scenario:v2-ad-partition"
+  ],
+  "verdict": {
+    "root_cause": "The ad service lost network reachability (name resolution in particular) while its process stayed alive. Ad served cleanly until ~02:20, then emitted OkHttp interrupted-IO timeouts at 02:20:15/02:20:47 and repeated UnknownHostException against the otel-collector endpoint on a ~60s cadence through 02:27:49, the last explicitly a name-resolution failure [tr_7cbb7774eda9][tr_7fc0ec7ab852]. The process is logging at both ends of the window, so it is not frozen, and every exception is network-layer rather than application or store. Consistently, ad's error ratio never rises above baseline while 16 incident-window intervals have no defined value and an equal-length comparison carries roughly half the datapoints \u2014 missing span-metric denominators, i.e. telemetry that can no longer leave the pod [tr_c134676a6942][tr_f47c2221b2ec]. Frontend's span-error ratio is flat zero across all 128 samples [tr_87c23a856e03], so its ad calls are not erroring but hanging, which explains frontend-proxy and load-generator alerting at 02:26:31 ahead of ad at 02:27:31. No deploy, config push or flag change is recorded for ad in the prior 24h [tr_8ca45e663bc4] nor for flagd [tr_c96cdeb4c480], so no change act explains onset; the mechanism is ad being cut off from the network.",
+    "service": "ad",
+    "fault_class": "network_partition",
+    "remediation_class": "reconnect",
+    "confidence": "medium",
+    "evidence": [
+      "tr_7cbb7774eda9",
+      "tr_7fc0ec7ab852",
+      "tr_c134676a6942",
+      "tr_f47c2221b2ec",
+      "tr_87c23a856e03",
+      "tr_8ca45e663bc4",
+      "tr_c96cdeb4c480",
+      "tr_bbc68afa079b"
+    ],
+    "reasoning": "Freeze, partition and a silent dependency all hang callers; the discriminator is the culprit's own log. Ad is not silent \u2014 it logs continuously and complains at the network layer that it cannot resolve a host, with the stack entirely in the OTLP exporter/OkHttp path and no AdService request frames [tr_7cbb7774eda9][tr_7fc0ec7ab852]. That excludes process_freeze and application/datastore faults. The metrics corroborate: a 100%-error brownout would drive ad's ratio toward 1.0, but it stays at or below baseline while datapoints simply go missing \u2014 absent export, not failed requests [tr_c134676a6942][tr_f47c2221b2ec]. Frontend keeps full sample coverage at zero error ratio [tr_87c23a856e03], so the collector is up and the cut is local to ad, and frontend's ad calls are hanging rather than failing. Frontend traces show no errors but are clustered in the first 90 seconds, entirely before the 02:20 onset, so they neither confirm nor refute the later hang [tr_bbc68afa079b]. Empty change logs for ad and flagd remove bad_deploy, bad_config and feature_flag as mechanisms [tr_8ca45e663bc4][tr_c96cdeb4c480]; rollback was explicitly ruled out as having nothing to revert to.",
+    "open_questions": [
+      "The only host named in ad's resolution failures is the otel-collector [tr_7cbb7774eda9]; no dispatch showed ad failing to reach a product dependency, so a broad partition versus a collector/DNS-only outage is inferred from the caller alerts and metric gaps, not observed directly.",
+      "No latency, request-volume or resource series was ever retrieved for ad or frontend \u2014 both ad metric dispatches returned only error-ratio and flagged the rest as uncharacterized [tr_c134676a6942][tr_f47c2221b2ec] \u2014 so the 'callers hang to deadline' step is unconfirmed by any latency measurement.",
+      "Frontend-proxy and load-generator, which alerted first, were never dispatched against; nothing rules out a fault at the proxy layer independent of ad."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "Cluster DNS or the otel-collector's service endpoint failed, and ad is merely the one service whose exporter logs surfaced it.",
+        "service": "otel-collector",
+        "fault_class": "network_partition",
+        "remediation_class": "reconnect",
+        "why_not": "Frontend's span metrics have full, uninterrupted sample coverage in the same window [tr_87c23a856e03] while ad's have gaps [tr_c134676a6942][tr_f47c2221b2ec]; a shared DNS or collector failure should have degraded both."
+      },
+      {
+        "root_cause": "ad's process stalled and stopped serving while its socket still accepted, producing the traffic gaps and caller hangs.",
+        "service": "ad",
+        "fault_class": "process_freeze",
+        "remediation_class": "restart",
+        "why_not": "A frozen process writes nothing; ad logs steadily on a 60s cadence through 02:27:49 and complains specifically that it cannot reach a host [tr_7cbb7774eda9][tr_7fc0ec7ab852]."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "v2-ad-memory-squeeze / What was observed: The page was two alerts in the same moment, `ServiceHighErrorRate` on **frontend-proxy** and\n**frontend**, 5m01s after the trouble started. Three minutes later `ServiceNoTraffic` fired on\n**ad**. Three alerts on three services by the fix, and none after it.\n\nThe frontend's error ",
+    "v2-ad-memory-squeeze / What was checked: **The page names callers.** Frontend-proxy forwards what the frontend returns, and the load\ngenerator is the synthetic shoppers counting their own failures. The frontend was the one service\nmaking calls that failed, and the order path was not among them.\n\n**The frontend's error t",
+    "v2-ad-flag-failure / What was observed: The page was one alert, `ServiceHighErrorRate` on **ad**, 8m31s after the trouble started.\nNothing else fired, then or later, and nothing fired after the fix.\n\nIt was slow to come because the error ratio hovered around the line. Ad's ratio had been under 1%.\nIt crossed the line a"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 28715,
+    "pulled_tokens": 7123,
+    "pull_rate": 0.1988,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 390,
+        "content_tokens": 392,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1715,
+        "content_tokens": 1719,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 8834,
+        "content_tokens": 8810,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 8129,
+        "content_tokens": 8131,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 9647,
+        "content_tokens": 9624,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_7cbb7774eda9",
+      "tr_7fc0ec7ab852",
+      "tr_8ca45e663bc4",
+      "tr_c134676a6942"
+    ],
+    "expected_effect": "No action is proposed, so no effect should be observed. The diagnosis names a network/name-resolution partition around ad, and the only action class that addresses that mechanism (reconnect_service) is recorded as unavailable \u2014 the executor performs rollback_image, revert_config and restart_service only. The three available actions each fail their stated preconditions against this evidence: rollback_image and revert_config require a deploy/config/flag change inside the window, and the change log for ad is empty across ~24h [tr_8ca45e663bc4]; restart_service requires the evidence to point at process state, and it points the other way \u2014 ad logs cleanly at 01:56 and is still emitting exporter stack traces at 02:27:49 on a steady ~60s cadence, which rules out a hung or crashlooping process [tr_7fc0ec7ab852][tr_7cbb7774eda9]. Recommended instead: escalate to an operator who can run the network-level repair (e.g. reattaching ad to its network) out of band, and in parallel retrieve ad/frontend latency and request-volume series and dispatch against frontend-proxy, which alerted first and was never examined.",
+    "confirm_within_seconds": 0,
+    "if_wrong": "This abstention is wrong if ad's container was recreated by an unrelated event and came back attached, or if the partition is in fact process-local socket/DNS-cache state that a container recreate would clear. Evidence that would show that: a restart-count series for ad showing a bump coincident with the UnknownHostException sequence ending, or a packet/DNS probe from inside ad resolving otel-collector successfully while the exporter still fails. Neither series was ever retrieved [tr_c134676a6942] \u2014 the 'callers hang to deadline' mechanism rests on alert ordering and missing span-metric denominators, not on any latency measurement, so the verdict's medium confidence is load-bearing here. It is also wrong if the real fault sits at frontend-proxy, which alerted at 02:26:31 ahead of ad and was never dispatched against.",
+    "risk": "The risk of abstaining is that ad's telemetry stays dark and frontend's ad calls keep hanging to deadline until a human intervenes; the 16 undefined error-ratio intervals [tr_c134676a6942] and the halved datapoint count in the comparison window [tr_f47c2221b2ec] will persist, and observability of this incident degrades further the longer it runs. The risk I am declining to take is larger: restart_service is marked irreversible, and recreating ad on a diagnosis of network partition would destroy its in-process cache, blank the trace evidence that is currently the strongest signal, and \u2014 if the partition is at the network or proxy layer rather than in ad \u2014 leave the fault in place while removing the ability to observe it.",
+    "blast_radius": "No service is touched, so nothing changes for anyone. The parties already affected and who stay affected: ad (telemetry export failing, intermittent traffic gaps), frontend (ad calls hanging rather than erroring, span-error ratio flat zero [tr_87c23a856e03]), and frontend-proxy and load-generator, both already alerting since 02:26:31. flagd is in the radius but shows no change activity [tr_c96cdeb4c480] and is unaffected either way."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "feature_flag",
+    "confidence": "low",
+    "reasoning": "Critical multi-service alerting across frontend-proxy, ad, and load-generator is not dismissible, and no open incident covers it. flagd as a one-hop candidate cause behind ad hints at a feature flag change, but that is only a prior."
+  }
+}
