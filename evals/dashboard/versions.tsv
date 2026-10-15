@@ -1,0 +1,27 @@
+# T7.4's "version timeline annotated with what changed": one row per charted stamp.
+# version = the digest after `prompts:` or a baseline's `B1:`/`B2:`, or B0's version (B0, B0.2, ...);
+# a variant of a stamp is keyed by its full label. Every charted version must have a row here
+# (tests/test_dashboard.py), and every source must exist. Written from docs/RESULTS.md's stamp
+# lineage, docs/PLAN.md and the files named; a stamp no document names says so. Task IDs are the
+# plan PDF's only: repository headings that reuse a plan ID (docs/DEVIATIONS.md) are not cited.
+version	what changed	source
+69aa6c670318	The earliest stamped run: the pipeline before the dispatch contract. One run, which abstained.	evals/runs/VARIANCE-2026-08-27.md
+59bf438b2a96	The Dispatch contract, one service per dispatch (the plan's T3.2, continued). Dev sweep 1.	docs/RESULTS.md
+53fafe9c12bc	The synthesizer taught the fault-class taxonomy. Dev sweeps 2 and 3, the holdout run, both variance experiments.	docs/RESULTS.md
+bf7605651ef2	The planner taught that an empty stream is silence. Dev sweep 4 only; measured net harmful and reverted.	evals/runs/SWEEP-2026-08-27-evidence.md
+1b0e7cbb4c47	Return to the locus: silence changes the evidence class, not the subject. Dev sweep 5; holdout entry 3.	evals/runs/SWEEP-2026-08-27-locus.md
+bc222a353936	Batch B's third prompts move, after T3.9's proposer and T3.1's triage judgement entered the stamp. Dev sweep 8.	docs/RESULTS.md
+ba8684b01201	T4.2: Verdict gained service and ranked alternatives (via Batch C's 7c6894e9dd92, never run). Dev sweep 9.	evals/runs/SWEEP-2026-09-04-top3.md
+42e34a1811c4	Q25: Candidate gained an optional remediation_class. One run.	evals/runs/PREREGISTRATION-2026-09-05-q25.md
+b6837dd449ca	Q25b: reporting contracts record unexpected keys instead of refusing the whole verdict. Dev sweeps 10 and 11.	docs/RESULTS.md
+06f24e827915	Q29 (T6.1): Proposal reports unexpected keys too; no prose changed. Dev sweep 12 and the P6 latency figures.	docs/RESULTS.md
+prompts:06f24e827915 [without traces]	T6.1's ablation arm: the trace analyst withheld. Dev sweep 12.	evals/runs/SWEEP-2026-09-11-sweep12.md
+9ce16b66bbcc	Q100: Dispatch.log_filter and the planner paragraph on when to use it (via T7.0's nine classes at 8dda4a19da2f, never run); cap:91279a09. The headline run.	docs/design/q100-capability-review.md
+B0	B0 v1, the no-LLM heuristic: one run, kept and never pooled with v2.	src/evalharness/baselines.py
+B0.2	B0 v2. Its third signal never ran: promql_query refused every call (found 2026-09-14, Q34).	src/evalharness/baselines.py
+B0.3	B0 v3 (Q34): the metric signal runs on its own window. The baseline suite.	src/evalharness/baselines.py
+B0.4	B0 v4 (Q92): the fix table covers the nine classes and the verdict carries the culprit.	src/evalharness/baselines.py
+99db96881bde	B1's first scored runs: the baseline suite. The digest is named in no document.	evals/runs/BASELINES-2026-09-21.md
+decf8e19d4f9	B2's first scored runs: the baseline suite. The digest is named in no document.	evals/runs/BASELINES-2026-09-21.md
+aa84c9051695	B1 for the headline (Q92): nine class definitions; the verdict carries service and alternatives.	docs/QUEUE.md
+904de7de5fc5	B2 for the headline (Q92): nine class definitions; the verdict carries service and alternatives.	docs/QUEUE.md

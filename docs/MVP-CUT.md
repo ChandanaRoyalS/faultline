@@ -1,5 +1,8 @@
 # What shipped, in the words an application needs (T5.3)
 
+> **Superseded 2026-10-15 by [`RESUME.md`](RESUME.md)** (T7.5), the v2 set with the benchmark and
+> ablation numbers measured since. This file stays as the Gate 5 record, unedited below.
+
 **Every number here is measured, sourced, and carries what it cannot support.** That is the point of
 the document. A bullet that overstates by one word is worse than no bullet, because the whole claim
 of this project is that it reports honestly about a system that is easy to report dishonestly about.

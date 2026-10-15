@@ -1,5 +1,5 @@
 .PHONY: help install lint format type test check up down eval-up eval-down eval demo ui \
-        ffs-stub world-up world-down world-ps world-logs dashboards deploy-snapshot \
+        ffs-stub world-up world-down world-ps world-logs dashboards eval-dashboard deploy-snapshot \
         world-v2-up world-v2-down world-v2-ps
 
 help:
@@ -220,6 +220,11 @@ world-up: world/.cloned ffs-stub
 # Idempotent: overwrite: true, so running it twice is running it once.
 dashboards:
 	uv run python scripts/provision_dashboards.py
+
+# T7.4: the eval dashboard, one self-contained page regenerated from evals/runs/ (no world, no
+# database, no money). Not the Grafana dashboards above, which are the world's and the platform's.
+eval-dashboard: ## regenerate evals/dashboard/index.html from the run record (T7.4)
+	uv run faultline-dashboard evals/runs
 
 world-down:
 	cd world && $(COMPOSE_WORLD) down

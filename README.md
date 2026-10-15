@@ -17,6 +17,13 @@ agent works; it is that you can find out whether it does, and so can we.
 > **Status: v0.1** — Gates 0–3 and 5 declared (`docs/GATES.md`). Built gate by gate against a
 > published execution plan. Nothing is claimed that a clean clone cannot demonstrate.
 
+**The reports.** [What the measurements found](docs/WRITEUP.md), in three findings ·
+[the headline run](evals/runs/HEADLINE-2026-10-11-v2.md) (four arms, 36 scenarios) ·
+[the SREGym benchmark](evals/attempts/T7.2-run/RESULT.md) (33 problems) ·
+[the ablation series](docs/ABLATIONS.md) (nine dimensions) ·
+[the eval dashboard](evals/dashboard/index.html) (every version, with what changed) ·
+[the resume bullets](docs/RESUME.md), with every number sourced.
+
 **[▶ The four-minute demo](https://github.com/ChandanaRoyalS/faultline/releases/download/v0.1/faultline-demo-v0.1.mp4)** — one `make demo` on a laptop (inject, live investigation,
 verdict), the same incident on the incident screen with a citation clicked into Grafana, the live
 deployment showing an incident it opened and investigated by itself, and the eval table. The run it
@@ -399,6 +406,7 @@ unable to reproduce one.
 | `faultline-judge` | grades a run's narrative. Skips anything already judged unless `--rejudge` |
 | `faultline-compare` | two arms side by side — a pipeline sweep against a baseline |
 | `faultline-eval-db` | the run record as a queryable table: outcomes, stamps, costs |
+| `faultline-dashboard` | the eval dashboard (T7.4): accuracy, grounding, cost and latency by version and fault class, as one page, [`evals/dashboard/index.html`](evals/dashboard/index.html); `make eval-dashboard` |
 | `faultline-calibrate` | the human grades that measure whether the judge can be trusted |
 | `faultline-retrieval` | the retrieval benchmark (T6.4): harvests every query the pipeline has ever sent from `trajectory_retrievals`, and scores a labelled golden set for `recall@5` and MRR. No model call |
 | `faultline-depth-pilot` | Q53's paired pilot: does retrieval depth change a **verdict**, not just what is reachable. **This one spends money** - ten pairs, one injection each, two investigations, against a hard $25 ceiling. Refuses to start without `--i-have-read-the-registration`, and refuses a ceiling above the registered one |
@@ -426,7 +434,8 @@ And the platform itself, if you want to run it rather than measure it:
 
 Every one takes `--help`. To put the screen on a URL, see [`deploy/`](deploy/README.md); to cut a
 release, [`docs/RELEASE.md`](docs/RELEASE.md). What this project claims and refuses to claim, in the
-words an application needs: [`docs/MVP-CUT.md`](docs/MVP-CUT.md).
+words an application needs: [`docs/RESUME.md`](docs/RESUME.md) (the Gate 5 set it replaced is
+[`docs/MVP-CUT.md`](docs/MVP-CUT.md)).
 
 ## Bundles
 

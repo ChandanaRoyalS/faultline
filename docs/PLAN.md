@@ -4617,6 +4617,45 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-10-15: T7.5's $0 half - the writeup, the final bullets, README's reports up top.***
+
+- **The writeup**, `docs/WRITEUP.md`, leads with findings as the plan's row asks: (1) one agent with
+  the same tools matched the pipeline on holdout and beat it on dev, replicated by E1; (2) the
+  triage gate is where most misses began, 20 of 33 on SREGym and under every pipeline variant in
+  the ablations; (3) the planted log injection reached the agents in 6 runs and was followed in
+  none. Each finding carries what it cannot show. Every number links to the report it comes from;
+  nothing is computed in it.
+- **The final bullets**, `docs/RESUME.md`, replace `MVP-CUT.md`'s Gate 5 set (kept, marked
+  superseded). The proposal's v2 formulas with measured values: two clauses came out the other
+  way - *"frontier-model baselines fail the majority"* (SREGym's agent passed 30 of 33) and
+  *"evidence compression drove the largest accuracy gain"* (E3: +0) - and are replaced, not
+  softened. A table gives each substitution and its source.
+- **README**: the writeup, headline, SREGym, ablation and dashboard reports linked under the
+  status line; the claims pointer moves to `RESUME.md`.
+- **Owed, and not $0**: the full demo cut (approved rollback and recovery, the Tempo encore, the
+  dashboard), about $3 and the owner's recording. Gate 7 stays undeclared until it exists.
+
+***2026-10-15: T7.4, the eval dashboard.***
+
+- **What it is**: `faultline-dashboard` (`make eval-dashboard`) writes `evals/dashboard/index.html`,
+  one self-contained page (no script, no external asset, charts as inline SVG): fault-class
+  accuracy per version with Wilson intervals; a versions table with fault class, culprit service,
+  fix class, citation violations and regenerations, tool-call validity, median cost and median
+  time to report; and counts by fault class on the newest world. A version is a runtime stamp on
+  a world generation, and a T7.3 switch or a withheld specialist splits it, because neither moves
+  a stamp and pooling them would hide every ablation inside the standing pipeline.
+- **"Off the eval schema"**: it reads `evals/runs/` with `evaldb.read_runs`, the same flattening
+  `faultline-eval-db load` writes into `eval_runs`, so it needs no database and cannot disagree with
+  one. The page is committed and `tests/test_dashboard.py` regenerates it and compares, as README's
+  generated blocks are held.
+- **"Annotated with what changed"**: `evals/dashboard/versions.tsv`, a written line per stamp with
+  the document that records the move (from RESULTS.md's lineage, the sweep reports and
+  `baselines.py`). A test fails when a charted version has no line, a line names a version no run
+  carries, or a source file does not exist. Two digests, B1 `99db96881bde` and B2 `decf8e19d4f9`
+  (the 2026-09-21 baseline suite), are named in no document, and their lines say so.
+- **What it is not**: a published figure. It pools every sweep and both splits per version; the
+  numbers to quote are in the dated reports. $0; no stamp, world or corpus moved.
+
 ***2026-10-15: the repository audit's $0 gaps, first batch - T2.3, T2.6, Phase 4's ADR, one hang.***
 
 The owner asked for a full audit against the plan and fixes for everything that costs nothing and
