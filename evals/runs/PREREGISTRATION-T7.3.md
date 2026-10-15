@@ -339,3 +339,40 @@ The build, both stamps, the world's digests, the v2 corpus at its pins, the scor
 table and the predictions all stand as written. **The headline run's finding - F ties B1 on
 holdout and trails it on dev - makes E1 and E3 the experiments to read first**, and nothing about
 their registration moves for that.
+
+## Addendum 4 - the batch run, and the analysis decisions taken after it (2026-10-15)
+
+**Written after the last run and before any report.** Nothing above is changed by it.
+
+**The batch**: 99 slots over five nights, 2026-10-11 to 2026-10-15
+([`BATCH-t73-v2.tsv`](BATCH-t73-v2.tsv)); 102 runs, 98 scored, 4 discarded; the runner's tally
+**$85.02** including the switch trial's $7.42, under the $114 stop. The owner's console reading
+is the authority and goes into the reports' record when taken. Operation as Addendum 3, with
+three things the nights met and the PLAN records: the orchestrator exited once on a Redis socket
+timeout after block 1 and was restarted; quote's clock and the load generator stalled after the
+Mac slept between blocks and were restarted before the block, the batch running under
+`caffeinate -i`; and slot 31's disk-fill revert left kafka restarting until recreated by hand,
+after which the revert always recreates (#670, Q114). Slots 1-40 ran at harness `c1c55688`,
+41-99 at `06bacc1b`; the change is in the revert, after scoring.
+
+**Removed**: `v2-cart-store-corruption`, discarded twice under E7 (slot 15: both times the
+incident had resolved before the investigation started). Every experiment is read on the other
+**ten**. Its remaining slots ran, as the fixed queue requires, and are tabled apart.
+
+**Decisions the registration left open, taken now and printed in
+[`analysis_t73_v2.py`](analysis_t73_v2.py)'s docstring:**
+
+1. **The MDE at the size that ran**: 28 points at n = 10 (rho 0.8), stated first in every report
+   beside the registered 26 at n = 12.
+2. **Cost and time are read twice**: on all ten, and on the scenarios where neither arm was gated.
+   Triage's gate varied between arms independently of the switches (`v2-fraud-detection-flag-
+   queue-lag` was gated under four arms and not the other four), and a gated run costs almost
+   nothing, so the all-ten reading credits an arm with savings its switch did not make. Each cost
+   prediction's verdict is given on both readings.
+3. **A difference past the MDE is said to be so, and whether its interval clears zero is said
+   beside it.**
+4. **Each experiment's bootstrap starts from its own `random.Random(20261011)`**, so no report's
+   intervals depend on the order the reports were computed in.
+5. **E6's per-hit reading** (the trial's Addendum 8) is read from an export of the trajectory
+   store's retrieval rows for this batch, committed as
+   `docs/evidence/t7.3/retrievals-t73-v2.tsv`.
