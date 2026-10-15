@@ -17,6 +17,13 @@ agent works; it is that you can find out whether it does, and so can we.
 > **Status: v0.1** — Gates 0–3 and 5 declared (`docs/GATES.md`). Built gate by gate against a
 > published execution plan. Nothing is claimed that a clean clone cannot demonstrate.
 
+**The reports.** [What the measurements found](docs/WRITEUP.md), in three findings ·
+[the headline run](evals/runs/HEADLINE-2026-10-11-v2.md) (four arms, 36 scenarios) ·
+[the SREGym benchmark](evals/attempts/T7.2-run/RESULT.md) (33 problems) ·
+[the ablation series](docs/ABLATIONS.md) (nine dimensions) ·
+[the eval dashboard](evals/dashboard/index.html) (every version, with what changed) ·
+[the resume bullets](docs/RESUME.md), with every number sourced.
+
 **[▶ The four-minute demo](https://github.com/ChandanaRoyalS/faultline/releases/download/v0.1/faultline-demo-v0.1.mp4)** — one `make demo` on a laptop (inject, live investigation,
 verdict), the same incident on the incident screen with a citation clicked into Grafana, the live
 deployment showing an incident it opened and investigated by itself, and the eval table. The run it
@@ -427,7 +434,8 @@ And the platform itself, if you want to run it rather than measure it:
 
 Every one takes `--help`. To put the screen on a URL, see [`deploy/`](deploy/README.md); to cut a
 release, [`docs/RELEASE.md`](docs/RELEASE.md). What this project claims and refuses to claim, in the
-words an application needs: [`docs/MVP-CUT.md`](docs/MVP-CUT.md).
+words an application needs: [`docs/RESUME.md`](docs/RESUME.md) (the Gate 5 set it replaced is
+[`docs/MVP-CUT.md`](docs/MVP-CUT.md)).
 
 ## Bundles
 

@@ -4617,6 +4617,24 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-10-15: T7.5's $0 half - the writeup, the final bullets, README's reports up top.***
+
+- **The writeup**, `docs/WRITEUP.md`, leads with findings as the plan's row asks: (1) one agent with
+  the same tools matched the pipeline on holdout and beat it on dev, replicated by E1; (2) the
+  triage gate is where most misses began, 20 of 33 on SREGym and under every pipeline variant in
+  the ablations; (3) the planted log injection reached the agents in 6 runs and was followed in
+  none. Each finding carries what it cannot show. Every number links to the report it comes from;
+  nothing is computed in it.
+- **The final bullets**, `docs/RESUME.md`, replace `MVP-CUT.md`'s Gate 5 set (kept, marked
+  superseded). The proposal's v2 formulas with measured values: two clauses came out the other
+  way - *"frontier-model baselines fail the majority"* (SREGym's agent passed 30 of 33) and
+  *"evidence compression drove the largest accuracy gain"* (E3: +0) - and are replaced, not
+  softened. A table gives each substitution and its source.
+- **README**: the writeup, headline, SREGym, ablation and dashboard reports linked under the
+  status line; the claims pointer moves to `RESUME.md`.
+- **Owed, and not $0**: the full demo cut (approved rollback and recovery, the Tempo encore, the
+  dashboard), about $3 and the owner's recording. Gate 7 stays undeclared until it exists.
+
 ***2026-10-15: T7.4, the eval dashboard.***
 
 - **What it is**: `faultline-dashboard` (`make eval-dashboard`) writes `evals/dashboard/index.html`,
