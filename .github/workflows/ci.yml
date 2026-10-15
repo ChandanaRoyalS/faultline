@@ -107,10 +107,16 @@ jobs:
       #
       # Not covered: the embedding model this job downloads from the HF hub at test time. Same
       # failure class, different remedy, and no observed failure yet to justify one.
+      #
+      # **2026-10-11 to 2026-10-15 the MinIO pull failed on every run, and no retry could help**:
+      # MinIO stopped publishing community images, and the pinned tag answered "not found" on
+      # Quay and on Docker Hub alike (checked by `docker manifest inspect` from the owner's Mac,
+      # 2026-10-15). The image is now Bitnami's frozen legacy build of the same MinIO release -
+      # see docker-compose.yml's `minio` service for why that one and what it changed.
       - name: Pull test images
         run: |
           for image in \
-            quay.io/minio/minio:RELEASE.2025-04-22T22-12-26Z \
+            docker.io/bitnamilegacy/minio:2025.4.22 \
             pgvector/pgvector:pg16 \
             redis:latest
           do

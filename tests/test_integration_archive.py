@@ -48,11 +48,11 @@ def _ready(endpoint: str, attempts: int = 60) -> None:
 @pytest.fixture(scope="module")
 def endpoint() -> Iterator[str]:
     container = (
-        # Same image as docker-compose.yml's `minio` service, from Quay for the reason it gives.
-        DockerContainer("quay.io/minio/minio:RELEASE.2025-04-22T22-12-26Z")
+        # Same image as docker-compose.yml's `minio` service, for the reason it gives. Bitnami's
+        # entrypoint starts the server itself, so no command is passed.
+        DockerContainer("docker.io/bitnamilegacy/minio:2025.4.22")
         .with_env("MINIO_ROOT_USER", ACCESS)
         .with_env("MINIO_ROOT_PASSWORD", SECRET)
-        .with_command("server /data")
         .with_exposed_ports(9000)
     )
     with container:

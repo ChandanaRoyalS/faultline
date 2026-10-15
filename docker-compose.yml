@@ -47,20 +47,37 @@ services:
     # Free to change, for the same reason postgres records above: this file is not one of the
     # three inputs to `world.compose_digest`, so editing it invalidates no recorded bundle.
     #
-    # `quay.io/`, since 2026-09-11: Docker Hub began answering anonymous pulls of `minio/minio`
-    # with "pull access denied ... repository does not exist", twice in a row on the CI runner,
-    # eleven hours after the same job had pulled it. MinIO publishes every release to Quay under
-    # the same tag; the digest-pinned release is unchanged.
-    image: quay.io/minio/minio:RELEASE.2025-04-22T22-12-26Z
+    # **The image: Bitnami's legacy build of the same MinIO release, since 2026-10-15.** MinIO
+    # stopped publishing community images, and `RELEASE.2025-04-22T22-12-26Z` stopped resolving on
+    # both Quay (this file's source since 2026-09-11, when Docker Hub first refused anonymous
+    # pulls) and Docker Hub; CI's integration job failed on it from 2026-10-11 (docs/DEVIATIONS.md,
+    # T0.2). `bitnamilegacy/minio:2025.4.22` is the same 2025-04-22 release, in a repository Bitnami
+    # froze rather than updates, so the tag cannot move under us - and Bitnami has said the legacy
+    # repositories are not permanent, which is the risk this pin carries and the reason it is
+    # named here.
+    #
+    # **It starts differently**, and the service follows it: Bitnami's own entrypoint runs the
+    # server (so there is no `command:`), keeps its data under `/bitnami/minio/data`, runs as a
+    # non-root user and serves the console on 9001 by default. The health check reads MinIO's own
+    # liveness endpoint rather than `mc ready local`, which depended on the upstream image's
+    # client config.
+    #
+    # **A new volume, `miniodata-bitnami`, not the old `miniodata`.** The upstream image ran as
+    # root, so a `miniodata` volume it created is root-owned, and Bitnami's non-root server cannot
+    # write into it: on the owner's Mac the first start exited on `/bitnami/minio/data/.root_user:
+    # Permission denied` (2026-10-15) while a fresh volume - every clean clone, and CI - works. A
+    # separate name leaves any old volume and its contents untouched rather than chowning or
+    # deleting them; anything archived under the old image is not carried across, and the archive
+    # is off by default (ADR-0034).
+    image: docker.io/bitnamilegacy/minio:2025.4.22
     profiles: ["platform", "eval"]
-    command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: faultline
       MINIO_ROOT_PASSWORD: faultline-dev   # dev only; real secrets via .env
     ports: ["9000:9000", "9001:9001"]
-    volumes: ["miniodata:/data"]
+    volumes: ["miniodata-bitnami:/bitnami/minio/data"]
     healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
+      test: ["CMD-SHELL", "curl -fsS http://localhost:9000/minio/health/live || exit 1"]
       interval: 5s
       timeout: 3s
       retries: 10
@@ -93,4 +110,4 @@ services:
 
 volumes:
   pgdata:
-  miniodata:
+  miniodata-bitnami:

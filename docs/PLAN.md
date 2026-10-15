@@ -4617,6 +4617,22 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-10-15: the integration job green again - MinIO's image replaced.***
+
+- **Why it was red**: from 2026-10-11 every `ci / integration` run failed at *Pull test images*
+  on `quay.io/minio/minio:RELEASE.2025-04-22T22-12-26Z`; no test ran. Checked from the owner's
+  Mac with `docker manifest inspect`: that tag, the same tag on Docker Hub and `minio/minio:latest`
+  all no longer resolve - MinIO stopped publishing community images. #668-#672 merged with it red
+  (DEVIATIONS, T0.2).
+- **The fix**: `docker.io/bitnamilegacy/minio:2025.4.22`, the same release in Bitnami's frozen
+  archive, pinned in `ci.yml`, `docker-compose.yml` and `tests/test_integration_archive.py`
+  (still held equal by `test_the_prepulled_images_are_the_ones_the_tests_ask_for`). Bitnami's
+  image starts itself, keeps data under `/bitnami/minio/data` in a new volume (`miniodata-bitnami`:
+  the old root-owned `miniodata` refused the non-root server, `Permission denied`, on the Mac's
+  first start) and is health-checked on MinIO's liveness endpoint; the compose comment carries the reason and the risk (the legacy archive is
+  not promised forever). The PR is opened only after both checks pass on the Mac: the archive
+  integration tests, and the `minio` service healthy under `docker compose --wait`. $0.
+
 ***2026-10-15: T7.3 complete - the batch run, nine ablation reports, the v2 series in
 ABLATIONS.md.***
 
