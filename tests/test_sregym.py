@@ -14,6 +14,7 @@ import threading
 import time
 from datetime import UTC, datetime, timedelta
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
 from queue import Queue
 from typing import Any, ClassVar
 
@@ -1026,3 +1027,34 @@ def test_the_bundle_carries_every_path_the_runtime_walks_up_to_find() -> None:
     assert set(REPO_DATA) <= set(bundle.SEED_PATHS)
     assert not any("holdout" in p for p in bundle.SEED_PATHS)
     assert {"pyproject.toml", "src"} <= set(bundle.BUNDLE_PATHS), "installable as a project"
+
+
+def test_help_answers_without_starting_an_attempt(capsys, monkeypatch) -> None:
+    """`faultline-sregym --help` once started a real attempt and waited five minutes on a
+    conductor that does not exist outside SREGym. It must print its usage and touch nothing."""
+    from faultline.sregym import driver
+
+    def refuse(*_args, **_kwargs):
+        raise AssertionError("--help must not start an attempt")
+
+    monkeypatch.setattr(driver, "run", refuse)
+    for flag in ("--help", "-h"):
+        assert driver.main([flag]) == 0
+        assert "usage: faultline-sregym" in capsys.readouterr().out
+
+
+def test_other_arguments_are_still_ignored(monkeypatch, tmp_path) -> None:
+    """SREGym's agent row calls `main()` with its own process's argv; an argument the driver does
+    not know must not fail a scored attempt."""
+    from faultline.sregym import driver
+
+    seen: list[Path] = []
+
+    def record(out: Path) -> driver.Attempt:
+        seen.append(out)
+        return driver.Attempt(started_at="t")
+
+    monkeypatch.setenv("AGENT_LOGS_DIR", str(tmp_path))
+    monkeypatch.setattr(driver, "run", record)
+    driver.main(["--something-sregym-passes"])
+    assert seen == [tmp_path / "faultline"]

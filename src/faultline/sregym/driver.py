@@ -239,7 +239,30 @@ def run(out: Path) -> Attempt:
     return attempt
 
 
-def main() -> int:
+USAGE = """usage: faultline-sregym
+
+One SREGym attempt, end to end (T7.2, ADR-0044). Run by the adapter's agent row inside SREGym's
+agent container, never by hand: it waits up to 300 s for SREGym's conductor at
+http://$API_HOSTNAME:$API_PORT, opens the incident, runs faultline-investigate, submits the
+diagnosis and writes $AGENT_LOGS_DIR/faultline/attempt.json. It takes no arguments.
+"""
+
+
+def main(argv: list[str] | None = None) -> int:
+    """**`--help` answers and exits; every other argument is ignored, as before.**
+
+    The driver took no arguments and parsed none, so `faultline-sregym --help` - the one thing a
+    reader of README's command table is likely to type - started a real attempt and waited five
+    minutes on a conductor that does not exist outside SREGym (found 2026-10-15, the only console
+    script that did not answer `--help`). Only the help flags are recognised rather than an
+    argparse parser, because SREGym's agent row calls `main()` from its own `driver.py` with
+    whatever `sys.argv` that process has, and a parser rejecting an unknown argument there would
+    fail a scored attempt.
+    """
+    args = sys.argv[1:] if argv is None else argv
+    if "-h" in args or "--help" in args:
+        print(USAGE, end="")
+        return 0
     out = Path(os.environ.get("AGENT_LOGS_DIR", "/logs")) / "faultline"
     attempt = run(out)
     print(json.dumps({k: v for k, v in asdict(attempt).items() if k != "submission"}, default=str))

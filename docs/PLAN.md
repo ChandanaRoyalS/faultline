@@ -4617,6 +4617,33 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-10-15: the repository audit's $0 gaps, first batch - T2.3, T2.6, Phase 4's ADR, one hang.***
+
+The owner asked for a full audit against the plan and fixes for everything that costs nothing and
+moves no measured result (the stamps, the world and the corpus untouched). A fresh clone at
+`c5ca598e` was baselined first: `uv sync`, ruff, format, mypy and the whole unit suite pass; CI on
+main is green (integration included, #673); the deployed instance's uptime probe passed at 14:32
+UTC; every console script answers `--help` but one. Nothing was failing. What this batch closes:
+
+- **`faultline-sregym --help` hung** - it took no arguments, so `--help` started a real SREGym
+  attempt and waited five minutes on a conductor. It now prints its usage; every other argument
+  is still ignored, because SREGym's agent row calls `main()` with its own argv. Two tests.
+- **T2.3's property-based tests**, the half of the row the suite lacked:
+  `tests/test_state_machine_properties.py` (generated sequences, 20 seeds, and all 14 x 14 pairs;
+  seeded stdlib generation, not Hypothesis - DEVIATIONS says why). **And a stale fact the audit
+  found**: `test_orchestrator.py` still listed `AWAITING_APPROVAL`, `EXECUTING` and `REJECTED` as
+  states nothing writes, a month after T6.2 and T6.3 built their writers; moved.
+- **T2.6's record/replay harness**: `faultline.agents.cassette` records any model's calls to a JSON
+  cassette and replays them with no provider, keyed on the whole request with tool-result ids by
+  position (they are random per call by design) and mapped back on replay so citations hold. A B1
+  investigation recorded once replays to the same verdict. No real-model cassette is committed.
+- **Phase 4's online-evaluation cut, recorded at last**: ADR-0045, with the persisted seams named
+  table by table, and what is not a seam (no thumbs control exists).
+- **DEVIATIONS' T4.2 row corrected**: it said 5 of ~30 graded; the calibration ledger holds 30
+  (kappa 0.35, judge still *not calibrated*); two ledger reasons are template text, the owner's to
+  write.
+- **Next**: T7.4's dashboard and T7.5's writeup, resume bullets and README, each its own patch. $0.
+
 ***2026-10-15: the integration job green again - MinIO's image replaced.***
 
 - **Why it was red**: from 2026-10-11 every `ci / integration` run failed at *Pull test images*
