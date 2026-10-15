@@ -582,19 +582,24 @@ WRITTEN_AT_RUNTIME: frozenset[IncidentState] = frozenset(
         IncidentState.INVESTIGATING,
         IncidentState.SYNTHESIZING,
         IncidentState.PROPOSING,
+        IncidentState.AWAITING_APPROVAL,
+        IncidentState.EXECUTING,
+        IncidentState.REJECTED,
         IncidentState.RESOLVED,
         IncidentState.FAILED,
     }
 )
 """**`PROPOSING` moved here at T3.9**, which is the deliberate test edit the note below asks
 for. `machine.phases_for` advances an incident into it when, and only when, the proposer
-produced a proposal - an abstention included, since an abstention is a proposal."""
+produced a proposal - an abstention included, since an abstention is a proposal.
+
+**`AWAITING_APPROVAL`, `EXECUTING` and `REJECTED` moved here on 2026-10-15**, late: their writers
+landed at T6.2 and T6.3 - `machine.record_approval_outcome` (called by `executor.cli` and
+`executor.core`) and `machine.record_rejection` (called by `api.approvals`) - and this set kept
+listing them as unwritten for a month, which the repository audit of 2026-10-13 found."""
 
 NO_RUNTIME_WRITER: frozenset[IncidentState] = frozenset(
     {
-        IncidentState.AWAITING_APPROVAL,
-        IncidentState.EXECUTING,
-        IncidentState.REJECTED,
         IncidentState.BUDGET_EXHAUSTED,
         IncidentState.DUPLICATE_MERGED,
     }
