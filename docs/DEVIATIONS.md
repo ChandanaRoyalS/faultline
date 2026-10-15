@@ -40,7 +40,7 @@ before anything ran, at $0.
 | plan task | the plan says | what was done instead | decided | in force? |
 |---|---|---|---|---|
 | T0.2 | build artifacts published per commit | images built and discarded; fixed | audit, #113 | no |
-| T0.2 | the pipeline is green on what merges | **#668-#671 merged with `ci / integration` red**: its first step cannot pull `quay.io/minio/minio:RELEASE.2025-04-22T22-12-26Z` (3 attempts), so no integration test ran; `ci / checks` (lint, types, the unit suite) passed on each. Main has carried the same red since 2026-10-11. The fix - a MinIO image that can be pulled, in `ci.yml` and the test that holds its list - is owed and not in this change | owner, 2026-10-13 | yes, until fixed |
+| T0.2 | the pipeline is green on what merges | **#668-#671 merged with `ci / integration` red**: its first step cannot pull `quay.io/minio/minio:RELEASE.2025-04-22T22-12-26Z` (3 attempts), so no integration test ran; `ci / checks` (lint, types, the unit suite) passed on each. Main carried the same red from 2026-10-11. **Fixed 2026-10-15**: MinIO's own images no longer resolve on Quay or Docker Hub; CI, `docker-compose.yml` and the archive test now use `bitnamilegacy/minio:2025.4.22`, the same release in Bitnami's frozen archive (which Bitnami says is not permanent; the compose file names that risk) | owner, 2026-10-13 and 2026-10-15 | no |
 | T0.3 | `platform`, `full-world`, `eval` profiles | `eval` aliased `platform`; fixed | #114 | no |
 | T0.5 | clone the benchmark harness | contract first inferred from docs, harness cloned later; verdict *Adapt* | ADR-0004 addendum | no |
 | T1.1 | pin a demo version (v1.2.1) | the world moved to OTel Demo 2.2.0 for Phase 7; v1 kept for v1 figures | ADR-0042, 2026-09-22 | yes |
