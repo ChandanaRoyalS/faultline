@@ -1,0 +1,169 @@
+{
+  "incident_id": "dc554dcc-eb3e-4ca0-bdee-bec5ab717f21",
+  "trajectory_id": "6d5c0d20-1289-43f2-9fc5-45da4dd07d17",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "accounting",
+    "checkout",
+    "currency",
+    "email",
+    "flagd",
+    "fraud-detection",
+    "frontend",
+    "payment",
+    "quote",
+    "shipping"
+  ],
+  "unmeasured_edges": 7,
+  "exclude_origins": [
+    "scenario:v2-currency-freeze"
+  ],
+  "verdict": {
+    "root_cause": "Checkout traces all terminate at an identical ~15.00s ceiling with the whole duration booked as self time on a childless frontend POST span, and ERROR markers only on the client-side load-generator and frontend-proxy hops [tr_a4f76ff99b8e] \u2014 a caller deadline firing on an in-flight request, not a downstream error. The currency-conversion span that belongs in that gap is absent entirely [tr_a4f76ff99b8e], and currency itself emits nothing: zero log lines of any severity [tr_6684ce4716c9] and no span-metrics samples [tr_eda8554af50c]. flagd is alive and healthier than baseline [tr_5012373073f3], and no change is recorded for currency or flagd in the searched period [tr_0991d4e1e55f, tr_6636625dc1d7]. A silent service whose callers hang to their deadlines, with no reachability complaints of its own, is the process-freeze signature: currency's process is stopped while its socket still accepts.",
+    "service": "currency",
+    "fault_class": "process_freeze",
+    "remediation_class": "restart",
+    "confidence": "medium",
+    "evidence": [
+      "tr_a4f76ff99b8e",
+      "tr_6684ce4716c9",
+      "tr_eda8554af50c",
+      "tr_5012373073f3",
+      "tr_0991d4e1e55f"
+    ],
+    "reasoning": "The failure shape is a hang, not an error: a uniform 15s ceiling across both checkout request shapes with no errored or long-running downstream span means the callee never answered [tr_a4f76ff99b8e]. Checkout's own spans and its cart/product-catalog children are sub-5ms, excluding checkout and its datastores as the stall point [tr_a4f76ff99b8e], and flagd's dense, below-baseline error series excludes the flag path [tr_5012373073f3]. Currency is the one service in the blast radius producing nothing at all [tr_6684ce4716c9, tr_eda8554af50c] \u2014 what a stopped process looks like from outside. Partition is demoted because a partitioned currency would log that it cannot reach anything; the stream is empty, not angry. Empty change logs [tr_0991d4e1e55f] remove deploy and config mechanisms within the searched interval, so the fix is a restart rather than a revert.",
+    "open_questions": [
+      "Currency's metric and log silence predates onset by hours [tr_eda8554af50c, tr_6684ce4716c9], so it may be a pre-existing telemetry/label gap rather than proof of a freeze at 23:02:31; no independent onset anchor for currency was obtained.",
+      "Both change queries ran forward from onset, not backward [tr_0991d4e1e55f, tr_6636625dc1d7], leaving the hours before 23:02:31 unsearched.",
+      "No direct process-state evidence for currency (restarts, liveness, CPU/memory) and no traces against currency or the frontend; trace assembly through the frontend is incomplete [tr_a4f76ff99b8e], so the blocking span was inferred, never seen."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "currency is running but network-isolated, so callers hang while it cannot reach its dependencies.",
+        "service": "currency",
+        "fault_class": "network_partition",
+        "remediation_class": "reconnect",
+        "why_not": "A partitioned service normally logs reachability failures; currency's stream held no lines of any kind rather than connectivity errors [tr_6684ce4716c9]. Weakly held, since that same emptiness may be a collection gap."
+      },
+      {
+        "root_cause": "An unexamined dependency of currency became slow, and currency blocked on it until callers hit their deadlines.",
+        "service": "currency",
+        "fault_class": "dependency_latency",
+        "remediation_class": "restart",
+        "why_not": "Indistinguishable from a freeze at the frontend, but a waiting currency would still emit spans and logs; it emits neither [tr_6684ce4716c9, tr_eda8554af50c]. Triage's seven unmeasured edges leave this open."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "runbook:class-bad-config / What the change record holds: The variable and a timestamp, and **the new value only** - no change record in this world carries\na prior value, which `world-change-records-have-no-prior-value` sets out.\n\n**What the logs hold is not uniform, and this document had it wrong.** An earlier version said a\nservice po",
+    "v2-fraud-detection-memory-squeeze / What was observed: One alert. `ServiceNoTraffic` on **fraud-detection**, 7m15s after the trouble started. Nothing\nelse fired for the entire incident, and nothing fired after the fix.\n\nThe store was perfect throughout. The frontend, frontend-proxy and the load generator recorded no\nerrors and no cha",
+    "v2-accounting-bad-credential / What was observed: The page was a single alert, `ServiceHighErrorRate` on **accounting**, 3m16s after the trouble\nstarted. Nothing else fired then, and nothing else fired afterwards. Its error ratio had read\nzero before the incident. It rose from about a minute in, climbed, and settled at **exactly"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 24053,
+    "pulled_tokens": 3787,
+    "pull_rate": 0.136,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 434,
+        "content_tokens": 436,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1491,
+        "content_tokens": 1494,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 7281,
+        "content_tokens": 7257,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 6799,
+        "content_tokens": 6801,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 8048,
+        "content_tokens": 8025,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "restart",
+    "action_id": "restart_service",
+    "target": "currency",
+    "rests_on": [
+      "tr_a4f76ff99b8e",
+      "tr_6684ce4716c9",
+      "tr_eda8554af50c"
+    ],
+    "expected_effect": "New checkout traces in Tempo should stop terminating at the uniform ~15.00s ceiling and complete sub-second, with ERROR markers on the load-generator POST and frontend-proxy ingress hops ceasing on new traces. Confirming secondary signal: currency begins emitting lines under {service=\"currency\"} in Loki and samples under traces_span_metrics_calls_total{service_name=\"currency\"}, both currently empty.",
+    "confirm_within_seconds": 300,
+    "if_wrong": "Falsified if checkout traces still hit the same ~15.00s ceiling with all time as self time on a childless frontend POST span five minutes after the recreate. Weakly falsified if checkout recovers but currency stays silent in logs and metrics \u2014 that would mean the silence was the pre-existing telemetry gap, not a freeze, and the real mechanism is unidentified. No direct process-state evidence for currency was ever obtained and the blocking span was inferred, never seen.",
+    "risk": "Destroys the only copy of the frozen process state, so a wrong diagnosis leaves the investigation with less evidence than it started with; restart is irreversible. Currency loses its in-process cache, so a brief post-recreate latency bump is expected and must not be read as the fault returning. If the stall actually lives in the frontend or the caller deadline, this changes nothing and burns an attempt.",
+    "blast_radius": "Currency only, for the recreate duration. Callers checkout and frontend see resets on in-flight requests; since checkout already fails every request at the 15s ceiling, marginal harm is near zero. Other alerted services in the same checkout flow see no new breakage."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Seven services alerting simultaneously at critical severity with no open incident to attribute it to cannot be dismissed. The simultaneity suggests a shared trigger (flagd flag change or a common dependency), but there is no evidence yet to pick a class."
+  }
+}

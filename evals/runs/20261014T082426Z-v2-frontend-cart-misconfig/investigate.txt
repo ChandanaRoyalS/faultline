@@ -1,0 +1,65 @@
+incident b9bc5a39-eda5-4125-b6e6-d66f6788b006  state triaging  anchor 08:27:46
+triage: 13 services, severity critical, start from frontend, 13 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: ed2e747a-a804-4926-851d-c11da3f70a50
+triage judged: investigate (medium confidence, suspects unknown)
+  Critical multi-service failure spanning frontend, proxy, and checkout with user-visible impact; nothing here can be dismissed. Fault class is not implied by the alert pattern alone, so downstream dependency checks of checkout/frontend should decide it.
+investigation: 2 round(s), 7 dispatch(es), 20 step(s)
+
+=== PROPOSAL ===
+  action      : revert_config (config_revert)
+  target      : frontend
+  expect      : Restoring frontend's prior environment (CART_ADDR absent, as it stood after the 04:43:01 revert) and recreating the container should stop the repeating gRPC status 14 UNAVAILABLE / connection refused lines against 172.18.0.24:7071 in {service="frontend"} logs — the last such line should be within seconds of the recreate. Frontend's error-ratio series (sum rate STATUS_CODE_ERROR / sum rate calls, 5m window) should fall from its ~0.19-0.27 excursion back under the ~0.12 detection threshold and toward the baseline mean of ~0.029 within roughly two rate-windows. In traces, /api/cart GetCart and AddItem client spans should regain matching cart server-side spans and lose their error status; frontend-proxy, checkout and load-generator error ratios should follow frontend down, since trace evidence shows their errors are inherited from frontend's cart branch. Cart's own error ratio should stay flat at zero throughout — it never moved.
+  within      : 420s
+  risk        : If CART_ADDR=cart:7071 was in fact correct and the refusal has another cause (cart bound elsewhere, a network-level block), this removes the only explicit cart endpoint from frontend and leaves it on a compiled-in default that may be equally wrong or absent — frontend could fail to start or break cart paths in a new way, and we would have spent a restart without learning anything. Cart's actual listening port was never directly observed, so the premise that 7071 is wrong is inferred, not confirmed. The recreate itself discards frontend's in-process cache and resets its gRPC channels, which is cheap here but not free. There is also a real chance platform-automation re-applies the bad value minutes later, producing a second identical outage; this action does not address the automation loop, which is outside what this system may do and needs a human to stop the actor.
+  blast radius: One service is changed, frontend, but its callers feel the recreate: frontend-proxy, and through it load-generator, will see connections reset and a brief burst of 5xx/connection errors for the few seconds frontend is down (it reported Ready in ~209ms previously, so expect a short interruption). checkout calls frontend's upstream path and may see the same blip. cart is the service the reverted value points at: it should begin receiving GetCart/AddItem traffic from frontend again, raising its request rate from its current frontend-free level — it was already serving other callers at zero errors, so this is added load, not new risk. ad, product-catalog, product-reviews, recommendation, currency, email, payment and shipping are untouched except for the same momentary gap in any in-flight frontend request.
+  if wrong    : Falsified if, more than ~60s after the recreate, frontend still logs connection-refused to a cart endpoint: (a) still to :7071 — the revert did not take, or platform-automation re-applied the value a third time (unexplained in this investigation, and the single largest reason this fix may not hold); (b) to a different address/port — then the pre-change default is also wrong and cart's real listening port must be read from its deployment/service spec, which was never pulled; cart's own logs cannot settle it [tr_81299862b448]. Also falsified if frontend's error ratio stays above ~0.12 after two 5m rate windows while cart client spans now succeed — that would mean a second, unmeasured failure mode on frontend (no latency, CPU, memory or connection-pool data was returned [tr_caa1c51c6bda]). A weaker warning sign: frontend fails to reach Ready after recreate, meaning the prior config is incomplete rather than merely different.
+  rests on    : tr_8b2c437c958a, tr_ffd09da66365, tr_36d896dacae9, tr_caa1c51c6bda
+  execution   : not executed - a proposal is a claim, never the change (ADR-0028 §1)
+
+context: 27087 pushed / 7303 pulled (pull rate 0.2124), 1 section(s) dropped
+
+=== VERDICT ===
+  fault class : bad_config
+  fix class   : config_revert
+  confidence  : high
+  evidence    : tr_8b2c437c958a, tr_ffd09da66365, tr_36d896dacae9, tr_caa1c51c6bda, tr_170c77c4641d, tr_81299862b448, tr_2a12a40350e5
+  root cause  : frontend's CART_ADDR environment variable was re-applied by platform-automation at 08:24:32 pointing at cart:7071, a port nothing is listening on. frontend restarted a second later [tr_ffd09da66365], picked up the wrong endpoint, and every outbound gRPC call to CartService began failing immediately with status 14 UNAVAILABLE / connection refused against the resolved address 172.18.0.24:7071. The wrongness of the value is the failure: cart itself is healthy and serving, so only the frontend code paths that dial the misconfigured endpoint (/api/cart GetCart and AddItem) break, and the errors propagate outward to frontend-proxy, checkout and the load generator, which is why those services alerted after frontend.
+  OPEN        : Cart's actual listening port was never directly observed — its logs contain no bind or listener lines [tr_81299862b448] and no deployment/service spec was pulled. The 7071-is-wrong conclusion is inferred from the refusal on the frontend side plus cart's continued healthy service to other callers, not confirmed from cart's config.
+  OPEN        : Why platform-automation re-applied a value that had already been reverted twice is unexplained; without that, a revert may simply be re-applied again.
+  OPEN        : Both log results were truncated (frontend 8 oldest / 32 newest, cart roughly 07:57-08:28 unobserved), so the interval between the 08:24:33 restart and the 08:27:46 change point is not directly characterised on either side.
+  OPEN        : No frontend latency percentiles, CPU, memory or connection-pool data were returned [tr_caa1c51c6bda], so a concurrent resource issue on frontend is unmeasured, though nothing in logs or traces suggests one.
+  OPEN        : The gap between the 08:24:33 restart with immediate errors and the 08:27:46 metric change point (~3 minutes) is not fully explained — likely rate-window smoothing or cached channel state [tr_ffd09da66365], but not demonstrated.
+  OPEN        : checkout also calls cart; whether checkout uses a separate, correct endpoint (which would explain cart's continued zero-error traffic) was not investigated — no dispatch touched checkout.
+
+flags: none
+
+retrieval: exclude_origins=['scenario:v2-frontend-cart-misconfig'], 0 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20261014T082426Z-v2-frontend-cart-misconfig/b9bc5a39-eda5-4125-b6e6-d66f6788b006-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20261014T082426Z-v2-frontend-cart-misconfig/b9bc5a39-eda5-4125-b6e6-d66f6788b006-narrative.md
+{"ts": "2026-10-14T08:29:46.737+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T08:30:01.794+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T08:30:01.818+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=frontend start=2026-10-13T08:27:46.664000+00:00 end=2026-10-14T08:29:46.752371+00:00 span_s=86520 refused=False", "component": "investigator"}
+{"ts": "2026-10-14T08:30:01.818+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=metric_baseline subject=sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"frontend\",status_code=\"STATUS_CODE_ERROR\"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"frontend\"}[5m])) start=2026-10-14T07:25:46.575629+00:00 end=2026-10-14T08:29:46.752371+00:00 span_s=3840 refused=False", "component": "investigator"}
+{"ts": "2026-10-14T08:30:01.819+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=trace_query subject=frontend start=2026-10-14T07:57:46.664000+00:00 end=2026-10-14T08:29:46.752371+00:00 span_s=1920 refused=False", "component": "investigator"}
+{"ts": "2026-10-14T08:30:01.822+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=logql_query subject={service=\"frontend\"} start=2026-10-14T07:57:46.664000+00:00 end=2026-10-14T08:29:46.752371+00:00 span_s=1920 refused=False", "component": "investigator"}
+{"ts": "2026-10-14T08:30:16.335+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T08:30:18.605+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T08:30:20.376+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T08:30:22.060+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T08:30:36.409+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T08:30:36.417+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=metric_baseline subject=sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"cart\",status_code=\"STATUS_CODE_ERROR\"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"cart\"}[5m])) start=2026-10-14T07:25:46.575629+00:00 end=2026-10-14T08:29:46.752371+00:00 span_s=3840 refused=False", "component": "investigator"}
+{"ts": "2026-10-14T08:30:36.418+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=logql_query subject={service=\"cart\"} start=2026-10-14T07:57:46.664000+00:00 end=2026-10-14T08:29:46.752371+00:00 span_s=1920 refused=False", "component": "investigator"}
+{"ts": "2026-10-14T08:30:36.420+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=cart start=2026-10-13T08:27:46.664000+00:00 end=2026-10-14T08:29:46.752371+00:00 span_s=86520 refused=False", "component": "investigator"}
+{"ts": "2026-10-14T08:30:48.317+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T08:30:49.289+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T08:30:55.137+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T08:31:28.334+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T08:32:08.358+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T08:32:30.782+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T08:32:55.769+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T08:32:55.808+00:00", "level": "INFO", "logger": "faultline.notify", "msg": "no report-ready notification was sent: no notifier was configured", "component": "investigator"}
+{"ts": "2026-10-14T08:32:55.808+00:00", "level": "INFO", "logger": "faultline.notify", "msg": "no awaiting-approval notification was sent: no notifier was configured", "component": "investigator"}

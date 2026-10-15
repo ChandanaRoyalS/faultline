@@ -1,0 +1,170 @@
+{
+  "incident_id": "09819dd5-9568-48d9-b72d-df7ed57de8a6",
+  "trajectory_id": "73953853-4be2-4f84-b047-433bf55d8279",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "accounting",
+    "checkout",
+    "currency",
+    "email",
+    "flagd",
+    "fraud-detection",
+    "frontend",
+    "payment",
+    "quote",
+    "shipping"
+  ],
+  "unmeasured_edges": 7,
+  "exclude_origins": [
+    "scenario:v2-currency-freeze"
+  ],
+  "verdict": {
+    "root_cause": "Triage places the origin at currency, and currency is the only examined service that produced nothing at all: an unfiltered Loki query over the onset window returned zero lines of any level [tr_300a9266f8bb], with no recorded change of any kind in the preceding day [tr_1837bdd6f4d8]. flagd is unremarkable \u2014 error ratio ~0.33% vs ~0.22% baseline with no sustained departure [tr_9bc4026a5a66], no error lines [tr_b5227c17ac05], no changes [tr_f6931df3ac13][tr_8519d63075e0] \u2014 so neither a flagd fault nor a flag edit propagating through it is supported. Six caller services alerting at the same instant while the suspected culprit emits no failure narrative of its own, not even a complaint about being unable to reach anything, best fits a wedged currency process whose socket still accepts, leaving callers to hang to their deadlines. This is an inference from silence: currency's span-metric series is absent in the baseline window too [tr_7928919563fa], so part of the silence predates the incident.",
+    "service": "currency",
+    "fault_class": "process_freeze",
+    "remediation_class": "restart",
+    "confidence": "low",
+    "evidence": [
+      "tr_300a9266f8bb",
+      "tr_1837bdd6f4d8",
+      "tr_9bc4026a5a66",
+      "tr_b5227c17ac05",
+      "tr_7928919563fa"
+    ],
+    "reasoning": "The six other alerting services are consumers that would all tip over together if currency stopped responding; nothing explains their symptoms following from flagd, which shows no distress [tr_9bc4026a5a66][tr_b5227c17ac05]. Among the hang-the-caller classes the discriminator is the culprit's own output \u2014 a partitioned service logs that it cannot reach anything, a full disk says no space left, a misconfiguration names a wrong address. Currency said nothing at all [tr_300a9266f8bb], and 'healthy but quiet' was rejected because a serving instance still emits request or lifecycle lines. With an empty change log [tr_1837bdd6f4d8] there is nothing to roll back, so restart is the fix. The empty span-metric series [tr_7928919563fa] is not used as onset evidence since its absence is symmetric across both windows.",
+    "open_questions": [
+      "Currency's logs are empty for the full window including 30 minutes pre-onset, so the store may never have carried currency lines \u2014 voiding the 'went silent' inference without a pre-incident baseline query.",
+      "No caller-side latency or trace data was collected, so whether callers hang to deadline or fail fast is unverified.",
+      "No pod lifecycle, restart-count or OOM data for currency, and only 2 of 10 affected services were examined."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "currency is running but cut off from the network; callers hang identically while its logs never reach the collector.",
+        "service": "currency",
+        "fault_class": "network_partition",
+        "remediation_class": "reconnect",
+        "why_not": "A partitioned-but-running service normally writes connectivity errors locally; the total absence of any line fits a stopped process better, though a broken log pipeline would hide either."
+      },
+      {
+        "root_cause": "currency is up but its log and metric pipeline is simply not collected under this name, and the real fault lies in an unexamined shared dependency beneath the seven alerting services.",
+        "service": "unknown",
+        "fault_class": "unknown",
+        "remediation_class": "none",
+        "why_not": "Rename and instrumentation changes were explicitly ruled out for currency [tr_1837bdd6f4d8], and triage independently points at currency as the origin."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "runbook:class-bad-config / What the change record holds: The variable and a timestamp, and **the new value only** - no change record in this world carries\na prior value, which `world-change-records-have-no-prior-value` sets out.\n\n**What the logs hold is not uniform, and this document had it wrong.** An earlier version said a\nservice po",
+    "v2-frontend-cart-misconfig / What was checked: **The error text, because it was the first thing a responder would read.** Checkout's error spans\nand the frontend's log said `shipping quote failure: failed POST to email service: expected 200,\ngot 400`. That names two services, and neither was at fault. It is checkout's own wor",
+    "v2-fraud-detection-memory-squeeze / What was observed: One alert. `ServiceNoTraffic` on **fraud-detection**, 7m15s after the trouble started. Nothing\nelse fired for the entire incident, and nothing fired after the fix.\n\nThe store was perfect throughout. The frontend, frontend-proxy and the load generator recorded no\nerrors and no cha"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 21736,
+    "pulled_tokens": 1287,
+    "pull_rate": 0.0559,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 433,
+        "content_tokens": 435,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1295,
+        "content_tokens": 1298,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 6839,
+        "content_tokens": 6815,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 6008,
+        "content_tokens": 6011,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 7161,
+        "content_tokens": 7138,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_300a9266f8bb",
+      "tr_7928919563fa",
+      "tr_1837bdd6f4d8"
+    ],
+    "expected_effect": "No action is proposed, so no change in any metric or log stream should be observed. What should happen instead is collection of three missing signals before any action: (1) an unfiltered Loki query for {service=\"currency\"} over a window hours or days before onset, to establish whether currency lines were ever present in the store \u2014 the current result [tr_300a9266f8bb] cannot distinguish a wedged process from a service that never shipped logs under this label; (2) container/pod lifecycle and restart-count data for currency, which no evidence in this brief covers; (3) caller-side latency percentiles or trace spans from at least two of the six alerting callers (e.g. checkout, payment), to test whether they hang to deadline against currency or fail fast against something else.",
+    "confirm_within_seconds": 0,
+    "if_wrong": "This abstention is wrong if the follow-up queries show currency logs present in a pre-incident baseline window and ceasing at or near 05:25:46, or caller traces showing requests to currency timing out at their deadlines while other dependencies respond normally. Either of those turns the inference-from-silence into a positive observation and makes restart_service the right call. It is also wrong if the incident is actively costing revenue and no further evidence can be gathered in time \u2014 in that case the cost of waiting exceeds the cost of a cache-only container recreate, and a human should override this abstention.",
+    "risk": "The risk of abstaining is prolonged outage across ten services while evidence is gathered. The risk of the action I am declining to propose, restart_service on currency, is this: the restart is irreversible in-flight and discards cache, and if the real mechanism is a telemetry/label problem (currency's span-metric series is absent in the baseline window too [tr_7928919563fa], which points at missing instrumentation or a service_name mismatch rather than at process state), the restart changes nothing observable, destroys the wedged process state that would have diagnosed it, and burns the one restart a responder gets before escalating. The restart_service precondition requires evidence pointing at process state; the only such evidence here is absence of logs, and that absence is shown to predate the incident, so the precondition is not met.",
+    "blast_radius": "Abstaining leaves the current blast radius unchanged: the six alerting seeds (accounting, currency, email, fraud-detection, payment, quote, shipping) plus checkout reached from shipping and frontend reached from checkout continue to see whatever they are seeing now. Had restart_service been proposed on currency, its callers \u2014 payment, checkout, quote, shipping and through them frontend \u2014 would have seen connection resets for the duration of the container recreate.",
+    "confirm_within_seconds_note": null
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Seven services alerting simultaneously at critical severity is a broad, synchronized failure that cannot be dismissed. The common flagd dependency hints at a flag/config change, but with no open incidents and no evidence yet, the fault class is genuinely unknown."
+  }
+}

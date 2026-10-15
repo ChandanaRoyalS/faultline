@@ -1,0 +1,170 @@
+{
+  "incident_id": "bcdace5f-c5b7-4551-9a0d-3da270c00bb0",
+  "trajectory_id": "9534ad00-5439-4b5c-8aaf-e35c666ad384",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "ad",
+    "cart",
+    "checkout",
+    "frontend",
+    "frontend-proxy",
+    "load-generator",
+    "product-catalog",
+    "product-reviews",
+    "recommendation"
+  ],
+  "unmeasured_edges": 7,
+  "exclude_origins": [
+    "scenario:v2-product-catalog-freeze"
+  ],
+  "verdict": {
+    "root_cause": "The failing flow is confined to user_get_ads: frontend-proxy ingress -> frontend /api/data -> frontend's gRPC call to ad (AdService/GetAds). Frontend-proxy abandons at its ~15s cutoff while frontend's GetAds client span stays outstanding ~667s; the ad server span and getAdsByCategory, once they finally run, take single-digit milliseconds and start hundreds of seconds after the client opened the call. Time is spent before ad begins handling, not inside the handler - consistent with the ad process being stalled/suspended while its socket still accepts, then catching up instantly. All other routes through the same proxy and frontend (cart/Redis, product-catalog/SQL, recommendation fan-out) complete in milliseconds in the same window, including a second healthy proxy->frontend pair inside the failing trace. Ad's own log shows only routine INFO request lines with no errors, no saturation or rejection messages, and no restart banner, and its metrics show intervals with no traffic at all - a silent service that is up but not progressing. No change record exists for frontend-proxy or ad, though those queries only covered the period from onset forward.",
+    "service": "ad",
+    "fault_class": "process_freeze",
+    "remediation_class": "restart",
+    "confidence": "medium",
+    "evidence": [
+      "tr_6027eb63aade",
+      "tr_f7ded29ec077",
+      "tr_754f439f95c5",
+      "tr_0bbeab3dc343",
+      "tr_6db6c50998d3",
+      "tr_15b567b08176"
+    ],
+    "reasoning": "Traces [tr_6027eb63aade] localize the failure to a single hop - frontend's GetAds call to ad - with virtually all elapsed time as caller self-time and ad's server work taking milliseconds once it starts hundreds of seconds late; the same traces show proxy, frontend, cart, product-catalog and recommendation healthy concurrently, which rules out the proxy and the frontend as the mechanism. Metrics [tr_f7ded29ec077] confirm a sharp step at 22:25:31 affecting a minority of calls, matching one stalled route rather than whole-service failure. Ad's log [tr_754f439f95c5] contains no error, exception, pool-exhaustion or restart output - the service is not complaining about anything, which separates this from network_partition (where the service logs unreachable dependencies) and from resource_exhaustion or disk_fill (which announce themselves). Ad metrics [tr_0bbeab3dc343] show intervals with no defined ratio, i.e. stretches with zero served traffic, consistent with the process not progressing. Empty change logs for ad [tr_6db6c50998d3] and frontend-proxy [tr_15b567b08176] remove deploy/config/flag acts as recorded triggers, though both windows ran forward from onset rather than backward.",
+    "open_questions": [
+      "No change window before 22:27 was actually searched for either service, so a pre-incident deploy, config edit or flag flip remains unexamined.",
+      "No ad-side CPU, heap, GC, thread-pool or in-flight metrics were retrieved, so resource or concurrency saturation is neither confirmed nor excluded.",
+      "Ad's log was truncated between ~22:27 and ~04:25, and the log window does not overlap the 22:25 onset on 10-13, so ad's own output at the moment of the stall is unobserved."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "Ad exhausted a thread/connection pool or hit long GC pauses, queueing GetAds calls for minutes before admitting them.",
+        "service": "ad",
+        "fault_class": "resource_exhaustion",
+        "remediation_class": "restart",
+        "why_not": "No saturation, rejection or GC output appears in ad's log and the frontend-proxy error ratio stepped discretely rather than drifting; but no ad resource metrics were ever queried, so this stays close behind."
+      },
+      {
+        "root_cause": "Ad lost network reachability to the mesh, so calls hung at the connection level until connectivity returned.",
+        "service": "ad",
+        "fault_class": "network_partition",
+        "remediation_class": "reconnect",
+        "why_not": "A partitioned service normally logs that it cannot reach its dependencies, and ad's log contains only routine INFO lines; the ad server spans also do eventually appear in the failing trace."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "v2-cart-flag-failure / What was observed: The page was one alert, `ServiceHighErrorRate` on **checkout**, 5m16s after the trouble started.\nNothing else fired, then or later, and nothing fired after the fix.\n\nCheckout's error ratio had been zero. It rose from about a minute in and held at 7.1-7.4%. Its\nlatency rose too, f",
+    "v2-frontend-cart-misconfig / What was checked: **The error text, because it was the first thing a responder would read.** Checkout's error spans\nand the frontend's log said `shipping quote failure: failed POST to email service: expected 200,\ngot 400`. That names two services, and neither was at fault. It is checkout's own wor",
+    "v2-product-catalog-partition / What was checked: **The proxy and the load generator, because they paged.** Their error traces - 300 drawn, none\nunder fourteen seconds - were all the same shape: a request cut at the proxy's fifteen-second\nroute timeout. 143 product pages, 88 add-to-carts, 43 recommendation calls, 26 checkouts. U"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 30047,
+    "pulled_tokens": 6359,
+    "pull_rate": 0.1747,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 442,
+        "content_tokens": 444,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1530,
+        "content_tokens": 1533,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 12786,
+        "content_tokens": 12762,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 6977,
+        "content_tokens": 6979,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 8312,
+        "content_tokens": 8289,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "restart",
+    "action_id": "restart_service",
+    "target": "ad",
+    "rests_on": [
+      "tr_6027eb63aade",
+      "tr_6db6c50998d3",
+      "tr_754f439f95c5",
+      "tr_0bbeab3dc343"
+    ],
+    "expected_effect": "Recreating ad's container should clear the stalled process state. Observable: (1) frontend's grpc.oteldemo.AdService/GetAds client spans in Tempo return to single-digit-millisecond durations with no spans outstanding beyond the ~15s proxy cutoff; (2) frontend-proxy error ratio (the metric in tr_f7ded29ec077's query shape) falls from its ~4% incident mean back toward the <0.001% baseline, with no further ERROR ingress spans on /api/data; (3) the ad error-ratio series stops producing undefined/no-traffic intervals and reports continuous traffic; (4) ad's log emits a startup banner (absent for the whole prior window per tr_754f439f95c5), confirming the recreate actually happened, followed by the same routine INFO request lines.",
+    "confirm_within_seconds": 300,
+    "if_wrong": "Falsified if, after ad logs its startup banner, frontend's GetAds client spans still sit outstanding for hundreds of seconds and frontend-proxy /api/data ingress spans keep terminating in ERROR at ~15s. That would mean the stall is not in ad's process state \u2014 candidates then are an external suspension of the container (host/cgroup level, which a recreate may re-trigger), or a pre-22:25 change never searched (tr_15b567b08176 and tr_6db6c50998d3 both only cover onset-forward). A second falsification signal: recovery that lasts only minutes before the freeze returns, which would indicate a leak or saturation \u2014 note ad-side CPU/heap/GC/thread-pool metrics were never retrieved (tr_0bbeab3dc343), so that mechanism is neither confirmed nor excluded and this restart would only be masking it.",
+    "risk": "The restart is irreversible and destroys the frozen process \u2014 if the diagnosis is wrong, the single best forensic artifact (thread dump, heap state, in-flight gRPC queue of the stalled ad process) is gone and the next investigation starts blind. During the recreate, frontend's GetAds calls fail outright with connection errors rather than hanging, so /api/data converts from slow to hard-failing for the recreate duration; if ad's startup is slow this window is longer than the proxy's 15s cutoff and user_get_ads error ratio spikes above its current ~27% peak before it recovers. Ad's in-process ad cache is discarded, so the first requests after recreate run cold. If the true cause is a pre-incident config or flag flip (unexamined), the restart reloads that same bad config and the freeze returns.",
+    "blast_radius": "One service, ad, for the duration of the container recreate. The only inbound caller named in the graph is frontend (via its /api/data route), so the visible fallout is frontend's GetAds calls, frontend-proxy's ingress on that route, and load-generator's user_get_ads flow \u2014 which are already failing. Routes that do not touch ad (cart/Redis, product-catalog/SQL, recommendation fan-out, checkout, product-reviews) are unaffected and were measured healthy in the same window (tr_6027eb63aade)."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Critical alerts across frontend-proxy and frontend with load-generator confirming user-facing impact; this is not a single quiet warning and no open incident covers it. The actual cause lies among the unmeasured downstream dependencies, so no fault class is indicated yet."
+  }
+}

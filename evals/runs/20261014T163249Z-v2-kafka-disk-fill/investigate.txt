@@ -1,0 +1,63 @@
+incident 6244c719-7170-40dc-866c-57b07945e891  state triaging  anchor 16:39:31
+triage: 12 services, severity critical, start from checkout, 9 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: e33aff49-5ea4-4e33-a50c-4a469ad93b9b
+triage judged: investigate (low confidence, suspects unknown)
+  Three critical seeds across checkout, fraud-detection and accounting within a minute is not dismissible, and no open incident could absorb it. The shared flagd/checkout dependencies hint at a common upstream but nothing in the alerts picks a class yet.
+investigation: 2 round(s), 9 dispatch(es), 24 step(s)
+
+=== PROPOSAL ===
+  ABSTAINED - no permitted action fits the evidence
+  if wrong    : This abstention is wrong if a probe shows the stall is not a network/name-resolution condition at all but stale in-process client state in checkout — for example, a DNS lookup for the broker from inside checkout's container succeeds while the publish span still stalls, or the publish stall is shown to be purely the open circuit breaker. The trace evidence argues against that: two of four sampled traces show the broker DNS lookup failing directly, and the hypothesis that an open breaker alone explains it is explicitly ruled out [tr_a7792b67a8a9]. It is also wrong if a backward-looking change query on checkout turns up a pre-onset edit to the broker address or service-discovery config; the queried window ran forward from onset, so that is only weakly excluded [tr_9cc91cf8f546], and such a finding would make revert_config a legitimate proposal.
+  rests on    : tr_a7792b67a8a9, tr_7eb4d69974a1, tr_9a2f0f81048d, tr_9cc91cf8f546
+  execution   : not executed - a proposal is a claim, never the change (ADR-0028 §1)
+
+context: 26994 pushed / 5311 pulled (pull rate 0.1644), 1 section(s) dropped
+
+=== VERDICT ===
+  fault class : network_partition
+  fix class   : reconnect
+  confidence  : medium
+  evidence    : tr_a7792b67a8a9, tr_7eb4d69974a1, tr_9a2f0f81048d
+  root cause  : Checkout's PlaceOrder stalls entirely in its Kafka order-publish span, which holds ~52-58s of self time while every other child span (cart, product-catalog, payment, currency, quote, shipping, flagd, Redis, SQL) completes in single-digit milliseconds [tr_a7792b67a8a9]. Two sampled traces show the originating detail directly: the Kafka broker hostname cannot be resolved by the container DNS resolver; the other two show the client circuit breaker already open, a secondary effect of repeated failed broker connections [tr_a7792b67a8a9]. Checkout is running and instrumented but cut off from its broker endpoint, hanging past the ~15s proxy timeout that produces the user-visible failure. No deployment, config edit or flag flip is recorded for checkout, kafka or flagd across the queried day [tr_7eb4d69974a1, tr_9a2f0f81048d, tr_f186c8d3cec9], so this is a loss of connectivity/name resolution rather than a changed artifact or value.
+  OPEN        : Whether the DNS failure is environment-wide or specific to checkout's pod/resolver was never tested — no DNS or broker-reachability probe was run from any other service.
+  OPEN        : Kafka's own health is unestablished: its span metrics are empty in both incident and baseline windows, an instrumentation gap, and no kafka logs were queried [tr_559e3f7f3b5a].
+  OPEN        : Checkout emits no log lines at all over the window [tr_9e3005727fba], so the service's own account of the failure is missing; whether that is a logging-pipeline gap or genuine silence is unresolved.
+  OPEN        : The checkout change-log window was queried forward from onset rather than backward [tr_9cc91cf8f546], so a pre-incident change to broker address or service discovery is only weakly excluded.
+
+flags: none
+
+retrieval: exclude_origins=['scenario:v2-kafka-disk-fill'], 0 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20261014T163249Z-v2-kafka-disk-fill/6244c719-7170-40dc-866c-57b07945e891-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20261014T163249Z-v2-kafka-disk-fill/6244c719-7170-40dc-866c-57b07945e891-narrative.md
+{"ts": "2026-10-14T16:41:29.229+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T16:41:48.552+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T16:41:56.145+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T16:41:56.158+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=metric_baseline subject=sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"checkout\",status_code=\"STATUS_CODE_ERROR\"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"checkout\"}[5m])) start=2026-10-14T15:37:34.078705+00:00 end=2026-10-14T16:41:29.249295+00:00 span_s=3835 refused=False", "component": "investigator"}
+{"ts": "2026-10-14T16:41:56.160+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=checkout start=2026-10-13T16:39:31.664000+00:00 end=2026-10-14T16:41:29.249295+00:00 span_s=86517 refused=False", "component": "investigator"}
+{"ts": "2026-10-14T16:41:56.163+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=trace_query subject=checkout start=2026-10-14T16:09:31.664000+00:00 end=2026-10-14T16:41:29.249295+00:00 span_s=1917 refused=False", "component": "investigator"}
+{"ts": "2026-10-14T16:41:56.166+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=flagd start=2026-10-13T16:39:31.664000+00:00 end=2026-10-14T16:41:29.249295+00:00 span_s=86517 refused=False", "component": "investigator"}
+{"ts": "2026-10-14T16:41:56.167+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=logql_query subject={service=\"checkout\"} start=2026-10-14T16:09:31.664000+00:00 end=2026-10-14T16:41:29.249295+00:00 span_s=1917 refused=False", "component": "investigator"}
+{"ts": "2026-10-14T16:42:05.051+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T16:42:07.026+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T16:42:09.024+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T16:42:10.726+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T16:42:16.366+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T16:42:36.622+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T16:42:36.655+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=kafka start=2026-10-13T16:39:31.664000+00:00 end=2026-10-14T16:41:29.249295+00:00 span_s=86517 refused=False", "component": "investigator"}
+{"ts": "2026-10-14T16:42:36.657+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=metric_baseline subject=sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"kafka\",status_code=\"STATUS_CODE_ERROR\"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"kafka\"}[5m])) start=2026-10-14T15:37:34.078705+00:00 end=2026-10-14T16:41:29.249295+00:00 span_s=3835 refused=False", "component": "investigator"}
+{"ts": "2026-10-14T16:42:36.658+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=checkout start=2026-10-13T16:39:31.664000+00:00 end=2026-10-14T16:41:29.249295+00:00 span_s=86517 refused=False", "component": "investigator"}
+{"ts": "2026-10-14T16:42:36.659+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=logql_query subject={service=\"fraud-detection\"} |= \"kafka\" start=2026-10-14T16:09:31.664000+00:00 end=2026-10-14T16:41:29.249295+00:00 span_s=1917 refused=False", "component": "investigator"}
+{"ts": "2026-10-14T16:42:47.039+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T16:42:48.340+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T16:42:49.062+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T16:42:50.379+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T16:43:33.877+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T16:43:52.454+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T16:44:29.250+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T16:44:48.322+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T16:44:48.357+00:00", "level": "INFO", "logger": "faultline.notify", "msg": "no report-ready notification was sent: no notifier was configured", "component": "investigator"}
+{"ts": "2026-10-14T16:44:48.357+00:00", "level": "INFO", "logger": "faultline.notify", "msg": "no awaiting-approval notification was sent: no notifier was configured", "component": "investigator"}

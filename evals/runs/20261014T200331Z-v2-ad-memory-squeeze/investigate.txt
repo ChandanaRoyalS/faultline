@@ -1,0 +1,62 @@
+incident 11d83d20-2523-4099-bf60-f835a1bba8c8  state triaging  anchor 20:08:31
+triage: 8 services, severity critical, start from frontend, 7 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 95a2d139-dfbd-4b82-a5b5-b586637f52ab
+triage judged: investigate (medium confidence, suspects unknown)
+  Critical alerts on frontend and its proxy firing simultaneously affect all user traffic and cannot be dismissed. The simultaneity could mean a shared upstream dependency or a frontend-tier change, but nothing in the alerts picks one.
+investigation: 2 round(s), 7 dispatch(es), 20 step(s)
+
+=== PROPOSAL ===
+  action      : revert_config (config_revert)
+  target      : ad
+  expect      : Restoring ad's previous resource configuration (removing the 144m memory limit applied at 20:03:36 and never reverted) and recreating the container should let ad start and hold its listener. Observable within a few minutes: (1) frontend's Loki stream stops emitting the repeating `14 UNAVAILABLE ... 172.18.0.19:9555` lines — a selector {service="frontend"} should show zero new occurrences after the recreate completes; (2) frontend's error ratio (same query as tr_b77156c528e1) falls from its ~1.3% window mean / ~6.5-8.5% post-20:06 level back toward the ~0.21% baseline; (3) ad span volume returns, so the ad error-ratio series stops producing undefined (empty-denominator) intervals.
+  within      : 300s
+  risk        : If the diagnosis is wrong this costs an unnecessary container recreate of ad: in-flight ad requests are dropped and frontend sees connection resets on the ad hop for the duration, briefly adding to the very error ratio we are trying to lower. It also removes a memory cap that automation applied deliberately; if ad genuinely leaks, an unconstrained ad could instead consume host memory and pressure co-located services. Recreating the container may also change ad's IP, which would invalidate the one piece of evidence tying 172.18.0.19 to this incident and make the remaining open question harder to close. If the real fault is network-level (the host-unreachable phase), this action consumes time and changes nothing, and the correct fix — reconnecting ad to the network — is listed as UNAVAILABLE in this system.
+  blast radius: One service, ad. Its only named caller in this incident's graph is frontend, which reaches ad directly; frontend-proxy and end users see whatever frontend surfaces (the ads panel). The other candidate services — cart, checkout, product-catalog, product-reviews, recommendation — do not call ad and should see nothing. No dependency address is being changed, so no traffic moves to a different upstream. The ~119ms product-reviews hop seen in traces is unaddressed by this action and will remain.
+  if wrong    : Frontend keeps logging the identical status-14 error against 172.18.0.19:9555 (or against ad's new address) more than ~5 minutes after the recreate, and its error ratio stays at the post-20:06 level. That would mean either the endpoint is not ad — the port-9555-to-ad mapping is inferred, no dispatch ever resolved that IP — or the mechanism is not the memory cap. The shift from ECONNREFUSED to host-unreachable is the specific thing to watch: host-unreachable is more consistent with ad being detached from the network than with an OOM-killed container, and reverting the memory limit would not fix that. Note also that no ad-side memory, restart-count or OOM evidence was ever returned, so the OOM-kill is inferred, not observed; if restart counts were available and show no restarts around 20:04, this proposal is wrong. Finally, platform-automation has lowered this limit five times before and reverted each time on its own — if the automation re-applies 144m after our revert, the fix will be transient and the errors will return, which is itself a falsification of 'config revert resolves this'.
+  rests on    : tr_a4916a992357, tr_84e6458f42a0, tr_b77156c528e1
+  execution   : not executed - a proposal is a claim, never the change (ADR-0028 §1)
+
+context: 29743 pushed / 8925 pulled (pull rate 0.2308), 1 section(s) dropped
+
+=== VERDICT ===
+  fault class : resource_exhaustion
+  fix class   : config_revert
+  confidence  : medium
+  evidence    : tr_84e6458f42a0, tr_a4916a992357, tr_b77156c528e1, tr_3c9c9375c6f7, tr_33b9c207eb88
+  root cause  : Frontend is the service that noticed, not the one at fault. Its only error output is a repeating gRPC status 14 UNAVAILABLE against one single upstream endpoint, 172.18.0.19:9555 — the ad service's gRPC port — first connection-refused and later host-unreachable [tr_84e6458f42a0]. Four minutes before onset, platform-automation lowered the ad service's memory limit to 144m and, unlike the five earlier lower/restore cycles, never reverted it, so the constrained limit was in force when frontend errors began at 20:06:31 [tr_a4916a992357, tr_b77156c528e1]. A caller seeing a listener stop accepting and then the address vanish entirely, with no timeouts and no slow responses, is what an ad container being OOM-killed under a too-small memory cap looks like from outside. The failing mechanism is ad exhausting its freshly reduced memory allowance and being terminated.
+  OPEN        : No dispatch resolved 172.18.0.19:9555 to a service; the mapping to ad is inferred from port convention.
+  OPEN        : No ad-side evidence covers the incident window — the OOM-kill, exit code and restart at ~20:04 are inferred, and no memory-usage or restart-count series for ad was ever returned.
+  OPEN        : Six services in the blast radius were never dispatched on, and the ~119ms product-reviews hop seen in traces remains unexplained.
+
+flags: none
+
+retrieval: exclude_origins=['scenario:v2-ad-memory-squeeze'], 0 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20261014T200331Z-v2-ad-memory-squeeze/11d83d20-2523-4099-bf60-f835a1bba8c8-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20261014T200331Z-v2-ad-memory-squeeze/11d83d20-2523-4099-bf60-f835a1bba8c8-narrative.md
+{"ts": "2026-10-14T20:10:31.555+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T20:10:47.983+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T20:10:48.007+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=frontend start=2026-10-13T20:08:31.664000+00:00 end=2026-10-14T20:10:31.574181+00:00 span_s=86519 refused=False", "component": "investigator"}
+{"ts": "2026-10-14T20:10:48.008+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=metric_baseline subject=sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"frontend\",status_code=\"STATUS_CODE_ERROR\"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"frontend\"}[5m])) start=2026-10-14T19:06:31.753819+00:00 end=2026-10-14T20:10:31.574181+00:00 span_s=3839 refused=False", "component": "investigator"}
+{"ts": "2026-10-14T20:10:48.012+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=trace_query subject=frontend start=2026-10-14T19:38:31.664000+00:00 end=2026-10-14T20:10:31.574181+00:00 span_s=1919 refused=False", "component": "investigator"}
+{"ts": "2026-10-14T20:10:48.014+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=logql_query subject={service=\"frontend\"} start=2026-10-14T19:38:31.664000+00:00 end=2026-10-14T20:10:31.574181+00:00 span_s=1919 refused=False", "component": "investigator"}
+{"ts": "2026-10-14T20:11:02.312+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T20:11:03.902+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T20:11:05.106+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T20:11:14.896+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T20:11:29.850+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T20:11:29.865+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=metric_baseline subject=sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"ad\",status_code=\"STATUS_CODE_ERROR\"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"ad\"}[5m])) start=2026-10-13T14:08:31.664000+00:00 end=2026-10-14T02:08:31.664000+00:00 span_s=43200 refused=False", "component": "investigator"}
+{"ts": "2026-10-14T20:11:29.867+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=ad start=2026-10-13T20:08:31.664000+00:00 end=2026-10-14T20:10:31.574181+00:00 span_s=86519 refused=False", "component": "investigator"}
+{"ts": "2026-10-14T20:11:29.869+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=logql_query subject={service=\"ad\"} start=2026-10-13T20:08:31.664000+00:00 end=2026-10-14T02:08:31.664000+00:00 span_s=21600 refused=False", "component": "investigator"}
+{"ts": "2026-10-14T20:11:42.679+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T20:11:46.668+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T20:11:50.720+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T20:12:30.935+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T20:12:47.150+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T20:13:25.345+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T20:13:51.437+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T20:13:51.469+00:00", "level": "INFO", "logger": "faultline.notify", "msg": "no report-ready notification was sent: no notifier was configured", "component": "investigator"}
+{"ts": "2026-10-14T20:13:51.469+00:00", "level": "INFO", "logger": "faultline.notify", "msg": "no awaiting-approval notification was sent: no notifier was configured", "component": "investigator"}

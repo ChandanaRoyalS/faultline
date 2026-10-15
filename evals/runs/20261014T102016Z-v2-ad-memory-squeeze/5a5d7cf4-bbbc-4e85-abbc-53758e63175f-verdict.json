@@ -1,0 +1,168 @@
+{
+  "incident_id": "5a5d7cf4-bbbc-4e85-abbc-53758e63175f",
+  "trajectory_id": "ae2a7574-8267-4323-abae-99f6f5cafebc",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "ad",
+    "cart",
+    "checkout",
+    "frontend",
+    "frontend-proxy",
+    "product-catalog",
+    "product-reviews",
+    "recommendation"
+  ],
+  "unmeasured_edges": 7,
+  "exclude_origins": [
+    "scenario:v2-ad-memory-squeeze"
+  ],
+  "verdict": {
+    "root_cause": "Platform automation lowered ad's memory limit to 144m at 10:20:21, about five minutes before onset, and it was still in effect with no revert recorded [tr_2df4ae913d06]. Under that cap the ad container is killed and restarted, producing twelve no-traffic intervals in the incident window against zero in baseline [tr_8034c08b4603]. During those gaps frontend's outbound GetAds call fails at connect time \u2014 the only error-bearing path across ten traces, a sub-millisecond client leaf with no ad-side server span [tr_0d539ca75829] \u2014 surfacing in frontend logs as gRPC 14 UNAVAILABLE / EHOSTUNREACH to 172.18.0.19:9555 [tr_da6b4d527fda]. Frontend and frontend-proxy alerted only because the error propagates to the edge; frontend's own error ratio is below baseline [tr_8385af5d0deb].",
+    "service": "ad",
+    "fault_class": "resource_exhaustion",
+    "remediation_class": "config_revert",
+    "confidence": "medium",
+    "evidence": [
+      "tr_2df4ae913d06",
+      "tr_8034c08b4603",
+      "tr_0d539ca75829",
+      "tr_da6b4d527fda",
+      "tr_8385af5d0deb"
+    ],
+    "reasoning": "Attribution: traces isolate the single failing path to frontend->ad GetAds while every other dependency and nine of ten traces complete cleanly [tr_0d539ca75829], and frontend's own aggregate errors fell below baseline [tr_8385af5d0deb], so frontend is the noticer, not the culprit. Mechanism: EHOSTUNREACH with a resolved address, no server span, sub-millisecond fail [tr_da6b4d527fda][tr_0d539ca75829] means the ad process was not accepting \u2014 excluding slow-dependency and server-side application errors. Why: ad was up and low-error but acquired traffic gaps with no baseline counterpart [tr_8034c08b4603], the signature of repeated kill-and-restart, and the only pre-onset act on any implicated service is the memory cap [tr_2df4ae913d06]. A limit lowered until the process is killed for exceeding it is resource_exhaustion; the fix is restoring the prior limit.",
+    "open_questions": [
+      "No ad-side logs, OOMKill/restart events, or memory-usage metrics were gathered \u2014 the OOM mechanism is inferred, not observed.",
+      "The no-traffic intervals carry no timestamps, so their clustering near 10:20/10:26 is unconfirmed [tr_8034c08b4603]; the frontend log query also dropped the lines spanning onset [tr_da6b4d527fda].",
+      "The 10:03:49 cart protobuf parse failure [tr_da6b4d527fda] is unexplained by this verdict and no cart-scoped dispatch was run."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "Ad lost network reachability from frontend rather than dying \u2014 a partition or stale route to 172.18.0.19:9555.",
+        "service": "ad",
+        "fault_class": "network_partition",
+        "remediation_class": "reconnect",
+        "why_not": "Ad's own traffic gaps show it stopped receiving requests generally, not just from frontend [tr_8034c08b4603], and a partition gives no account of the memory cap landing five minutes before onset [tr_2df4ae913d06]."
+      },
+      {
+        "root_cause": "A corrupted or unreadable cart store is the real fault, with the ad errors incidental.",
+        "service": "cart",
+        "fault_class": "datastore_corruption",
+        "remediation_class": "restore_data",
+        "why_not": "The cart parse failure is a single line at 10:03:49, well before onset, and all cart calls in the sampled traces complete without error [tr_0d539ca75829]; it was ruled a distinct failure mode [tr_da6b4d527fda]."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "v2-product-catalog-freeze / What was observed: The page came 4m15s after requests started hanging: two alerts at once, error rate on\n**frontend-proxy** and on **load-generator**. Neither is a service anyone would fix. One is the\nedge proxy and the other is the synthetic client, and both were reporting what they received\nfrom ",
+    "v2-frontend-cart-misconfig / What was checked: **The error text, because it was the first thing a responder would read.** Checkout's error spans\nand the frontend's log said `shipping quote failure: failed POST to email service: expected 200,\ngot 400`. That names two services, and neither was at fault. It is checkout's own wor",
+    "v2-frontend-cart-misconfig / What was observed: The page was three alerts in the same moment, `ServiceHighErrorRate` on **checkout**, on\n**frontend** and on **frontend-proxy**, 3m17s after the trouble started. Load-generator joined them\na minute later. Frontend's error ratio had been zero. It rose from about a minute in, peake"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 26526,
+    "pulled_tokens": 6166,
+    "pull_rate": 0.1886,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 433,
+        "content_tokens": 435,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1685,
+        "content_tokens": 1689,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 8167,
+        "content_tokens": 8143,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 7343,
+        "content_tokens": 7345,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 8898,
+        "content_tokens": 8875,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "config_revert",
+    "action_id": "revert_config",
+    "target": "ad",
+    "rests_on": [
+      "tr_2df4ae913d06",
+      "tr_8034c08b4603",
+      "tr_0d539ca75829",
+      "tr_da6b4d527fda"
+    ],
+    "expected_effect": "Restoring ad's pre-10:20:21 resource_limits (removing the 144m memory cap) should stop the container being killed under the cap, so that: (1) the ad span-metric series stops going undefined \u2014 no further no-traffic intervals in the same 5m-rate error-ratio query that showed twelve such intervals versus zero in baseline [tr_8034c08b4603]; (2) frontend stops emitting the repeating gRPC status 14 UNAVAILABLE / EHOSTUNREACH to 172.18.0.19:9555 lines [tr_da6b4d527fda]; (3) new frontend traces on the ad-serving path carry an ad-side server span under the GetAds client span rather than an error-flagged sub-millisecond leaf [tr_0d539ca75829]. The two prior identical caps were reverted at 02:43 and 07:42 and the quiet periods that followed are the comparison point [tr_2df4ae913d06].",
+    "confirm_within_seconds": 600,
+    "if_wrong": "Falsified if, more than ~5 minutes after the revert and after the recreate's own connection reset has cleared, frontend still logs gRPC 14 UNAVAILABLE/EHOSTUNREACH to port 9555, or the ad error-ratio series still produces undefined (no-traffic) intervals. Note a confounder that cannot be separated by observation here: revert_config recreates the container, so recovery would equally be explained by the recreate alone (stale sticky connection cleared, per the identical-text repeated-error finding in [tr_da6b4d527fda]) rather than by the memory limit. Also note the OOM mechanism itself was never observed \u2014 no ad-side logs, OOMKill events, or memory-usage metrics were gathered \u2014 so a successful outcome confirms the fix, not the mechanism. Separately, this proposal does not address the 10:03:49 cart protobuf FAILED_PRECONDITION [tr_da6b4d527fda]; if that signature persists or grows after the revert, it is a distinct fault needing its own dispatch.",
+    "risk": "If the diagnosis is wrong, this is a container recreate of ad for no reason: ad goes dark for the duration, frontend's GetAds calls fail outright during the gap, and any in-process ad cache is discarded. Lifting the memory cap removes a guardrail \u2014 if ad genuinely has a memory leak rather than an over-tight cap, it will now grow unbounded and can pressure the host, degrading co-located services instead of failing cheaply in isolation. Because the recreate may assign ad a new container IP, a frontend holding a sticky connection to 172.18.0.19 could keep failing until its channel re-resolves, briefly making things look worse. Finally, the cap was applied by platform-automation on a repeating ~5h cycle [tr_2df4ae913d06]; a manual revert does not stop that automation from re-applying it, so this is symptom relief with a known recurrence, and the automation itself must be addressed outside this system.",
+    "blast_radius": "One service recreated: ad. The only inbound caller in this incident's graph is frontend, which sees connection failures on GetAds while the container comes back; that failure propagates through frontend-proxy to the edge, which is exactly the path that alerted [tr_0d539ca75829]. Frontend's other dependencies (cart, checkout, product-catalog, product-reviews, recommendation) are untouched. Expect a short error blip at the edge before improvement, not a clean step change."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Critical alerts on frontend and its proxy simultaneously, with several unexamined downstream dependencies that could be the actual cause. Nothing here can be dismissed as a working system, and no open incident covers it."
+  }
+}

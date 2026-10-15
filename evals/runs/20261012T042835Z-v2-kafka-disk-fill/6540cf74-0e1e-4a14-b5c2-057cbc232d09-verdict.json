@@ -1,0 +1,177 @@
+{
+  "incident_id": "6540cf74-0e1e-4a14-b5c2-057cbc232d09",
+  "trajectory_id": "eeca3fa5-28a5-4ba5-8525-ed708d028b67",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "cart",
+    "checkout",
+    "currency",
+    "email",
+    "frontend",
+    "frontend-proxy",
+    "payment",
+    "product-catalog",
+    "shipping"
+  ],
+  "unmeasured_edges": 8,
+  "exclude_origins": [
+    "scenario:v2-kafka-disk-fill"
+  ],
+  "verdict": {
+    "root_cause": "Checkout hangs on its order-publish hop to the Kafka broker. Every sampled PlaceOrder runs 77-126s with nearly all time as self-time in a single checkout/orders publish span carrying ERROR, while the client root and frontend-proxy ingress give up at exactly 15.0s [tr_5914ab3222a5]. The span errors name a Kafka broker DNS resolution failure in one trace and circuit-breaker-open rejections in two others - a broker whose name no longer resolves, followed by the producer's breaker tripping. All six synchronous dependencies complete in single-digit ms with no errors and the preparation phase finishes in 13-59ms [tr_5914ab3222a5], so nothing else is on the critical path. Checkout's error ratio is unchanged from baseline and frontend's is flat zero [tr_5ac5933a9fe9][tr_f1ea8eb18f70]: the failure presents as hang-to-deadline, not as errors. No deploy, image, env or flag change exists for checkout over 24h [tr_eef4d1ebcdc5][tr_54e1bcccf42e]. The best fit is the broker being cut off from the network its producers share - name gone from the resolver, packets dropped rather than reset, producer waiting out its delivery timeout.",
+    "service": "kafka",
+    "fault_class": "network_partition",
+    "remediation_class": "reconnect",
+    "confidence": "medium",
+    "evidence": [
+      "tr_5914ab3222a5",
+      "tr_5ac5933a9fe9",
+      "tr_f1ea8eb18f70",
+      "tr_eef4d1ebcdc5"
+    ],
+    "reasoning": "The shape is hang-not-fail: checkout serves but at 77-126s, the proxy errors at 15s, and both checkout and frontend error ratios sit at or below baseline [tr_5914ab3222a5][tr_5ac5933a9fe9][tr_f1ea8eb18f70], which excludes an error-generating fault in checkout or the frontend tier. Trace attribution is clean - 100% of trace time in one self-time-dominant publish span with all six dependencies fast and clean [tr_5914ab3222a5] - excluding diffuse saturation and the six synchronous hops. The broker-host DNS failure plus subsequent breaker-open is the signature of a peer that can no longer be named or reached, matching the partition class, and the empty checkout change log [tr_eef4d1ebcdc5][tr_54e1bcccf42e] removes deploy/config/flag stories on checkout itself. Checkout is the alerting service and the caller, not the culprit.",
+    "open_questions": [
+      "No dispatch read Kafka's own logs or state; the partition class is confirmed only by a repeating telemetry-export failure line in the broker's log, which was never fetched.",
+      "Checkout returned zero log lines for the whole window [tr_ceb6203f6425], unexplained - collection gap or the service writing nothing while blocked in the publish path.",
+      "Change history was scoped to checkout only (radius=seed); no change coverage exists for kafka or any dependency, so a broker-side config or deploy change is unexcluded.",
+      "No request-rate or p95 latency series were returned for any service, so onset timing rests on the trace sample and the marginal 04:34:31 change point."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "The Kafka broker's process is frozen or stopped while its socket still accepts, so checkout's publishes hang to their timeout.",
+        "service": "kafka",
+        "fault_class": "process_freeze",
+        "remediation_class": "restart",
+        "why_not": "A frozen peer is indistinguishable from a partition at the caller, but the observed span error is a DNS lookup failure for the broker host - a name that no longer resolves - which a frozen process with an intact network would not produce."
+      },
+      {
+        "root_cause": "The broker's data directory filled, halting it into a restart loop, so producer writes hang then fail.",
+        "service": "kafka",
+        "fault_class": "disk_fill",
+        "remediation_class": "free_storage",
+        "why_not": "Disk fill leaves a reachable, loudly-logging broker and fails writes with no-space errors; it does not make the broker hostname unresolvable, and no broker log was read to support it."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "runbook:class-bad-config / What the change record holds: The variable and a timestamp, and **the new value only** - no change record in this world carries\na prior value, which `world-change-records-have-no-prior-value` sets out.\n\n**What the logs hold is not uniform, and this document had it wrong.** An earlier version said a\nservice po",
+    "v2-valkey-cart-dependency-latency / What was checked: **The traces, because cart paged first and its callers followed.** Every slow trace touched cart,\nand inside cart the time was in one place. At rest, cart answered a `GetCart` in 0.3ms and its\nstore answered an `HGET` in 0.2ms. Under the fault, in 80 traces drawn, every `HGET`, `",
+    "v2-inj-payment-dependency-latency-log-checkout / What was observed: The page came 5m20s after onset and it was one line: `ServiceHighLatency` on **checkout**. Nothing\nelse fired before it, beside it or after it - no error-rate alert anywhere, no service gone quiet.\n\nCheckout's 95th percentile stepped from 16 to 18ms at rest to 267ms at T+2, 313 a"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 59845,
+    "pulled_tokens": 5434,
+    "pull_rate": 0.0832,
+    "dropped_sections": 0,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 7710,
+        "content_tokens": 7714,
+        "budget": 10000000,
+        "kept": [
+          "incident",
+          "past-incidents",
+          "push-allowlist",
+          "push-runbooks"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 8541,
+        "content_tokens": 8546,
+        "budget": 10000000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents",
+          "push-allowlist",
+          "push-runbooks"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 14540,
+        "content_tokens": 14546,
+        "budget": 10000000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board",
+          "past-incidents",
+          "push-allowlist",
+          "push-runbooks"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 14248,
+        "content_tokens": 14254,
+        "budget": 10000000,
+        "kept": [
+          "conclusion",
+          "evidence-board",
+          "push-allowlist",
+          "push-runbooks",
+          "push-past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 14806,
+        "content_tokens": 14811,
+        "budget": 10000000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board",
+          "push-runbooks",
+          "push-past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_5914ab3222a5",
+      "tr_eef4d1ebcdc5",
+      "tr_54e1bcccf42e"
+    ],
+    "expected_effect": "No action proposed, so no change should be observed. The incident will continue to present as PlaceOrder spans running 77-126s with self-time in checkout/orders publish carrying Kafka broker resolution and circuit-breaker-open errors, while frontend-proxy ingress gives up at 15.0s and checkout's error ratio stays near baseline. The next useful step is evidence, not action: fetch the Kafka broker's own log for the repeating telemetry-export deadline-exceeded line, and run change history with a radius wider than the seed so a broker-side deploy or config change is either found or excluded.",
+    "confirm_within_seconds": 0,
+    "if_wrong": "This abstention is wrong if the broker's log, once fetched, shows a storage/shutdown signature (disk_fill) rather than a partition signature, or if a wider change-history query turns up a broker config or image change in-window - either of those would name a mechanism with a permitted action behind it and a target that could be reached. It is also wrong if the correct target turns out to be a service inside the blast radius rather than the broker. Note that the mechanism I am abstaining on is only partly observable from here: checkout returned zero log lines for the whole window [tr_ceb6203f6425], so the usual caller-side confirmation is missing.",
+    "risk": "The risk of abstaining is that the hang persists and every PlaceOrder keeps burning a 15s client deadline while the producer waits out its delivery timeout; orders continue to fail silently rather than loudly, since error ratios do not move. The risk of the alternatives is worse and is why I abstain: restart_service on checkout would discard its in-process state irreversibly and leave the broker still off the network, since the mechanism lives outside checkout's container - the publish path would stall again on the first request after recreate. rollback_image and revert_config both fail their preconditions outright: change history over the full 24h records no deploy, image, env or flag change for checkout [tr_eef4d1ebcdc5][tr_54e1bcccf42e], so there is nothing to roll back or revert to.",
+    "blast_radius": "Nobody sees a change, because nothing is being done. The services currently affected remain affected: checkout (seed), frontend and frontend-proxy as its callers timing out at 15s, and cart, currency, email, payment, product-catalog and shipping which are healthy in every sampled trace and will stay that way. Had any action been taken on checkout, frontend and frontend-proxy are the named inbound callers that would have seen connection resets during the recreate.",
+    "_why_no_action": "The verdict's fix class is reconnect, and reconnect_service is listed UNAVAILABLE - the executor performs only rollback_image, revert_config and restart_service. Separately, the mechanism sits on the Kafka broker, which is not among the legal targets in this blast radius, so even a permitted action could not be aimed at the thing that is broken. Confidence is medium and three material questions remain open (broker log never fetched, change coverage scoped to checkout only, no rate or p95 series for any service)."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "low",
+    "reasoning": "A critical alert on checkout with a wide unmeasured blast radius and no open incidents to attribute it to; nothing here lets me dismiss it. The single-seed alert with many candidate causes gives no reliable prior on mechanism."
+  }
+}

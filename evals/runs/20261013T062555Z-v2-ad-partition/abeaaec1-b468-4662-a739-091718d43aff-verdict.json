@@ -1,0 +1,166 @@
+{
+  "incident_id": "abeaaec1-b468-4662-a739-091718d43aff",
+  "trajectory_id": "ecee1044-a5fc-49c2-92ee-649d9d5dcc7d",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "ad",
+    "flagd",
+    "frontend",
+    "frontend-proxy",
+    "load-generator"
+  ],
+  "unmeasured_edges": 3,
+  "exclude_origins": [
+    "scenario:v2-ad-partition"
+  ],
+  "verdict": {
+    "root_cause": "The ad service is cut off from the network while its process remains alive. From ~06:33 its OpenTelemetry agent fails every periodic export with an unknown-host DNS error for the collector, repeating on the one-minute export cadence at 06:34:01 and 06:35:01, with the failure occurring before any TCP connect is attempted [tr_284d6db8df50]. The process is not dead or restarting: no bootstrap, shutdown or crash lines appear and it was serving targeted-ad requests normally at 06:03 [tr_284d6db8df50], and the error-ratio series shows continuous traffic rather than a crash-loop gap [tr_019bfef1e54d]. No deploy, config or flag change sits near onset: ad's only recorded changes are two platform-automation memory-limit edits ~15h earlier, the second of which reverted the first [tr_69349dae6979], and flagd has no recorded changes at all [tr_fbbb7559eea9]. The simultaneous alerts on ad, frontend-proxy and load-generator are consistent with callers hanging on an unreachable ad rather than receiving errors, which fits the absence of any frontend-side ad error text [tr_a3dce78b06d8].",
+    "service": "ad",
+    "fault_class": "network_partition",
+    "remediation_class": "reconnect",
+    "confidence": "medium",
+    "evidence": [
+      "tr_284d6db8df50",
+      "tr_69349dae6979",
+      "tr_fbbb7559eea9",
+      "tr_019bfef1e54d",
+      "tr_a3dce78b06d8"
+    ],
+    "reasoning": "The discriminator between a freeze and a partition is whether the culprit still speaks. ad speaks, and what it says is that it cannot resolve any hostname [tr_284d6db8df50] - a live process complaining it cannot reach anything is the partition signature, not the silent-process freeze signature. DNS failure before TCP connect also rules out the collector itself being refused, timing out, or failing TLS [tr_284d6db8df50], pushing the fault into ad's own network path. Change evidence eliminates the deploy/config/flag families: the nearest ad change is ~15h pre-onset and was self-reverting [tr_69349dae6979], and flagd is static [tr_fbbb7559eea9]. The metric and trace evidence argues against ad being the latency or error origin in the pre-onset hours - traces sampled only 05:55-05:58 show healthy 1-34ms ad spans with no error status and the worst trace's self-time at frontend-proxy [tr_a7cbce30f09b], and the 01:05 error spike [tr_019bfef1e54d] is a separate, earlier excursion that had resolved. So the onset condition is new at ~06:33 and is a reachability loss, with reconnection (restoring DNS/network for the ad pod) the fix.",
+    "open_questions": [
+      "No evidence covers ad's request-serving path after 06:33 - the log result was truncated to the newest 32 lines, all exporter stack traces, so it is unproven that ad stopped answering gRPC calls rather than merely failing telemetry export.",
+      "No trace or metric sample exists in the 06:33-06:35 onset band; all 10 traces fall in a 2.5-minute band around 05:55-05:58 [tr_a7cbce30f09b] and the error-ratio windows end at 06:33 [tr_019bfef1e54d].",
+      "The scope of the DNS failure is unknown: whether only otel-collector fails to resolve or all names do, and whether other services in the cluster share it, was never queried.",
+      "Container memory, CPU and restart counts for ad were requested but never returned [tr_40f1b779b523, tr_019bfef1e54d], so an OOM-kill or node-level event as the underlying trigger is untested.",
+      "The anomalous 37% error excursion at 01:05:16Z [tr_019bfef1e54d] is unexplained and its relationship to the 06:33 onset is unestablished."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "Only ad's telemetry export path is broken (collector DNS entry gone); ad still serves traffic fine and the critical alert is an observability artifact from services' metrics going dark.",
+        "service": "ad",
+        "fault_class": "bad_config",
+        "remediation_class": "config_revert",
+        "why_not": "This explains the exporter errors but not three services alerting in the same second, and nothing in the change log shows a collector-endpoint or DNS config edit [tr_69349dae6979, tr_fbbb7559eea9]. It stays plausible only because no post-06:33 ad request log or trace was ever retrieved."
+      },
+      {
+        "root_cause": "The ad process is stopped or wedged while its socket still accepts, hanging frontend and load-generator to their deadlines.",
+        "service": "ad",
+        "fault_class": "process_freeze",
+        "remediation_class": "restart",
+        "why_not": "A frozen process writes nothing; ad is still emitting exporter stack traces at 06:35:01 and its agent threads are running [tr_284d6db8df50], and the complaint it writes is about unreachability, which is the partition tell rather than the freeze tell."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "v2-ad-memory-squeeze / Root cause: The ad service container's memory limit was lowered from 300M to 144m, below the 230MB working set\nof a JVM that had sized its heap against 300M, and below what a fresh JVM needs to load its\ninstrumentation agent and start at all. The kernel killed the running JVM within a second",
+    "v2-ad-memory-squeeze / What was checked: **The page names callers.** Frontend-proxy forwards what the frontend returns, and the load\ngenerator is the synthetic shoppers counting their own failures. The frontend was the one service\nmaking calls that failed, and the order path was not among them.\n\n**The frontend's error t",
+    "v2-ad-memory-squeeze / Resolution: The memory limit was restored to 300M. The next JVM start, twenty seconds after the fix, was the\nfirst in ten minutes to reach `Ad service started, listening on 9555`, and it served its first ad\nrequest just under two minutes later, as the frontend found it again; a new set of 51"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 29700,
+    "pulled_tokens": 5508,
+    "pull_rate": 0.1564,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 388,
+        "content_tokens": 390,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1475,
+        "content_tokens": 1478,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 12088,
+        "content_tokens": 12064,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 7176,
+        "content_tokens": 7178,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 8573,
+        "content_tokens": 8550,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_284d6db8df50",
+      "tr_69349dae6979",
+      "tr_fbbb7559eea9"
+    ],
+    "expected_effect": "No action proposed, so no effect should be observed. The mechanism the verdict names \u2014 ad's container detached from the network, with DNS resolution for the collector host failing before any TCP connect [tr_284d6db8df50] \u2014 is addressed only by the reconnect class, and reconnect_service is marked UNAVAILABLE (not built; executor performs rollback_image, revert_config and restart_service only). None of the three buildable actions meets its stated preconditions here: rollback_image requires a deploy or image change inside the window and the change log for ad holds only two platform-automation memory-limit edits ~15h earlier, the second reverting the first [tr_69349dae6979]; revert_config requires a configuration or flag change inside the window, and there is none for ad [tr_69349dae6979] and none at all for flagd [tr_fbbb7559eea9]; restart_service requires evidence pointing at process state, and the evidence points the other way \u2014 no bootstrap, shutdown or crash lines, normal targeted-ad serving at 06:03, continuous export cadence from a live process [tr_284d6db8df50]. The correct fix is an operator-level `docker network connect` on ad, which is outside what this system may do.",
+    "confirm_within_seconds": 0,
+    "if_wrong": "This abstention is wrong if ad's network isolation is in fact a process-level condition that a container recreate would clear \u2014 i.e. if a restart re-attaches ad to the network and the unknown-host exporter errors stop at the next one-minute export tick. Two unresolved gaps would show it: (a) ad's request-serving path after 06:33 was never observed \u2014 the log result was truncated to the newest 32 lines, all exporter stack traces \u2014 so a query of {service=\"ad\"} excluding exporter frames, or ad's span call rate after 06:33, could still show ad answering gRPC normally, which would downgrade this from an outage to a telemetry-only fault needing no remediation at all; (b) container memory, CPU and restart counts for ad were requested and never returned [tr_40f1b779b523, tr_019bfef1e54d], so an OOM-kill or node event as the real trigger is untested. Either of those being answered could flip this to a restart proposal.",
+    "risk": "The risk of abstaining is that ad stays unreachable to frontend and callers keep hanging until a human performs the network reconnect; time-to-recovery is the cost. The risk of the alternative I am declining \u2014 restart_service on ad \u2014 is larger and asymmetric: if the container is detached at the Docker network layer, a recreate does not reliably re-attach it, so the restart would discard ad's in-process cache, reset its connections, and cause a fresh connection reset for every in-flight frontend call while producing no recovery, leaving the incident unresolved and the evidence trail disturbed (the pre-restart process state that would distinguish partition from OOM is gone, and restart_service is marked irreversible).",
+    "blast_radius": "No service is touched by this proposal. The services left in their current state are ad (seed, alerted), and through it frontend \u2014 the sole caller of ad in all 10 sampled traces [tr_a7cbce30f09b] \u2014 plus frontend-proxy and load-generator, which are alerting consistently with callers hanging on an unreachable ad. Whoever reads this should expect those four alerts to persist until a reconnect is performed out of band."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "feature_flag",
+    "confidence": "low",
+    "reasoning": "Critical alerts on ad plus frontend-proxy and load-generator simultaneously indicate a user-visible failure, not a quiet system. flagd as a one-hop candidate cause makes a feature flag or config change the cheapest first guess."
+  }
+}

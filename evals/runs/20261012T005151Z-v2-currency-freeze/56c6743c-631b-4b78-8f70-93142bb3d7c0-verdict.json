@@ -1,0 +1,173 @@
+{
+  "incident_id": "56c6743c-631b-4b78-8f70-93142bb3d7c0",
+  "trajectory_id": "983299bf-7962-41f1-b94c-79fa68d09b87",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "accounting",
+    "checkout",
+    "currency",
+    "email",
+    "flagd",
+    "fraud-detection",
+    "frontend",
+    "frontend-proxy",
+    "payment",
+    "quote",
+    "shipping"
+  ],
+  "unmeasured_edges": 8,
+  "exclude_origins": [
+    "scenario:v2-currency-freeze"
+  ],
+  "verdict": {
+    "root_cause": "The evidence does not establish a culprit. fraud-detection, the triage seed, is not failing: its error ratio fell below baseline, its Kafka consumer kept a monotonic offset with no errors, and its traces carry no error status and no outbound dependency spans [tr_821295c8320a, tr_3190c05325c4, tr_3bfa749df281]. flagd is likewise clean - no change records, no error elevation [tr_75aff50c11b7, tr_8568d6259e36]. The one positive signal is a silence: fraud-detection emits no logs after 00:51:46 and no traces after 00:49:24, both ending several minutes before the 00:57:31 onset, while telemetry otherwise continues [tr_3190c05325c4, tr_3bfa749df281]. That pattern - a process that stops producing work yet never errors, logs nothing, and is not recorded as restarting or OOM-killed - is most consistent with fraud-detection's process being stopped or stalled while still appearing present, with the eight downstream services alerting two minutes later as their calls hung to deadline. This is a weak inference: the ~9 minute lead over onset is unexplained, no caller-side evidence was gathered, and the log/trace gap could equally be retention or sampling truncation.",
+    "service": "fraud-detection",
+    "fault_class": "process_freeze",
+    "remediation_class": "restart",
+    "confidence": "low",
+    "evidence": [
+      "tr_3190c05325c4",
+      "tr_3bfa749df281",
+      "tr_821295c8320a",
+      "tr_8568d6259e36",
+      "tr_75aff50c11b7"
+    ],
+    "reasoning": "Every active-failure hypothesis for the two services examined was ruled out by their own signals: error ratios moved down, not up, in both [tr_821295c8320a, tr_8568d6259e36]; fraud-detection's logs contain only routine consumption lines with no exception, reconnect, or startup banner [tr_3190c05325c4]; its traces show no error status and no downstream hop that could have been slow [tr_3bfa749df281]. What remains is the terminal silence in both the log stream and the trace stream while the metric series stays populated, which is the signature that distinguishes a frozen process from a crash (no restart, no counter reset) and from a partition (a partitioned service logs that it cannot reach anything, and fraud-detection logs nothing at all). The two-minute lag between the fraud-detection alert and the eight downstream alerts fits callers hanging to their deadlines rather than receiving errors. The honest weight here is low: the silence is the only affirmative evidence, and no specialist examined any of the eight alerting callers to confirm they were hanging on fraud-detection rather than on a shared dependency none of the dispatches touched.",
+    "open_questions": [
+      "Were the eight downstream services hanging on fraud-detection specifically, or erroring on their own? No caller-side traces, logs, or metrics were collected for accounting, payment, checkout, frontend-proxy or the others.",
+      "Is the post-00:51 log and post-00:49 trace silence real, or an artifact of Loki retention and Tempo sampling truncating the newest portion of the window?",
+      "Why would the signal gap begin ~6-9 minutes before the 00:57:31 alert onset? A true freeze at ~00:50 should have tripped callers sooner.",
+      "Both change-history queries covered the 24 hours after onset, not before it [tr_75aff50c11b7, tr_314e5a9be6a1], so a pre-onset deploy or config push to any service remains entirely unexamined.",
+      "No resource metrics (memory, CPU, file descriptors, thread counts) were retrieved for fraud-detection, so a stall caused by exhaustion cannot be separated from an external stop signal."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "An unexamined shared dependency or infrastructure component became slow, and the eight services alerting simultaneously at 00:59:31 were all waiting on it rather than on fraud-detection.",
+        "service": "unknown",
+        "fault_class": "dependency_latency",
+        "remediation_class": "none",
+        "why_not": "Nothing was dispatched to any of the eight alerting services, so this is unfalsified rather than supported; it is demoted only because fraud-detection alerted ~2 minutes earlier and shows an affirmative anomaly (total signal silence) that a mere victim of shared latency would not show. If caller-side evidence arrives, this could easily overtake the primary."
+      },
+      {
+        "root_cause": "fraud-detection exhausted a resource - heap, threads, or connections - and stalled without being killed, producing the same caller-visible hang and the same telemetry silence.",
+        "service": "fraud-detection",
+        "fault_class": "resource_exhaustion",
+        "remediation_class": "restart",
+        "why_not": "No resource metrics were queried, so there is no positive evidence of exhaustion; the logs show no OOM, no GC thrash, and no counter reset [tr_3190c05325c4]. It sits below the freeze because it makes an additional unsupported claim about mechanism while predicting identical symptoms - and note the remediation is the same either way."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "v2-fraud-detection-partition / What was observed: The page came 7m46s after onset and it was one line: `ServiceNoTraffic` on **fraud-detection**.\nNothing before it, nothing beside it, nothing after it. One alert on one service by the fix, and\nthe world all clear 1m00s after the fix.\n\nNothing else in the world had moved. The stor",
+    "v2-shipping-quote-misconfig / What was observed: The page was one alert, `ServiceHighErrorRate` on **shipping**, 3m19s after the trouble started.\nA minute later **checkout** paged on error rate too. Both error ratios had been zero and both rose\nfrom about a minute in. Shipping's climbed to **100%** about five minutes in: every ",
+    "v2-fraud-detection-memory-squeeze / What was observed: One alert. `ServiceNoTraffic` on **fraud-detection**, 7m15s after the trouble started. Nothing\nelse fired for the entire incident, and nothing fired after the fix.\n\nThe store was perfect throughout. The frontend, frontend-proxy and the load generator recorded no\nerrors and no cha"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 24189,
+    "pulled_tokens": 4874,
+    "pull_rate": 0.1677,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 435,
+        "content_tokens": 437,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1566,
+        "content_tokens": 1569,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 7243,
+        "content_tokens": 7218,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 6803,
+        "content_tokens": 6805,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 8142,
+        "content_tokens": 8119,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_821295c8320a",
+      "tr_3190c05325c4",
+      "tr_3bfa749df281"
+    ],
+    "expected_effect": "No action proposed, so no effect is expected. The next observation that would justify a proposal is caller-side evidence: traces or metrics from accounting, payment, checkout or frontend-proxy showing spans to fraud-detection hanging to deadline after 00:57:31. If that were present, restart_service on fraud-detection would be expected to show those caller-side spans completing and the eight services' error ratios returning to baseline within ~4 minutes of the container recreate.",
+    "confirm_within_seconds": 300,
+    "if_wrong": "Abstention is wrong if fraud-detection is in fact frozen and the freeze is prolonging an eight-service outage; the cost of waiting is measured in continued alerting. What would show that: caller-side traces with hung or deadline-exceeded spans targeting fraud-detection, or a resource-metric query showing fraud-detection's thread/FD/memory counts pinned flat since ~00:50. Conversely, the abstention is vindicated if a Loki/Tempo retention check shows the post-00:51 log and post-00:49 trace silence is query-window truncation, since the one positive signal behind the freeze hypothesis then evaporates.",
+    "risk": "Proposing restart_service here would act on a low-confidence inference whose central evidence is self-contradictory: the span-metrics series reports only 5 empty intervals during the incident versus 12 in baseline [tr_821295c8320a], meaning fraud-detection was still producing spans, which directly contradicts the claimed trace silence after 00:49:24 [tr_3bfa749df281]. A restart would discard the Kafka consumer's in-process position and force a rebalance on a consumer that the logs show was healthy and monotonic through 00:51:46 [tr_3190c05325c4], converting a service with no observed errors into one with a real, if brief, outage. It would also destroy the process state that the unanswered questions (resource exhaustion versus external stop signal) need to be examined, making the true cause unrecoverable. If the real fault is in one of the eight callers or in an unexamined pre-onset change, the restart fixes nothing and the incident continues with one less piece of evidence.",
+    "blast_radius": "A restart of fraud-detection would be seen by its order-consuming path and by the eight alerting services whose calls the verdict speculates are hanging \u2014 accounting, currency, email, frontend-proxy, payment, quote, shipping \u2014 plus checkout and frontend downstream of email. Abstaining changes nothing and is seen by no one; the eight services continue alerting until a correct action is found.",
+    "_note": "Abstaining because the verdict's own confidence is low, restart_service's precondition ('evidence points at process state') is met only by an inference the evidence board partly refutes, and no caller-side data was ever collected to confirm fraud-detection is the thing the eight services are hanging on. Recommended next steps before any action: (1) trace_query or metric_baseline on payment and checkout to see whether their spans to fraud-detection hang; (2) re-run the fraud-detection log and trace queries with an explicit end time at 01:00:35 to separate real silence from retention truncation; (3) change_history over the 24 hours BEFORE 00:57:31, which both existing queries missed [tr_75aff50c11b7, tr_314e5a9be6a1]."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "feature_flag",
+    "confidence": "low",
+    "reasoning": "Eight services alerting near-simultaneously two minutes after fraud-detection is a broad critical failure that cannot be dismissed. flagd appears as a shared candidate cause, making a flag/config change a reasonable first ordering hint."
+  }
+}

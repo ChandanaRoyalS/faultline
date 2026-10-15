@@ -1,0 +1,14 @@
+incident d45b2292-a6e2-40ed-970c-a33c23315ec1  state triaging  anchor 05:50:16
+triage: 9 services, severity warning, start from checkout, 8 unmeasured edge(s) crossed
+
+states: triaging -> resolved
+trajectory: none persisted
+triage judged: noise (medium confidence, suspects unknown)
+  A single warning-severity alert on checkout with no error-rate alert anywhere and no other service alerting; the large radius is graph traversal, not observed failure.
+
+GATED BEFORE FAN-OUT: no specialist ran and nothing was spent on this incident
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+{"ts": "2026-10-13T05:52:10.012+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-13T05:52:10.047+00:00", "level": "INFO", "logger": "faultline.notify", "msg": "no report-ready notification was sent: no notifier was configured", "component": "investigator"}
+{"ts": "2026-10-13T05:52:10.048+00:00", "level": "INFO", "logger": "faultline.notify", "msg": "no awaiting-approval notification was sent: no notifier was configured", "component": "investigator"}

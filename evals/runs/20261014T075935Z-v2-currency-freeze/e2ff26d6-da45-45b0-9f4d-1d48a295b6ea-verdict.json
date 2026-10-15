@@ -1,0 +1,94 @@
+{
+  "incident_id": "e2ff26d6-da45-45b0-9f4d-1d48a295b6ea",
+  "trajectory_id": "29e4d322-8096-4b51-87ab-14ca57aece4c",
+  "states": [
+    "triaging",
+    "investigating"
+  ],
+  "blast_radius": [
+    "accounting",
+    "currency",
+    "fraud-detection",
+    "email",
+    "payment",
+    "quote",
+    "shipping",
+    "checkout",
+    "flagd",
+    "frontend"
+  ],
+  "unmeasured_edges": 7,
+  "exclude_origins": [
+    "scenario:scenario:v2-currency-freeze"
+  ],
+  "verdict": {
+    "fault_class": "process_freeze",
+    "remediation_class": "restart",
+    "service": "currency",
+    "alternatives": [
+      {
+        "root_cause": "Currency was cut off from the network, so callers hung identically while currency itself kept running.",
+        "service": "currency",
+        "fault_class": "network_partition",
+        "remediation_class": null,
+        "why_not": "A partitioned service normally still writes its own log complaining it cannot reach dependencies; currency wrote nothing at all and also published no metrics, which fits a stopped process better - though the absent log stream leaves this not fully excluded."
+      },
+      {
+        "root_cause": "Checkout itself hung internally after fetching cart and catalog data.",
+        "service": "checkout",
+        "fault_class": "process_freeze",
+        "remediation_class": null,
+        "why_not": "Checkout demonstrably executed outbound calls to cart and product-catalog during the incident window and its error ratio stayed flat, so its process was alive; the stall begins precisely at the hop where currency should answer."
+      },
+      {
+        "root_cause": "A flag flip in flagd enabled a failing code path in the checkout flow.",
+        "service": "flagd",
+        "fault_class": "feature_flag",
+        "remediation_class": null,
+        "why_not": "flagd resolutions complete in well under a millisecond in healthy traces and the stall is not located at a flag evaluation; the symptom is an unanswered currency hop and a deadline, not a failing flagged branch."
+      }
+    ],
+    "summary": "The currency service stopped serving while its socket still accepted connections, so checkout's Convert call during order preparation hung until the 15s frontend deadline, failing every checkout-path dependency downstream of it.",
+    "confidence": "medium",
+    "evidence": [
+      "tr_fc5759dc8a7f",
+      "tr_efd554291d08",
+      "tr_d6d1b11dbafd",
+      "tr_e2d4503890f1",
+      "tr_3396f4a5893b",
+      "tr_c4954e441b1d",
+      "tr_30d008f3128c"
+    ],
+    "reasoning": "Post-onset checkout traces (tr_fc5759dc8a7f) show the request reaching checkout, which successfully completes cart GetCart and product-catalog GetProduct calls, after which the trace stops: the checkout PlaceOrder parent span never closes, frontend/POST burns ~15000ms of pure self-time and the ingress errors on deadline. In the healthy pre-onset traces (tr_efd554291d08) the very next hop after GetCart/GetProduct inside prepareOrderItemsAndShippingQuoteFromCart is currency/Currency/Convert; no currency span appears anywhere after 07:59, and currency produced no log lines (tr_d6d1b11dbafd) and no metric samples at all in the incident window (tr_e2d4503890f1). Callers hanging to their deadlines while the dependency emits nothing - no logs, no spans, no metrics - is the signature of a frozen process rather than one returning errors; checkout's own error ratio never rises (tr_297317623069) and payment logged normal completed transactions up to the onset (tr_c4954e441b1d), consistent with the leaf services being starved of work rather than broken themselves. No change was recorded for currency or checkout (tr_3396f4a5893b, tr_c26154292e9d), ruling out a deploy or config edit as the mechanism.",
+    "open_questions": [
+      "Currency emitted no log lines even in the pre-onset baseline window, so silence alone does not fully discriminate a freeze from a network partition - a partitioned currency would be expected to log reachability complaints, but this log stream may never have carried currency output.",
+      "Whether currency's socket genuinely still accepts (freeze) or connections are being blackholed at the network layer was not directly observed.",
+      "Why accounting and fraud-detection alert was not confirmed; most likely absence of order events rather than their own failure."
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B1",
+    "tool_calls": 11,
+    "turns": 13,
+    "looked_at": [
+      "logs:checkout",
+      "traces:checkout",
+      "logs:payment",
+      "logs:flagd",
+      "changes:checkout",
+      "logs:currency",
+      "traces:currency",
+      "logs:shipping",
+      "changes:currency",
+      "metrics:currency",
+      "metrics:checkout"
+    ]
+  }
+}

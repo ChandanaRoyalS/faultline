@@ -1,0 +1,157 @@
+{
+  "incident_id": "ff781e0e-a87b-4a10-9447-1c211cfcc448",
+  "trajectory_id": "4b78bb2d-2f7e-4cdc-8d34-07f1b1d8b72b",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "ad",
+    "cart",
+    "checkout",
+    "frontend",
+    "frontend-proxy",
+    "product-catalog",
+    "product-reviews",
+    "recommendation"
+  ],
+  "unmeasured_edges": 7,
+  "exclude_origins": [
+    "scenario:v2-ad-memory-squeeze"
+  ],
+  "verdict": {
+    "root_cause": "The investigation spent its entire change-tool budget on four change-history queries and collected no logs, metrics or traces, so this verdict is a leading hypothesis rather than a settled finding. Three queried services (frontend, flagd, product-catalog) have entirely empty change logs over the window [tr_3ee9f1d9c2d0][tr_e43b450c79ab][tr_a0fba146a838]. Cart is the only service with activity: eight platform-automation entries forming four identical apply/revert cycles of a 2.2.0 cart hotfix image reference, each lasting 9-13 minutes, the last reverting the reference to unset 2.4h before onset [tr_6e9458b3abec]. A reconciliation loop that leaves a service's image reference unset or indeterminate means the running artifact is not the one that should be running, and that would surface at the edge as the frontend and frontend-proxy alerts that paged. The 2.4h gap and the fact the hotfix was not live at onset weigh against this, hence low confidence.",
+    "service": "cart",
+    "fault_class": "bad_deploy",
+    "remediation_class": "rollback",
+    "confidence": "low",
+    "evidence": [
+      "tr_6e9458b3abec",
+      "tr_3ee9f1d9c2d0",
+      "tr_e43b450c79ab",
+      "tr_a0fba146a838"
+    ],
+    "reasoning": "Only change history was sampled. The empty logs for frontend, flagd and product-catalog remove in-window deploys, config edits and flag flips on those three as triggers [tr_3ee9f1d9c2d0][tr_e43b450c79ab][tr_a0fba146a838], though all three queries began at the onset timestamp and never covered the minutes before onset. Cart's oscillating image-reference apply/revert cycle, ending with the reference unset, is the single positive anomaly on the board [tr_6e9458b3abec] and is the only mechanism the evidence offers that would make frontend and frontend-proxy the services that noticed rather than the services at fault. No cart log, latency or error signal was ever retrieved, so the causal link to the 02:38:31 onset is inferred, not observed.",
+    "open_questions": [
+      "No logs, metrics or traces were collected from any of the 8 services; the actual failure signature at onset (hangs vs errors vs restarts) is unknown.",
+      "All three empty-change queries started at onset and extended forward, so changes in the minutes before 02:38:31 on frontend, flagd and product-catalog were never sampled.",
+      "Four of eight services in the blast radius (including frontend-proxy and cart's dependencies) were never queried at all, so a dependency-side cause such as latency, exhaustion or a freeze remains entirely untested."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "A downstream dependency of frontend became slow or stopped responding, and frontend/frontend-proxy alerted while waiting on it.",
+        "service": "product-catalog",
+        "fault_class": "dependency_latency",
+        "remediation_class": "restart",
+        "why_not": "No latency or log evidence was gathered for any service, so this is unfalsified rather than supported; cart at least has a concrete recorded anomaly."
+      },
+      {
+        "root_cause": "The onset at 02:38:31 was caused by a change that landed just before the queried windows opened and is therefore invisible to all four dispatches.",
+        "service": "frontend",
+        "fault_class": "unknown",
+        "remediation_class": "none",
+        "why_not": "It explains the empty results but names no mechanism and offers no fix; it is a gap in coverage rather than a competing cause."
+      }
+    ]
+  },
+  "flags": [
+    "budget exhausted: changes tool calls: 4 of 4 used"
+  ],
+  "retrieved": [
+    "v2-product-catalog-freeze / What was checked: **The proxy, because it was loudest.** Its errors were all the same kind: upstream requests\ncut at the fifteen-second route timeout. The proxy was doing its job. Nothing in its own\nbehaviour had changed, so it was reporting the problem, not causing it.\n\n**Frontend, because its la",
+    "v2-ad-bad-image-tag / What was checked: **The page names callers.** Frontend-proxy forwards what the frontend returns, and the load\ngenerator is the synthetic shoppers counting their own failures. The frontend was the one service\nmaking calls that failed, and the order path was not among them.\n\n**The frontend's error t",
+    "v2-product-catalog-freeze / What was observed: The page came 4m15s after requests started hanging: two alerts at once, error rate on\n**frontend-proxy** and on **load-generator**. Neither is a service anyone would fix. One is the\nedge proxy and the other is the synthetic client, and both were reporting what they received\nfrom "
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 11503,
+    "pulled_tokens": 1186,
+    "pull_rate": 0.0935,
+    "dropped_sections": 1,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 438,
+        "content_tokens": 440,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 3577,
+        "content_tokens": 3582,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board",
+          "incompleteness",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 3247,
+        "content_tokens": 3249,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 4241,
+        "content_tokens": 4218,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_6e9458b3abec",
+      "tr_3ee9f1d9c2d0",
+      "tr_e43b450c79ab",
+      "tr_a0fba146a838"
+    ],
+    "expected_effect": "No action is proposed, so no change in any metric or log should be expected from this system. The next observable step is diagnostic, not remedial: collecting error-ratio, latency-percentile and restart-count series for frontend, frontend-proxy and cart around 02:38:31, plus change history for the four never-queried services (frontend-proxy, ad, checkout, product-reviews, recommendation) over a window that extends *before* onset. Those series would show the actual failure signature, which is currently unknown.",
+    "confirm_within_seconds": 0,
+    "if_wrong": "This abstention is wrong if telemetry, once collected, shows cart serving errors or restarting at onset while running an image that differs from its pre-oscillation reference \u2014 that would meet rollback_image's preconditions and make the delay costly. It is also wrong if the reconciliation loop is still oscillating now (an apply/revert pair appearing after 00:15), since a live loop is itself an active fault. Neither can be checked from the evidence on this board, because no logs, metrics or traces were collected from any of the eight services.",
+    "risk": "The risk of abstaining is continued customer-facing degradation at the edge, since the frontend and frontend-proxy alerts that paged are unaddressed. The risk of the alternative \u2014 proposing rollback_image on cart \u2014 is higher and concrete: the last recorded cart action was a *revert* of the hotfix reference to unset [tr_6e9458b3abec], so the hotfix was not live at onset and a rollback has no prior tag to restore. It would recreate cart's container, reset every in-flight cart connection, discard its in-process cache, and potentially re-trigger the automation reconciliation loop, all while leaving an untested dependency-side cause (latency, exhaustion, a freeze in cart's unqueried dependencies) running.",
+    "blast_radius": "No service is touched by this proposal. For context on what was declined: a rollback_image on cart would be seen by frontend (its named inbound caller) and through it by frontend-proxy, the two services already alerting; checkout, which shares the frontend fan-out, would see no direct change but the same user journeys would break further.",
+    "_reasoning": "Three of the action's preconditions fail. rollback_image requires a prior image tag recorded in change history and a deploy or image change named inside the incident window: cart's eight entries all land 2.4h to 4h *before* onset and end with the reference reverted to None [tr_6e9458b3abec], so there is no in-window change and no prior tag to redeploy. The board states this explicitly as a ruled-out hypothesis. revert_config fails because every recorded cart change is an image-reference update or revert, with no configuration or flag change anywhere in the window [tr_6e9458b3abec], and the same is true vacuously for frontend, flagd and product-catalog, whose change logs are empty [tr_3ee9f1d9c2d0][tr_e43b450c79ab][tr_a0fba146a838]. restart_service requires evidence pointing at process state, and no process-state evidence exists: not one log line, metric or trace was collected from any of the eight services. scale, reconnect, restore_data and free_storage are all unavailable in this executor. The verdict's own confidence is low, and the three empty-change queries all started at onset and ran forward, so the minutes before 02:38:31 were never sampled on any service."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Critical alerts fired simultaneously on frontend and its proxy, which is user-facing and cannot be dismissed. No open incident to attribute it to, and the simultaneous edge-of-stack failure gives no clear fault signature yet."
+  }
+}

@@ -1,0 +1,94 @@
+{
+  "incident_id": "77a76857-574b-41d4-8d92-bce942761e91",
+  "trajectory_id": "3aced353-660a-4c04-9a8b-b7bff34f90ea",
+  "states": [
+    "triaging",
+    "investigating"
+  ],
+  "blast_radius": [
+    "frontend",
+    "frontend-proxy",
+    "checkout",
+    "load-generator",
+    "ad",
+    "cart",
+    "currency",
+    "email",
+    "payment",
+    "product-catalog",
+    "product-reviews",
+    "recommendation",
+    "shipping"
+  ],
+  "unmeasured_edges": 13,
+  "exclude_origins": [
+    "scenario:scenario:v2-frontend-cart-misconfig"
+  ],
+  "verdict": {
+    "fault_class": "bad_config",
+    "remediation_class": "config_revert",
+    "service": "frontend",
+    "alternatives": [
+      {
+        "root_cause": "cart service crashed or stopped listening, refusing connections",
+        "service": "cart",
+        "fault_class": "process_freeze",
+        "remediation_class": null,
+        "why_not": "A frozen process accepts and hangs rather than refusing, and cart shows zero error ratio while still serving spans in traces during the window."
+      },
+      {
+        "root_cause": "A bad frontend artifact was rolled out and cannot talk to dependencies",
+        "service": "frontend",
+        "fault_class": "bad_deploy",
+        "remediation_class": null,
+        "why_not": "The only change record is an environment variable update, not an image or version reference, and the failure is specific to one dependency address rather than startup."
+      },
+      {
+        "root_cause": "checkout failures caused the frontend errors",
+        "service": "checkout",
+        "fault_class": "dependency_latency",
+        "remediation_class": null,
+        "why_not": "checkout's departure is a minute later than frontend's and checkout traces show normal downstream latencies; errors propagate toward the caller, not from it."
+      }
+    ],
+    "summary": "A configuration change set frontend's CART_ADDR to a wrong port (cart:7071), so frontend's cart gRPC calls are refused and its request paths error.",
+    "confidence": "high",
+    "evidence": [
+      "tr_559e09afaf60",
+      "tr_4bd383919820",
+      "tr_06e070ce0491",
+      "tr_f59b9f9c41eb",
+      "tr_5583ef368c03",
+      "tr_6ea5eb867db8"
+    ],
+    "reasoning": "frontend's error ratio left a flat-zero baseline at 03:07 (tr_f59b9f9c41eb), just after an environment change at 03:06:13 that set CART_ADDR on frontend (tr_559e09afaf60); frontend restarted at that moment and immediately began logging connection-refused failures against the address on port 7071 (tr_4bd383919820). Cart itself shows no error-ratio departure in the same window (tr_06e070ce0491) and its only changes were hours earlier and reverted (tr_6ea5eb867db8), so cart is reachable and healthy \u2014 the wrongness is in the value frontend was given. checkout's later rise at 03:08 (tr_5583ef368c03) and the frontend-proxy/load-generator alerts are caller-side propagation of frontend's failures.",
+    "open_questions": [
+      "Whether 7071 is simply the wrong port for the cart service or whether the hostname is also wrong",
+      "Whether checkout's errors are purely propagated from frontend or include an independent email-service 400 path seen in the frontend log",
+      "Exact correct value of CART_ADDR prior to the change (the record shows no prior value)"
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B1",
+    "tool_calls": 9,
+    "turns": 11,
+    "looked_at": [
+      "metrics:frontend",
+      "traces:frontend",
+      "logs:checkout",
+      "metrics:checkout",
+      "traces:checkout",
+      "logs:frontend",
+      "changes:frontend",
+      "changes:cart",
+      "metrics:cart"
+    ]
+  }
+}

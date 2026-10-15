@@ -1,0 +1,4 @@
+injected v2-fraud-detection-flag-queue-lag (feature_flag) on fraud-detection
+  - flagd: kafkaQueueProblems defaultVariant 'off' -> 'on' in /Users/chandana/dev/faultline/world-v2/src/flagd/demo.flagd.json
+  - no compose change and no change record: the flag daemon reloads its own file
+revert with: faultline-inject stop v2-fraud-detection-flag-queue-lag

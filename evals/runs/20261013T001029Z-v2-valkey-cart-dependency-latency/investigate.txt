@@ -1,0 +1,60 @@
+incident fbf973e4-2e06-449c-947c-8fe184459b7a  state triaging  anchor 00:15:16
+triage: 14 services, severity warning, start from cart, 14 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: c83ab6dd-1ddc-4cce-a8b6-4046c728af15
+triage judged: investigate (medium confidence, suspects unknown)
+  Five services alerted simultaneously across the cart/checkout/frontend path, which is more than a single quiet latency warning and cannot be dismissed. No open incidents to attribute it to, and the simultaneous fan-out suggests a shared dependency or deploy but nothing in the alerts picks one.
+investigation: 2 round(s), 8 dispatch(es), 22 step(s)
+
+=== PROPOSAL ===
+  ABSTAINED - no permitted action fits the evidence
+  if wrong    : This abstention is wrong if the condition is self-sustaining process state in checkout that a recreate would clear - e.g. if a subsequent latency query shows checkout p99 stepping up at 00:15:16 and staying up, or if checkout logs show a stuck connection pool or goroutine/thread exhaustion. Any of those would meet restart_service's precondition (evidence pointing at process state) and justify revisiting. It is also wrong if a change record for checkout or one of its four downstream services is found in the hour *before* 00:15:16 - the queried change window started at the alert timestamp and ran forward, so the pre-alert hour was never examined [tr_5f8a736f1c0f].
+  rests on    : tr_5f8a736f1c0f, tr_01d27cc6bd68, tr_d6b10fbb32b2, tr_f7cfbda9eb22, tr_045f35703c0d
+  execution   : not executed - a proposal is a claim, never the change (ADR-0028 §1)
+
+context: 26810 pushed / 6313 pulled (pull rate 0.1906), 0 section(s) dropped
+
+=== VERDICT ===
+  fault class : unknown
+  fix class   : none
+  confidence  : low
+  evidence    : tr_045f35703c0d, tr_e88d78e3c844, tr_f7cfbda9eb22
+  root cause  : The board establishes mostly negatives and does not settle a mechanism. Cart, the triage origin, is exonerated: error ratio identically zero with zero variance across 128 samples [tr_abe1edee243b][tr_f7cfbda9eb22], continuous routine logging with no errors or restarts [tr_ab28ade273e8], and sub-5ms server spans with sub-2ms store calls [tr_045f35703c0d]. Checkout emits no error spans and its error ratio moved down from a ~1.9% baseline rather than up [tr_e88d78e3c844]. Five services alerting at once with zero errors anywhere measured is a latency symptom propagating up one request path, and the only trace-level localisation puts the 401ms and 172ms checkout roots in checkout's own work plus shipping/quote, currency, payment and email, with cart contributing at most ~30ms [tr_045f35703c0d]. I name checkout as where the symptom concentrates, but no latency, saturation or downstream-dependency evidence was ever gathered, so the failing mechanism is not determined.
+  OPEN        : What signal actually tripped the 00:15:16 alert? No latency, request-rate or saturation metric was returned for any service.
+  OPEN        : Where in checkout's fan-out (shipping/quote, currency, payment, email) does the 401ms root time sit? None of those services was dispatched.
+  OPEN        : Is the intermittent ~22.5ms cart->flagd client-side gap [tr_045f35703c0d] a symptom of a shared network or sidecar condition affecting other callers too, or incidental sampling noise?
+
+flags: none
+
+retrieval: exclude_origins=['scenario:v2-valkey-cart-dependency-latency'], 0 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20261013T001029Z-v2-valkey-cart-dependency-latency/fbf973e4-2e06-449c-947c-8fe184459b7a-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20261013T001029Z-v2-valkey-cart-dependency-latency/fbf973e4-2e06-449c-947c-8fe184459b7a-narrative.md
+{"ts": "2026-10-13T00:17:14.252+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-13T00:17:29.522+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-13T00:17:29.535+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=metric_baseline subject=sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"cart\",status_code=\"STATUS_CODE_ERROR\"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"cart\"}[5m])) start=2026-10-12T23:13:19.049812+00:00 end=2026-10-13T00:17:14.278188+00:00 span_s=3835 refused=False", "component": "investigator"}
+{"ts": "2026-10-13T00:17:29.535+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=cart start=2026-10-12T00:15:16.664000+00:00 end=2026-10-13T00:17:14.278188+00:00 span_s=86517 refused=False", "component": "investigator"}
+{"ts": "2026-10-13T00:17:29.537+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=logql_query subject={service=\"cart\"} start=2026-10-12T23:45:16.664000+00:00 end=2026-10-13T00:17:14.278188+00:00 span_s=1917 refused=False", "component": "investigator"}
+{"ts": "2026-10-13T00:17:29.538+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=flagd start=2026-10-12T00:15:16.664000+00:00 end=2026-10-13T00:17:14.278188+00:00 span_s=86517 refused=False", "component": "investigator"}
+{"ts": "2026-10-13T00:17:39.480+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-13T00:17:40.017+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-13T00:17:42.153+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-13T00:17:45.030+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-13T00:18:03.428+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-13T00:18:03.439+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=trace_query subject=cart start=2026-10-12T23:45:16.664000+00:00 end=2026-10-13T00:17:14.278188+00:00 span_s=1917 refused=False", "component": "investigator"}
+{"ts": "2026-10-13T00:18:03.440+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=metric_baseline subject=sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"cart\",status_code=\"STATUS_CODE_ERROR\"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"cart\"}[5m])) start=2026-10-12T23:13:19.049812+00:00 end=2026-10-13T00:17:14.278188+00:00 span_s=3835 refused=False", "component": "investigator"}
+{"ts": "2026-10-13T00:18:03.441+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=metric_baseline subject=sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"checkout\",status_code=\"STATUS_CODE_ERROR\"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"checkout\"}[5m])) start=2026-10-12T23:13:19.049812+00:00 end=2026-10-13T00:17:14.278188+00:00 span_s=3835 refused=False", "component": "investigator"}
+{"ts": "2026-10-13T00:18:03.442+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=checkout start=2026-10-12T00:15:16.664000+00:00 end=2026-10-13T00:17:14.278188+00:00 span_s=86517 refused=False", "component": "investigator"}
+{"ts": "2026-10-13T00:18:13.402+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-13T00:18:17.841+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-13T00:18:19.442+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-13T00:18:26.047+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-13T00:19:05.689+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-13T00:19:22.984+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-13T00:20:03.771+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-13T00:20:21.684+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-13T00:20:37.566+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-13T00:20:37.671+00:00", "level": "INFO", "logger": "faultline.notify", "msg": "no report-ready notification was sent: no notifier was configured", "component": "investigator"}
+{"ts": "2026-10-13T00:20:37.671+00:00", "level": "INFO", "logger": "faultline.notify", "msg": "no awaiting-approval notification was sent: no notifier was configured", "component": "investigator"}

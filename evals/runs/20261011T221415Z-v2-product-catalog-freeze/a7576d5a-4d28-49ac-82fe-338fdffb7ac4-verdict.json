@@ -1,0 +1,162 @@
+{
+  "incident_id": "a7576d5a-4d28-49ac-82fe-338fdffb7ac4",
+  "trajectory_id": "fecc6aeb-80db-4df6-853a-c95dd2511f58",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "frontend",
+    "frontend-proxy",
+    "load-generator"
+  ],
+  "unmeasured_edges": 1,
+  "exclude_origins": [
+    "scenario:v2-product-catalog-freeze"
+  ],
+  "verdict": {
+    "root_cause": "The cart service's Valkey-backed cart store returns values that cannot be deserialized: cart storage access raises Google.Protobuf.InvalidProtocolBufferException (input ended unexpectedly mid-field), surfaced by cartservice as gRPC FailedPrecondition 'Can't access cart storage' and re-wrapped by frontend as INTERNAL (13), which frontend-proxy and the load-generator see as user-visible errors [tr_b739b6f3ae1b][tr_ccb0e7094d7d]. The store is reachable and the connection is fine \u2014 the failure is on read/parse, and both read and write paths fail identically. No deploy, config push, flag flip or env change exists for cart, its valkey-cart store, frontend or frontend-proxy over a 24-hour lookback [tr_7a611a36b0ee][tr_aa075d94191b][tr_9d3143f3ea59]. This is corruption or truncation of the cart store's contents, not a fault in the frontend tier.",
+    "service": "cart",
+    "fault_class": "datastore_corruption",
+    "remediation_class": "restore_data",
+    "confidence": "high",
+    "evidence": [
+      "tr_b739b6f3ae1b",
+      "tr_ccb0e7094d7d",
+      "tr_7a611a36b0ee"
+    ],
+    "reasoning": "frontend-proxy alerted first but its error ratio (0 to mean ~3.2%, peak ~22.8%) [tr_5e9dce310bd5] and frontend's (0 to mean ~1%, peak ~4%) [tr_2065b6b7a9b0] are the decaying signature of errors propagating toward the caller; frontend's logs place the exception inside ValkeyCartStore in cartservice, with frontend only a pass-through reporter [tr_ccb0e7094d7d]. Cart-side logs confirm at source: one uniform parse exception on the deserialize path, sustained continuously from ~21:56:30 through at least 22:05:13 [tr_b739b6f3ae1b]. Look-alikes are excluded by the culprit's own signals \u2014 not network_partition or an unreachable dependency, since the gRPC call reaches cart and returns a structured FailedPrecondition with a stack trace rather than connection-refused or deadline-exceeded [tr_ccb0e7094d7d]; not process_freeze, since cart logs copiously; not disk_fill, since the error is a parse failure, not 'no space left'; not dependency_latency, since these are hard errors, not waits. bad_deploy, bad_config and feature_flag have no supporting change record [tr_7a611a36b0ee][tr_aa075d94191b][tr_9d3143f3ea59]. The fix is to flush or restore the cart store's contents.",
+    "open_questions": [
+      "Cart's error-ratio came back flat zero [tr_6ab71b11b784], contradicting cart's own logs \u2014 but that query's window was ~18 hours before the incident, so it likely never covered the event; re-run it over 21:48..22:20.",
+      "Nobody inspected valkey-cart itself (memory, eviction policy, persistence/AOF state, restart history), so the origin of the truncation \u2014 eviction, a partial save, or a short write \u2014 is unsettled, as is whether a flush would recur.",
+      "Scope and timing are unpinned: no keys or byte sizes are logged [tr_b739b6f3ae1b], logs were truncated mid-window and traces stop at 22:11:19 [tr_efaacc5cefb2], so the state at the 22:18:31 alert is inferred from continuity rather than observed."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "valkey-cart is under memory pressure and evicting or truncating values, so cart reads back partial protobuf payloads.",
+        "service": "valkey-cart",
+        "fault_class": "resource_exhaustion",
+        "remediation_class": "restore_data",
+        "why_not": "A plausible upstream origin for the same corruption, but no one measured valkey-cart memory or eviction; nothing in the evidence distinguishes it, and the parse-on-read failure with a healthy connection remains the mechanism facing callers [tr_b739b6f3ae1b]."
+      },
+      {
+        "root_cause": "A cart-service serialization or client-library defect writes length-misreporting payloads that fail on read-back.",
+        "service": "cart",
+        "fault_class": "bad_deploy",
+        "remediation_class": "rollback",
+        "why_not": "No cart deploy, image or dependency change in a 24-hour lookback [tr_7a611a36b0ee], so there is no artifact to roll back, and the exception fires while parsing on the read path rather than while building a message [tr_b739b6f3ae1b]."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "v2-product-catalog-flag-failure / What was observed: The page was two alerts in the same moment, `ServiceHighErrorRate` on **frontend** and on\n**frontend-proxy**, 5m31s after the trouble started. Nothing else fired, then or later, and nothing\nfired after the fix.\n\nBoth error ratios had been zero. They rose from about two minutes in",
+    "v2-frontend-cart-misconfig / What was checked: **The error text, because it was the first thing a responder would read.** Checkout's error spans\nand the frontend's log said `shipping quote failure: failed POST to email service: expected 200,\ngot 400`. That names two services, and neither was at fault. It is checkout's own wor",
+    "v2-ad-bad-image-tag / What was observed: The page was two alerts in the same moment, `ServiceHighErrorRate` on **frontend** and\n**frontend-proxy**, 5m17s after the trouble started. The service the failures would turn out to\nname was not on it.\n\nThe frontend's error ratio had been zero. It was 3% at two minutes, 11% at f"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 24615,
+    "pulled_tokens": 11514,
+    "pull_rate": 0.3187,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 378,
+        "content_tokens": 380,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1647,
+        "content_tokens": 1651,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 7612,
+        "content_tokens": 7589,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 6724,
+        "content_tokens": 6727,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 8254,
+        "content_tokens": 8231,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_b739b6f3ae1b",
+      "tr_ccb0e7094d7d",
+      "tr_7a611a36b0ee",
+      "tr_aa075d94191b",
+      "tr_9d3143f3ea59"
+    ],
+    "expected_effect": "No action is proposed, so nothing should change. The expected continuing observation is that cartservice keeps emitting Google.Protobuf.InvalidProtocolBufferException behind gRPC FailedPrecondition, frontend keeps re-wrapping it as INTERNAL (13), and the frontend-proxy error ratio stays elevated above its zero baseline until a human clears or restores the valkey-cart contents.",
+    "confirm_within_seconds": 0,
+    "if_wrong": "This abstention is wrong if the frontend-proxy/frontend error ratio returns to zero on its own without any operator action on the cart store \u2014 that would mean the corruption was transient (e.g. a single key aged out) and no remediation was ever needed. It is also wrong if a re-run of the cart error-ratio query over 21:48..22:20 plus an inspection of valkey-cart (memory, maxmemory-policy, AOF/RDB state, restart history) shows the truncation originates in a cart-tier process that a permitted restart would clear \u2014 that evidence does not exist yet.",
+    "risk": "The risk of abstaining is continued user-visible checkout and cart failures for as long as the corrupt values remain readable. The risk of not abstaining would be larger: the only mechanism-matching fix class, restore_data (restore_store), is marked UNAVAILABLE in this brief, and the service that actually holds the bad bytes \u2014 valkey-cart, with cartservice in front of it \u2014 is not in the blast radius I am permitted to target. The permitted alternatives all misfire: rollback_image and revert_config fail their preconditions outright, since change history over a 24h lookback records no deploy, config push, flag flip or env change for cart, valkey-cart, frontend or frontend-proxy [tr_7a611a36b0ee][tr_aa075d94191b][tr_9d3143f3ea59]. restart_service on frontend or frontend-proxy would recreate a process that the evidence explicitly exonerates \u2014 the exception is thrown inside ValkeyCartStore within cartservice and frontend is only a pass-through reporter [tr_ccb0e7094d7d] \u2014 so it would drop in-flight requests and reset caches while leaving the corrupt store bytes exactly where they are, producing a visible blip with zero chance of fixing the mechanism and a real chance of being misread as 'remediation attempted, failed'.",
+    "blast_radius": "None from this proposal. The ongoing fault continues to be seen by frontend-proxy and the load-generator as user-visible errors, and by every frontend checkout and cart path that touches cartservice [tr_ccb0e7094d7d][tr_b739b6f3ae1b]. Escalation path for a human: clear or restore the valkey-cart contents (a FLUSHALL-class operation on the store), which is outside what this executor can perform."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "low",
+    "reasoning": "Critical alert on the frontend-proxy entry point with the load generator also firing indicates user-facing impact, not a quiet world. No open incidents to attribute it to, and the alerts alone do not single out a fault class."
+  }
+}

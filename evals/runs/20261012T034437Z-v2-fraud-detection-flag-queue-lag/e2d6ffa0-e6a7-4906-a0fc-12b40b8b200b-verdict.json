@@ -1,0 +1,165 @@
+{
+  "incident_id": "e2d6ffa0-e6a7-4906-a0fc-12b40b8b200b",
+  "trajectory_id": "c34dd276-a9e1-468f-8873-3e1d514248fe",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "flagd",
+    "fraud-detection"
+  ],
+  "unmeasured_edges": 1,
+  "exclude_origins": [
+    "scenario:v2-fraud-detection-flag-queue-lag"
+  ],
+  "verdict": {
+    "root_cause": "A runtime feature flag in flagd \u2014 the one named for Kafka queue problems \u2014 is being served as enabled to fraud-detection, and the flagged code path inserts a one-second sleep into each record-processing iteration. With per-record processing stretched to ~1s, the consumer can no longer complete and commit its unit of work, so the same order record is redelivered and reprocessed indefinitely under a single unchanging trace id: ~99 sibling 'orders process' spans of ~1.00\u20131.01s each, all pure self-time with no downstream children, hanging off one 0.3ms receive root. flagd itself is healthy (ResolveInt server spans ~0.1ms, whole flag-evaluation subtree ~24.6ms), and a WRITE to flagd's local flag definition file at 03:44:42Z shows flag state was modified inside the window \u2014 consistent with the toggle being flipped via the file sync provider, which is why the change log holds no deploy or config record for either service.",
+    "service": "fraud-detection",
+    "fault_class": "feature_flag",
+    "remediation_class": "config_revert",
+    "confidence": "high",
+    "evidence": [
+      "tr_920832976c99",
+      "tr_e219183aa4dc",
+      "tr_292119ba0cc8",
+      "tr_80cb44d9df23",
+      "tr_123056cde67d",
+      "tr_6e2432d4b018"
+    ],
+    "reasoning": "The mechanism is named directly in fraud-detection's own logs: each reprocessing iteration is preceded by a line reporting a Kafka-queue-problem feature flag enabled and inducing a one-second sleep, matching the observed one-second loop cadence [tr_920832976c99]. Traces localise that second inside the process: the repeated ~1s spans are 100% self-time with no child spans, and in the one trace where the flag path is instrumented the entire resolve\u2192ResolveInt\u2192flagd subtree is ~24.6ms with flagd server spans ~0.1ms, which eliminates a slow dependency \u2014 including flagd \u2014 as the source of the delay [tr_e219183aa4dc]. The repeats are ~99 siblings under one root receive span rather than new arrivals, so this is redelivery of one uncommitted record, not an upstream flood [tr_e219183aa4dc], and the logs show the counter advancing on the same orderId [tr_920832976c99]. Error metrics are flat (mean within ~7% of baseline, change points hours before onset), so this is a throughput/latency failure not an error-rate failure \u2014 consistent with a sleep rather than a crash or exhaustion [tr_6e2432d4b018]. Change history is empty for both fraud-detection and flagd [tr_80cb44d9df23, tr_123056cde67d], which is exactly what a flag-store toggle looks like: no artifact and no tracked config file changed. flagd's only log line is a routine filepath WRITE to its local demo.flagd.json at 03:44:42Z with no errors or restarts [tr_292119ba0cc8], placing a flag-state modification inside the window and ruling out flagd being broken itself. The failing mechanism is therefore the flagged code path in fraud-detection, and the fix is to set that flag back off in the flag definition \u2014 not a rollback of any artifact.",
+    "open_questions": [
+      "flagd emits no per-evaluation logging, so no direct evidence confirms which flag key and variant was served to fraud-detection, nor the content of the 03:44:42Z file write [tr_292119ba0cc8]; reading the current flag definition would settle it.",
+      "Timing is not fully reconciled: the throughput collapse appears to span nearly four hours (counter advanced only ~2,000) [tr_920832976c99] while the observed file WRITE is at 03:44:42Z and the alert at 03:48:31 \u2014 there may have been an earlier toggle, or the flag may be probabilistically targeted, outside the observed flagd log window.",
+      "Who or what wrote flagd's local flag definition file is unknown; the change log records nothing [tr_123056cde67d], so the write path is outside tracked change management and the actor is unidentified.",
+      "Whether a backlog/consumer-lag drain or a consumer restart is needed after disabling the flag is unsettled \u2014 no broker-side lag or offset-commit evidence was gathered.",
+      "The change-history query for fraud-detection began at the incident onset time and extends forward, so any pre-onset change remains unexamined [tr_80cb44d9df23].",
+      "Only 10 traces were sampled and 8 were normal [tr_e219183aa4dc]; the share of total traffic currently stuck in the sleep path, and therefore the real customer blast radius, is not quantified."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "fraud-detection's Kafka consumer is failing to commit offsets for an independent reason, causing endless redelivery of one record, with the flag log line being incidental.",
+        "service": "fraud-detection",
+        "fault_class": "unknown",
+        "remediation_class": "restart",
+        "why_not": "The one-second span duration matches the flag-induced sleep exactly and the logs name the flag as the cause of that delay [tr_920832976c99]; the no-commit loop is better explained as a consequence of processing exceeding the commit window than as an independent consumer fault, and no consumer errors, rebalances, or timeouts appear at all [tr_920832976c99]."
+      },
+      {
+        "root_cause": "flagd became slow to answer flag evaluations and fraud-detection blocked ~1s per record waiting on it.",
+        "service": "flagd",
+        "fault_class": "dependency_latency",
+        "remediation_class": "restart",
+        "why_not": "Directly contradicted by trace timing: the repeated ~1s spans carry no child spans at all, and where the flag path is instrumented flagd's server spans are ~0.1ms against ~1025ms of local self-time [tr_e219183aa4dc]; flagd also shows no errors or restarts [tr_292119ba0cc8]."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "v2-fraud-detection-memory-squeeze / What was observed: One alert. `ServiceNoTraffic` on **fraud-detection**, 7m15s after the trouble started. Nothing\nelse fired for the entire incident, and nothing fired after the fix.\n\nThe store was perfect throughout. The frontend, frontend-proxy and the load generator recorded no\nerrors and no cha",
+    "v2-fraud-detection-partition / What was observed: The page came 7m46s after onset and it was one line: `ServiceNoTraffic` on **fraud-detection**.\nNothing before it, nothing beside it, nothing after it. One alert on one service by the fix, and\nthe world all clear 1m00s after the fix.\n\nNothing else in the world had moved. The stor",
+    "v2-postgresql-catalog-corruption / Resolution: The rows' descriptions were written back from a copy taken before the corruption, and the table\nchecked equal to that copy. Class of fix: **restore_data**. Restarting the catalog would have\nchanged nothing - it would read the same NULLs on its next query; restarting the database "
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 22931,
+    "pulled_tokens": 4826,
+    "pull_rate": 0.1739,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 376,
+        "content_tokens": 378,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1438,
+        "content_tokens": 1441,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 6800,
+        "content_tokens": 6775,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 6557,
+        "content_tokens": 6559,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 7760,
+        "content_tokens": 7738,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_123056cde67d",
+      "tr_292119ba0cc8",
+      "tr_80cb44d9df23"
+    ],
+    "expected_effect": "No action proposed. The only class matching the diagnosis is revert_config on flagd, but its precondition \u2014 a prior configuration recorded in change history \u2014 fails: the change log holds zero records for flagd [tr_123056cde67d] and zero for fraud-detection [tr_80cb44d9df23]. The faulty flag state arrived by a WRITE to flagd's local demo.flagd.json via the filepath sync provider [tr_292119ba0cc8], a path outside tracked change management, so a config revert has no stored prior value to restore and would likely leave the file untouched.",
+    "confirm_within_seconds": 0,
+    "if_wrong": "Falsified if the executor actually holds a pre-03:44:42Z flagd config, or if demo.flagd.json is baked into the image so container recreation resets it \u2014 then revert_config on flagd is right. Reading the current flag definition file settles it in seconds.",
+    "risk": "Abstaining leaves the loop running: fraud-detection keeps reprocessing one record at ~1s per iteration without committing, so order throughput stays collapsed and the backlog grows until a human acts.",
+    "blast_radius": "Nobody sees a change. The ongoing harm stays with fraud-detection and its order-processing consumers; flagd is healthy (ResolveInt ~0.1ms) and unaffected either way."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "low",
+    "reasoning": "A single warning alert on fraud-detection, but nothing in the alert tells me it is a latency-only warning I can safely dismiss, and flagd sits one unmeasured hop away as a candidate cause. Cheap to check, costly to wave off."
+  }
+}

@@ -1,0 +1,5 @@
+injected v2-cart-bad-image-tag (bad_deploy) on cart
+  - compose: cart stopped, then pointed at ghcr.io/open-telemetry/demo:2.2.0-cart-hotfix.2
+  - the tag does not resolve, so nothing came back up - cart is dark
+  - override written to /Users/chandana/dev/faultline/.faultline/overrides/v2-cart-bad-image-tag.yml
+revert with: faultline-inject stop v2-cart-bad-image-tag

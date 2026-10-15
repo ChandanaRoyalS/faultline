@@ -1,0 +1,175 @@
+{
+  "incident_id": "f6037b19-3bb2-4138-8975-689b5b2a34ee",
+  "trajectory_id": "ddae338c-c738-40aa-b5a3-7cddb7dbc00d",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "ad",
+    "cart",
+    "checkout",
+    "frontend",
+    "frontend-proxy",
+    "load-generator",
+    "product-catalog",
+    "product-reviews",
+    "recommendation"
+  ],
+  "unmeasured_edges": 7,
+  "exclude_origins": [
+    "scenario:v2-product-catalog-freeze"
+  ],
+  "verdict": {
+    "root_cause": "The ad service was killed and kept out of service by a memory limit that platform-automation lowered to 144m at 18:53:21 UTC on 2026-10-14 (no limit set before), a value well below ad's working set. With no process bound to its gRPC port, frontend's calls to the ad upstream at 172.18.0.19:9555 were refused at the TCP layer and surfaced as gRPC status 14 UNAVAILABLE, which propagated up through frontend-proxy to the load generator and triggered the user-facing alerts. The mechanism is the ad container exceeding and being killed for the newly imposed memory ceiling (resource exhaustion), not a defect in the value's semantics: the limit was restored at 19:00:28 and ad is logging normal request handling again by 19:14-19:17.",
+    "service": "ad",
+    "fault_class": "resource_exhaustion",
+    "remediation_class": "config_revert",
+    "confidence": "medium",
+    "evidence": [
+      "tr_aeb97a6cf931",
+      "tr_0d0f3242149e",
+      "tr_38999986f505",
+      "tr_e85960cfcb85",
+      "tr_dd6878fe2807",
+      "tr_ad2ecfbb919b",
+      "tr_4cc584a46b0c",
+      "tr_9f9bed53921b"
+    ],
+    "reasoning": "The only positive onset-era signal in the whole board is frontend's log evidence [tr_aeb97a6cf931]: repeated gRPC status 14 raised on outbound calls, with a resolved peer IP and port 9555 and a connection-refused detail stamped from 18:58:40Z, recurring every few seconds. Connection refused with a resolved address means nothing was listening on the upstream socket - which excludes DNS/discovery failure, TLS/auth rejection, and an overloaded-but-listening upstream (all explicitly ruled out there), and also excludes a process freeze or partition on the upstream, since both of those leave the socket accepting and callers hanging rather than refused. Port 9555 is the ad service's gRPC port, and the change history for ad [tr_0d0f3242149e] shows a memory limit imposed at 144m at 18:53:21, about five minutes before the refusals begin, and restored at 19:00:28 - a lower-then-restore pair bracketing the failure. A container whose memory ceiling is dropped below its working set is OOM-killed and restart-looped, which is exactly a socket that refuses rather than hangs. The same change source rules out a deploy (image activity on ad is six days old), a flag flip, and a replica/scaling change, so the limit is the only act in the right time window. Ad's own logs [tr_38999986f505] are consistent with a bounded outage: the retained tail from 19:14 to 19:17 shows normal, continuously traced request handling, i.e. recovered after the 19:00:28 restore, while the 18:58 period itself falls in the dropped middle and is silent rather than clean. The seed service is exonerated as origin: frontend-proxy has no changes at all in seven days [tr_e85960cfcb85] and its sampled traces show sub-millisecond proxy self-time with healthy downstreams [tr_dd6878fe2807] - though that trace sample is from 03:56-03:58, hours before onset, so it is background, not incident evidence. All three metric baselines [tr_ad2ecfbb919b, tr_4cc584a46b0c, tr_9f9bed53921b] failed with HTTP 400 and contribute nothing in either direction; none of them may be read as an all-clear. I classify this resource_exhaustion rather than bad_config because the wrong value is how it started while being killed for exceeding memory is what was happening; the fix that resolves it is restoring the limit, which automation has already applied.",
+    "open_questions": [
+      "No direct confirmation that ad was OOM-killed or restarting: pod restart counts, container exit reasons, and memory-vs-limit series were never retrieved (metrics 400s), and ad's logs over 18:53-19:00 were truncated away.",
+      "The identity of 172.18.0.19:9555 as the ad service pod is inferred from the port convention, not confirmed by any service-discovery or endpoint lookup in evidence.",
+      "Timeline mismatch: the memory limit was restored at 19:00:28, yet frontend-proxy and load-generator alerted at 19:17:31 and frontend at 19:18:31. Either the alerts lagged a recovered condition, or a second overlapping fault was still active at 19:17 that none of the dispatches examined.",
+      "Why platform-automation repeatedly imposes and reverts a 144m memory limit on ad (four earlier pairs the same day) is unexplained, and whether the earlier pairs also caused customer-facing errors was never checked.",
+      "The seven other services in the blast radius were never queried; whether ad's unavailability alone accounts for the full radius, or other dependencies failed in parallel, is unestablished.",
+      "No incident-window trace sample was obtained - the traces examined predate onset by ~15 hours, so no error-terminating span was ever observed for this incident."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "The 144m memory limit on ad is itself simply a wrong configuration value, and the misconfiguration rather than exhaustion is the failure.",
+        "service": "ad",
+        "fault_class": "bad_config",
+        "remediation_class": "config_revert",
+        "why_not": "A limit value only breaks anything by being exceeded; the process stopped serving because it ran out of permitted memory, which is the exhaustion mechanism. The edit is the trigger, not the failing mechanism, so bad_config is the less accurate label for the same facts and the same fix.",
+        "_same_fix_as_primary": true
+      },
+      {
+        "root_cause": "The ad process crashed or exited for a reason unrelated to the memory limit - a latent defect in the 2.2.0-ad-hotfix.2 artifact deployed on 2026-10-08 - leaving its port refusing connections.",
+        "service": "ad",
+        "fault_class": "bad_deploy",
+        "remediation_class": "rollback",
+        "why_not": "The artifact had been running for roughly six days without this signature, and the refusals begin five minutes after a memory ceiling was imposed and stop within minutes of its restoration. That coincidence is far stronger than a dormant defect firing at exactly that moment, and no crash or startup marker was observed to support an independent crash."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "v2-postgresql-catalog-corruption / What was checked: **The catalog, because it paged.** Its error traces were product lookups: the frontend's product\npages and add-to-cart calls, and checkout preparing an order. In each, the catalog's\n`GetProduct` server span was in error in 0.3 to 0.8 ms with `Product Not Found: <id>`, and\n**benea",
+    "v2-ad-partition / What was checked: **The proxy and the load generator, because they paged.** Their error traces - 125 in twelve\nminutes, none under fourteen seconds - were all one thing: `user_get_ads`, a GET of `/api/data`,\ncut at the proxy's fifteen-second route timeout. Not one product page, cart view or checko",
+    "v2-frontend-cart-misconfig / What was checked: **The error text, because it was the first thing a responder would read.** Checkout's error spans\nand the frontend's log said `shipping quote failure: failed POST to email service: expected 200,\ngot 400`. That names two services, and neither was at fault. It is checkout's own wor"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 31043,
+    "pulled_tokens": 7950,
+    "pull_rate": 0.2039,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 442,
+        "content_tokens": 444,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 2093,
+        "content_tokens": 2096,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 9387,
+        "content_tokens": 9362,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 8868,
+        "content_tokens": 8870,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 10253,
+        "content_tokens": 10230,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_0d0f3242149e",
+      "tr_38999986f505",
+      "tr_aeb97a6cf931"
+    ],
+    "expected_effect": "No action is proposed, so the expected observation is the continuation of what is already observed: ad serving requests normally. [tr_38999986f505] shows ad logging paired context/ad-request lines at 5-40s intervals from 19:14:01 through 19:17:18 with no error, restart, or startup markers, and [tr_0d0f3242149e] shows the 144m memory limit already restored to unset at 19:00:28 by platform-automation. The faulting condition has self-reverted; the correct next step is observation (a corrected Prometheus query for ad up/restart_count and frontend's gRPC-14 rate, and a fresh {service=\"frontend\"} tail) rather than a change. If frontend's '14 UNAVAILABLE ... 172.18.0.19:9555' lines have ceased after 19:00:28, nothing needs doing.",
+    "confirm_within_seconds": 900,
+    "if_wrong": "Abstention is wrong if a fresh log tail shows frontend still emitting gRPC status 14 connection-refused lines against 172.18.0.19:9555 after 19:00:28, or if ad's logs show a gap or restart marker between 19:00 and 19:14. Either would mean the condition outlived the limit restore and a live action is warranted - though even then the action would be restart_service on ad, not revert_config, since the configuration is already at its prior value. Note also that the open timeline mismatch (alerts at 19:17:31/19:18:31, seventeen minutes after the restore) is unexplained: if a second, still-active fault is driving those alerts, no evidence on this board names it, and acting on ad would not touch it.",
+    "risk": "The risk of abstaining is that a still-active fault goes unaddressed for another cycle and customer-facing errors continue. The risk of the alternative - firing revert_config on ad - is larger and is why it is declined: platform-automation already performed the revert at 19:00:28, so 'restore the service's previous environment' is ambiguous at best and could re-impose the 144m ceiling that caused the outage, recreating the exact fault. It would also recreate ad's container, dropping in-flight GetAds calls for no diagnostic gain. The preconditions for revert_config are met only in the letter (a config change is named in the window); in substance the change has already been undone.",
+    "blast_radius": "None from this proposal, since nothing is changed. For contrast, the declined revert_config on ad would be felt by frontend (its direct caller, which would see connections reset during container recreate) and would propagate to frontend-proxy and load-generator, the three alerted seeds. The six other candidate-cause services (cart, checkout, product-catalog, product-reviews, recommendation) were never queried and their state is unestablished; an ad-only action would not reach them either way."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Critical-severity alerts spanning the proxy and frontend entry path with load-generator impact indicate user-facing breakage that cannot be dismissed, and no open incident covers it. The actual cause likely sits in one of the unmeasured downstream dependencies, so no fault class is warranted yet."
+  }
+}

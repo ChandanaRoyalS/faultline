@@ -1,0 +1,25 @@
+incident 9d5f3da9-42c4-4e12-8fab-a004e2c8ede2  state triaging  anchor 18:55:31
+triage: 9 services, severity critical, start from frontend-proxy, 7 unmeasured edge(s) crossed
+
+B1: resource_exhaustion / config_revert (high)
+  A memory limit lowered on the ad service at 18:53 left its JVM unable to stay up, so the ad container repeatedly died and restarted and refused connections from frontend.
+  5 tool calls over 7 turns
+    metrics:frontend  Establish the error pattern at the first deep service in the chain and compare onset timing to the alerting edge services.
+    traces:frontend  Identify which downstream dependency the frontend's failing spans point at — errors vs long waits.
+    logs:frontend  See what the failing frontend requests actually report — which downstream call or error type is involved.
+    logs:ad  Port 9555 is the ad service; connection refused suggests ad is down or crash-looping — see what ad's own log says.
+    changes:ad  Determine what changed on ad just before the crash loop — image reference, memory limit, or config value.
+wrote /Users/chandana/dev/faultline/evals/runs/20261014T185309Z-v2-ad-memory-squeeze/9d5f3da9-42c4-4e12-8fab-a004e2c8ede2-verdict.json
+{"ts": "2026-10-14T18:59:37.564+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T18:59:37.596+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=metric_baseline subject=sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"frontend\",status_code=\"STATUS_CODE_ERROR\"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"frontend\"}[5m])) start=2026-10-14T17:51:28.680984+00:00 end=2026-10-14T18:59:34.647016+00:00 span_s=4085 refused=False", "component": "investigator"}
+{"ts": "2026-10-14T18:59:40.425+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T18:59:40.437+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=trace_query subject=frontend start=2026-10-14T18:25:31.664000+00:00 end=2026-10-14T18:59:34.647016+00:00 span_s=2042 refused=False", "component": "investigator"}
+{"ts": "2026-10-14T18:59:52.021+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T18:59:52.041+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=logql_query subject={service=\"frontend\"} start=2026-10-14T18:25:31.664000+00:00 end=2026-10-14T18:59:34.647016+00:00 span_s=2042 refused=False", "component": "investigator"}
+{"ts": "2026-10-14T18:59:55.906+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T18:59:55.930+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=logql_query subject={service=\"ad\"} start=2026-10-14T18:25:31.664000+00:00 end=2026-10-14T18:59:34.647016+00:00 span_s=2042 refused=False", "component": "investigator"}
+{"ts": "2026-10-14T18:59:58.909+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T18:59:58.930+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=ad start=2026-10-13T18:55:31.664000+00:00 end=2026-10-14T18:59:34.647016+00:00 span_s=86642 refused=False", "component": "investigator"}
+{"ts": "2026-10-14T19:00:01.896+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T19:00:15.999+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T19:00:26.061+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}

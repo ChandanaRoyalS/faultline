@@ -1,0 +1,167 @@
+{
+  "incident_id": "4239dcab-eb5a-4f72-8942-ee40a5ebf891",
+  "trajectory_id": "0eb395bb-987f-480e-8a96-fb63aea1d085",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "cart",
+    "checkout",
+    "currency",
+    "email",
+    "frontend",
+    "frontend-proxy",
+    "payment",
+    "product-catalog",
+    "shipping"
+  ],
+  "unmeasured_edges": 8,
+  "exclude_origins": [
+    "scenario:v2-cart-store-corruption"
+  ],
+  "verdict": {
+    "root_cause": "Cart's backing store is reachable and fast but holds at least one payload that cart cannot decode: every cart error line in the window is the identical FailedPrecondition carrying a Google.Protobuf.InvalidProtocolBufferException reporting that the input ended in the middle of a field [tr_871968a1ced8]. Traces confirm the failure is a data-shape fault above the storage call rather than a storage outage or slowness \u2014 the Redis HGET child span still completes in sub-millisecond time inside failing traces, and the error status originates at the cart handler span [tr_45a6a0243e5f]. Checkout is a victim, not a cause: every failing checkout trace aborts at its first downstream hop, CartService/GetCart, before currency, product-catalog, shipping, payment, email or the orders publish are ever invoked, and checkout/frontend/frontend-proxy spans merely re-wrap the cart status with negligible self time [tr_45a6a0243e5f]. Onset is bounded to just before 21:56:30Z, with failures continuing unbroken to the window edge [tr_871968a1ced8], and no deploy, config edit or flag flip is recorded for either checkout [tr_4ef11f576ced] or cart [tr_b83043db5026] in the window the change log actually covered.",
+    "service": "cart",
+    "fault_class": "datastore_corruption",
+    "remediation_class": "restore_data",
+    "confidence": "high",
+    "evidence": [
+      "tr_871968a1ced8",
+      "tr_45a6a0243e5f",
+      "tr_b83043db5026",
+      "tr_4ef11f576ced",
+      "tr_6a4cad08a919",
+      "tr_7ba8e797a1a7",
+      "tr_a3d27276183e"
+    ],
+    "reasoning": "Two independent signals converge on the same mechanism. The cart log shows a single, byte-identical failure signature \u2014 a protobuf parse exception on data already received \u2014 which requires a successful connection and response from the store, explicitly excluding connectivity, auth and timeout failures [tr_871968a1ced8]. The trace evidence puts the error status at the cart handler span while the Redis read beneath it succeeds in 0.2-0.7ms, and rules out latency as the terminal condition because failing traces fail fast with an explicit FailedPrecondition rather than an elapsed deadline [tr_45a6a0243e5f]. That is the definition of a store that is healthy and whose contents cannot be read. Blame is directed at cart rather than checkout because checkout's own logs are entirely absent [tr_a3d27276183e] and its traces show it doing nothing wrong \u2014 it propagates a status it received [tr_45a6a0243e5f]. The write path (EmptyCart, HMSET/EXPIRE) completes normally; only the GetCart read path errors [tr_45a6a0243e5f], consistent with a bad payload already resident in storage rather than an ongoing write fault. Change evidence is weakly exculpatory at best: both change queries ran from onset forward for ~24h and did not cover the hours preceding 21:56 [tr_4ef11f576ced, tr_b83043db5026], so 'no change' is an answer about the wrong window. The low aggregate error ratios on both services [tr_6a4cad08a919, tr_7ba8e797a1a7] do not contradict this \u2014 the ratios are service-wide and operation-blind, and only the subset of sessions whose stored cart is corrupt will fail, which matches the trace finding that the failures cluster in the user_checkout_multi scenario while user_checkout_single traces succeed end to end. The fix is to purge or restore the unreadable cart entries; a restart of cart will not change bytes sitting in the store, and there is no change to revert.",
+    "open_questions": [
+      "Whether the corruption is confined to a small set of cart keys/session IDs or is spreading \u2014 nothing queried the store directly or counted distinct affected carts.",
+      "What wrote the malformed payload. No change log window covering the hours before 21:56:30 was ever queried; a pre-onset cart deploy or serializer change remains unexamined.",
+      "Why checkout emits zero log lines across a 32-minute window [tr_a3d27276183e]. This may be a label mismatch or a broken shipping path, but an unlogging checkout is an unexplained second anomaly.",
+      "Whether cart's Redis instance is itself healthy at the infrastructure level \u2014 no memory, eviction, persistence or disk-capacity signal was collected, and an eviction or truncated-write condition on Redis could be the upstream producer of the bad bytes.",
+      "Whether the corruption is still being produced or is static: the identical error text suggests one bad payload replayed, but no write-path instrumentation was examined to confirm new bad writes are not occurring.",
+      "The baseline windows for both metric queries returned no samples [tr_7ba8e797a1a7, tr_6a4cad08a919], so no before/after comparison exists for either service and the prior error rate is unknown rather than zero.",
+      "The truncated 6-span failing trace with no checkout child [tr_45a6a0243e5f] is unexplained and may represent a second, distinct failure path."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "A pre-onset cart deployment changed the protobuf schema or serializer so that newly running code cannot decode payloads written by the previous version.",
+        "service": "cart",
+        "fault_class": "bad_deploy",
+        "remediation_class": "rollback",
+        "why_not": "The change log records no cart deployment, though its window began at onset and did not cover the preceding hours [tr_b83043db5026], so this is not fully excluded. It is demoted because a version skew would typically fail on a schema/field-number mismatch, whereas the observed exception is specifically input ending mid-field \u2014 truncated bytes, not a misread structure [tr_871968a1ced8] \u2014 and because failures are partial rather than affecting every GetCart, which a code-wide decode incompatibility would not explain."
+      },
+      {
+        "root_cause": "Cart's Redis backend is out of space or evicting, returning short or partial values that cart then fails to parse.",
+        "service": "cart",
+        "fault_class": "disk_fill",
+        "remediation_class": "free_storage",
+        "why_not": "This is a plausible producer of truncated bytes and no storage-capacity signal was ever collected, so it cannot be excluded. It is demoted because nothing in cart's own log reports a no-space or write-failure condition \u2014 the only signature is a read-side parse error [tr_871968a1ced8] \u2014 and because the cart write path (HMSET/EXPIRE) completes normally in traces [tr_45a6a0243e5f], which a full store would not permit. Even if true, the immediate fix for the unreadable entries remains the same."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 26729,
+    "pulled_tokens": 9248,
+    "pull_rate": 0.2571,
+    "dropped_sections": 1,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 148,
+        "content_tokens": 149,
+        "budget": 4000,
+        "kept": [
+          "incident"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1491,
+        "content_tokens": 1493,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 8081,
+        "content_tokens": 8084,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 7816,
+        "content_tokens": 7819,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 9193,
+        "content_tokens": 9170,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_871968a1ced8",
+      "tr_45a6a0243e5f",
+      "tr_b83043db5026",
+      "tr_4ef11f576ced"
+    ],
+    "expected_effect": "No action is proposed, so no effect is expected. The mechanism identified is a malformed payload sitting in cart's Redis store: cart receives bytes successfully (HGET child span completes in 0.2-0.7ms inside failing traces [tr_45a6a0243e5f]) and fails while parsing them with an identical InvalidProtocolBufferException on every error line [tr_871968a1ced8]. The only action that addresses that mechanism is restore_data / store flush, which the brief lists as UNAVAILABLE (not built; executor performs rollback_image, revert_config and restart_service only). None of the three available actions meets its own preconditions: rollback_image requires a deploy or image change named inside the incident window, and the change log covering onset onward records none for cart [tr_b83043db5026] or checkout [tr_4ef11f576ced]; revert_config requires a configuration or flag change inside the window, and the same two queries record none; restart_service requires evidence pointing at process state, and the evidence points instead at persisted data outside the process \u2014 a cart container recreate discards cache only and would leave the bad key in Redis untouched, so the FailedPrecondition lines would resume on the first GetCart that touches it. Recommended instead: escalate to a human operator who can inspect the store directly, count distinct affected cart keys, and delete or rewrite the malformed payload.",
+    "confirm_within_seconds": 0,
+    "if_wrong": "This abstention is wrong if the malformed bytes are not persisted but are produced per-request by cart's own in-process state \u2014 for example a corrupted in-memory serializer buffer or a wedged connection multiplexer \u2014 in which case restart_service on cart would stop the error lines and the abstention cost real downtime. The observation that would show this: the FailedPrecondition line text varying across restarts or across cart replicas, or the error disappearing and reappearing without any write to the store. Current evidence argues against it \u2014 the error detail text is byte-identical across every line in the window [tr_871968a1ced8], which reads as one bad stored payload replayed rather than live corruption. It is also wrong if a pre-onset cart deploy exists: no change-log window before 21:56:30Z was ever queried [tr_b83043db5026], and if such a deploy (e.g. a serializer change) is found, rollback_image on cart would meet its preconditions and become the correct proposal. Querying change history for cart over the hours preceding 21:56:30Z is the single cheapest observation that could convert this abstention into an action.",
+    "risk": "The risk of abstaining is continued customer-visible checkout failure: cart errors ran unbroken from 21:56:30Z to the window edge at 22:02:10Z [tr_871968a1ced8] and every failing checkout aborts at its first hop, GetCart, before payment or order publish [tr_45a6a0243e5f]. Every minute without intervention is more failed multi-item checkouts. That cost is accepted deliberately, because the alternative \u2014 restarting cart on a diagnosis of persisted data corruption \u2014 destroys cart's in-process cache, is marked irreversible, resets the clock on the onset signal, and by the stated mechanism cannot remove the bad payload. A restart that appears to help would be worse than one that plainly fails: it would mask the live corruption question (nothing has yet confirmed whether bad writes are still occurring) and burn the clean onset boundary this investigation currently has.",
+    "blast_radius": "No service is touched, so no caller sees a change. The population that continues to be affected is the one already affected: cart's caller checkout, and above it frontend and frontend-proxy, which re-wrap the cart status with negligible self time [tr_45a6a0243e5f]. currency, product-catalog, shipping, payment and email are never reached in failing traces and remain unaffected either way. Had restart_service been proposed on cart, the blast radius would have been cart plus connection resets seen by checkout and, transitively, frontend and frontend-proxy during the container recreate."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "A critical alert on checkout with no open incidents to attribute it to and no competing signal to dismiss it. Single-seed alert gives no hint of cause yet, so fault class stays unknown."
+  }
+}

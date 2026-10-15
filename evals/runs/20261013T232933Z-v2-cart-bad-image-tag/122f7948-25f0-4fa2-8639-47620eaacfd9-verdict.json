@@ -1,0 +1,171 @@
+{
+  "incident_id": "122f7948-25f0-4fa2-8639-47620eaacfd9",
+  "trajectory_id": "0cdc7c04-746a-4a60-942d-cfbce5eee73c",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "ad",
+    "cart",
+    "checkout",
+    "currency",
+    "email",
+    "frontend",
+    "frontend-proxy",
+    "load-generator",
+    "payment",
+    "product-catalog",
+    "product-reviews",
+    "recommendation",
+    "shipping"
+  ],
+  "unmeasured_edges": 13,
+  "exclude_origins": [
+    "scenario:v2-cart-bad-image-tag"
+  ],
+  "verdict": {
+    "root_cause": "Checkout's PlaceOrder failures come from the cart service being unreachable at the network/discovery layer, not from anything inside checkout. In every failing trace the deepest erroring span is checkout's own CartService/GetCart client span, terminating in under a millisecond with gRPC UNAVAILABLE and a name-resolver result of zero addresses; all other checkout downstream edges are clean and frontend/frontend-proxy/load-generator merely inherit the error status [tr_6135b12a5275]. Frontend's logs corroborate independently: repeated code-14 transport failures against one address on cart's port 7070, shifting from connection-refused (~23:08) to host-unreachable with the last-error timestamp pinned at 23:33:30.810, plus an explicit cart RPC line whose resolver returned no endpoints [tr_c4267ae5ad55]. Zero resolvable addresses plus host-unreachable to a previously working container IP is cart being severed from the container network, not cart being slow or erroring \u2014 no cart-side spans appear in any failing trace. No change sits near onset: checkout's record is empty [tr_985a7c9a2656] and frontend's CART_ADDR edits were reverted ~21h earlier [tr_85dcbca90c10].",
+    "service": "cart",
+    "fault_class": "network_partition",
+    "remediation_class": "reconnect",
+    "confidence": "medium",
+    "evidence": [
+      "tr_6135b12a5275",
+      "tr_c4267ae5ad55",
+      "tr_85dcbca90c10"
+    ],
+    "reasoning": "Two independent callers converge on the same dependency and mechanism. Traces put the deepest error on checkout's client-side GetCart span with a zero-address resolution failure completing sub-millisecond, excluding timeouts, cart-side application errors, and any fault at the frontend/proxy tier [tr_6135b12a5275]. Frontend logs name cart explicitly and show connection-establishment failures evolving to host-unreachable, still ongoing at the window edge [tr_c4267ae5ad55]. Instant failure rather than hanging distinguishes this from process_freeze, where the socket would still accept. The CART_ADDR override pointed at port 7071 and was reverted ~21h before onset, while observed failures target 7070, so bad_config is not the live mechanism [tr_85dcbca90c10]. Checkout's own log silence [tr_931b8f67cf05] is a logging gap, not a signal \u2014 checkout still emits spans.",
+    "open_questions": [
+      "No dispatch touched cart: its logs, metrics, change history and container/network state are entirely unexamined, so the partition is inferred only from callers' symptoms.",
+      "Frontend logs show the same endpoint already refusing connections at ~23:08, ~25 minutes before onset \u2014 whether that is the same fault or a precursor is unsettled.",
+      "Why successful GetCart calls interleave with failures (intermittent resolvability vs. partial endpoint withdrawal) is unexplained."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "Cart's process is stopped or gone while its service record lingers, so callers fail on connect rather than on application errors.",
+        "service": "cart",
+        "fault_class": "process_freeze",
+        "remediation_class": "restart",
+        "why_not": "A frozen process keeps its socket accepting and callers hang to deadline; here callers fail in under a millisecond with zero resolved addresses and host-unreachable, which is a network/discovery removal, not a stalled process."
+      },
+      {
+        "root_cause": "A stale or wrong cart address/port in the service-discovery or caller configuration directs checkout and frontend at an endpoint that does not serve cart.",
+        "service": "frontend",
+        "fault_class": "bad_config",
+        "remediation_class": "config_revert",
+        "why_not": "The only recorded config edits (CART_ADDR=cart:7071) were reverted ~21.1h before onset and the live failures target the default port 7070, and checkout has no recorded change at all [tr_985a7c9a2656]."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "v2-inj-payment-dependency-latency-log-checkout / What was observed: The page came 5m20s after onset and it was one line: `ServiceHighLatency` on **checkout**. Nothing\nelse fired before it, beside it or after it - no error-rate alert anywhere, no service gone quiet.\n\nCheckout's 95th percentile stepped from 16 to 18ms at rest to 267ms at T+2, 313 a",
+    "v2-frontend-cart-misconfig / What was observed: The page was three alerts in the same moment, `ServiceHighErrorRate` on **checkout**, on\n**frontend** and on **frontend-proxy**, 3m17s after the trouble started. Load-generator joined them\na minute later. Frontend's error ratio had been zero. It rose from about a minute in, peake",
+    "v2-kafka-disk-fill / What was observed: The page came 6m15s after onset: `ServiceHighLatency` on **checkout**. Thirty seconds later\n`ServiceHighErrorRate` on checkout; at T+2m from the page `ServiceNoTraffic` on **accounting**; at\nT+3m `ServiceHighErrorRate` on **fraud-detection**, and a minute after that its\n`ServiceH"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 24609,
+    "pulled_tokens": 7519,
+    "pull_rate": 0.234,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 481,
+        "content_tokens": 482,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1304,
+        "content_tokens": 1307,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 7454,
+        "content_tokens": 7429,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 6994,
+        "content_tokens": 6996,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 8376,
+        "content_tokens": 8353,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_6135b12a5275",
+      "tr_c4267ae5ad55",
+      "tr_985a7c9a2656",
+      "tr_85dcbca90c10"
+    ],
+    "expected_effect": "No action proposed, so no effect is expected. The mechanism the evidence supports \u2014 cart severed from the container network, seen as zero resolver addresses and host-unreachable to a previously working container IP on cart:7070 [tr_6135b12a5275][tr_c4267ae5ad55] \u2014 is addressed by reconnect_service, which this executor cannot perform. The correct next step is not an action but a dispatch against cart itself (its logs, metrics, change history and container/network attachment), which would confirm or refute the partition before anything is changed.",
+    "confirm_within_seconds": 0,
+    "if_wrong": "Abstention is wrong if cart's unexamined record turns out to contain a deploy or config change inside the incident window \u2014 that would make rollback_image or revert_config legal on cart and preferable to waiting. It is also wrong if the partition is actually cart's process having died and failed to re-register, in which case restart_service on cart would restore it; but nothing here attests to cart process state, because no dispatch touched cart. Either reading is settled by a change_history and logs/metrics query scoped to cart, not by acting now.",
+    "risk": "The risk being avoided: restart_service on cart is the only tempting available action, and its precondition \u2014 evidence pointing at process state \u2014 is not met. Recreating cart's container would discard its in-process cart cache and drop every in-flight GetCart, and if the fault is a network-layer detachment the recreate may land the container on the same broken attachment, producing an outage with no recovery and destroyed state (restart_service is marked irreversible). A restart would also destroy the evidence needed to distinguish the ~23:08 connection-refused precursor from the 23:33:30 host-unreachable onset [tr_c4267ae5ad55], and would not explain why successful GetCall calls interleave with failures. rollback_image and revert_config fail their preconditions outright: no change is recorded for checkout at all [tr_985a7c9a2656], and frontend's only changes are CART_ADDR edits already reverted ~21h before onset [tr_85dcbca90c10], so there is no in-window change to roll back or revert on any examined service.",
+    "blast_radius": "Nobody, since nothing changes. For contrast, the action declined \u2014 restart_service on cart \u2014 would be seen by checkout (PlaceOrder's GetCart and EmptyCart edges) and by frontend's cart RPC path, and through them by frontend-proxy and load-generator, which already inherit cart's error status [tr_6135b12a5275]. Those four services stay in their current partially-failing state while cart is investigated."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Simultaneous critical alerts across checkout, frontend, proxy and load-generator indicate a user-facing outage, not a quiet system. No open incidents to attribute it to, and the shared cause is not inferable from the alerts alone."
+  }
+}

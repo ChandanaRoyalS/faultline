@@ -1,0 +1,4 @@
+injected v2-ad-partition (network_partition) on ad
+  - docker network disconnect: ad cut from opentelemetry-demo (aliases captured: ad, ad)
+  - callers will hang, not fail; the target keeps running and logs that it cannot reach anything; expect ~6 min from reconnect to quiet
+revert with: faultline-inject stop v2-ad-partition

@@ -1,0 +1,84 @@
+{
+  "incident_id": "9d5f3da9-42c4-4e12-8fab-a004e2c8ede2",
+  "trajectory_id": "7c32eae0-bcf4-4d8b-a424-8ed46ddc9355",
+  "states": [
+    "triaging",
+    "investigating"
+  ],
+  "blast_radius": [
+    "load-generator",
+    "frontend-proxy",
+    "frontend",
+    "ad",
+    "cart",
+    "checkout",
+    "product-catalog",
+    "product-reviews",
+    "recommendation"
+  ],
+  "unmeasured_edges": 7,
+  "exclude_origins": [
+    "scenario:scenario:v2-ad-memory-squeeze"
+  ],
+  "verdict": {
+    "fault_class": "resource_exhaustion",
+    "remediation_class": "config_revert",
+    "service": "ad",
+    "alternatives": [
+      {
+        "root_cause": "The ad service was rolled onto an artifact that cannot start, producing the restart loop.",
+        "service": "ad",
+        "fault_class": "bad_deploy",
+        "remediation_class": null,
+        "why_not": "The change log for the last 24h shows only resource-limit edits on ad and no image or version change (tr_ac4f74c41af8)."
+      },
+      {
+        "root_cause": "A dependency of frontend became slow and frontend failed waiting on it.",
+        "service": "product-catalog",
+        "fault_class": "dependency_latency",
+        "remediation_class": null,
+        "why_not": "Traces show downstream calls completing in single-digit milliseconds and frontend errors are refused connections, not timeouts (tr_33da55cc3365, tr_4d4ef9f27433)."
+      },
+      {
+        "root_cause": "The ad service was cut off from the network, so callers could not reach it.",
+        "service": "ad",
+        "fault_class": "network_partition",
+        "remediation_class": null,
+        "why_not": "Connections were actively refused rather than hanging, and ad's log shows repeated process starts rather than reachability complaints (tr_4d4ef9f27433, tr_96e921c6e7df)."
+      }
+    ],
+    "summary": "A memory limit lowered on the ad service at 18:53 left its JVM unable to stay up, so the ad container repeatedly died and restarted and refused connections from frontend.",
+    "confidence": "high",
+    "evidence": [
+      "tr_ac4f74c41af8",
+      "tr_96e921c6e7df",
+      "tr_4d4ef9f27433",
+      "tr_899fcffd9e2f"
+    ],
+    "reasoning": "Frontend's error ratio departs from a flat-zero baseline at 18:56, immediately after the 18:53 change on ad (tr_899fcffd9e2f, tr_ac4f74c41af8). Frontend's own errors are connection refusals to the ad gRPC endpoint rather than slow waits (tr_4d4ef9f27433), and ad's log shows repeated JVM startup sequences within a couple of minutes with no steady serving, i.e. a crash/restart loop (tr_96e921c6e7df). The only change in the window is a memory limit lowered on ad by platform automation, with four earlier identical lower/revert pairs the same day; the lowered ceiling is how it started, but the failing mechanism is the process being killed for exceeding available memory. frontend-proxy and load-generator alerted first only because they sit upstream of frontend.",
+    "open_questions": [
+      "No direct OOM-kill record or ad memory metric was retrieved to confirm the kill reason rather than another startup failure.",
+      "Whether cart, checkout, product-catalog, product-reviews and recommendation showed independent faults or only inherited frontend's failures was not checked.",
+      "Why the automation lowers and reverts this limit repeatedly was not established."
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B1",
+    "tool_calls": 5,
+    "turns": 7,
+    "looked_at": [
+      "metrics:frontend",
+      "traces:frontend",
+      "logs:frontend",
+      "logs:ad",
+      "changes:ad"
+    ]
+  }
+}

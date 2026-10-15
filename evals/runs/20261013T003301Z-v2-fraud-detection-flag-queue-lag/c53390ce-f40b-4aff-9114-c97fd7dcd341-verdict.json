@@ -1,0 +1,166 @@
+{
+  "incident_id": "c53390ce-f40b-4aff-9114-c97fd7dcd341",
+  "trajectory_id": "bc234be9-dce5-4122-8e4b-71bc77af1e85",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "flagd",
+    "fraud-detection"
+  ],
+  "unmeasured_edges": 1,
+  "exclude_origins": [
+    "scenario:v2-fraud-detection-flag-queue-lag"
+  ],
+  "verdict": {
+    "root_cause": "The `kafkaQueueProblems` feature flag was turned on in flagd's definition file at ~00:33:07, about four minutes before the alert, and fraud-detection's flagged code path is what fails: on each consumed Kafka record the service logs that the flag is enabled and deliberately sleeps one second, so the record is never acknowledged in time and is redelivered continuously. From ~00:39 onward the service re-consumes one identical orderId once per second under a single shared trace context, inflating its total-count metric (296 -> 880) without processing any new orders, and accumulating 200+ sibling 'orders process' spans of ~1.04-1.08s pure self-time under a root span that completed in 18.5ms. No deploy, config edit or restart is recorded for fraud-detection, and flagd itself is healthy with no reload errors - the only mutation anywhere is the flag-definition file write, which is exactly the signature of a runtime flag flip rather than an artifact or configuration-value fault.",
+    "service": "fraud-detection",
+    "fault_class": "feature_flag",
+    "remediation_class": "config_revert",
+    "confidence": "high",
+    "evidence": [
+      "tr_b2940d7fa732",
+      "tr_0873c8fadb9c",
+      "tr_09af2e3e9f73",
+      "tr_2b525d13eed9",
+      "tr_a1f32eea6026",
+      "tr_02770d843289",
+      "tr_7f9eb92a1b9d"
+    ],
+    "reasoning": "Three independent signals converge. The logs [tr_b2940d7fa732] are the strongest: they show the transition from healthy varied consumption early in the window to a one-record redelivery loop late in it, and each loop iteration is immediately followed by a line naming the enabled `kafkaQueueProblems` flag and a one-second sleep - the mechanism and the exact 1s cadence come from the same line. Traces [tr_0873c8fadb9c] corroborate the mechanism independently of the log text: the repeated process spans are leaf spans whose duration is entirely self-time with no child or cross-service spans, so the second per iteration is burned inside fraud-detection and not spent waiting on a dependency; and work is attached to a trace context whose root finished in 18.5ms, which is what unbounded in-process reprocessing looks like. flagd's logs [tr_09af2e3e9f73] supply the trigger and its timing: a single file-watch WRITE on the flag definition file at 00:33:07, roughly four minutes before onset, logged at info with no parse or reload error, meaning flagd accepted a new flag state and served it. The absence of any change record for fraud-detection [tr_2b525d13eed9] or flagd [tr_02770d843289, tr_7f9eb92a1b9d] is consistent rather than contradictory: a flag flipped in the flag store leaves the deployment/config change log empty, which is precisely the feature_flag signature. The error-ratio baseline [tr_a1f32eea6026] shows fraud-detection is not erroring and not restarting - it is stuck, not broken - which rules out crash-loop and error-surge stories and matches a deliberate sleep path. The fix is to set the flag back off in the flag store; rolling back an artifact would do nothing because no artifact changed.",
+    "open_questions": [
+      "The content of the 00:33:07 flag-definition write was never read - that `kafkaQueueProblems` specifically was the key set to true is inferred from fraud-detection's own log lines, not from flagd's served flag state.",
+      "Both change-log queries ran a window starting at the incident timestamp and extending forward ~24h, so the hours before 00:37:16 were never queried; a change landing shortly before onset remains untested for either service.",
+      "The traces returned no span attributes [tr_0873c8fadb9c], so the trace-level evidence does not itself confirm the 200 spans share one repeated orderId - that link rests on the log evidence alone.",
+      "The second service in the blast radius other than flagd was never examined: consumer lag on the orders topic, and the downstream impact on whatever produces or awaits fraud-detection results, is unmeasured (triage flagged one unmeasured edge).",
+      "Request rate, latency, memory and restart counters for fraud-detection were never queried [tr_a1f32eea6026]; whether the unbounded trace accumulation is also driving memory pressure is unknown.",
+      "Whether the flag rollout was intentional (a load/chaos exercise) or accidental, and whether it is scoped to fraud-detection or to other flag consumers, is unresolved."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "The flag-definition file write at 00:33:07 is a configuration edit whose wrong value is what breaks request processing in fraud-detection.",
+        "service": "flagd",
+        "fault_class": "bad_config",
+        "remediation_class": "config_revert",
+        "why_not": "The mechanism is a runtime flag toggled in the flag store with no artifact and no service configuration file changed - the change log is empty for both services [tr_2b525d13eed9, tr_02770d843289], which is the feature_flag signature. The flipped value does not name a wrong address, credential or limit; it enables a code path that sleeps and reprocesses, so the flagged path is the failure. Remediation is identical either way, which makes the distinction low-stakes."
+      },
+      {
+        "root_cause": "The one-second-per-record cadence and redelivery loop reflect a slow or unhealthy Kafka broker causing offset-commit failures and continuous redelivery.",
+        "service": "fraud-detection",
+        "fault_class": "dependency_latency",
+        "remediation_class": "reconnect",
+        "why_not": "Traces show the repeated process spans are leaves with self-time equal to their full duration and no child or cross-service spans anywhere in the trace [tr_0873c8fadb9c], so there is no downstream wait to attribute the second to; the logs attribute the sleep explicitly to the enabled flag [tr_b2940d7fa732]. Kafka broker health itself was never directly queried, which is the only reason this stays on the list."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "v2-inj-kafka-disk-fill-log-checkout / What was observed: The page came 5m31s after onset: `ServiceHighLatency` on **checkout**. A minute later\n`ServiceHighErrorRate` on checkout and on **fraud-detection** together; at T+2m from the page\n`ServiceHighLatency` on fraud-detection and `ServiceNoTraffic` on **accounting**. Five alerts on\nthr",
+    "v2-fraud-detection-partition / Resolution: The container was put back on its network under its original names. Where an operator cannot\nreconnect a container with its aliases, recreating or restarting it does the same job. Class of\nfix: **restart**. Nothing was deployed or misconfigured, so there was nothing to roll back ",
+    "v2-fraud-detection-memory-squeeze / What was observed: One alert. `ServiceNoTraffic` on **fraud-detection**, 7m15s after the trouble started. Nothing\nelse fired for the entire incident, and nothing fired after the fix.\n\nThe store was perfect throughout. The frontend, frontend-proxy and the load generator recorded no\nerrors and no cha"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 23594,
+    "pulled_tokens": 3909,
+    "pull_rate": 0.1421,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 380,
+        "content_tokens": 382,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1501,
+        "content_tokens": 1504,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 7041,
+        "content_tokens": 7016,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 6722,
+        "content_tokens": 6724,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 7950,
+        "content_tokens": 7927,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "config_revert",
+    "action_id": "revert_config",
+    "target": "flagd",
+    "rests_on": [
+      "tr_09af2e3e9f73",
+      "tr_b2940d7fa732",
+      "tr_0873c8fadb9c"
+    ],
+    "expected_effect": "Restoring flagd's pre-00:33:07 flag definition should set kafkaQueueProblems back to false. Within ~5 minutes: fraud-detection's 'kafkaQueueProblems enabled / sleeping 1 second' log lines cease entirely in Loki; consumed-record lines resume distinct orderIds under distinct trace ids instead of one repeated orderId once per second; new Tempo traces show a single short 'orders process' child rather than 200 sibling ~1.05s self-time spans. Error ratio is not a confirmation signal - it was already flat at baseline.",
+    "confirm_within_seconds": 300,
+    "if_wrong": "Flag-enabled log lines continue after the recreate (flag value not actually reverted, or the write was to a key other than kafkaQueueProblems - its identity is inferred from fraud-detection logs, never read from flagd's served state); or the lines stop but the 1s redelivery loop persists, meaning the sleep is not the stall mechanism. Also falsified if change history holds no prior flagd configuration - that precondition was never verified, because both change-log queries started at onset and ran forward.",
+    "risk": "If the stored 'previous configuration' predates more than the kafkaQueueProblems flip, reverting silently rolls back other flag values for every flagd consumer, changing behaviour in services never examined here. The recreate also drops flagd's in-process state briefly, so any service evaluating a flag during that gap gets default values. If the rollout was a deliberate chaos or load exercise, this cancels it without the owner's knowledge.",
+    "blast_radius": "flagd itself plus every flag consumer, including fraud-detection. Downstream of fraud-detection, the orders-topic consumer lag and whoever awaits fraud-detection results should drain - that edge is unmeasured, so the recovery there is predicted, not observed."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "feature_flag",
+    "confidence": "low",
+    "reasoning": "A single warning on fraud-detection isn't self-evidently benign, and its only upstream candidate is flagd over an unmeasured edge, so a flag change is the cheapest prior worth checking. No open incidents to fold this into."
+  }
+}

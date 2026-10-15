@@ -1,0 +1,163 @@
+{
+  "incident_id": "6244c719-7170-40dc-866c-57b07945e891",
+  "trajectory_id": "e33aff49-5ea4-4e33-a50c-4a469ad93b9b",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "accounting",
+    "cart",
+    "checkout",
+    "currency",
+    "email",
+    "flagd",
+    "fraud-detection",
+    "frontend",
+    "frontend-proxy",
+    "payment",
+    "product-catalog",
+    "shipping"
+  ],
+  "unmeasured_edges": 9,
+  "exclude_origins": [
+    "scenario:v2-kafka-disk-fill"
+  ],
+  "verdict": {
+    "root_cause": "Checkout's PlaceOrder stalls entirely in its Kafka order-publish span, which holds ~52-58s of self time while every other child span (cart, product-catalog, payment, currency, quote, shipping, flagd, Redis, SQL) completes in single-digit milliseconds [tr_a7792b67a8a9]. Two sampled traces show the originating detail directly: the Kafka broker hostname cannot be resolved by the container DNS resolver; the other two show the client circuit breaker already open, a secondary effect of repeated failed broker connections [tr_a7792b67a8a9]. Checkout is running and instrumented but cut off from its broker endpoint, hanging past the ~15s proxy timeout that produces the user-visible failure. No deployment, config edit or flag flip is recorded for checkout, kafka or flagd across the queried day [tr_7eb4d69974a1, tr_9a2f0f81048d, tr_f186c8d3cec9], so this is a loss of connectivity/name resolution rather than a changed artifact or value.",
+    "service": "checkout",
+    "fault_class": "network_partition",
+    "remediation_class": "reconnect",
+    "confidence": "medium",
+    "evidence": [
+      "tr_a7792b67a8a9",
+      "tr_7eb4d69974a1",
+      "tr_9a2f0f81048d"
+    ],
+    "reasoning": "Traces are the only dispatch with positive signal and they localise the fault to one hop: the stall begins ~20-25ms into PlaceOrder, sits wholly in the publish span, and recurs in all four sampled traces across both checkout variants, while every RPC, datastore and payment dependency is explicitly fast and error-free [tr_a7792b67a8a9]. The reported mode is broker DNS resolution failure, not a slow-but-successful write, so this is unreachability rather than dependency_latency. Empty change history for checkout, kafka and flagd removes bad_deploy, bad_config and feature_flag as recorded triggers [tr_7eb4d69974a1, tr_9a2f0f81048d, tr_f186c8d3cec9]. Checkout's low aggregate error ratio is consistent with failures surfacing as client-side timeouts rather than backend error statuses [tr_5fc9f25ad9f5].",
+    "open_questions": [
+      "Whether the DNS failure is environment-wide or specific to checkout's pod/resolver was never tested \u2014 no DNS or broker-reachability probe was run from any other service.",
+      "Kafka's own health is unestablished: its span metrics are empty in both incident and baseline windows, an instrumentation gap, and no kafka logs were queried [tr_559e3f7f3b5a].",
+      "Checkout emits no log lines at all over the window [tr_9e3005727fba], so the service's own account of the failure is missing; whether that is a logging-pipeline gap or genuine silence is unresolved.",
+      "The checkout change-log window was queried forward from onset rather than backward [tr_9cc91cf8f546], so a pre-incident change to broker address or service discovery is only weakly excluded."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "The Kafka broker itself is down or was removed from service discovery, so clients cannot resolve or reach it.",
+        "service": "kafka",
+        "fault_class": "network_partition",
+        "remediation_class": "reconnect",
+        "why_not": "No signal confirms broker state \u2014 kafka span metrics are empty in both windows and predate the incident [tr_559e3f7f3b5a], and no kafka logs were examined; the only observed failure text is on checkout's client side [tr_a7792b67a8a9]."
+      },
+      {
+        "root_cause": "Checkout's broker endpoint value (hostname or bootstrap address) is itself wrong, so resolution of the named host fails.",
+        "service": "checkout",
+        "fault_class": "bad_config",
+        "remediation_class": "config_revert",
+        "why_not": "No config edit or env-var change to checkout is recorded in the change log [tr_7eb4d69974a1], and the same reference evidently worked earlier; nothing points to the value being wrong rather than the name becoming unresolvable."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 26994,
+    "pulled_tokens": 5311,
+    "pull_rate": 0.1644,
+    "dropped_sections": 1,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 172,
+        "content_tokens": 173,
+        "budget": 4000,
+        "kept": [
+          "incident"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1504,
+        "content_tokens": 1506,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 8357,
+        "content_tokens": 8360,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 7797,
+        "content_tokens": 7799,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 9164,
+        "content_tokens": 9142,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_a7792b67a8a9",
+      "tr_7eb4d69974a1",
+      "tr_9a2f0f81048d",
+      "tr_9cc91cf8f546"
+    ],
+    "expected_effect": "No action is proposed, so nothing should change. The mechanism the evidence names \u2014 checkout's Kafka publish span stalling 52-58s because the broker hostname does not resolve from checkout's container resolver [tr_a7792b67a8a9] \u2014 is addressed only by reconnect_service, which this executor cannot perform (listed UNAVAILABLE, not built). The incident will therefore continue to be observable as frontend-proxy ingress spans erroring at ~15.0s on user_checkout_single traces and checkout PlaceOrder spans running past 50s, until a human restores the checkout-to-broker network path (e.g. `docker network connect`) outside this system.",
+    "confirm_within_seconds": 0,
+    "if_wrong": "This abstention is wrong if a probe shows the stall is not a network/name-resolution condition at all but stale in-process client state in checkout \u2014 for example, a DNS lookup for the broker from inside checkout's container succeeds while the publish span still stalls, or the publish stall is shown to be purely the open circuit breaker. The trace evidence argues against that: two of four sampled traces show the broker DNS lookup failing directly, and the hypothesis that an open breaker alone explains it is explicitly ruled out [tr_a7792b67a8a9]. It is also wrong if a backward-looking change query on checkout turns up a pre-onset edit to the broker address or service-discovery config; the queried window ran forward from onset, so that is only weakly excluded [tr_9cc91cf8f546], and such a finding would make revert_config a legitimate proposal.",
+    "risk": "The risk of abstaining is that the outage persists: checkout remains unable to publish orders and every PlaceOrder keeps failing at the proxy timeout. Weighed against that, the three available actions each carry a concrete harm. rollback_image and revert_config fail their stated preconditions outright \u2014 no deploy, config edit or flag flip is recorded for checkout, kafka or flagd across the queried day [tr_7eb4d69974a1, tr_9a2f0f81048d, tr_f186c8d3cec9] \u2014 so there is no prior artifact or value to return to and the executor would be acting on an empty change history. restart_service requires the evidence to point at process state; it points at name resolution outside the process. A restart would clear the circuit breaker, produce a few minutes of apparent improvement if the breaker is masking retry attempts, then stall identically once lookups fail again \u2014 a false recovery signal that costs the investigation its clearest symptom and discards checkout's in-process cache for nothing.",
+    "blast_radius": "Nothing changes, so no service sees a new condition. The existing blast radius is unchanged and still visible: checkout, with frontend and frontend-proxy downstream of it carrying the user-visible 15s timeout, and fraud-detection and accounting as the alerted consumers of the orders topic that is receiving nothing. Had restart_service been proposed, frontend would have seen connection resets against checkout for the duration of the container recreate, and frontend-proxy would have surfaced those to users."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "low",
+    "reasoning": "Three critical seeds across checkout, fraud-detection and accounting within a minute is not dismissible, and no open incident could absorb it. The shared flagd/checkout dependencies hint at a common upstream but nothing in the alerts picks a class yet."
+  }
+}

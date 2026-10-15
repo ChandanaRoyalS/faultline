@@ -1,0 +1,182 @@
+{
+  "incident_id": "9de5a717-d1d8-45b5-937d-261b03e2d00f",
+  "trajectory_id": "eb2d6759-f087-4447-9860-79d607f07b68",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "ad",
+    "cart",
+    "checkout",
+    "currency",
+    "email",
+    "frontend",
+    "frontend-proxy",
+    "load-generator",
+    "payment",
+    "product-catalog",
+    "product-reviews",
+    "recommendation",
+    "shipping"
+  ],
+  "unmeasured_edges": 13,
+  "exclude_origins": [
+    "scenario:v2-frontend-cart-misconfig"
+  ],
+  "verdict": {
+    "root_cause": "Checkout's PlaceOrder fails fast on a subset of requests because the email service returns HTTP 400 on the shipping-quote leg. Traces show the deepest errored span is checkout's outbound POST to the shipping quote endpoint, while shipping's own get-quote span is unerrored and sub-2ms, and checkout's error description names a non-200 (400) from email. No deploy, config edit or flag flip is recorded for checkout, shipping or email, so the flipped behaviour is in email's runtime request handling (a rejected/invalid-input path), not in an artifact or file. The step onset at ~04:14:46Z, ~23 minutes before the alert, and the bursty ~22% error ratio match a partial, request-dependent rejection rather than a hard outage.",
+    "service": "email",
+    "fault_class": "unknown",
+    "remediation_class": "restart",
+    "confidence": "low",
+    "evidence": [
+      "tr_0b4341b3254e",
+      "tr_7e58ca610885",
+      "tr_bd82226c3900",
+      "tr_f6945f388c03",
+      "tr_d60f5549effc",
+      "tr_260c1059661a",
+      "tr_2b79ef9fdfbb",
+      "tr_078d82f5ce6b"
+    ],
+    "reasoning": "Trace evidence localizes the fault below checkout and below shipping's handler: the error is reported on checkout's client span with a 400 attributed to email, and shipping's server span is clean [tr_0b4341b3254e]. Metrics confirm a step onset at ~04:14:46Z with partial (~22%) failure, which rules out gradual resource exhaustion and places the trigger well before the 04:37:46 alert [tr_7e58ca610885]. Change logs are empty for checkout, shipping and email across 24 hours, which removes bad_deploy, bad_config and flag-flip-with-a-record as supported explanations [tr_bd82226c3900, tr_f6945f388c03, tr_d60f5549effc]. The fast-failure profile excludes process_freeze, network_partition and dependency_latency [tr_0b4341b3254e]. Email itself is unobserved: no span-metrics series exists in either window [tr_260c1059661a] and shipping logs never mention email [tr_2b79ef9fdfbb], while checkout's own logs are entirely absent [tr_078d82f5ce6b]. So the mechanism inside email is named by inference from a trace attribute only, and I will not assert a class the evidence does not reach.",
+    "open_questions": [
+      "No email-service logs or traces were ever queried; the actual mechanism behind the 400 (input validation, bad downstream address, corrupted template/store) is unestablished.",
+      "Why is the email call absent from all 150 spans - untraced client, out-of-band call, or a different service name?",
+      "What happened at or before 04:14:46Z? Change queries covered the 24h *after* 04:37:46, not the period preceding onset, so a pre-window change is not excluded.",
+      "Checkout emits no logs at all in the window - a possible telemetry/label gap that may also explain email's missing metrics."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "An unrecorded runtime flag flip in email enabled a code path that rejects shipping-quote requests with 400.",
+        "service": "email",
+        "fault_class": "feature_flag",
+        "remediation_class": "config_revert",
+        "why_not": "Fits the step onset with an empty change log, but nothing in the evidence names a flag or the flagged path; it is a story that explains the silence rather than one the evidence supports."
+      },
+      {
+        "root_cause": "Email holds a wrong configuration value (endpoint, credential, or validation rule) that makes it reject the shipping-quote requests.",
+        "service": "email",
+        "fault_class": "bad_config",
+        "remediation_class": "config_revert",
+        "why_not": "No config edit is recorded for email in the window and no email-side log names a wrong address or credential, so the wrongness of a value is asserted, not observed."
+      },
+      {
+        "root_cause": "Shipping's get-quote path constructs an invalid email request and surfaces the resulting 400 to checkout.",
+        "service": "shipping",
+        "fault_class": "unknown",
+        "remediation_class": "restart",
+        "why_not": "Shipping's server span is unerrored and sub-2ms in every trace, and its logs contain no mention of email at all, which places the rejection on email's side of the hop."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "v2-inj-payment-dependency-latency-log-checkout / What was observed: The page came 5m20s after onset and it was one line: `ServiceHighLatency` on **checkout**. Nothing\nelse fired before it, beside it or after it - no error-rate alert anywhere, no service gone quiet.\n\nCheckout's 95th percentile stepped from 16 to 18ms at rest to 267ms at T+2, 313 a",
+    "v2-product-catalog-flag-failure / What was checked: **The page names the edge, not a cause.** Frontend-proxy only forwards what frontend returns, and\nfrontend is the application the shoppers talk to. Both were reporting failures from somewhere\nbelow them.\n\n**The frontend's log, which named the cause in its own words.** From the fi",
+    "v2-kafka-disk-fill / What was observed: The page came 6m15s after onset: `ServiceHighLatency` on **checkout**. Thirty seconds later\n`ServiceHighErrorRate` on checkout; at T+2m from the page `ServiceNoTraffic` on **accounting**; at\nT+3m `ServiceHighErrorRate` on **fraud-detection**, and a minute after that its\n`ServiceH"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 26462,
+    "pulled_tokens": 5137,
+    "pull_rate": 0.1626,
+    "dropped_sections": 1,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 479,
+        "content_tokens": 481,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1727,
+        "content_tokens": 1731,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 8053,
+        "content_tokens": 8030,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 7443,
+        "content_tokens": 7445,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 8760,
+        "content_tokens": 8763,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_0b4341b3254e",
+      "tr_260c1059661a",
+      "tr_d60f5549effc",
+      "tr_7e58ca610885"
+    ],
+    "expected_effect": "No action proposed, so no effect is expected. The system should remain in its current state \u2014 checkout's error ratio continuing to oscillate around ~0.22 on the span-metrics series \u2014 while the open questions are closed by querying email's logs and traces directly. If an action were taken now, there is no series that could confirm it worked on the email side: email returns zero samples in both incident and baseline windows for the span-metrics call series [tr_260c1059661a], so the only observable proxy would be checkout's error ratio, and attributing a change in it to an email restart would be guesswork.",
+    "confirm_within_seconds": 0,
+    "if_wrong": "This abstention is wrong if email's logs or traces, once queried, show a stuck or wedged handler \u2014 e.g. a repeating rejection log line with a timestamp cluster starting at ~04:14:46Z, or an email span with an error status and a growing in-process queue \u2014 which would meet restart_service's 'process state rather than a change' precondition and make a restart the right call. It is also wrong if a pre-04:14:46Z change query (the existing change windows all start at 04:37:46 and run forward [tr_d60f5549effc], [tr_f6945f388c03]) turns up a deploy or config edit on email just before onset, which would point at rollback_image or revert_config instead. Note that neither of those actions is currently permitted either: no prior image tag or prior config for email is recorded in change history [tr_d60f5549effc].",
+    "risk": "The risk being avoided is a restart of email on a low-confidence, unknown-mechanism verdict. restart_service is irreversible and discards in-process state. If the 400 originates from input validation on a malformed request, a corrupted persistent store, or a bad downstream address, a restart changes nothing and destroys the live process state that is the only place the mechanism is currently visible \u2014 no email logs or traces have ever been queried, and email emits no span metrics [tr_260c1059661a]. That turns a diagnosable partial failure into an undiagnosable one. A restart could also appear to work by coincidence: the error ratio is bursty, with a minimum of 0 and a second threshold crossing at ~04:36:46Z [tr_7e58ca610885], so a post-restart dip would be indistinguishable from normal oscillation and would retire the incident on a false cause.",
+    "blast_radius": "Nothing changes, so nobody sees anything. Had a restart of email been proposed, the exposed path would be checkout's PlaceOrder \u2014 the only caller of email named in this incident \u2014 and through it frontend, frontend-proxy and load-generator, all of which already inherit checkout's error status in every sampled trace [tr_0b4341b3254e]. The continuing cost of abstaining is borne by that same chain: roughly 22% of checkout requests keep failing fast, and user-facing checkout errors persist until the mechanism is established."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Critical severity with simultaneous checkout, frontend, and proxy alerts propagating to the load generator a minute later indicates a real user-facing failure. No open incidents to attribute it to, and the alert pattern does not single out a cause among checkout's many dependencies."
+  }
+}

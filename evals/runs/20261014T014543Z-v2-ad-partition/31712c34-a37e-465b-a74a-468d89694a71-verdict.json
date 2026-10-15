@@ -1,0 +1,84 @@
+{
+  "incident_id": "31712c34-a37e-465b-a74a-468d89694a71",
+  "trajectory_id": "9bd154ad-5d7c-4b27-98fd-17abdf9890cd",
+  "states": [
+    "triaging",
+    "investigating"
+  ],
+  "blast_radius": [
+    "frontend-proxy",
+    "ad",
+    "load-generator",
+    "flagd",
+    "frontend"
+  ],
+  "unmeasured_edges": 3,
+  "exclude_origins": [
+    "scenario:scenario:v2-ad-partition"
+  ],
+  "verdict": {
+    "fault_class": "network_partition",
+    "remediation_class": "reconnect",
+    "service": "ad",
+    "alternatives": [
+      {
+        "root_cause": "Ad's process was stopped while its socket still accepted, causing callers to hang to deadline.",
+        "service": "ad",
+        "fault_class": "process_freeze",
+        "remediation_class": null,
+        "why_not": "A frozen process writes nothing; ad kept emitting log lines well after onset (tr_0e838a0945c8), including active outbound connection attempts."
+      },
+      {
+        "root_cause": "A flagd-driven flag enabled a failing or slow code path inside ad.",
+        "service": "flagd",
+        "fault_class": "feature_flag",
+        "remediation_class": null,
+        "why_not": "flagd resolution calls on the cart path completed in well under a millisecond inside healthy traces (tr_13fba48925a2), and the ad hang shows no ad span executing at all, so no flagged ad code path is running."
+      },
+      {
+        "root_cause": "A downstream dependency of ad became slow and ad blocked waiting on it.",
+        "service": "ad",
+        "fault_class": "dependency_latency",
+        "remediation_class": null,
+        "why_not": "Dependency latency would still produce ad spans with long durations; instead ad produced no spans in the affected traces and its log reports inability to resolve a host rather than slow responses."
+      }
+    ],
+    "summary": "The ad service lost network reachability around 01:52, so ad-serving requests hung until the 15s client deadline while ad's own process kept running and logged that it could not resolve/reach other hosts.",
+    "confidence": "medium",
+    "evidence": [
+      "tr_f9dd4904182e",
+      "tr_0e838a0945c8",
+      "tr_396ba943d492",
+      "tr_13fba48925a2",
+      "tr_290ba495d347",
+      "tr_92b96600c364"
+    ],
+    "reasoning": "Ad's error-ratio did not rise; instead intervals with no traffic at all appeared in the incident window (tr_f9dd4904182e), which is the signature of requests never completing rather than failing. Traces show ad-path requests from load-generator through frontend-proxy and frontend hanging to a flat ~15.0s deadline and erroring at the caller, with no ad span present at all in those traces, while every non-ad path (cart, product-catalog, checkout, currency, flagd) stayed in the single-digit-millisecond range (tr_13fba48925a2); ad spans exist only before onset (tr_290ba495d347). Ad is not silent: its own log continues after onset and complains that it cannot reach a remote host by name (tr_0e838a0945c8), which distinguishes a partitioned-but-running process from a frozen one. No deploy or config change was recorded for ad or flagd (tr_396ba943d492, tr_92b96600c364), ruling out bad_deploy, bad_config, and a flag flip on the ad path. The alerting order (frontend-proxy first) is caller-side propagation: proxy and load-generator merely noticed the hang.",
+    "open_questions": [
+      "Whether the partition is DNS-only or full L3 isolation \u2014 the observed failure is name resolution for an outbound host, and inbound reachability from frontend was not directly tested.",
+      "Whether ad's inbound socket still accepts connections (frontend logs were empty, tr_5d5c137f2b2f, so the client-side error text is unknown).",
+      "The exact onset boundary for ad's traffic gaps was not pinned to the second."
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B1",
+    "tool_calls": 7,
+    "turns": 9,
+    "looked_at": [
+      "metrics:ad",
+      "logs:ad",
+      "changes:ad",
+      "traces:frontend-proxy",
+      "logs:frontend",
+      "traces:ad",
+      "changes:flagd"
+    ]
+  }
+}

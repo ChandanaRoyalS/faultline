@@ -1,0 +1,110 @@
+incident 1010dff1-33e1-48e3-bc9d-2f19402ca51b  state triaging  anchor 21:40:31
+triage: 8 services, severity critical, start from frontend, 7 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: fb3b5ca6-f688-4edf-bdea-8d69339bc075
+triage judged: investigate (medium confidence, suspects unknown)
+  Critical alerts on frontend and its proxy firing simultaneously affect user-facing traffic and cannot be dismissed. No open incidents to attribute it to, and the simultaneous pair gives no clear fault signature yet.
+investigation: 2 round(s), 7 dispatch(es), 22 step(s)
+
+=== PROPOSAL ===
+  action      : revert_config (config_revert)
+  target      : ad
+  expect      : Restoring ad's prior resource configuration (removing the memory=144m limit applied at 21:34:38Z, the state the eight prior cycles reverted to) should let the JVM stay resident. Observable: in {service="ad"} logs, the ~60s cadence of cold starts (JAVA_TOOL_OPTIONS pickup + OTel agent banner + 'AdService starting') stops — one startup banner after the recreate, then no further startup banners and continuous log output past the 60s mark and beyond. Downstream, {service="frontend"} should stop emitting new 'code: 14 UNAVAILABLE' lines with EHOSTUNREACH against 172.18.0.19:9555, with the embedded 'last error' timestamps ceasing to advance.
+  within      : 300s
+  risk        : The container recreate kills the currently running ad instance: in-flight GetAds calls fail and ad's in-process cache is discarded, so the first post-revert requests are cold. If the diagnosis is wrong, we have added one more restart to a service already restarting, destroyed the live process state that would have supported the missing OOMKill confirmation (exit code of the dying container), and removed a memory ceiling that may have been deliberately bounding a genuinely leaking process — an unbounded ad could then pressure host memory and harm co-located services. The revert also fights an active automation loop; if that loop is the real defect, this is a cosmetic fix that masks it. Finally, six of eight blast-radius services were never dispatched and both Prometheus queries failed, so a broader shared cause with ad as one casualty is not excluded — this action would leave that cause untouched while appearing to resolve the incident.
+  blast radius: ad only, for the duration of the recreate. frontend is ad's caller and is the reporting/alerted service; it sees the connect failure continue for a few extra seconds during recreate (it is already failing against this endpoint). frontend-proxy and the load path through it see the same, indirectly. No other service in the incident set (cart, checkout, product-catalog, product-reviews, recommendation) calls ad per the retrieved evidence, so they should see no change — if they do, that itself argues for the untested shared-cause hypothesis.
+  if wrong    : If ad logs a fresh cold-start banner ~60s after the recreate, the termination is not driven by the 144m cgroup limit — no OOMKill was ever confirmed (no exit codes, no kernel/orchestrator events, no working-set measurement; [tr_03cb0064e103] explicitly rules out any in-process OutOfMemoryError), so the mechanism is inferred from silent periodic death and could equally be a failing liveness probe or an external supervisor. Separately, if ad stabilises but frontend keeps logging EHOSTUNREACH against 172.18.0.19:9555, the IP:port-to-ad mapping is conventional only and the real unreachable endpoint is something else. A third falsifier: platform-automation re-applies memory=144m within minutes (it has done so eight times in this window), in which case the revert does not stick and the loop resumes — visible as a new resource_limits entry in change history.
+  rests on    : tr_6ddf31bc8b26, tr_03cb0064e103, tr_54e3af93d73e
+  execution   : not executed - a proposal is a claim, never the change (ADR-0028 §1)
+
+context: 28729 pushed / 8051 pulled (pull rate 0.2189), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : resource_exhaustion
+  fix class   : config_revert
+  confidence  : medium
+  evidence    : tr_6ddf31bc8b26, tr_03cb0064e103, tr_54e3af93d73e, tr_80ad64f18b46
+  root cause  : platform-automation lowered ad's memory limit to 144m at 21:34:38Z, five minutes before onset, and unlike the eight prior lower/restore cycles this one was never reverted [tr_6ddf31bc8b26]. Under that limit the JVM cannot stay resident: ad shows four cold starts at ~60s intervals, each reaching AdService startup then dying with no shutdown line, no stack trace, no bind error and no in-process OutOfMemoryError — the signature of an external cgroup kill rather than an application fault [tr_03cb0064e103]. Each kill tears down the container, so frontend's gRPC client to 172.18.0.19:9555 fails at connect with EHOSTUNREACH / code 14 UNAVAILABLE against that single endpoint, with error timestamps advancing as retries keep failing [tr_54e3af93d73e]. frontend is the reporter, not the fault: its only changes are CART_ADDR churn already reverted to baseline an hour before onset [tr_80ad64f18b46]. The mechanism is memory exhaustion against a too-small limit; the edit is how it started.
+  OPEN        : No direct OOMKill confirmation: container exit codes, kernel/orchestrator events and ad's working set versus the 144m limit were never retrieved; the kill mechanism is inferred from silent periodic termination.
+  OPEN        : The 172.18.0.19:9555 to ad mapping is conventional, not established by any retrieved evidence.
+  OPEN        : Six of eight services in blast radius were never dispatched and both Prometheus queries failed, so a broader shared cause with ad as one casualty is not excluded.
+
+flags: none
+
+retrieval: exclude_origins=['scenario:v2-ad-memory-squeeze'], 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20261014T213433Z-v2-ad-memory-squeeze/1010dff1-33e1-48e3-bc9d-2f19402ca51b-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20261014T213433Z-v2-ad-memory-squeeze/1010dff1-33e1-48e3-bc9d-2f19402ca51b-narrative.md
+{"ts": "2026-10-14T21:42:32.819+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T21:42:36.149+00:00", "level": "INFO", "logger": "sentence_transformers.base.model", "msg": "No device provided, using mps", "component": "investigator"}
+{"ts": "2026-10-14T21:42:36.253+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/modules.json \"HTTP/1.1 307 Temporary Redirect\"", "component": "investigator"}
+{"ts": "2026-10-14T21:42:36.261+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/sentence-transformers/all-MiniLM-L6-v2/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/modules.json \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T21:42:36.322+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/config_sentence_transformers.json \"HTTP/1.1 307 Temporary Redirect\"", "component": "investigator"}
+{"ts": "2026-10-14T21:42:36.332+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/sentence-transformers/all-MiniLM-L6-v2/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/config_sentence_transformers.json \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T21:42:36.338+00:00", "level": "INFO", "logger": "sentence_transformers.base.model", "msg": "Loading SentenceTransformer model from sentence-transformers/all-MiniLM-L6-v2.", "component": "investigator"}
+{"ts": "2026-10-14T21:42:36.398+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/config_sentence_transformers.json \"HTTP/1.1 307 Temporary Redirect\"", "component": "investigator"}
+{"ts": "2026-10-14T21:42:36.410+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/sentence-transformers/all-MiniLM-L6-v2/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/config_sentence_transformers.json \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T21:42:36.462+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/README.md \"HTTP/1.1 307 Temporary Redirect\"", "component": "investigator"}
+{"ts": "2026-10-14T21:42:36.478+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/sentence-transformers/all-MiniLM-L6-v2/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/README.md \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T21:42:36.548+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/modules.json \"HTTP/1.1 307 Temporary Redirect\"", "component": "investigator"}
+{"ts": "2026-10-14T21:42:36.559+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/sentence-transformers/all-MiniLM-L6-v2/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/modules.json \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T21:42:36.613+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/sentence_bert_config.json \"HTTP/1.1 307 Temporary Redirect\"", "component": "investigator"}
+{"ts": "2026-10-14T21:42:36.627+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/sentence-transformers/all-MiniLM-L6-v2/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/sentence_bert_config.json \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T21:42:36.687+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/adapter_config.json \"HTTP/1.1 404 Not Found\"", "component": "investigator"}
+{"ts": "2026-10-14T21:42:36.740+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/config.json \"HTTP/1.1 307 Temporary Redirect\"", "component": "investigator"}
+{"ts": "2026-10-14T21:42:36.751+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/sentence-transformers/all-MiniLM-L6-v2/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/config.json \"HTTP/1.1 200 OK\"", "component": "investigator"}
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 14669.88it/s]
+{"ts": "2026-10-14T21:42:36.919+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/processor_config.json \"HTTP/1.1 404 Not Found\"", "component": "investigator"}
+{"ts": "2026-10-14T21:42:36.979+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/preprocessor_config.json \"HTTP/1.1 404 Not Found\"", "component": "investigator"}
+{"ts": "2026-10-14T21:42:37.038+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/video_preprocessor_config.json \"HTTP/1.1 404 Not Found\"", "component": "investigator"}
+{"ts": "2026-10-14T21:42:37.100+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/preprocessor_config.json \"HTTP/1.1 404 Not Found\"", "component": "investigator"}
+{"ts": "2026-10-14T21:42:37.156+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/tokenizer_config.json \"HTTP/1.1 307 Temporary Redirect\"", "component": "investigator"}
+{"ts": "2026-10-14T21:42:37.169+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/sentence-transformers/all-MiniLM-L6-v2/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/tokenizer_config.json \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T21:42:37.224+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/config.json \"HTTP/1.1 307 Temporary Redirect\"", "component": "investigator"}
+{"ts": "2026-10-14T21:42:37.234+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/sentence-transformers/all-MiniLM-L6-v2/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/config.json \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T21:42:37.288+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/config.json \"HTTP/1.1 307 Temporary Redirect\"", "component": "investigator"}
+{"ts": "2026-10-14T21:42:37.300+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/sentence-transformers/all-MiniLM-L6-v2/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/config.json \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T21:42:37.357+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/tokenizer_config.json \"HTTP/1.1 307 Temporary Redirect\"", "component": "investigator"}
+{"ts": "2026-10-14T21:42:37.367+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/sentence-transformers/all-MiniLM-L6-v2/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/tokenizer_config.json \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T21:42:37.426+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET https://huggingface.co/api/models/sentence-transformers/all-MiniLM-L6-v2/tree/main/additional_chat_templates?recursive=false&expand=false \"HTTP/1.1 404 Not Found\"", "component": "investigator"}
+{"ts": "2026-10-14T21:42:37.483+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET https://huggingface.co/api/models/sentence-transformers/all-MiniLM-L6-v2/tree/main?recursive=true&expand=false \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T21:42:37.576+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/1_Pooling/config.json \"HTTP/1.1 307 Temporary Redirect\"", "component": "investigator"}
+{"ts": "2026-10-14T21:42:37.589+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/sentence-transformers/all-MiniLM-L6-v2/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/1_Pooling%2Fconfig.json \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T21:42:37.647+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/2_Normalize/config.json \"HTTP/1.1 404 Not Found\"", "component": "investigator"}
+{"ts": "2026-10-14T21:42:37.709+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET https://huggingface.co/api/models/sentence-transformers/all-MiniLM-L6-v2 \"HTTP/1.1 200 OK\"", "component": "investigator"}
+
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]
+Batches: 100%|██████████| 1/1 [00:00<00:00,  4.61it/s]
+Batches: 100%|██████████| 1/1 [00:00<00:00,  4.61it/s]
+{"ts": "2026-10-14T21:43:11.936+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T21:43:18.672+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T21:43:18.690+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=metric_baseline subject=sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"frontend\",status_code=\"STATUS_CODE_ERROR\"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"frontend\"}[5m])) start=2026-09-30T21:40:31.664000+00:00 end=2026-10-14T21:40:31.664000+00:00 span_s=1209600 refused=False", "component": "investigator"}
+{"ts": "2026-10-14T21:43:18.691+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=logql_query subject={service=\"frontend\"} start=2026-10-07T21:40:31.664000+00:00 end=2026-10-14T21:40:31.664000+00:00 span_s=604800 refused=False", "component": "investigator"}
+{"ts": "2026-10-14T21:43:18.692+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=trace_query subject=frontend start=2026-10-07T21:40:31.664000+00:00 end=2026-10-14T21:40:31.664000+00:00 span_s=604800 refused=False", "component": "investigator"}
+{"ts": "2026-10-14T21:43:18.693+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=frontend start=2026-10-07T21:40:31.664000+00:00 end=2026-10-14T21:42:32.839268+00:00 span_s=604921 refused=False", "component": "investigator"}
+{"ts": "2026-10-14T21:43:30.865+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T21:43:35.672+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T21:43:38.385+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T21:43:46.648+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T21:44:00.104+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T21:44:00.120+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=metric_baseline subject=sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"ad\",status_code=\"STATUS_CODE_ERROR\"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name=\"ad\"}[5m])) start=2026-09-30T21:40:31.664000+00:00 end=2026-10-14T21:40:31.664000+00:00 span_s=1209600 refused=False", "component": "investigator"}
+{"ts": "2026-10-14T21:44:00.121+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=ad start=2026-10-07T21:40:31.664000+00:00 end=2026-10-14T21:42:32.839268+00:00 span_s=604921 refused=False", "component": "investigator"}
+{"ts": "2026-10-14T21:44:00.124+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=logql_query subject={service=\"ad\"} start=2026-10-07T21:40:31.664000+00:00 end=2026-10-14T21:40:31.664000+00:00 span_s=604800 refused=False", "component": "investigator"}
+{"ts": "2026-10-14T21:44:12.419+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T21:44:16.575+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T21:44:22.777+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]
+Batches: 100%|██████████| 1/1 [00:00<00:00,  3.06it/s]
+Batches: 100%|██████████| 1/1 [00:00<00:00,  3.05it/s]
+{"ts": "2026-10-14T21:45:05.474+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T21:45:21.268+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T21:46:03.162+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T21:46:21.494+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T21:46:47.213+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-10-14T21:46:47.329+00:00", "level": "INFO", "logger": "faultline.notify", "msg": "no report-ready notification was sent: no notifier was configured", "component": "investigator"}
+{"ts": "2026-10-14T21:46:47.329+00:00", "level": "INFO", "logger": "faultline.notify", "msg": "no awaiting-approval notification was sent: no notifier was configured", "component": "investigator"}

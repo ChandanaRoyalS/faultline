@@ -1,0 +1,4 @@
+injected v2-payment-dependency-latency (dependency_latency) on payment
+  - pumba gaiaadm/pumba:0.10.1: 300ms (+/-0ms) delay on payment eth0
+  - sidecar faultline-pumba-v2-payment-dependency-latency holds the rule; it self-reverts after 1h
+revert with: faultline-inject stop v2-payment-dependency-latency

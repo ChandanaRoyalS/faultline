@@ -1,0 +1,164 @@
+{
+  "incident_id": "8f0b88ed-ba5e-4b5b-b4a5-7e58ead879e4",
+  "trajectory_id": "45e3c007-4b68-4e57-b7f9-4bd203110a56",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "ad",
+    "flagd",
+    "frontend",
+    "frontend-proxy",
+    "load-generator"
+  ],
+  "unmeasured_edges": 3,
+  "exclude_origins": [
+    "scenario:v2-ad-partition"
+  ],
+  "verdict": {
+    "root_cause": "The ad service lost network reachability shortly before the alert. Its own log is the only place recording a failure: a socket-level java.io.InterruptedIOException: timeout (caused by IOException: Canceled) at 00:52:04, followed from 00:53:00 onward by continuous java.net.UnknownHostException for otel-collector [tr_65d0ade48935][tr_871740d5cc0c]. An in-flight connection timing out and then every outbound attempt failing at DNS lookup \u2014 not at TLS or auth \u2014 is the signature of the pod losing its path to the cluster network/resolver. Consistent with that: ad served requests normally earlier with intact 13-span traces and sub-millisecond children [tr_4a158903a764], its error ratio never departs from baseline but has 56 undefined samples indicating intervals with no traffic [tr_47289fa3f5d8], and frontend's error ratio is flat zero [tr_6aeca648bd9b] \u2014 callers get nothing back rather than errors, which is why frontend-proxy and load-generator alerted at the same instant. The only changes found are a memory-limit lowering and its revert on the prior day, both outside the causal window [tr_b2488bec015f]; flagd is clean in change log and logs [tr_060c995be0a2][tr_1f7a9ff416d4].",
+    "service": "ad",
+    "fault_class": "network_partition",
+    "remediation_class": "reconnect",
+    "confidence": "medium",
+    "evidence": [
+      "tr_65d0ade48935",
+      "tr_871740d5cc0c",
+      "tr_4a158903a764"
+    ],
+    "reasoning": "Freeze, partition, and caller-side hangs look alike from outside; the discriminator is the culprit's own signal. ad is not silent \u2014 it keeps emitting, and what it emits is an inability to reach anything by name [tr_65d0ade48935], which excludes process_freeze. The failure is not a returned error: ad and frontend error ratios are flat [tr_47289fa3f5d8][tr_6aeca648bd9b] and all captured traces complete cleanly [tr_4a158903a764], so the damage lives in requests that produced no spans at all, matching the undefined metric intervals [tr_47289fa3f5d8]. Internal dependency latency is excluded: ad's only child spans are sub-millisecond and flagd appears nowhere [tr_4a158903a764][tr_1f7a9ff416d4]. bad_config is excluded because otel-collector is the correct name and resolved earlier in the same process lifetime \u2014 the first failure was a timeout, not a lookup error [tr_65d0ade48935]. No deploy, flag change, or JVM restart banner exists [tr_b2488bec015f][tr_060c995be0a2][tr_871740d5cc0c], and resource exhaustion would show OOM kills and restarts, which the logs lack.",
+    "open_questions": [
+      "The confirmed DNS failures are on the telemetry export path only; no dispatch tested whether ad's gRPC serving path or its resolver for other peers was equally affected.",
+      "The 00:52:04 InterruptedIOException stack frames were truncated, so the component that first timed out is unidentified.",
+      "Nothing measured frontend-proxy or load-generator directly \u2014 the claim that their alerts are hung calls into ad is inferred, not observed; triage noted 3 unmeasured edges."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "The ad process is stopped or wedged while its socket still accepts, hanging callers.",
+        "service": "ad",
+        "fault_class": "process_freeze",
+        "remediation_class": "restart",
+        "why_not": "A frozen process writes nothing; ad continued emitting exception lines through the end of the window [tr_65d0ade48935]."
+      },
+      {
+        "root_cause": "The otel-collector endpoint is unreachable or down, and ad's exporter threads block on it, stalling request handling.",
+        "service": "otel-collector",
+        "fault_class": "dependency_latency",
+        "remediation_class": "restart",
+        "why_not": "DNS resolution failure means the connection never reached the collector, so the fault is in ad's name resolution path rather than the collector's responsiveness; no dispatch examined otel-collector itself."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "v2-ad-memory-squeeze / Root cause: The ad service container's memory limit was lowered from 300M to 144m, below the 230MB working set\nof a JVM that had sized its heap against 300M, and below what a fresh JVM needs to load its\ninstrumentation agent and start at all. The kernel killed the running JVM within a second",
+    "v2-ad-memory-squeeze / What was checked: **The page names callers.** Frontend-proxy forwards what the frontend returns, and the load\ngenerator is the synthetic shoppers counting their own failures. The frontend was the one service\nmaking calls that failed, and the order path was not among them.\n\n**The frontend's error t",
+    "v2-ad-memory-squeeze / Resolution: The memory limit was restored to 300M. The next JVM start, twenty seconds after the fix, was the\nfirst in ten minutes to reach `Ad service started, listening on 9555`, and it served its first ad\nrequest just under two minutes later, as the frontend found it again; a new set of 51"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 19835,
+    "pulled_tokens": 5846,
+    "pull_rate": 0.2276,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 388,
+        "content_tokens": 390,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1099,
+        "content_tokens": 1102,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 6160,
+        "content_tokens": 6136,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 5293,
+        "content_tokens": 5295,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 6895,
+        "content_tokens": 6872,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_65d0ade48935",
+      "tr_871740d5cc0c",
+      "tr_b2488bec015f",
+      "tr_4a158903a764",
+      "tr_47289fa3f5d8"
+    ],
+    "expected_effect": "No action proposed, so no effect is expected. The mechanism the verdict names \u2014 ad losing its path to the cluster network/resolver \u2014 is addressed by reconnect_service, which this executor cannot perform (listed UNAVAILABLE, not built). None of the three executable actions meet their stated preconditions against this evidence: rollback_image requires a deploy or image change named inside the window, and [tr_b2488bec015f] records no deploy at all and only two resource_limits edits that land ~14h after onset and already cancel each other out; revert_config requires a configuration or flag change inside the window, and the same result rules that out for ad while [tr_060c995be0a2] rules it out for flagd; restart_service requires evidence pointing at process state, and [tr_871740d5cc0c] explicitly rules out a crash or restart (no JVM startup banner, no shutdown signal, normal ad-serving log lines continuing) while [tr_4a158903a764] shows 10 intact 13-span traces with sub-millisecond children \u2014 the process is healthy, its network attachment is not.",
+    "confirm_within_seconds": 0,
+    "if_wrong": "This abstention is wrong if the operator can show that recreating ad's container re-attaches it to the compose network, i.e. that restart_service is a de facto reconnect in this world. In that case the falsifying observation after a restart would be: java.net.UnknownHostException for otel-collector ceasing in {service=\"ad\"} within ~120s, and the 56 undefined error-ratio samples in [tr_47289fa3f5d8] being replaced by continuous defined samples. It is also wrong if ad's gRPC serving path is in fact dead \u2014 nothing here measured that. [tr_65d0ade48935] confirms DNS failure only on the telemetry export path, [tr_4a158903a764] shows serving traces intact up to 00:46, and no dispatch touched frontend-proxy or load-generator, so the claim that their alerts are hung GetAds calls is inferred. A direct probe of ad's gRPC port, or a frontend-side latency/timeout metric, would settle it and would change this answer.",
+    "risk": "The risk of abstaining is dwell time: if ad's serving path is partitioned as well as its exporter, callers keep hanging until a human runs `docker network connect`, and the observability path that would show recovery stays broken, so the incident is invisible to metrics. The risk of the action I declined \u2014 restart_service on ad \u2014 is that it discards the live evidence of the partition (the only record is ad's own log), interrupts the one component still demonstrably serving, and, if the container is recreated into the same detached network state, costs an outage window and buys nothing. Recreating is also irreversible per the action spec.",
+    "blast_radius": "No change is made, so nobody sees anything new. For contrast, had restart_service been proposed on ad, the affected set would be ad itself plus its sole inbound caller frontend via frontend/grpc.oteldemo.AdService/GetAds [tr_4a158903a764], and transitively frontend-proxy and load-generator, which already alerted. Escalation path: a human with network-level access to re-attach ad to the cluster network, which is outside what this system may do."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "feature_flag",
+    "confidence": "low",
+    "reasoning": "Critical alerts on ad and frontend-proxy with load-generator impact indicate a real user-facing failure, not a quiet world. flagd adjacency to ad makes a feature flag change a cheap first guess, but nothing rests on it."
+  }
+}
