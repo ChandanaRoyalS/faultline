@@ -4617,6 +4617,27 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-10-15: T7.4, the eval dashboard.***
+
+- **What it is**: `faultline-dashboard` (`make eval-dashboard`) writes `evals/dashboard/index.html`,
+  one self-contained page (no script, no external asset, charts as inline SVG): fault-class
+  accuracy per version with Wilson intervals; a versions table with fault class, culprit service,
+  fix class, citation violations and regenerations, tool-call validity, median cost and median
+  time to report; and counts by fault class on the newest world. A version is a runtime stamp on
+  a world generation, and a T7.3 switch or a withheld specialist splits it, because neither moves
+  a stamp and pooling them would hide every ablation inside the standing pipeline.
+- **"Off the eval schema"**: it reads `evals/runs/` with `evaldb.read_runs`, the same flattening
+  `faultline-eval-db load` writes into `eval_runs`, so it needs no database and cannot disagree with
+  one. The page is committed and `tests/test_dashboard.py` regenerates it and compares, as README's
+  generated blocks are held.
+- **"Annotated with what changed"**: `evals/dashboard/versions.tsv`, a written line per stamp with
+  the document that records the move (from RESULTS.md's lineage, the sweep reports and
+  `baselines.py`). A test fails when a charted version has no line, a line names a version no run
+  carries, or a source file does not exist. Two digests, B1 `99db96881bde` and B2 `decf8e19d4f9`
+  (the 2026-09-21 baseline suite), are named in no document, and their lines say so.
+- **What it is not**: a published figure. It pools every sweep and both splits per version; the
+  numbers to quote are in the dated reports. $0; no stamp, world or corpus moved.
+
 ***2026-10-15: the repository audit's $0 gaps, first batch - T2.3, T2.6, Phase 4's ADR, one hang.***
 
 The owner asked for a full audit against the plan and fixes for everything that costs nothing and
