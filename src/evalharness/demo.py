@@ -10,7 +10,7 @@ Two things it deliberately does not do. It does not reimplement any step - a dem
 from the real path is a demo of something else. And it does not touch product code, so the
 pipeline stamp is identical to the one every published figure was measured under.
 
-The scenario is fixed rather than chosen at runtime: see `SCENARIO` for why.
+The scenario is fixed per world rather than chosen at runtime: see `SCENARIO_BY_WORLD` for why.
 """
 
 from __future__ import annotations
@@ -29,8 +29,12 @@ from evalharness.run import EVENT_PREFIX
 REPO_ROOT = Path(__file__).resolve().parents[2]
 KEY_PATH = Path.home() / ".faultline-anthropic-key"
 
-CHANGES_BOUND = 8
-"""The `changes` bound every claim about this scenario was measured under (T4.7).
+CHANGES_BOUND_BY_WORLD: dict[str, int | None] = {"v1": 8, "v2": None}
+"""The `changes` bound every claim about the demo scenario was measured under: 8 on v1 (T4.7);
+on v2 no override at all, because the headline run and the ablation batch ran `faultline-eval`
+with none, and a demo must run the configuration its claim rests on (below).
+
+**On v1, 8** (T4.7).
 
 The default is 4, and running the demo on the default was a mistake made once and caught by
 running it: the planner asked for five `changes` dispatches, exhausted the bound at 4 of 4,
@@ -44,8 +48,16 @@ gathered at one budget and then demonstrating it at another is a different exper
 the first one's reputation.
 """
 
-SCENARIO = "cart-redis-misconfig"
-"""The most watchable scenario in the dev split, and the best-evidenced.
+SCENARIO_BY_WORLD: dict[str, str] = {"v1": "cart-redis-misconfig", "v2": "v2-ad-bad-image-tag"}
+"""The most watchable scenario in each world's dev split, and the best-evidenced.
+
+**v2, `v2-ad-bad-image-tag`** (2026-10-15, for the full cut the plan's T7.5 names): a `bad_deploy`
+whose proposal is a `rollback_image` on `ad`, so the approval beat has an action a person can
+approve and watch land. The record at the headline stamp (`prompts:9ce16b66bbcc`): the headline
+run and the ablation batch's standing arm both named `bad_deploy` on `ad` (2 of 2), and the
+trial before them 8 of 9 on the class. The frontend alerts; the broken service is one hop away.
+
+**v1, `cart-redis-misconfig`**, the original choice, kept for the v1 world:
 
 The criterion is a story a stranger can follow, and this one has all three parts. **A visible
 symptom**: seven services alert, so the opening looks like the platform-wide event a real
@@ -75,8 +87,35 @@ def _beat(line: str) -> None:
     _say(f"\n  {line}")
 
 
-def preflight() -> None:
+REQUIRED_CONTAINERS: dict[str, frozenset[str]] = {
+    "v1": frozenset({"frontend", "cart-service", "prometheus"}),
+    "v2": frozenset({"frontend", "cart", "prometheus"}),
+}
+"""Enough of the world to tell it is up, by the names each generation gives its containers
+(`injector.world`). The first version knew v1's names only and refused on a running v2 world."""
+
+
+def world() -> str:
+    """The world the run addresses: `FAULTLINE_TOOLS_WORLD`, the one setting the harness, the
+    injector and the orchestrator all read (T7.0 #6)."""
+    from faultline.tools.settings import ToolSettings
+
+    return ToolSettings().world
+
+
+def preflight(current_world: str, scenario: str) -> None:
     """Everything checked before a single dollar or container is touched."""
+    from injector.catalog import by_id
+
+    definition = by_id(scenario)
+    if definition is None:
+        raise DemoRefusedError(f"no scenario {scenario!r} in the catalog.")
+    if definition.world != current_world:
+        raise DemoRefusedError(
+            f"{scenario} is a {definition.world} scenario and FAULTLINE_TOOLS_WORLD is "
+            f"{current_world!r}.\n  Pick a scenario of this world, or set the world the "
+            "scenario is written for."
+        )
     if not KEY_PATH.is_file() and not os.environ.get("ANTHROPIC_API_KEY"):
         raise DemoRefusedError(
             f"no Anthropic credentials.\n"
@@ -109,16 +148,17 @@ def preflight() -> None:
         ["docker", "ps", "--format", "{{.Names}}"], capture_output=True, text=True, check=False
     )
     names = set(running.stdout.split())
-    missing = {"frontend", "cart-service", "prometheus"} - names
+    missing = REQUIRED_CONTAINERS[current_world] - names
     if missing:
+        target = "world-up" if current_world == "v1" else "world-v2-up"
         raise DemoRefusedError(
-            f"the world is not up - missing {', '.join(sorted(missing))}.\n"
-            f"  Start it with `make world-up`, wait about two minutes for the\n"
+            f"the {current_world} world is not up - missing {', '.join(sorted(missing))}.\n"
+            f"  Start it with `make {target}`, wait about two minutes for the\n"
             f"  containers to settle, then run `make demo` again."
         )
 
 
-def intro() -> None:
+def intro(current_world: str, scenario: str) -> None:
     _say("=" * 72)
     _say("FAULTLINE DEMO - one incident, start to finish")
     _say("=" * 72)
@@ -128,12 +168,17 @@ def intro() -> None:
     _say("is replayed or scripted: the alerts, the queries and the verdict all")
     _say("happen live, and the whole thing takes roughly fifteen minutes.")
     _say()
-    _say(f"The scenario is `{SCENARIO}`. The agents are not told which scenario")
+    _say(f"The scenario is `{scenario}`. The agents are not told which scenario")
     _say("it is, which service broke, or that anything was injected at all. They")
-    _say("see what an on-call engineer sees: alerts, and four tools to ask with.")
+    _say("see what an on-call engineer sees: alerts, and five tools to ask with.")
     _say()
-    _say(f"It runs with the `changes` bound at {CHANGES_BOUND}, which is the configuration")
-    _say("every published figure for this scenario was measured under (T4.7).")
+    bound = CHANGES_BOUND_BY_WORLD[current_world]
+    if bound is None:
+        _say("It runs with the harness's default budget, which is the configuration")
+        _say("every published figure on this world was measured under (the headline run).")
+    else:
+        _say(f"It runs with the `changes` bound at {bound}, which is the configuration")
+        _say("every published figure for this scenario was measured under (T4.7).")
     _say()
     _say("Watch for one thing in particular. The service that alerts loudest is")
     _say("not the service that broke, and the interesting question is whether the")
@@ -287,9 +332,11 @@ def proposal_story(proposal: dict[str, Any] | None) -> None:
         for line in _wrap(text, 66)[:6]:
             _say(f"    {line}")
     _say()
-    _say("  Nothing above was executed. There is no executor: a proposal is a")
-    _say("  claim with a falsifier attached, and the approval plane that would")
-    _say("  act on one is Gate 6's work, not this run's.")
+    _say("  Nothing above was executed by this run: a proposal is a claim with a")
+    _say("  falsifier attached, and the harness reverts the fault itself. Acting")
+    _say("  on one takes a person's approval and the action plane (T6.2) - a")
+    _say("  separate process that holds the only write credential and spends an")
+    _say("  approval token once, inside the incident's own blast radius.")
 
 
 def _wrap(text: str, width: int) -> list[str]:
@@ -328,11 +375,15 @@ def outro(run_dir: Path, scored: dict[str, Any]) -> None:
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="faultline-demo", description=__doc__)
-    ap.add_argument("--scenario", default=SCENARIO, help=f"default: {SCENARIO}")
+    ap.add_argument(
+        "--scenario", default=None, help=f"default: the world's own, {SCENARIO_BY_WORLD}"
+    )
     args = ap.parse_args(argv)
 
     try:
-        preflight()
+        current_world = world()
+        scenario = args.scenario or SCENARIO_BY_WORLD[current_world]
+        preflight(current_world, scenario)
     except DemoRefusedError as refused:
         _say(f"\nCannot run the demo: {refused}\n")
         return 3
@@ -341,14 +392,14 @@ def main(argv: list[str] | None = None) -> int:
     if "ANTHROPIC_API_KEY" not in env and KEY_PATH.is_file():
         env["ANTHROPIC_API_KEY"] = KEY_PATH.read_text().strip()
 
-    intro()
+    intro(current_world, scenario)
 
+    bound = CHANGES_BOUND_BY_WORLD[current_world]
     proc = subprocess.Popen(
         [
             "faultline-eval",
-            args.scenario,
-            "--max-tool-calls-changes",
-            str(CHANGES_BOUND),
+            scenario,
+            *(["--max-tool-calls-changes", str(bound)] if bound is not None else []),
             "--demo",
             # A demo is one run by definition. Declared rather than defaulted (T7.33).
             "--single-run",
