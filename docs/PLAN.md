@@ -4617,6 +4617,21 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-10-15: T7.5's demo, prepared at $0 - the wrapper learns the v2 world.***
+
+- **`make demo` could not run on v2.** `evalharness.demo` checked v1's container names
+  (`cart-service`) and refused on the running v2 world, and it passed v1's `changes` bound of 8 to
+  every run, a configuration no v2 figure was measured under. It now reads `FAULTLINE_TOOLS_WORLD`,
+  requires that world's containers, picks that world's own scenario (`v2-ad-bad-image-tag`: 2 of 2
+  at the headline stamp, a `rollback_image` proposal the executor can perform) and runs v2 with the
+  harness's default budget, the headline run's configuration. A scenario of the other world is
+  refused before anything is injected. Its closing line said *there is no executor*, false since
+  T6.2; corrected. Tests in `tests/test_demo_narration.py`.
+- **The full cut's script and cards**: `docs/demo/video/v2/` - four parts, the plan's beats, with
+  the approved rollback shown by the T6.2 repair-replay protocol done by hand ($0) after the
+  demo's own run. `docs/demo/README.md` says what each part costs and what is still owed: the
+  recording itself, about $1 per take.
+
 ***2026-10-15: T7.5's $0 half - the writeup, the final bullets, README's reports up top.***
 
 - **The writeup**, `docs/WRITEUP.md`, leads with findings as the plan's row asks: (1) one agent with

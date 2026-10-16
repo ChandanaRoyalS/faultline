@@ -54,7 +54,8 @@ def test_the_proposal_is_narrated_with_its_risk_note_and_the_not_executed_line(
     """*"Remediation as proposal"* is a beat of the specification's video, and the artifact has
     carried the proposal since T3.9. The narration stopped at the verdict. Now it reads the
     proposal out - action, target, expected effect, falsifier, risk, blast radius - and closes by
-    saying nothing was executed, because nothing can be until Gate 6 builds the plane."""
+    saying this run executed nothing: the harness reverts the fault itself, and acting on a
+    proposal is the action plane's, on a person's approval (T6.2)."""
     checked = 0
     for artifact in _artifacts():
         proposal = json.loads(artifact.read_text()).get("proposal") or {}
@@ -67,7 +68,8 @@ def test_the_proposal_is_narrated_with_its_risk_note_and_the_not_executed_line(
         assert f"Class       : {proposal['remediation_class']}" in out, artifact
         if proposal.get("risk"):
             assert "Risk:" in out, artifact
-        assert "Nothing above was executed" in out, artifact
+        assert "Nothing above was executed by this run" in out, artifact
+        assert "There is no executor" not in out, artifact
         checked += 1
     assert checked > 0, "no committed artifact carries a proposal; the test checked nothing"
 
@@ -113,3 +115,24 @@ def test_the_narration_reads_no_key_the_verdict_does_not_have() -> None:
     keys = set(re.findall(r"verdict\.get\(\s*['\"]([a-z_]+)['\"]", source))
     assert keys, "the narration reads the verdict somewhere"
     assert keys <= set(Verdict.model_fields), keys - set(Verdict.model_fields)
+
+
+def test_the_demo_knows_both_worlds(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The first version checked v1's container names and refused on a running v2 world, and
+    passed v1's `changes` bound to every run. Each world has its own scenario, its own bound (v2:
+    none, the headline run's configuration) and its own names; a scenario of the other world is
+    refused before anything is injected."""
+    from injector.catalog import by_id
+
+    for name, scenario in demo.SCENARIO_BY_WORLD.items():
+        definition = by_id(scenario)
+        assert definition is not None and definition.world == name, scenario
+        assert name in demo.CHANGES_BOUND_BY_WORLD and name in demo.REQUIRED_CONTAINERS
+    assert demo.CHANGES_BOUND_BY_WORLD == {"v1": 8, "v2": None}
+
+    monkeypatch.setenv("FAULTLINE_TOOLS_WORLD", "v2")
+    assert demo.world() == "v2"
+    with pytest.raises(demo.DemoRefusedError, match="v1 scenario"):
+        demo.preflight("v2", "cart-redis-misconfig")
+    with pytest.raises(demo.DemoRefusedError, match="no scenario"):
+        demo.preflight("v2", "no-such-scenario")

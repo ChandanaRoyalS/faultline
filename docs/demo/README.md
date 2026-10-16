@@ -125,3 +125,31 @@ so that is what this table is.**
 **How it was cut.** Four QuickTime screen recordings (⌘⇧5), one `ffmpeg` invocation, no editor. The
 script and the title-card images are kept beside this file in `docs/demo/video/` so the cut is
 reproducible from the recordings; the recordings themselves are not committed.
+
+## The full cut (T7.5) - prepared 2026-10-15, not yet recorded
+
+The plan's T7.5 names it: *"the full demo cut re-recorded (approved rollback and recovery, Tempo
+encore, 30-scenario dashboard - replacing the MVP cut as the README's lead video)"*. What is
+prepared, and what each part costs:
+
+| part | what it shows | how | cost |
+|---|---|---|---|
+| 1 | `make demo` on the **v2 world**: the gate, the injection, four specialists including traces, the cited verdict, the proposal | `FAULTLINE_TOOLS_WORLD=v2 make demo`, scenario `v2-ad-bad-image-tag` (`evalharness.demo` picks the world's own), the harness's default budget - the headline run's configuration | **one investigation, about $0.70-0.90** |
+| 2 | the same incident on the incident screen, and a **trace citation opened in Grafana Explore against Tempo** - the encore | `make ui` | $0 |
+| 3 | **the approved rollback and recovery**: the same fault injected again by hand, the proposal the agents just wrote approved by a person (`faultline-approve --from-run`) and performed by the action plane (`faultline-execute run --token`), one token spent, the alerts clearing | the repair-replay protocol (`PREREGISTRATION-T6.2.md` §4), by hand on v2; no model call | $0 |
+| 4 | the eval dashboard: every version, every rate with its n | `evals/dashboard/index.html` | $0 |
+
+The demo wrapper needed one change first: it checked v1's container names and passed v1's
+`changes` bound, so on a running v2 world it refused, and would have run a configuration no v2
+figure was measured under. It now reads `FAULTLINE_TOOLS_WORLD`, requires that world's
+containers, and runs each world's own scenario under that world's measured configuration.
+
+Why `v2-ad-bad-image-tag`: at the headline stamp Faultline named `bad_deploy` on `ad` in the
+headline run and the ablation batch's standing arm (2 of 2), and in 8 of the 9 trial runs; its
+proposal is a `rollback_image` on `ad`, an action the executor performs, so part 3 has something
+to approve. It is a dev scenario; a demo run is marked `demo` and enters no aggregate.
+
+The script is `video/v2/cut.sh`, the cards `video/v2/t1-t5.png` (`cards.py` renders them). Part
+3 is the one step not yet performed on v2 by hand; if the executor refuses, the refusal is
+recorded here and the video keeps it. **When the recording exists this section gains its run id,
+its outcome, its cost, and the number of takes, as the v0.1 section above has.**
